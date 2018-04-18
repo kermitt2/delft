@@ -42,7 +42,6 @@ def train():
 
 # annotate a list of texts, provides results in a list of offset mentions 
 def annotate(texts):
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec")
     annotations = []
 
     # load model
@@ -60,6 +59,29 @@ def annotate(texts):
 
 
 if __name__ == "__main__":
-    train()
-    someTexts = ['']
-    annotate(someTexts)
+    parser = argparse.ArgumentParser(
+        description = "Experimental insult recognizer for the Wikipedia toxic comments dataset")
+
+    parser.add_argument("action")
+    parser.add_argument("--fold-count", type=int, default=1)
+
+    args = parser.parse_args()
+    
+    action = args.action    
+    if (action != 'train') and (action != 'tag'):
+        print('modelName not specifed, must be one of [train,tag]')
+
+    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec")
+
+    if action == 'train':
+        if args.fold_count < 1:
+            raise ValueError("fold-count should be equal or more than 1")
+        train()
+    
+    if action == 'tag':
+        someTexts = ['']
+        annotate(someTexts)
+
+    # see https://github.com/tensorflow/tensorflow/issues/3388
+    K.clear_session()
+    

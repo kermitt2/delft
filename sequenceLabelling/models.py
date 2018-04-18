@@ -31,9 +31,14 @@ class BaseModel(object):
     def __getattr__(self, name):
         return getattr(self.model, name)
 
+    def clone_model(self):
+        model_copy = clone_model(self.model)
+        model_copy.set_weights(self.model.get_weights())
+        return model_copy
 
-class SeqLabelling(BaseModel):
-    """A Keras implementation of BiLSTM-CRF for sequence labelling.
+
+class SeqLabelling_BidLSTM_CRF(BaseModel):
+    """A Keras implementation of BidLSTM-CRF for sequence labelling.
 
     References
     --
@@ -55,7 +60,7 @@ class SeqLabelling(BaseModel):
                                         mask_zero=True, 
                                         weights=[embeddings])(word_ids)
 
-        # build character based word embedding
+        # build character based embedding
         char_ids = Input(batch_shape=(None, None, None), dtype='int32')
         char_embeddings = Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
@@ -86,7 +91,49 @@ class SeqLabelling(BaseModel):
         self.config = config
 
 
-    def clone_model(self):
-        model_copy = clone_model(self.model)
-        model_copy.set_weights(self.model.get_weights())
-        return model_copy
+class SeqLabelling_BidLSTM_CNN(BaseModel):
+    """A Keras implementation of BidLSTM-CNN for sequence labelling.
+
+    References
+    --
+    Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. 
+    https://arxiv.org/abs/1511.08308
+    """
+
+    def __init__(self, config, embeddings=None, ntags=None):
+        # build word embedding
+        word_ids = Input(shape=(None,),dtype='int32', name='words_input')
+        if embeddings is None:
+            word_embeddings = Embedding(input_dim=config.vocab_size,
+                                        output_dim=config.word_embedding_size, trainable=False,
+                                        mask_zero=True)(word_ids)
+        else:
+            word_embeddings = Embedding(input_dim=embeddings.shape[0],
+                                        output_dim=embeddings.shape[1], trainable=False,
+                                        mask_zero=True, 
+                                        weights=[embeddings])(word_ids)
+
+        # build character based embedding        
+        character_input = Input(shape=(None,52,),name='char_input')
+        embed_char_out = TimeDistributed(Embedding(len(char2Idx),30,embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)), 
+                            name='char_embedding')(character_input)
+        dropout = Dropout(0.5)(embed_char_out)
+        
+        conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
+        maxpool_out = TimeDistributed(MaxPooling1D(52))(conv1d_out)
+        
+        char = TimeDistributed(Flatten())(maxpool_out)
+        char = Dropout(0.5)(char)
+        
+        # custom features input and embeddings
+        casing_input = Input(shape=(None,), dtype='int32', name='casing_input')
+        casing = Embedding(output_dim=caseEmbeddings.shape[1], input_dim=caseEmbeddings.shape[0], weights=[caseEmbeddings], 
+                            trainable=False)(casing_input)
+
+        # combine words, custom features and characters
+        x = concatenate([word_embeddings, casing, char])
+        x = Bidirectional(LSTM(200, return_sequences=True, dropout=0.50, recurrent_dropout=0.25))(x)
+        x = TimeDistributed(Dense(len(label2Idx), activation='softmax'))(x)
+        
+        model = Model(inputs=[words_input, character_input, casing_input], outputs=[x])
+        self.config = config
