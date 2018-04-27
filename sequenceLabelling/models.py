@@ -101,6 +101,21 @@ class SeqLabelling_BidLSTM_CNN(BaseModel):
     """
 
     def __init__(self, config, embeddings=None, ntags=None):
+
+        # :: Create a mapping for the labels ::
+        """
+        label2Idx = {}
+        for label in labelSet:
+            label2Idx[label] = len(label2Idx)
+
+        # :: Hard coded case lookup ::
+        case2Idx = {'numeric': 0, 'allLower':1, 'allUpper':2, 'initialUpper':3, 'other':4, 'mainly_numeric':5, 'contains_digit': 6, 'PADDING_TOKEN':7}
+        caseEmbeddings = np.identity(len(case2Idx), dtype='float32')
+
+        char2Idx = {"PADDING":0, "UNKNOWN":1}
+        for c in " 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-_()[]{}!?:;#'\"/\\%$`&=*+@^~|":
+            char2Idx[c] = len(char2Idx)
+
         # build word embedding
         word_ids = Input(shape=(None,),dtype='int32', name='words_input')
         if embeddings is None:
@@ -137,3 +152,4 @@ class SeqLabelling_BidLSTM_CNN(BaseModel):
         
         model = Model(inputs=[words_input, character_input, casing_input], outputs=[x])
         self.config = config
+        """

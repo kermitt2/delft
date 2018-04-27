@@ -22,11 +22,10 @@ def train():
     print(len(x_valid), 'validation sequences')
     print(len(x_test), 'evaluation sequences')
 
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec")
-
     model = sequenceLabelling.Sequence('ner', max_epoch=25, embeddings=embedding_vector, word_emb_size=embed_size)
     model.train(x_train, y_train, x_valid, y_valid)
 
+    """
     tokens = tokenizeAndFilter('The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.')
     print(json.dumps(model.analyze(tokens), indent=4, sort_keys=True))
     print(model.tag(tokens))
@@ -34,6 +33,7 @@ def train():
     tokens = tokenizeAndFilter('President Obama is not speaking anymore from the White House.')
     print(json.dumps(model.analyze(tokens), indent=4, sort_keys=True))
     print(model.tag(tokens))
+    """
 
     model.eval(x_test, y_test)
 
@@ -60,7 +60,7 @@ def annotate(texts):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description = "Experimental insult recognizer for the Wikipedia toxic comments dataset")
+        description = "Named Entity Recognizer")
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
@@ -79,9 +79,9 @@ if __name__ == "__main__":
         train()
     
     if action == 'tag':
-        someTexts = ['']
+        someTexts = ['The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.',
+                     'President Obama is not speaking anymore from the White House.']
         annotate(someTexts)
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()
-    

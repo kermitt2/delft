@@ -27,7 +27,11 @@ Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LST
 
 #### NER
 
+For training and evaluating based on the CONLL 2004 model:
+
 > python3 nerTagger.py train
+
+
 
 > python3 nerTagger.py tag
 
@@ -62,6 +66,10 @@ As long your task is a sequence labelling of text, adding a new corpus and creat
 
 #### Toxic comment classification
 
+The dataset of the [Kaggle Toxic Comment Classification challenge](https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge) can be found here: https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/data
+
+This is a multi-label classification problem, where a Wikipedia comment (or any similar short texts) should be associated to 6 possible types of toxicity (`toxic`, `severe_toxic`, `obscene`, `threat`, `insult`, `identity_hate`).
+
 
 #### Twitter 
 
@@ -71,6 +79,9 @@ As long your task is a sequence labelling of text, adding a new corpus and creat
 We use the dataset developed and presented by A. Athar in the following article:
 
 Awais Athar. "Sentiment Analysis of Citations using Sentence Structure-Based Features". Proceedings of the ACL 2011 Student Session, 81-87, 2011. http://www.aclweb.org/anthology/P11-3015
+
+For a given scientific article, the task is to estimate if the occurrence of a bibliographical citation is positive, neutral or negative given its citation context. 
+
 
 
 ## License and contact

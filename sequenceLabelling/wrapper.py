@@ -4,7 +4,7 @@ import numpy as np
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
 from sequenceLabelling.evaluator import Evaluator
-from sequenceLabelling.models import SeqLabelling
+from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor, filter_embeddings
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
@@ -55,7 +55,7 @@ class Sequence(object):
         self.model_config.vocab_size = len(self.p.vocab_word)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
 
-        self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
+        self.model = SeqLabelling_BidLSTM_CRF(self.model_config, embeddings, len(self.p.vocab_tag))
 
         trainer = Trainer(self.model, 
                           self.models,
@@ -72,7 +72,7 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
 
         for k in range(0,fold_number-1):
-            self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
+            self.model = SeqLabelling_BidLSTM_CRF(self.model_config, embeddings, len(self.p.vocab_tag))
             self.models.append(model)
 
         trainer = Trainer(self.model, 
@@ -119,7 +119,7 @@ class Sequence(object):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)
-        self.model = SeqLabelling(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
+        self.model = SeqLabelling_BidLSTM_CRF(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 
 

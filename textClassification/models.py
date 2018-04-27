@@ -39,8 +39,7 @@ seed(7)
 from tensorflow import set_random_seed
 set_random_seed(8)
 
-modelNames = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'cudnngru', 'cudnnlstm', 'mix1', 'dpcnn', 'conv', 
-    'cudnngru_simple', "gru", "gru_simple", 'lstm_cnn', 'han']
+modelNames = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', "gru", "gru_simple", 'lstm_cnn', 'han']
 
 # parameters of the different DL models
 parameters_lstm = {
@@ -147,45 +146,6 @@ parameters_conv = {
     'resultFile': 'CNN.csv'
 }
 
-parameters_cudnngru = {
-    'max_features': 245000,
-    'maxlen': 500,
-    'embed_size': 300,
-    'epoch': 30,
-    'batch_size': 512,
-    'dropout_rate': 0.5,
-    'recurrent_dropout_rate': 0.5,
-    'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CuDNNGRU.csv'
-}
-
-parameters_cudnngru_old = {
-    'max_features': 200000,
-    'maxlen': 300,
-    'embed_size': 300,
-    'epoch': 25,
-    'batch_size': 256,
-    'dropout_rate': 0.3,
-    'recurrent_dropout_rate': 0.3,
-    'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CuDNNGRU.csv'
-}
-
-parameters_cudnngru_simple = {
-    'max_features': 200000,
-    'maxlen': 300,
-    'embed_size': 300,
-    'epoch': 25,
-    'batch_size': 256,
-    'dropout_rate': 0.5,
-    'recurrent_dropout_rate': 0.3,
-    'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CuDNNGRU_simple.csv'
-}
-
 parameters_gru = {
     'max_features': 200000,
     'maxlen': 300,
@@ -225,19 +185,6 @@ parameters_gru_simple = {
     'resultFile': 'GRU_simple.csv'
 }
 
-parameters_cudnnlstm = {
-    'max_features': 200000,
-    'maxlen': 300,
-    'embed_size': 300,
-    'epoch': 25,
-    'batch_size': 256,
-    'dropout_rate': 0.3,
-    'recurrent_dropout_rate': 0.3,
-    'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CuDNNLSTM.csv'
-}
-
 parameters_mix1 = {
     'max_features': 200000,
     'maxlen': 300,
@@ -266,9 +213,8 @@ parameters_dpcnn = {
 
 parametersMap = { 'lstm' : parameters_lstm, 'bidLstm_simple' : parameters_bidLstm_simple, 'bidLstm': parameters_bidLstm, 
                   'cnn': parameters_cnn, 'cnn2': parameters_cnn2, 'cnn3': parameters_cnn3, 'lstm_cnn': parameters_lstm_cnn,
-                  'cudnngru': parameters_cudnngru, 'cudnnlstm': parameters_cudnnlstm, 'mix1': parameters_mix1, 
-                  'gru': parameters_gru, 'gru_simple': parameters_gru_simple, 'dpcnn': parameters_dpcnn, 'conv': parameters_conv, 
-                  'cudnngru_simple': parameters_cudnngru_simple }
+                  'mix1': parameters_mix1, 'gru': parameters_gru, 'gru_simple': parameters_gru_simple, 
+                  'dpcnn': parameters_dpcnn, 'conv': parameters_conv }
 
 # basic LSTM
 def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
@@ -491,52 +437,6 @@ def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
                 metrics=['accuracy'])
     return model
 
-# CUDNNGRU simple
-def cudnngru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix):
-    input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
-                                weights=[embedding_matrix], trainable=False)(input_layer)
-    x = Bidirectional(CuDNNGRU(recurrent_units, return_sequences=True))(embedding_layer)
-    x = Dropout(dropout_rate)(x)
-    x_a = GlobalMaxPool1D()(x)
-    x_b = GlobalAveragePooling1D()(x)
-    #x = AttentionWeightedAverage(maxlen)(x)
-    x = concatenate([x_a,x_b])
-    x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
-
-    model = Model(inputs=input_layer, outputs=output_layer)
-    model.summary()
-    model.compile(loss='binary_crossentropy',
-                  #optimizer=RMSprop(clipvalue=1, clipnorm=1),
-                  optimizer=Adam(lr=0.001),
-                  #optimizer=Nadam(lr=0.001),
-                  metrics=['accuracy'])
-    return model
-
-# 2 bid. CUDNNGRU 
-def cudnngru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix):
-    input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
-                                weights=[embedding_matrix], trainable=False)(input_layer)
-    x = Bidirectional(CuDNNGRU(recurrent_units, return_sequences=True))(embedding_layer)
-    x = Dropout(dropout_rate)(x)
-    x = Bidirectional(CuDNNGRU(recurrent_units, return_sequences=False))(x)
-    x_a = GlobalMaxPool1D()(x)
-    x_b = GlobalAveragePooling1D()(x)
-    x = concatenate([x_a,x_b])
-    #x = AttentionWeightedAverage(maxlen)(x)
-    x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
-
-    model = Model(inputs=input_layer, outputs=output_layer)
-    model.summary()
-    model.compile(loss='binary_crossentropy',
-                  #optimizer=RMSprop(clipvalue=1, clipnorm=1),
-                  optimizer='adam',
-                  metrics=['accuracy'])
-    return model
-
 # 2 bid. GRU 
 def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix):
     input_layer = Input(shape=(maxlen,))
@@ -623,26 +523,7 @@ def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, 
                   metrics=['accuracy'])
     return model
 
-# 2 layers bid CUDNNLSTM
-def cudnnlstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
-    input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
-                                weights=[embedding_matrix], trainable=False)(input_layer)
-    x = Bidirectional(CuDNNLSTM(recurrent_units, return_sequences=True))(embedding_layer)
-    x = Dropout(dropout_rate)(x)
-    x = Bidirectional(CuDNNLSTM(recurrent_units, return_sequences=False))(x)
-    x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
-
-    model = Model(inputs=input_layer, outputs=output_layer)
-    model.summary()
-    model.compile(loss='binary_crossentropy',
-                  optimizer=RMSprop(clipvalue=1, clipnorm=1),
-                  #optimizer='adam',
-                  metrics=['accuracy'])
-    return model
-
-# bid CUDNNGRU + bid CUDNNLSTM
+# bid GRU + bid LSTM
 def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
     input_layer = Input(shape=(maxlen,))
     embedding_layer = Embedding(max_features, embed_size,
@@ -724,12 +605,6 @@ def getModel(modelName):
         model = lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
     if (modelName == 'conv'):
         model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
-    if (modelName == 'cudnngru'):
-        model = cudnngru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
-    if (modelName == 'cudnngru_simple'):
-        model = cudnngru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
-    if (modelName == 'cudnnlstm'):
-        model = cudnnlstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
     if (modelName == 'mix1'):
         model = mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
     if (modelName == 'dpcnn'):
@@ -802,9 +677,9 @@ def train_folds(X, y, fold_count, batch_size, max_epoch, modelName):
         foldModel, best_roc_auc = train_model(getModel(modelName), batch_size, max_epoch, train_x, train_y, val_x, val_y)
         models.append(foldModel)
         
-        #model_path = os.path.join("../data/models/",modelName+".model{0}_weights.hdf5".format(fold_id))
-        #foldModel.save_weights(model_path, foldModel.get_weights())
-        #foldModel.save(model_path)
+        model_path = os.path.join("../data/models/",modelName+".model{0}_weights.hdf5".format(fold_id))
+        foldModel.save_weights(model_path, foldModel.get_weights())
+        foldModel.save(model_path)
         #del foldModel
 
         roc_scores.append(best_roc_auc)
@@ -813,63 +688,22 @@ def train_folds(X, y, fold_count, batch_size, max_epoch, modelName):
 
     return models
 
+def predict(model, xte):
+    y = model.predict(xte)
+    return y
 
-def make_df(train_path, holdout_path, test_path, max_features, maxlen, list_classes):
-    train_df = pd.read_csv(train_path)
-    if (useHoldout):
-        holdout_df = pd.read_csv(holdout_path)
-    test_df = pd.read_csv(test_path)
-    
-    train_df.comment_text.fillna('MISSINGVALUE', inplace=True)
-    if (useHoldout):
-        holdout_df.comment_text.fillna('MISSINGVALUE', inplace=True)
-    test_df.comment_text.fillna('MISSINGVALUE', inplace=True)
-    
-    """
-    extra_train_df = pd.read_csv('../data/eval/holdout-test.part.csv')
-    extra_train_df = extra_train_df.drop('comment_text', 1)
-    extra_train_df = pd.merge(test_df, extra_train_df, how='inner', on=['id'])
-    #print('extra_train_df.shape:', extra_train_df.shape)
-    #print('extra_train_df:', extra_train_df)
+def predict_folds(models, xte):
+    fold_count = len(models)
+    y_predicts_list = []
+    for fold_id in range(0, fold_count):
+        model = models[fold_id]
+        y_predicts = model.predict(xte)
+        y_predicts_list.append(y_predicts)
 
-    #print('train_df.shape:', train_df.shape)
+    y_predicts = np.ones(y_predicts_list[0].shape)
+    for fold_predict in y_predicts_list:
+        y_predicts *= fold_predict
 
-    train_df = pd.concat([train_df, extra_train_df], axis=0)
-    """
-    train_df = train_df.sample(frac=1)
-    
-    #print('train_df.shape:', train_df.shape)
-    #print('train_df:', train_df)
-    
-    list_sentences_train = train_df["comment_text"].values
-    y = train_df[list_classes].values
-    if (useHoldout):
-        list_sentences_holdout = holdout_df["comment_text"].values
-    list_sentences_test = test_df["comment_text"].values
+    y_predicts **= (1. / len(y_predicts_list))
 
-    if (useHoldout):
-        list_sentences_all = np.concatenate([list_sentences_train, list_sentences_holdout, list_sentences_test])
-    else:
-        list_sentences_all = np.concatenate([list_sentences_train, list_sentences_test])
-
-    tokenizer = text.Tokenizer(num_words=max_features)
-    tokenizer.fit_on_texts(list(list_sentences_all))
-    print('word_index size:', len(tokenizer.word_index))
-
-    list_tokenized_train = tokenizer.texts_to_sequences(list_sentences_train)
-    if (useHoldout):
-        list_tokenized_holdout = tokenizer.texts_to_sequences(list_sentences_holdout)
-    list_tokenized_test = tokenizer.texts_to_sequences(list_sentences_test)
-    
-    X_t = sequence.pad_sequences(list_tokenized_train, maxlen=maxlen)
-    if (useHoldout):
-        X_h = sequence.pad_sequences(list_tokenized_holdout, maxlen=maxlen)
-    else:
-        X_h = None
-    X_te = sequence.pad_sequences(list_tokenized_test, maxlen=maxlen)
-    word_index = tokenizer.word_index
-
-    return X_t, X_h, X_te, y, word_index
-
-
-
+    return y_predicts    

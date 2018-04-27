@@ -3,14 +3,18 @@ import os
 import numpy as np
 
 from textClassification.config import ModelConfig, TrainingConfig
-from textClassification.evaluator import Evaluator
-from textClassification.models import SeqLabelling
-from textClassification.preprocess import prepare_preprocessor, WordPreprocessor, filter_embeddings
+#from textClassification.evaluator import Evaluator
+from textClassification.models import getModel
+from textClassification.models import train_folds
+from textClassification.models import train_test_split
+from textClassification.models import predict
+from textClassification.models import predict_proba
+from textClassification.preprocess import prepare_preprocessor, TextPreprocessor
 from textClassification.classifier import Classifier
 from textClassification.trainer import Trainer
 
 
-class Sequence(object):
+class Classifier(object):
 
     config_file = 'config.json'
     weight_file = 'model_weights.hdf5'
@@ -18,13 +22,13 @@ class Sequence(object):
 
     def __init__(self, 
                  model_name="",
+                 model_type="GRU",
                  char_emb_size=25, 
                  word_emb_size=300, 
-                 char_lstm_units=25,
-                 word_lstm_units=100, 
+                 #char_lstm_units=25,
+                 #word_lstm_units=100, 
                  dropout=0.5, 
-                 use_char_feature=True, 
-                 use_crf=True,
+                 use_char_feature=False, 
                  batch_size=20, 
                  optimizer='adam', 
                  learning_rate=0.001, 
@@ -48,23 +52,32 @@ class Sequence(object):
         self.log_dir = log_dir
         self.embeddings = embeddings 
 
-    def train(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None):
-        self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
-        embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-                                       self.model_config.word_embedding_size)
-        self.model_config.vocab_size = len(self.p.vocab_word)
-        self.model_config.char_vocab_size = len(self.p.vocab_char)
+    def train(self, x_train, y_train, vocab_init=None):
+        #self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
+        #embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
+        #                               self.model_config.word_embedding_size)
+        #self.model_config.vocab_size = len(self.p.vocab_word)
+        #self.model_config.char_vocab_size = len(self.p.vocab_char)
 
-        self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
+        #self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
 
-        trainer = Trainer(self.model, 
+        # create validation set in case we don't use k-folds
+        xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
+
+        self.model = getModel(self.model_config.modelName)
+        self.model, best_roc_auc = train_model(self.model, batch_size, epoch, xtr, y, val_x, val_y)
+
+        '''trainer = Trainer(self.model, 
                           self.models,
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p)
-        trainer.train(x_train, y_train, x_valid, y_valid)
+        trainer.train(x_train, y_train, x_valid, y_valid)'''
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None, fold_number=10):
+        self.models = train_folds(xtr, y, args.fold_count, batch_size, epoch, self.model_config.modelName)
+
+        '''
         self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
         embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
                                        self.model_config.word_embedding_size)
@@ -81,27 +94,30 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p)
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
+        '''
 
+    '''
     def eval(self, x_test, y_test):
         if self.model:
             evaluator = Evaluator(self.model, preprocessor=self.p)
             evaluator.eval(x_test, y_test)
         else:
             raise (OSError('Could not find a model. Call load(dir_path).'))
+    '''
 
     # classification
-    def predict(self, words):
+    def predict(self, text):
         if self.model:
-            classifier = Classifier(self.model, preprocessor=self.p)
-            return classifier.predict(words)
+            #classifier = Classifier(self.model, preprocessor=self.p)
+            return predict(self.model, text)
         else:
             raise (OSError('Could not find a model. Call load(dir_path).'))
 
     # regression
-    def predict_proba(self, words):
+    def predict_proba(self, text):
         if self.model:
-            classifier = Classifier(self.model, preprocessor=self.p)
-            return classifier.predict_proba(words)
+            #classifier = Classifier(self.model, preprocessor=self.p)
+            return predict_proba(self.model, text)
         else:
             raise (OSError('Could not find a model. Call load(dir_path).'))
 
@@ -118,10 +134,11 @@ class Sequence(object):
         print('model saved')
 
     def load(self, dir_path='data/models/'):
-        self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+        self.p = TextPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)
-        self.model = SeqLabelling(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
-        self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+        self.model = getModel(self.model_config.modelName)
+        self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+        #self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 
 
