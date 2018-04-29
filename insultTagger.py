@@ -60,9 +60,9 @@ if __name__ == "__main__":
     
     action = args.action    
     if (action != 'train') and (action != 'tag'):
-        print('modelName not specifed, must be one of [train,tag]')
+        print('action not specifed, must be one of [train,tag]')
 
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec")
+    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
 
     if action == 'train':
         if args.fold_count < 1:
@@ -74,4 +74,3 @@ if __name__ == "__main__":
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()
-    

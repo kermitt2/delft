@@ -33,27 +33,49 @@ def make_embeddings(embeddingspath, max_features, embed_size, word_index, skipHe
             embedding_matrix[i] = embedding_vector
     return embedding_matrix
 
-def make_embeddings_simple(embeddingspath):
+def make_embeddings_simple(embeddingspath, hasHeader):
     model = {}
     embed_size = 0
     nbWords = 0
     print('loading embeddings...')
+    begin = True
     with open(embeddingspath) as f:
-        begin = True
         for line in f:
             line = line.split(' ')
             if begin:
-                # first line gives the nb of words and the embedding size
-                nbWords = line[0]
-                embed_size = line[1].replace("\n", "")
-                begin = False
-            else:
-                word = line[0]
-                vector = np.array([float(val) for val in line[1:len(line)-1]])
-                # note: above is working fine with FastText, but with Glove the -1 would need to be removed 
-                model[word] = vector
+                if hasHeader:
+                    # first line gives the nb of words and the embedding size
+                    nbWords = line[0]
+                    embed_size = line[1].replace("\n", "")
+                    begin = False
+                    continue
+                else:
+                    begin = False
+            word = line[0]
+            vector = np.array([float(val) for val in line[1:len(line)-1]])
+            # note: above is working fine with FastText, but with Glove the -1 would need to be removed 
+            model[word] = vector
     print('embeddings loaded for', nbWords, "words and", embed_size, "dimensions")
     return embed_size, model
+
+def filter_embeddings(embeddings, vocab, embed_size):
+    """Load embeddings for a given vocab in a numpy array
+
+    Args:
+        embeddings (dict): the embeddings to be used
+        vocab (dict): word_index to restrain embeddings
+        embed_size: dimension of the embeddings
+
+    Returns:
+        numpy array: an array of word embeddings limited to the provided vocab
+    """
+    _embeddings = np.zeros([len(vocab)+1, embed_size])
+    for word in vocab:
+        if word in embeddings:
+            word_idx = vocab[word]
+            _embeddings[word_idx] = embeddings[word]
+
+    return _embeddings
 
 def make_embeddings_fastText(embeddingspath, max_features, embed_size, word_index):
     fastTextModel = FastText.load_fasttext_format(embeddingspath)

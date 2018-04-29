@@ -90,7 +90,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
 
 
 def load_data_and_labels_xml_string(stringXml):
-    """Loads data and label from a string 
+    """Load data and label from a string 
     the format is as follow:
     <p> 
         bla bla you are a <rs type="insult">CENSURED</rs>, 
@@ -117,7 +117,7 @@ def load_data_and_labels_xml_string(stringXml):
 
 
 def load_data_and_labels_xml_file(filepathXml):
-    """Loads data and label from an XML file
+    """Load data and label from an XML file
     the format is as follow:
     <p> 
         bla bla you are a <rs type="insult">CENSURED</rs>, 
@@ -144,7 +144,7 @@ def load_data_and_labels_xml_file(filepathXml):
 
 
 def load_data_and_labels_crf_file(filepath):
-    """Loads data, features and label from a CRF matrix string 
+    """Load data, features and label from a CRF matrix string 
     the format is as follow:
 
     token_0 f0_0 f0_1 ... f0_n label_0
@@ -167,7 +167,7 @@ def load_data_and_labels_crf_file(filepath):
 
 
 def load_data_and_labels_crf_string(crfString):
-    """Loads data, features and label from a CRF matrix file 
+    """Load data, features and label from a CRF matrix file 
     the format is as follow:
 
     token_0 f0_0 f0_1 ... f0_n label_0
@@ -190,7 +190,7 @@ def load_data_and_labels_crf_string(crfString):
 
 
 def load_data_and_labels_conll(filename):
-    """Loads data and label from a file.
+    """Load data and label from a file.
 
     Args:
         filename (str): path to the file.

@@ -71,6 +71,28 @@ def glove_preprocess(text):
 
     return text
 
+#
+# split provided sequence data in two sets given the given ratio between 0 and 1
+# for instance ratio at 0.8 will split 80% of the sentence in the first set and 20%
+# of the remaining sentence in the second one 
+#
+def split_data_and_labels(x, y, ratio):
+    if (len(x) != len(y)):
+        print('error: size of x and y set must be equal, ', len(x), '=/=', len(y))
+        return
+    x1 = []
+    x2 = []
+    y1 = []
+    y2 = []
+    for i in range(len(x)):
+        if np.random.random_sample() < ratio:
+            x1.append(x[i])
+            y1.append(y[i])
+        else:
+            x2.append(x[i])
+            y2.append(y[i])
+    return x1,y1,x2,y2    
+    
 
 # stemming 
 """

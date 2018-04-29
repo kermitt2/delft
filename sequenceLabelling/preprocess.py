@@ -241,21 +241,3 @@ def prepare_preprocessor(X, y, use_char=True, vocab_init=None):
 
     return p
 
-
-def filter_embeddings(embeddings, vocab, dim):
-    """Loads GloVe vectors in numpy array.
-
-    Args:
-        embeddings (dict): a dictionary of numpy array.
-        vocab (dict): word_index lookup table.
-
-    Returns:
-        numpy array: an array of word embeddings.
-    """
-    _embeddings = np.zeros([len(vocab), dim])
-    for word in vocab:
-        if word in embeddings:
-            word_idx = vocab[word]
-            _embeddings[word_idx] = embeddings[word]
-
-    return _embeddings

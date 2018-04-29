@@ -3,16 +3,14 @@ import os
 import numpy as np
 
 from textClassification.config import ModelConfig, TrainingConfig
-#from textClassification.evaluator import Evaluator
 from textClassification.models import getModel
+from textClassification.models import train_model
 from textClassification.models import train_folds
 from textClassification.models import train_test_split
 from textClassification.models import predict
-from textClassification.models import predict_proba
 from textClassification.preprocess import prepare_preprocessor, TextPreprocessor
-from textClassification.classifier import Classifier
-from textClassification.trainer import Trainer
 
+from utilities.Embeddings import filter_embeddings
 
 class Classifier(object):
 
@@ -22,7 +20,7 @@ class Classifier(object):
 
     def __init__(self, 
                  model_name="",
-                 model_type="GRU",
+                 model_type="gru",
                  char_emb_size=25, 
                  word_emb_size=300, 
                  #char_lstm_units=25,
@@ -38,10 +36,10 @@ class Classifier(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
+                 maxlen=300,
                  embeddings=()):
 
-        self.model_config = ModelConfig(model_name, char_emb_size, word_emb_size, char_lstm_units,
-                                        word_lstm_units, dropout, use_char_feature, use_crf)
+        self.model_config = ModelConfig(model_name, model_type, char_emb_size, word_emb_size, dropout, use_char_feature, maxlen)
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               patience, 
@@ -61,11 +59,19 @@ class Classifier(object):
 
         #self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
 
+        self.p = prepare_preprocessor(x_train, vocab_init)
+
+        embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
+                                       self.model_config.word_embedding_size)
+
+        x_train = self.p.to_sequence(x_train, self.model_config.maxlen)
+
         # create validation set in case we don't use k-folds
         xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
 
-        self.model = getModel(self.model_config.modelName)
-        self.model, best_roc_auc = train_model(self.model, batch_size, epoch, xtr, y, val_x, val_y)
+        self.model = getModel(self.model_config.model_type, embeddings)
+        self.model, best_roc_auc = train_model(self.model, self.training_config.batch_size, 
+            self.training_config.max_epoch, xtr, y, val_x, val_y)
 
         '''trainer = Trainer(self.model, 
                           self.models,
@@ -74,8 +80,17 @@ class Classifier(object):
                           preprocessor=self.p)
         trainer.train(x_train, y_train, x_valid, y_valid)'''
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None, fold_number=10):
-        self.models = train_folds(xtr, y, args.fold_count, batch_size, epoch, self.model_config.modelName)
+    def train_nfold(self, x_train, y_train, vocab_init=None, fold_number=10):
+
+        self.p = prepare_preprocessor(x_train, vocab_init=vocab_init)
+
+        embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
+                                       self.model_config.word_embedding_size)
+
+        xtr = self.p.to_sequence(x_train, self.model_config.maxlen)
+
+        self.models = train_folds(xtr, y_train, args.fold_count, self.training_config.batch_size, 
+            self.training_config.max_epoch, self.model_config.model_type, embeddings)
 
         '''
         self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
@@ -109,7 +124,8 @@ class Classifier(object):
     def predict(self, text):
         if self.model:
             #classifier = Classifier(self.model, preprocessor=self.p)
-            return predict(self.model, text)
+            x_t = self.model.p.to_sequence(text, maxlen=300)
+            return self.model.predict(x_t)
         else:
             raise (OSError('Could not find a model. Call load(dir_path).'))
 
@@ -117,7 +133,9 @@ class Classifier(object):
     def predict_proba(self, text):
         if self.model:
             #classifier = Classifier(self.model, preprocessor=self.p)
-            return predict_proba(self.model, text)
+            x_t = self.model.p.to_sequence(text, maxlen=300)
+            #return self.model.predict_proba(x_t)
+            return self.model.predict(x_t)
         else:
             raise (OSError('Could not find a model. Call load(dir_path).'))
 
@@ -137,7 +155,7 @@ class Classifier(object):
         self.p = TextPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)
-        self.model = getModel(self.model_config.modelName)
+        self.model = getModel(self.model_config.model_type, self.embeddings)
         self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.weight_file))
         #self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 

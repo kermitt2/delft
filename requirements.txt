@@ -9,3 +9,4 @@ gensim==3.4.0
 langdetect==1.0.7
 textblob==0.15.1
 h5py==2.7.1
+unidecode==1.0.22

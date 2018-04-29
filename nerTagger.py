@@ -8,7 +8,7 @@ from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_an
 max_features = 100000
 embed_size = 300
 
-def train(): 
+def train(embedding_vector): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     train_path = os.path.join(root, 'corrected.xml')
@@ -41,7 +41,7 @@ def train():
     model.save()
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts):
+def annotate(texts, embedding_vector):
     annotations = []
 
     # load model
@@ -69,19 +69,19 @@ if __name__ == "__main__":
     
     action = args.action    
     if (action != 'train') and (action != 'tag'):
-        print('modelName not specifed, must be one of [train,tag]')
+        print('action not specifed, must be one of [train,tag]')
 
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec")
+    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
 
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train()
+        train(embedding_vector)
     
     if action == 'tag':
         someTexts = ['The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.',
                      'President Obama is not speaking anymore from the White House.']
-        annotate(someTexts)
+        annotate(someTexts, embedding_vector)
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

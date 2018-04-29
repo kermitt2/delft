@@ -438,9 +438,14 @@ def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
     return model
 
 # 2 bid. GRU 
-def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix):
+def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
     input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
+
+    print(max_features)
+    print(embed_size)
+    print(embedding_matrix)
+
+    embedding_layer = Embedding(max_features, embed_size, 
                                 weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(embedding_layer)
@@ -467,7 +472,7 @@ def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurre
                   metrics=['accuracy'])
     return model
 
-def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix):
+def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
     input_layer = Input(shape=(maxlen,))
     embedding_layer = Embedding(max_features, embed_size,
                                 weights=[embedding_matrix], trainable=False)(input_layer)
@@ -588,7 +593,19 @@ def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recur
     return model
 
 
-def getModel(modelName):
+def getModel(modelName, embedding_vector):
+    parameters = parametersMap[modelName]
+
+    max_features = embedding_vector.shape[0]
+    embed_size = embedding_vector.shape[1]
+    maxlen = parameters['maxlen']
+    epoch = parameters['epoch']
+    batch_size = parameters['batch_size']
+    recurrent_units = parameters['recurrent_units']
+    dropout_rate = parameters['dropout_rate']
+    recurrent_dropout_rate = parameters['recurrent_dropout_rate']
+    dense_size = parameters['dense_size']
+
     if (modelName == 'bidLstm'):
         model = bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
     if (modelName == 'bidLstm_simple'):
@@ -613,6 +630,7 @@ def getModel(modelName):
         model = gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
     if (modelName == 'gru_simple'):
         model = gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+    
     return model
 
 
@@ -656,7 +674,7 @@ def train_model(model, batch_size, max_epoch, train_x, train_y, val_x, val_y):
     return model, best_roc_auc
 
 
-def train_folds(X, y, fold_count, batch_size, max_epoch, modelName):
+def train_folds(X, y, fold_count, batch_size, max_epoch, model_type, embeddings):
     fold_size = len(X) // fold_count
     models = []
     roc_scores = []
@@ -674,10 +692,10 @@ def train_folds(X, y, fold_count, batch_size, max_epoch, modelName):
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel, best_roc_auc = train_model(getModel(modelName), batch_size, max_epoch, train_x, train_y, val_x, val_y)
+        foldModel, best_roc_auc = train_model(getModel(model_type, embeddings), batch_size, max_epoch, train_x, train_y, val_x, val_y)
         models.append(foldModel)
         
-        model_path = os.path.join("../data/models/",modelName+".model{0}_weights.hdf5".format(fold_id))
+        model_path = os.path.join("../data/models/",model_type+".model{0}_weights.hdf5".format(fold_id))
         foldModel.save_weights(model_path, foldModel.get_weights())
         foldModel.save(model_path)
         #del foldModel
@@ -707,3 +725,4 @@ def predict_folds(models, xte):
     y_predicts **= (1. / len(y_predicts_list))
 
     return y_predicts    
+

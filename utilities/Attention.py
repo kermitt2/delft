@@ -1,7 +1,7 @@
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras import initializers, regularizers, constraints
-from ToxicUtilities import dot_product
+from utilities.Utilities import dot_product
 
 class Attention(Layer):
     def __init__(self, step_dim,

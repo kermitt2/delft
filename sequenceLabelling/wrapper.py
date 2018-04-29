@@ -5,10 +5,10 @@ import numpy as np
 from sequenceLabelling.config import ModelConfig, TrainingConfig
 from sequenceLabelling.evaluator import Evaluator
 from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
-from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor, filter_embeddings
+from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
-
+from utilities.Embeddings import filter_embeddings
 
 class Sequence(object):
 
@@ -121,5 +121,4 @@ class Sequence(object):
         dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)
         self.model = SeqLabelling_BidLSTM_CRF(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
-
 
