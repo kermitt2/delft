@@ -21,7 +21,9 @@ data/models/sequenceLabelling/*/*.pkl
 data/models/textClassification/*/*.json
 data/models/textClassification/*/*.hdf5
 data/models/textClassification/*/*.pkl
-data/sequenceLabelling/CoNLL-2003/*
+data/sequenceLabelling/CoNLL-2003/*.testa
+data/sequenceLabelling/CoNLL-2003/*.testb
+data/sequenceLabelling/CoNLL-2003/*.train
 data/resources
 data/clearNLP
 logs
