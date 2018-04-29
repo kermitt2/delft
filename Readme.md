@@ -31,11 +31,13 @@ TBD
 
 #### NER
 
-For training and evaluating based on the CONLL 2004 model:
+Assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
 
 > python3 nerTagger.py train
 
+By default, the BidLSTM-CRF model is used. 
 
+For tagging some text, use the command:
 
 > python3 nerTagger.py tag
 
@@ -46,11 +48,13 @@ DeLFT supports GROBID training data (originally for CRF) and GROBID feature matr
 
 #### Insult recognition
 
-A small experimental model for recognizing insults in Wikipedia comment (from the Kaggle _Wikipedia Toxic Comments_ dataset, only English).
+A small experimental model for recognizing insults in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually. 
+
+For training:
 
 > python3 insultTagger.py train
 
-By default training uses the whole train set, for n-folds training - which provides better and more stable accuracy, uses: 
+By default training uses the whole train set, for n-folds training, which provides better and more stable accuracy, uses: 
 
 > python3 insultTagger.py tag --fold-count 10
 
