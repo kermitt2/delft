@@ -83,19 +83,19 @@ This is a multi-label classification problem, where a Wikipedia comment (or any 
 
 To launch the training: 
 
-> python3 toxixCommentClassifier.py train
+> python3 toxicCommentClassifier.py train
 
 For training with n-folds, use the parameter `--fold-count`:
 
-> python3 toxixCommentClassifier.py train --fold-count 10
+> python3 toxicCommentClassifier.py train --fold-count 10
 
 After training (1 or n-folds), to process the Kaggle test set, use:
 
-> python3 toxixCommentClassifier.py test
+> python3 toxicCommentClassifier.py test
 
 To classify a set of comments: 
 
-> python3 toxixCommentClassifier.py classify
+> python3 toxicCommentClassifier.py classify
 
 
 #### Twitter 

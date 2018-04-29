@@ -24,16 +24,6 @@ def train(embedding_vector):
     model = sequenceLabelling.Sequence('ner', max_epoch=25, embeddings=embedding_vector, word_emb_size=embed_size)
     model.train(x_train, y_train, x_valid, y_valid)
 
-    """
-    tokens = tokenizeAndFilter('The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.')
-    print(json.dumps(model.analyze(tokens), indent=4, sort_keys=True))
-    print(model.tag(tokens))
-
-    tokens = tokenizeAndFilter('President Obama is not speaking anymore from the White House.')
-    print(json.dumps(model.analyze(tokens), indent=4, sort_keys=True))
-    print(model.tag(tokens))
-    """
-
     model.eval(x_test, y_test)
 
     # saving the model
