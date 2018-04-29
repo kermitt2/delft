@@ -2,13 +2,14 @@
 
 # DeLFT 
 
+__Work in progress !__ This is an early alpha version and you most likely don't want to try it at this stage ;) 
+
+
 DeLFT (Deep Learning Framework for Text) is a Keras framework for text processing, covering sequence labelling (e.g. entity tagging) and text classification (e.g. commenty classification). This library re-implements standard and state-of-the-art Deep Learning architectures which can all be used within the same environment. 
 
 The medium term goal is then to provide good performance (accuracy and runtime) models to a production stack such as Java/Scala and C++. 
 
 DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. As always, GPU(s) are required for decent training runtime. 
-
-__Work in progress !__ This is an early alpha version and you most likely don't want to try it at this stage ;) 
 
 ## Sequence Labelling
 
@@ -111,7 +112,7 @@ For a given scientific article, the task is to estimate if the occurrence of a b
 
 __Embeddings__: 
 
-* use a data generator for feeding the models with embeddings, so that embeddings are removed from the models (models are ridiculously big, not to mention having a set of big models like that in production), see `model.fit_generator()`
+* use a data generator for feeding the models with embeddings, so that embeddings are removed from the models (models are really big because they contain each embeddings matrix for the training vocabulary, it does not make sense to have a set of big and redundant models like that in production), see `model.fit_generator()`
 
 * to free a lot of memory, use serialized embeddings with LMDB, similarly as in https://github.com/kermitt2/nerd/tree/0.0.3 (via the Python package called lmdb,  optionally see also Caffe for storing and using HDF5)
 

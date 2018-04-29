@@ -15,10 +15,13 @@ data/db
 data/training
 data/eval
 data/embeddings
-data/models/sequenceLabelling
-data/models/textClassification/
-data/sequenceLabelling
-data/textClassification
+data/models/sequenceLabelling/*/*.json
+data/models/sequenceLabelling/*/*.hdf5
+data/models/sequenceLabelling/*/*.pkl
+data/models/textClassification/*/*.json
+data/models/textClassification/*/*.hdf5
+data/models/textClassification/*/*.pkl
+data/sequenceLabelling/CoNLL-2003/*
 data/resources
 data/clearNLP
 logs
