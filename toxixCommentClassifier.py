@@ -12,6 +12,7 @@ list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identit
 def train(embedding_vector, fold_count): 
     model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=1, fold_number=fold_count, embeddings=embedding_vector)
 
+    print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
     if fold_count == 1:
         model.train(xtr, y)
@@ -24,6 +25,7 @@ def train(embedding_vector, fold_count):
 def train_and_eval(embedding_vector, fold_count): 
     model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=25, fold_number=fold_count, embeddings=embedding_vector)
 
+    print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
 
     # segment train and eval sets
@@ -46,8 +48,7 @@ def classify(texts, embedding_vector):
     model.load()
     results = []
 
-    for text in texts:
-        results.append(model.predict(text))
+    results.append(model.predict(texts))
 
     return results
 
@@ -68,10 +69,6 @@ if __name__ == "__main__":
     print('importing embeddings...')
     embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
 
-    print('building dataframe...')
-    #xtr, xte, y, word_index = make_df("../data/textClassification/toxic/train.csv",
-    #                                "../data/textClassification/toxic/test.csv",
-    #                                max_features, maxlen, list_classes) 
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
@@ -87,8 +84,9 @@ if __name__ == "__main__":
         sample_submission.to_csv("data/textClassification/toxic/"+resultFile, index=False)
 
     if action == 'classify':
-        someTexts = ['This is a gentle test.', 'This is a fucking test!', 'This is a test and I know where you leave.']
-        classify(someTexts, embedding_vector)
+        someTexts = ['This is a gentle test.', 'This is a fucking test!', 'With all due respects, I think you\'re a moron.']
+        result = classify(someTexts, embedding_vector)
+        print(result)
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

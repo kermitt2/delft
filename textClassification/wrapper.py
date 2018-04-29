@@ -127,16 +127,17 @@ class Classifier(object):
 
     # classification
     def predict(self, text):
+        print(text)
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 #classifier = Classifier(self.model, preprocessor=self.p)
-                x_t = self.model.p.to_sequence(text, maxlen=300)
+                x_t = self.p.to_sequence(text, maxlen=300)
                 return predict(self.model, x_t)
             else:
                 raise (OSError('Could not find a model.'))
         else:
             if self.models is not None:
-                x_t = self.model.p.to_sequence(text, maxlen=300)
+                x_t = self.p.to_sequence(text, maxlen=300)
                 return predict_folds(models, x_t)
             else:
                 raise (OSError('Could not find nfolds models.'))
@@ -180,14 +181,15 @@ class Classifier(object):
     def load(self, dir_path='data/models/textClassification/'):
         self.p = TextPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-        self.model = getModel(self.model_config.model_type, self.embeddings)
+        dummy_embeddings = np.zeros((len(self.p.word_index())+1, config.word_embedding_size), dtype=np.float32)
+        self.model = getModel(self.model_config.model_type, dummy_embeddings)
         if self.model_config.fold_number is 1:
-            self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+            self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
         else:
             self.models = []
             for i in range(0, self.model_config.fold_number):
                 local_model = getModel(self.model_config.model_type, self.embeddings)
-                local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+                local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+".model{0}_weights.hdf5".format(i)))
                 models.append(local_model)
         #self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 
