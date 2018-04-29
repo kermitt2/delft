@@ -5,28 +5,34 @@ from utilities.Utilities import split_data_and_labels
 from textClassification.reader import load_texts_and_classes_pandas
 import textClassification
 import argparse
+import keras.backend as K
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
-def train(embedding_vector): 
-    model = textClassification.Classifier('toxic', "gru", max_epoch=25, embeddings=embedding_vector)
+def train(embedding_vector, fold_count): 
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=1, fold_number=fold_count, embeddings=embedding_vector)
 
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
-    model.train(xtr, y)
-
+    if fold_count == 1:
+        model.train(xtr, y)
+    else:
+        model.train_nfold(xtr, y)
     # saving the model
     model.save()
 
 
-def train_and_eval(embedding_vector): 
-    model = textClassification.Classifier('toxic', "gru", max_epoch=25, embeddings=embedding_vector)
+def train_and_eval(embedding_vector, fold_count): 
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=25, fold_number=fold_count, embeddings=embedding_vector)
 
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y)
 
-    model.train(x_train, y_train)
+    if fold_count == 1:
+        model.train(x_train, y_train)
+    else:
+        model.train_nfold(x_train, y_train)
     model.eval(x_test, y_test)
 
     # saving the model
@@ -36,7 +42,7 @@ def train_and_eval(embedding_vector):
 # classify a list of texts
 def classify(texts, embedding_vector):
     # load model
-    model = textClassification.Classifier('toxic', "gru", embeddings=embedding_vector)
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, embeddings=embedding_vector)
     model.load()
     results = []
 
@@ -69,7 +75,8 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embedding_vector)
+        else:
+            train(embedding_vector, args.fold_count)
 
     if action == 'test':
         y_test = test(embedding_vector)    

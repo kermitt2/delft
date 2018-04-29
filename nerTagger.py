@@ -4,9 +4,8 @@ from utilities.Embeddings import make_embeddings_simple
 import sequenceLabelling
 from sequenceLabelling.tokenizer import tokenizeAndFilter
 from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
+import keras.backend as K
 
-max_features = 100000
-embed_size = 300
 
 def train(embedding_vector): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')

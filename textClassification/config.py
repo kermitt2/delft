@@ -7,11 +7,14 @@ class ModelConfig(object):
     def __init__(self, 
                  model_name="",
                  model_type="gru",
+                 list_classes=[],
                  char_emb_size=0, 
                  word_emb_size=300, 
                  dropout=0.5, 
                  use_char_feature=False,
-                 maxlen=300):
+                 maxlen=300,
+                 fold_number=1
+                 ):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -26,6 +29,8 @@ class ModelConfig(object):
         self.maxlen = maxlen
 
         self.use_char_feature = use_char_feature
+        self.list_classes = list_classes
+        self.fold_number = fold_number
 
     def save(self, file):
         with open(file, 'w') as f:
@@ -45,7 +50,7 @@ class TrainingConfig(object):
     """ wrapper class for training hyperparameters """
 
     def __init__(self, 
-                 batch_size=20, 
+                 batch_size=256, 
                  optimizer='adam', 
                  learning_rate=0.001, 
                  lr_decay=0.9,

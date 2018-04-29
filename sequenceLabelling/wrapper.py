@@ -103,7 +103,7 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model. Call load(dir_path).'))
 
-    def save(self, dir_path='data/models/'):
+    def save(self, dir_path='data/models/sequenceLabelling/'):
         # create subfolder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
@@ -115,7 +115,7 @@ class Sequence(object):
         self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
 
-    def load(self, dir_path='data/models/'):
+    def load(self, dir_path='data/models/sequenceLabelling//'):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)

@@ -41,7 +41,7 @@ set_random_seed(8)
 
 modelNames = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', "gru", "gru_simple", 'lstm_cnn', 'han']
 
-# parameters of the different DL models
+# default parameters of the different DL models
 parameters_lstm = {
     'max_features': 200000,
     'maxlen': 300,
@@ -441,9 +441,9 @@ def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
 def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
     input_layer = Input(shape=(maxlen,))
 
-    print(max_features)
-    print(embed_size)
-    print(embedding_matrix)
+    #print(max_features)
+    #print(embed_size)
+    #print(embedding_matrix)
 
     embedding_layer = Embedding(max_features, embed_size, 
                                 weights=[embedding_matrix], trainable=False)(input_layer)
@@ -634,12 +634,12 @@ def getModel(modelName, embedding_vector):
     return model
 
 
-def train_model(model, batch_size, max_epoch, train_x, train_y, val_x, val_y):
+def train_model(model, list_classes, batch_size, max_epoch, train_x, train_y, val_x, val_y):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
     best_epoch = 0
-    current_epoch = 0
+    current_epoch = 1
 
     while current_epoch <= max_epoch:
         model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
@@ -674,10 +674,11 @@ def train_model(model, batch_size, max_epoch, train_x, train_y, val_x, val_y):
     return model, best_roc_auc
 
 
-def train_folds(X, y, fold_count, batch_size, max_epoch, model_type, embeddings):
+def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_name, model_type, embeddings):
     fold_size = len(X) // fold_count
     models = []
     roc_scores = []
+
     for fold_id in range(0, fold_count):
         print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
         fold_start = fold_size * fold_id
@@ -692,12 +693,12 @@ def train_folds(X, y, fold_count, batch_size, max_epoch, model_type, embeddings)
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel, best_roc_auc = train_model(getModel(model_type, embeddings), batch_size, max_epoch, train_x, train_y, val_x, val_y)
+        foldModel, best_roc_auc = train_model(getModel(model_type, embeddings), list_classes, batch_size, max_epoch, train_x, train_y, val_x, val_y)
         models.append(foldModel)
         
-        model_path = os.path.join("../data/models/",model_type+".model{0}_weights.hdf5".format(fold_id))
-        foldModel.save_weights(model_path, foldModel.get_weights())
-        foldModel.save(model_path)
+        #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
+        #foldModel.save_weights(model_path, foldModel.get_weights())
+        #foldModel.save(model_path)
         #del foldModel
 
         roc_scores.append(best_roc_auc)

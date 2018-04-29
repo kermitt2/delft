@@ -15,9 +15,11 @@ data/db
 data/training
 data/eval
 data/embeddings
-data/models
+data/models/sequenceLabelling
+data/models/textClassification/
+data/sequenceLabelling
+data/textClassification
 data/resources
 data/clearNLP
 logs
 *__pycache__*
-
