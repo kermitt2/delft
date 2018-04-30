@@ -19,9 +19,11 @@ DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. 
 
 Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
+<!--
 - BidLSTM-CNN with words, characters and custum features input following: 
 
 Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
+-->
 
 ### Usage
 

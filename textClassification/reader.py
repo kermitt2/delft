@@ -53,27 +53,46 @@ def load_texts_and_classes_pandas(filepath):
 
     Example:
         >>> filenameCsv = 'toxic.csv'
-        >>> texts, classes = load_texts_and_classes(filenameCsv)
+        >>> texts, classes = load_texts_and_classes_pandas(filenameCsv)
     """
 
     df = pd.read_csv(filepath)
     df.iloc[:,1].fillna('MISSINGVALUE', inplace=True)
 
-    #print(df.shape)
     texts_list = []
     for j in range(0, df.shape[0]):
-        #print(df.iloc[j,1])
         texts_list.append(df.iloc[j,1])
 
-    #print(texts_list)
-    #print(len(texts_list))
-    #print(np.asarray(texts_list))
-    #print(len(np.asarray(texts_list)))
-
-    #classes = df.columns[2:]
     classes = df.iloc[:,2:]
     classes_list = classes.values.tolist()
 
-    #print("classes:", classes)
-
     return texts_list, np.asarray(classes_list)
+
+
+def load_texts_pandas(filepath):
+    """Load texts from a file in csv format using pandas dataframe:
+
+    id      text
+    id_0    text_0
+    id_1    text_1
+    ...
+    id_m    text_m
+
+    It should support any CSV file format.
+
+    Returns:
+        numpy array: texts
+
+    Example:
+        >>> filenameCsv = 'toxic.csv'
+        >>> texts = load_texts(filenameCsv)
+    """
+
+    df = pd.read_csv(filepath)
+    df.iloc[:,1].fillna('MISSINGVALUE', inplace=True)
+
+    texts_list = []
+    for j in range(0, df.shape[0]):
+        texts_list.append(df.iloc[j,1])
+
+    return texts_list

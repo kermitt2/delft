@@ -96,64 +96,43 @@ class Classifier(object):
 
         self.models = train_folds(xtr, y_train, self.model_config.fold_number, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.model_config.model_name, self.model_config.model_type, embeddings)
-
-        '''
-        self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
-        embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-                                       self.model_config.word_embedding_size)
-        self.model_config.vocab_size = len(self.p.vocab_word)
-        self.model_config.char_vocab_size = len(self.p.vocab_char)
-
-        for k in range(0,fold_number-1):
-            self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
-            self.models.append(model)
-
-        trainer = Trainer(self.model, 
-                          self.models,
-                          self.training_config,
-                          checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
-        trainer.train_nfold(x_train, y_train, x_valid, y_valid)
-        '''
-
-    '''
-    def eval(self, x_test, y_test):
-        if self.model:
-            evaluator = Evaluator(self.model, preprocessor=self.p)
-            evaluator.eval(x_test, y_test)
-        else:
-            raise (OSError('Could not find a model. Call load(dir_path).'))
-    '''
+        
 
     # classification
-    def predict(self, text):
-        print(text)
+    def predict(self, texts, output_format='json'):
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 #classifier = Classifier(self.model, preprocessor=self.p)
-                x_t = self.p.to_sequence(text, maxlen=300)
-                return predict(self.model, x_t)
+                x_t = self.p.to_sequence(texts, maxlen=300)
+                result = predict(self.model, x_t)
+                
             else:
                 raise (OSError('Could not find a model.'))
         else:
             if self.models is not None:
-                x_t = self.p.to_sequence(text, maxlen=300)
-                return predict_folds(models, x_t)
+                x_t = self.p.to_sequence(texts, maxlen=300)
+                result = predict_folds(models, x_t)
             else:
                 raise (OSError('Could not find nfolds models.'))
-
-
-    # regression
-    '''
-    def predict_proba(self, text):
-        if self.model:
-            #classifier = Classifier(self.model, preprocessor=self.p)
-            x_t = self.model.p.to_sequence(text, maxlen=300)
-            #return self.model.predict_proba(x_t)
-            return self.model.predict(x_t)
+        if output_format is 'json':
+            res = {
+                'classifications': []
+            }
+            i = 0
+            for text in texts:
+                classification = {
+                    'text': text
+                }
+                the_res = result[i]
+                j = 0
+                for cl in self.model_config.list_classes:
+                    classification[cl] = the_res[j]
+                    j += 1
+                res['classifications'].append(classification)
+                i += 1
+            return res
         else:
-            raise (OSError('Could not find a model. Call load(dir_path).'))
-    '''
+            return result
 
     def save(self, dir_path='data/models/textClassification/'):
         # create subfolder for the model if not already exists
@@ -191,6 +170,5 @@ class Classifier(object):
                 local_model = getModel(self.model_config.model_type, self.embeddings)
                 local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+".model{0}_weights.hdf5".format(i)))
                 models.append(local_model)
-        #self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 
 
