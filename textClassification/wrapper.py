@@ -25,8 +25,6 @@ class Classifier(object):
                  list_classes=[],
                  char_emb_size=25, 
                  word_emb_size=300, 
-                 #char_lstm_units=25,
-                 #word_lstm_units=100, 
                  dropout=0.5, 
                  use_char_feature=False, 
                  batch_size=256, 
@@ -56,14 +54,6 @@ class Classifier(object):
         self.embeddings = embeddings 
 
     def train(self, x_train, y_train, vocab_init=None):
-        #self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
-        #embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-        #                               self.model_config.word_embedding_size)
-        #self.model_config.vocab_size = len(self.p.vocab_word)
-        #self.model_config.char_vocab_size = len(self.p.vocab_char)
-
-        #self.model = SeqLabelling(self.model_config, embeddings, len(self.p.vocab_tag))
-
         self.p = prepare_preprocessor(x_train, vocab_init)
 
         embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
@@ -78,12 +68,6 @@ class Classifier(object):
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, xtr, y, val_x, val_y)
 
-        '''trainer = Trainer(self.model, 
-                          self.models,
-                          self.training_config,
-                          checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
-        trainer.train(x_train, y_train, x_valid, y_valid)'''
 
     def train_nfold(self, x_train, y_train, vocab_init=None):
 
@@ -96,7 +80,7 @@ class Classifier(object):
 
         self.models = train_folds(xtr, y_train, self.model_config.fold_number, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.model_config.model_name, self.model_config.model_type, embeddings)
-        
+
 
     # classification
     def predict(self, texts, output_format='json'):
@@ -139,10 +123,13 @@ class Classifier(object):
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
+        
         self.p.save(os.path.join(directory, self.preprocessor_file))
         print('preprocessor saved')
+        
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
+        
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 self.model.save(os.path.join(directory, self.model_config.model_type+"."+self.weight_file))
@@ -159,7 +146,9 @@ class Classifier(object):
 
     def load(self, dir_path='data/models/textClassification/'):
         self.p = TextPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+        
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+        
         dummy_embeddings = np.zeros((len(self.p.word_index())+1, config.word_embedding_size), dtype=np.float32)
         self.model = getModel(self.model_config.model_type, dummy_embeddings)
         if self.model_config.fold_number is 1:

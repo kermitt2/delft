@@ -1,9 +1,7 @@
 # Class for experimenting various single input DL models at word level
 #
-# arguments:
-#   modelName       name of the model to be used into ['lstm', 'bidLstm', 'cnn', 'cudnngru', 'cudnnlstm']
-#   use-holdout     use the holdout to limit the training and generate prediction on holdout set
-#   fold-count      number of folds for k-fold training (default is 1)
+#   model_name       name of the model to be used into ['lstm', 'bidLstm', 'cnn', 'cudnngru', 'cudnnlstm']
+#   fold_count      number of folds for k-fold training (default is 1)
 #
 
 import pandas as pd

@@ -5,7 +5,10 @@ from sequenceLabelling.tokenizer import tokenizeAndFilter
 
 
 class TEIContentHandler(xml.sax.ContentHandler):
-    """ XML SAX handler for reading mixed content within xml text tags  """
+    """ 
+        XML SAX handler for reading mixed content within xml text tags  
+    """
+    
     # local sentence
     tokens = []
     labels = []

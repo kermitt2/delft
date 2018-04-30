@@ -10,6 +10,9 @@ from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
 from utilities.Embeddings import filter_embeddings
 
+# based on https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
+# with various modifcations
+
 class Sequence(object):
 
     config_file = 'config.json'
@@ -87,37 +90,43 @@ class Sequence(object):
             evaluator = Evaluator(self.model, preprocessor=self.p)
             evaluator.eval(x_test, y_test)
         else:
-            raise (OSError('Could not find a model. Call load(dir_path).'))
+            raise (OSError('Could not find a model.'))
 
     def analyze(self, words):
         if self.model:
             tagger = Tagger(self.model, preprocessor=self.p)
             return tagger.analyze(words)
         else:
-            raise (OSError('Could not find a model. Call load(dir_path).'))
+            raise (OSError('Could not find a model.'))
 
     def tag(self, words):
         if self.model:
             tagger = Tagger(self.model, preprocessor=self.p)
             return tagger.tag(words)
         else:
-            raise (OSError('Could not find a model. Call load(dir_path).'))
+            raise (OSError('Could not find a model.'))
 
     def save(self, dir_path='data/models/sequenceLabelling/'):
+        
         # create subfolder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
+
         self.p.save(os.path.join(directory, self.preprocessor_file))
         print('preprocessor saved')
+        
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
+        
         self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling//'):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+        
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+        
         dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)
         self.model = SeqLabelling_BidLSTM_CRF(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))

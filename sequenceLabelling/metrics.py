@@ -2,6 +2,8 @@ import os
 import numpy as np
 from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
 
+# based on https://github.com/Hironsan/anago/blob/master/anago/metrics.py
+
 def get_callbacks(log_dir=None, valid=(), tensorboard=True, eary_stopping=True):
     """Get callbacks.
 

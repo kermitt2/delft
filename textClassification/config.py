@@ -1,8 +1,7 @@
 import json
 
-
+# Model parameter
 class ModelConfig(object):
-    """ wrapper class for model parameters """
 
     def __init__(self, 
                  model_name="",
@@ -46,8 +45,8 @@ class ModelConfig(object):
         return self
 
 
+# Training parameter
 class TrainingConfig(object):
-    """ wrapper class for training hyperparameters """
 
     def __init__(self, 
                  batch_size=256, 

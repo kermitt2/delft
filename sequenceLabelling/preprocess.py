@@ -4,9 +4,10 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
 
+# this is based on https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
+
 UNK = '<UNK>'
 PAD = '<PAD>'
-
 
 class WordPreprocessor(BaseEstimator, TransformerMixin):
 

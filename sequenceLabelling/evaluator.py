@@ -1,6 +1,8 @@
 from sequenceLabelling.reader import batch_iter
 from sequenceLabelling.metrics import F1score
 
+# based on https://github.com/Hironsan/anago/blob/master/anago/evaluator.py
+
 class Evaluator(object):
 
     def __init__(self,

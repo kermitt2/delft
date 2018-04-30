@@ -1,6 +1,6 @@
-# python side of GROBID default tokenizer, used for Indo-European languages
-
 import regex as re
+
+# python side of GROBID default tokenizer, used for Indo-European languages
 
 delimiters = "\n\r\t\f\u00A0([ •*,:;?.!/)-−–‐\"“”‘’'\`$]*\u2666\u2665\u2663\u2660\u00A0"
 regex = '|'.join(map(re.escape, delimiters))
