@@ -28,20 +28,24 @@ class Tagger(object):
 
     def _build_response(self, tokens, tags, prob):
         res = {
-            'tokens': tokens,
-            'entities': []
+            "software": "DeLFT",
+            "date": datetime.datetime.now().isoformat(),
+            "model": self.model.model_config.model_name,
+            "tokens": tokens,
+            "entities": []
         }
         chunks = get_entities(tags)
 
         for chunk_type, chunk_start, chunk_end in chunks:
+            # TODO: get the original string rather than regenerating it from tokens
             entity = {
-                'text': ' '.join(tokens[chunk_start: chunk_end]),
-                'class': chunk_type,
-                'score': float(np.average(prob[chunk_start: chunk_end])),
-                'beginOffset': chunk_start,
-                'endOffset': chunk_end
+                "text": ' '.join(tokens[chunk_start: chunk_end]),
+                "class": chunk_type,
+                "score": float(np.average(prob[chunk_start: chunk_end])),
+                "beginOffset": chunk_start,
+                "endOffset": chunk_end
             }
-            res['entities'].append(entity)
+            res["entities"].append(entity)
 
         return res
 

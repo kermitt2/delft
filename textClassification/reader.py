@@ -14,18 +14,15 @@ def load_texts_and_classes(filepath):
     text has no EOF and no tab
 
     Returns:
-        tuple(numpy array, numpy array): texts and classes.
+        tuple(numpy array, numpy array): texts and classes
 
-    Example:
-        >>> filenameCsv = 'toxic.csv'
-        >>> texts, classes = load_texts_and_classes(filenameCsv)
     """
     texts = []
     classes = []
 
     with open(filepath) as f:
         for line in f:
-            line = line.rstrip()
+            line = line.strip()
             if (len(line) is 0):
                 continue
             pieces = line.split('\t')
@@ -49,11 +46,8 @@ def load_texts_and_classes_pandas(filepath):
     It should support any CSV file format.
 
     Returns:
-        tuple(numpy array, numpy array): texts and classes.
+        tuple(numpy array, numpy array): texts and classes
 
-    Example:
-        >>> filenameCsv = 'toxic.csv'
-        >>> texts, classes = load_texts_and_classes_pandas(filenameCsv)
     """
 
     df = pd.read_csv(filepath)
@@ -83,9 +77,6 @@ def load_texts_pandas(filepath):
     Returns:
         numpy array: texts
 
-    Example:
-        >>> filenameCsv = 'toxic.csv'
-        >>> texts = load_texts(filenameCsv)
     """
 
     df = pd.read_csv(filepath)
@@ -96,3 +87,53 @@ def load_texts_pandas(filepath):
         texts_list.append(df.iloc[j,1])
 
     return texts_list
+
+def load_citation_sentiment_corpus(filepath):
+    """Load texts from the citation sentiment corpus:
+
+    Source_Paper  Target_Paper    Sentiment   Citation_Text
+
+    sentiment "value" can o (neutral), p (positive), n (negative)
+
+    Returns:
+        tuple(numpy array, numpy array): texts and polarity
+
+    """
+
+    texts = []
+    polarities = []
+
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if (len(line) is 0):
+                continue
+            if line.startswith('#'):
+                continue
+
+            pieces = line.split('\t')
+            if (len(pieces) != 4):
+                printf("Warning: incorrect number of fields in the data file for line:", line)
+                continue
+            text = pieces[3]
+            # remove start/end quotes
+            text = text[1:len(text)-1]
+            texts.append(text)
+
+            # basic transformation to [0-1] interval, with 0 negative, 0.5 neutral, 1 positive
+            polarity = []
+            if pieces[2] is 'n':
+                polarity.append(1)
+            else:
+                polarity.append(0)
+            if pieces[2] is 'n':
+                polarity.append(1)
+            else:
+                polarity.append(0)
+            if pieces[2] is 'p':
+                polarity.append(1)
+            else:
+                polarity.append(0)
+            polarities.append(polarity)
+
+    return np.asarray(texts), np.asarray(polarities)

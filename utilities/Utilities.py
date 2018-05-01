@@ -91,7 +91,7 @@ def split_data_and_labels(x, y, ratio):
         else:
             x2.append(x[i])
             y2.append(y[i])
-    return x1,y1,x2,y2    
+    return np.asarray(x1),np.asarray(y1),np.asarray(x2),np.asarray(y2)    
     
 
 # stemming 

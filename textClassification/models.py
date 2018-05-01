@@ -215,7 +215,7 @@ parametersMap = { 'lstm' : parameters_lstm, 'bidLstm_simple' : parameters_bidLst
                   'dpcnn': parameters_dpcnn, 'conv': parameters_conv }
 
 # basic LSTM
-def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix],
                   trainable=False)(inp)
@@ -231,7 +231,7 @@ def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     x = concatenate([x_a,x_b])
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', 
@@ -240,7 +240,7 @@ def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     return model
 
 # bidirectional LSTM 
-def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
@@ -254,7 +254,7 @@ def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_ra
     x = concatenate([x_a,x_b])
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', 
@@ -263,7 +263,7 @@ def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_ra
     return model
 
 # bidirectional LSTM with attention layer
-def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
@@ -275,7 +275,7 @@ def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, rec
     #x = AttentionWeightedAverage(maxlen)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
@@ -283,7 +283,7 @@ def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, rec
 
 
 # conv+GRU with embeddings
-def cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Dropout(dropout_rate)(x) 
@@ -296,13 +296,13 @@ def cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurre
     x = GRU(recurrent_units)(x)
     x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def cnn2_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def cnn2_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Dropout(dropout_rate)(x) 
@@ -316,13 +316,13 @@ def cnn2_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, r
                            recurrent_dropout=dropout_rate)(x)
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Dropout(dropout_rate)(x) 
@@ -336,13 +336,13 @@ def cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
                            recurrent_dropout=dropout_rate)(x)
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
@@ -363,13 +363,13 @@ def cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     x = concatenate([x_a,x_b])
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def conv(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def conv(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     filter_kernels = [7, 7, 5, 5, 3, 3]
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
@@ -385,14 +385,14 @@ def conv(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     conv5 = Flatten()(conv5)
     z = Dropout(0.5)(Dense(dense_size, activation='relu')(conv5))
     #x = GlobalMaxPool1D()(x)
-    x = Dense(6, activation="sigmoid")(z)
+    x = Dense(nb_classes, activation="sigmoid")(z)
     model = Model(inputs=inp, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
 # LSTM + conv
-def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     inp = Input(shape=(maxlen, ))
     x = Embedding(max_features, embed_size, weights=[embedding_matrix],
                   trainable=False)(inp)
@@ -427,7 +427,7 @@ def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
 
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
-    x = Dense(6, activation="sigmoid")(x)
+    x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=inp, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', 
@@ -436,7 +436,7 @@ def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
     return model
 
 # 2 bid. GRU 
-def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     input_layer = Input(shape=(maxlen,))
 
     #print(max_features)
@@ -460,7 +460,7 @@ def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurre
     #x = Dense(dense_size, activation="relu")(x)
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
+    output_layer = Dense(nb_classes, activation="sigmoid")(x)
 
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
@@ -470,7 +470,7 @@ def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurre
                   metrics=['accuracy'])
     return model
 
-def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     input_layer = Input(shape=(maxlen,))
     embedding_layer = Embedding(max_features, embed_size,
                                 weights=[embedding_matrix], trainable=False)(input_layer)
@@ -489,7 +489,7 @@ def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
     #x = Dense(dense_size, activation="relu")(x)
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
+    output_layer = Dense(nb_classes, activation="sigmoid")(x)
 
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
@@ -500,7 +500,7 @@ def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
     return model
 
 # 1 layer bid GRU
-def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix):
+def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix, nb_classes):
     input_layer = Input(shape=(maxlen,))
     embedding_layer = Embedding(max_features, embed_size,
                                 weights=[embedding_matrix], trainable=False)(input_layer)
@@ -516,7 +516,7 @@ def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, 
     #x = Dense(dense_size, activation="relu")(x)
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
+    output_layer = Dense(nb_classes, activation="sigmoid")(x)
 
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
@@ -527,7 +527,7 @@ def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, 
     return model
 
 # bid GRU + bid LSTM
-def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     input_layer = Input(shape=(maxlen,))
     embedding_layer = Embedding(max_features, embed_size,
                                 weights=[embedding_matrix], trainable=False)(input_layer)
@@ -542,7 +542,7 @@ def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     x = concatenate([x_a,x_b])
 
     x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(6, activation="sigmoid")(x)
+    output_layer = Dense(nb_classes, activation="sigmoid")(x)
 
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
@@ -553,7 +553,7 @@ def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     return model
 
 # DPCNN
-def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix):
+def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
     input_layer = Input(shape=(maxlen, ))
     X = Embedding(max_features, embed_size, weights=[embedding_matrix], 
                   trainable=False)(input_layer)
@@ -583,7 +583,7 @@ def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recur
 
     # Output
     X = Flatten()(X)
-    X = Dense(6, activation='sigmoid')(X)
+    X = Dense(nb_classes, activation='sigmoid')(X)
 
     model = Model(inputs = input_layer, outputs = X, name='dpcnn')
     model.summary()
@@ -591,7 +591,7 @@ def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recur
     return model
 
 
-def getModel(modelName, embedding_vector):
+def getModel(modelName, embedding_vector, nb_classes):
     parameters = parametersMap[modelName]
 
     max_features = embedding_vector.shape[0]
@@ -605,29 +605,29 @@ def getModel(modelName, embedding_vector):
     dense_size = parameters['dense_size']
 
     if (modelName == 'bidLstm'):
-        model = bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'bidLstm_simple'):
-        model = bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'lstm'):
-        model = lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'cnn'):
-        model = cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'cnn2'):
-        model = cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'cnn3'):
-        model = cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'lstm_cnn'):
-        model = lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'conv'):
-        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'mix1'):
-        model = mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'dpcnn'):
-        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'gru'):
-        model = gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     if (modelName == 'gru_simple'):
-        model = gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector)
+        model = gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
     
     return model
 
@@ -640,16 +640,23 @@ def train_model(model, list_classes, batch_size, max_epoch, train_x, train_y, va
     current_epoch = 1
 
     while current_epoch <= max_epoch:
+
         model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
         y_pred = model.predict(val_x, batch_size=batch_size)
 
         total_loss = 0.0
         total_roc_auc = 0.0
-        for j in range(len(list_classes)):
-            loss = log_loss(val_y[:, j], y_pred[:, j])
-            total_loss += loss
-            roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
-            total_roc_auc += roc_auc
+
+        # we distinguish 1-class and multiclass problems 
+        if len(list_classes) is 1:
+            total_loss = log_loss(val_y, y_pred)
+            total_roc_auc = roc_auc_score(val_y, y_pred)
+        else:
+            for j in range(0, len(list_classes)):
+                loss = log_loss(val_y[:, j], y_pred[:, j])
+                total_loss += loss
+                roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
+                total_roc_auc += roc_auc
 
         total_loss /= len(list_classes)
         total_roc_auc /= len(list_classes)
@@ -691,7 +698,8 @@ def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_nam
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel, best_roc_auc = train_model(getModel(model_type, embeddings), list_classes, batch_size, max_epoch, train_x, train_y, val_x, val_y)
+        foldModel, best_roc_auc = train_model(getModel(model_type, embeddings, len(list_classes)), 
+                list_classes, batch_size, max_epoch, train_x, train_y, val_x, val_y)
         models.append(foldModel)
         
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))

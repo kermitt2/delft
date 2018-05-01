@@ -77,8 +77,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     action = args.action    
-    if (action != 'train') and (action != 'classify'):
-        print('action not specifed, must be one of [train,classify]')
+    if (action != 'train') and (action != 'classify') and (action != 'test'):
+        print('action not specifed, must be one of [train,test,classify]')
 
     print('importing embeddings...')
     embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
@@ -100,7 +100,7 @@ if __name__ == "__main__":
     if action == 'classify':
         someTexts = ['This is a gentle test.', 'This is a fucking test!', 'With all due respects, I think you\'re a moron.']
         result = classify(someTexts, embedding_vector, "json")
-        print(result)
+        print(json.dumps(result, sort_keys=False, indent=4))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

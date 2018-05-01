@@ -103,11 +103,8 @@ def load_data_and_labels_xml_string(stringXml):
     "action" is tagged
 
     Returns:
-        tuple(numpy array, numpy array): data and labels.
+        tuple(numpy array, numpy array): data and labels
 
-    Example:
-        >>> filenameXml = 'toxic.xml'
-        >>> data, labels = load_data_and_labels(filenameXml)
     """
     # as we have XML mixed content, we need a real XML parser...
     parser = make_parser()
@@ -130,11 +127,8 @@ def load_data_and_labels_xml_file(filepathXml):
     "action" is tagged
 
     Returns:
-        tuple(numpy array, numpy array): data and labels.
+        tuple(numpy array, numpy array): data and labels
 
-    Example:
-        >>> filenameXml = 'toxic.xml'
-        >>> data, labels = load_data_and_labels(filenameXml)
     """
     # as we have XML mixed content, we need a real XML parser...
     parser = make_parser()
@@ -156,11 +150,8 @@ def load_data_and_labels_crf_file(filepath):
     token_m fm_0 fm_1 ... fm_n label_m
 
     Returns:
-        tuple(numpy array, numpy array): data and labels.
+        tuple(numpy array, numpy array): data and labels
 
-    Example:
-        >>> filenameXml = 'toxic.xml'
-        >>> data, labels = load_data_and_labels(filenameXml)
     """
     tokens = []
     labels = []
@@ -179,11 +170,8 @@ def load_data_and_labels_crf_string(crfString):
     token_m fm_0 fm_1 ... fm_n label_m
 
     Returns:
-        tuple(numpy array, numpy array): data and labels.
+        tuple(numpy array, numpy array): data and labels
 
-    Example:
-        >>> filenameXml = 'toxic.xml'
-        >>> data, labels = load_data_and_labels(filenameXml)
     """
     tokens = []
     labels = []
@@ -219,11 +207,8 @@ def load_data_and_labels_conll(filename):
         ```
 
     Returns:
-        tuple(numpy array, numpy array): data and labels.
+        tuple(numpy array, numpy array): data and labels
 
-    Example:
-        >>> filename = 'conll2003/en/ner/train.txt'
-        >>> data, labels = load_data_and_labels(filename)
     """
     sents, labels = [], []
     with open(filename) as f:

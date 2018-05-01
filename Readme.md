@@ -2,7 +2,7 @@
 
 # DeLFT 
 
-__Work in progress !__ This is an early alpha version and you most likely don't want to try it at this stage ;) 
+__Work in progress !__ This is an early alpha version and you very likely don't want to try it at this stage ;) 
 
 
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard and _augment_ state-of-the-art Deep Learning architectures which can all be used within the same environment. 
@@ -111,6 +111,79 @@ We use the dataset developed and presented by A. Athar in the following article:
 Awais Athar. "Sentiment Analysis of Citations using Sentence Structure-Based Features". Proceedings of the ACL 2011 Student Session, 81-87, 2011. http://www.aclweb.org/anthology/P11-3015
 
 For a given scientific article, the task is to estimate if the occurrence of a bibliographical citation is positive, neutral or negative given its citation context. 
+
+In this example, we formulate the problem as a 3 class regression (`negative`. `neutral`, `positive`). To train the model:
+
+> python3 citationClassifier.py train
+
+with n-folds:
+
+> python3 citationClassifier.py train --fold-count 10
+
+Training and evalation (ratio):
+
+> python3 citationClassifier.py train-eval
+
+which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`): 
+
+```
+Evaluation on  896 instances:
+
+Class: negative
+    accuracy at 0.5 = 0.9620535714285714
+    log-loss = 0.10431599666467914
+    roc auc = 0.9185061448514498
+
+Class: neutral
+    accuracy at 0.5 = 0.9631696428571429
+    log-loss = 0.10217989354726699
+    roc auc = 0.9225231674820029
+
+Class: positive
+    accuracy at 0.5 = 0.9296875
+    log-loss = 0.20026920159911502
+    roc auc = 0.8898697968041034
+
+Macro-average:
+    average accuracy at 0.5 = 0.9516369047619048
+    average log-loss = 0.13558836393702037
+    average roc auc = 0.910299703045852
+```
+
+To classify a set of citation contexts:
+
+> python3 citationClassifier.py classify
+
+which will produce some JSON output like this:
+
+```json
+{
+    "model": "citations",
+    "software": "DeLFT",
+    "classifications": [
+        {
+            "positive": 0.8160770535469055,
+            "text": "One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.",
+            "negative": 0.0014772837748751044,
+            "neutral": 0.002285155700519681
+        },
+        {
+            "positive": 0.05530614033341408,
+            "text": "Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.",
+            "negative": 0.2548907399177551,
+            "neutral": 0.23885516822338104
+        },
+        {
+            "positive": 0.8472888469696045,
+            "text": "However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.",
+            "negative": 0.16778403520584106,
+            "neutral": 0.21162080764770508
+        }
+    ],
+    "date": "2018-04-30T23:33:24.840211",
+    "runtime": 0.686
+}
+```
 
 
 ## TODO
