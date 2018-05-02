@@ -20,7 +20,7 @@ def train(embedding_vector, fold_count):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('insult', max_epoch=30, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('insult', max_epoch=50, embeddings=embedding_vector)
     model.train(x_train, y_train, x_valid, y_valid)
     print('training done')
 
@@ -81,7 +81,7 @@ if __name__ == "__main__":
     if action == 'tag':
         someTexts = ['This is a gentle test.', 
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
-                     'This is a fucking test and I know where you leave.']
+                     'This is a fucking test.']
         result = annotate(someTexts, embedding_vector, "json")
         print(json.dumps(result, sort_keys=False, indent=4))
 

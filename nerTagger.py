@@ -7,7 +7,7 @@ from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_an
 import keras.backend as K
 
 # train a model with all available CoNLL 2003 data 
-def train(embedding_vector): 
+def train(embedding_vector, fold_count): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
@@ -80,12 +80,12 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embedding_vector)
+        train(embedding_vector, args.fold_count)
     
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(embedding_vector)
+        train_eval(embedding_vector, args.fold_count)
 
     if action == 'tag':
         someTexts = ['The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.',

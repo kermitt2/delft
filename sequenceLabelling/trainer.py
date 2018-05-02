@@ -71,7 +71,7 @@ class Trainer(object):
 
         local_model.fit_generator(generator=train_batches,
                                  steps_per_epoch=train_steps,
-                                 epochs=1,
+                                 epochs=max_epoch,
                                  callbacks=callbacks)
 
         return local_model
