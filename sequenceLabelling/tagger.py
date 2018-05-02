@@ -18,35 +18,6 @@ class Tagger(object):
 
         return pred
 
-    def _get_tags(self, pred):
-        pred = np.argmax(pred, -1)
-        tags = self.preprocessor.inverse_transform(pred[0])
-
-        return tags
-
-    def _get_prob(self, pred):
-        prob = np.max(pred, -1)[0]
-
-        return prob
-
-    def _build_json_response(self, tokens, tags, prob, offsets):
-        res = {
-            "entities": []
-        }
-        chunks = get_entities_with_offsets(tags, offsets)
-        for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
-            # TODO: get the original string rather than regenerating it from tokens
-            entity = {
-                "text": ' '.join(tokens[chunk_start: chunk_end]),
-                "class": chunk_type,
-                "score": float(np.average(prob[chunk_start: chunk_end])),
-                "beginOffset": pos_start,
-                "endOffset": pos_end
-            }
-            res["entities"].append(entity)
-
-        return res
-
     def tag(self, texts, output_format):
         assert isinstance(texts, list)
 
@@ -82,25 +53,32 @@ class Tagger(object):
         else:
             return list_of_tags
 
-    #def _get_chunks(self, tokens, tags, offsets):
-        """
-        Args:
-            tokens: sequence of tokens
-            tags: sequence of labels
+    def _get_tags(self, pred):
+        pred = np.argmax(pred, -1)
+        tags = self.preprocessor.inverse_transform(pred[0])
 
-        Returns:
-            dict of entities for a sequence
+        return tags
 
-        Example:
-            tokens = ['President', 'Obama', 'is', 'speaking', 'at', 'the', 'White', 'House', '.']
-            tags = ['O', 'B-Person', 'O', 'O', 'O', 'O', 'B-Location', 'I-Location', 'O']
-            result = {'Person': ['Obama'], 'LOCATION': ['White House']}
-        """
-        """
-        chunks = get_entities(tags, offsets)
-        res = defaultdict(list)
-        for chunk_type, chunk_start, chunk_end in chunks:
-            res[chunk_type].append(' '.join(tokens[chunk_start: chunk_end])) 
+    def _get_prob(self, pred):
+        prob = np.max(pred, -1)[0]
+
+        return prob
+
+    def _build_json_response(self, tokens, tags, prob, offsets):
+        res = {
+            "entities": []
+        }
+        chunks = get_entities_with_offsets(tags, offsets)
+        for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
+            # TODO: get the original string rather than regenerating it from tokens
+            entity = {
+                "text": ' '.join(tokens[chunk_start: chunk_end]),
+                "class": chunk_type,
+                "score": float(np.average(prob[chunk_start: chunk_end])),
+                "beginOffset": pos_start,
+                "endOffset": pos_end
+            }
+            res["entities"].append(entity)
 
         return res
-        """
+

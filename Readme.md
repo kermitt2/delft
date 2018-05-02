@@ -47,58 +47,52 @@ which produces a JSON output with entities, scores and character offsets like th
 
 ```json
 {
-    "model": "ner",
-    "runtime": 0.346,
-    "date": "2018-05-02T11:34:01.521639",
-    "software": "DeLFT",
+    "runtime": 0.34,
     "texts": [
         {
+            "text": "The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.",
             "entities": [
                 {
-                    "endOffset": 17,
-                    "beginOffset": 4,
-                    "class": "LOC",
-                    "text": "University",
-                    "score": 1.0
-                },
-                {
+                    "text": "University of California",
                     "endOffset": 32,
-                    "beginOffset": 18,
-                    "class": "LOC",
-                    "text": "California",
-                    "score": 1.0
+                    "score": 1.0,
+                    "class": "ORG",
+                    "beginOffset": 4
                 },
                 {
-                    "endOffset": 134,
-                    "beginOffset": 125,
-                    "class": "LOC",
                     "text": "Illinois",
-                    "score": 1.0
+                    "endOffset": 134,
+                    "score": 1.0,
+                    "class": "LOC",
+                    "beginOffset": 125
                 }
-            ],
-            "text": "The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent."
+            ]
         },
         {
+            "text": "President Obama is not speaking anymore from the White House.",
             "entities": [
                 {
-                    "endOffset": 18,
-                    "beginOffset": 10,
-                    "class": "PER",
                     "text": "Obama",
-                    "score": 1.0
+                    "endOffset": 18,
+                    "score": 1.0,
+                    "class": "PER",
+                    "beginOffset": 10
                 },
                 {
-                    "endOffset": 61,
-                    "beginOffset": 49,
-                    "class": "LOC",
                     "text": "White House",
-                    "score": 1.0
+                    "endOffset": 61,
+                    "score": 1.0,
+                    "class": "LOC",
+                    "beginOffset": 49
                 }
-            ],
-            "text": "President Obama is not speaking anymore from the White House."
+            ]
         }
-    ]
+    ],
+    "software": "DeLFT",
+    "date": "2018-05-02T12:24:55.529301",
+    "model": "ner"
 }
+
 ```
 
 #### GROBID models
@@ -229,7 +223,7 @@ Micro-average:
 
 ```
 
-In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average) and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering, is very robust for an unbalanced dataset.
+In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering, is very robust for an unbalanced dataset.
 
 To classify a set of citation contexts:
 
