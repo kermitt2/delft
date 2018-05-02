@@ -13,12 +13,27 @@ def tokenize(text):
     return pattern.split(text)
 
 def tokenizeAndFilter(text):
-    tokens = tokenize(text)
+    #tokens = tokenize(text)
+    offset = 0
+    offsets = []
+    tokens = []
+    for index, match in enumerate(pattern.split(text)):
+        print(index, match)
+        tokens.append(match)
+        position = (offset, offset+len(match))
+        offsets.append(position)
+        offset = offset+len(match)
+    #tokens = pattern.split(text)
+
     finalTokens = []
+    finalOffsets = []
+    i = 0
     for token in tokens:
         if token not in blanks:
             finalTokens.append(token)
-    return finalTokens
+            finalOffsets.append(offsets[i])
+        i += 1
+    return finalTokens, finalOffsets
 
 def filterSpace(token):
     return (token not in blanks)

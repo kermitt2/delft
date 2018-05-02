@@ -2,6 +2,7 @@ from collections import defaultdict
 import numpy as np
 import datetime
 from sequenceLabelling.metrics import get_entities
+from sequenceLabelling.metrics import get_entities_with_offsets
 from sequenceLabelling.tokenizer import tokenizeAndFilter
 
 class Tagger(object):
@@ -28,58 +29,25 @@ class Tagger(object):
 
         return prob
 
-    def _build_response_old(self, tokens, tags, prob):
+    def _build_json_response(self, tokens, tags, prob, offsets):
         res = {
-            "software": "DeLFT",
-            "date": datetime.datetime.now().isoformat(),
-            "model": self.model.model_config.model_name,
-            "tokens": tokens,
             "entities": []
         }
-        chunks = get_entities(tags)
-
-        for chunk_type, chunk_start, chunk_end in chunks:
+        chunks = get_entities_with_offsets(tags, offsets)
+        for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
             # TODO: get the original string rather than regenerating it from tokens
             entity = {
                 "text": ' '.join(tokens[chunk_start: chunk_end]),
                 "class": chunk_type,
                 "score": float(np.average(prob[chunk_start: chunk_end])),
-                "beginOffset": chunk_start,
-                "endOffset": chunk_end
+                "beginOffset": pos_start,
+                "endOffset": pos_end
             }
             res["entities"].append(entity)
 
         return res
 
-    def _build_json_response(self, tokens, tags, prob):
-        res = {
-            "entities": []
-        }
-        chunks = get_entities(tags)
-        for chunk_type, chunk_start, chunk_end in chunks:
-            # TODO: get the original string rather than regenerating it from tokens
-            entity = {
-                "text": ' '.join(tokens[chunk_start: chunk_end]),
-                "class": chunk_type,
-                "score": float(np.average(prob[chunk_start: chunk_end])),
-                "beginOffset": chunk_start,
-                "endOffset": chunk_end
-            }
-            res["entities"].append(entity)
-
-        return res
-
-    def analyze_old(self, tokens):
-        assert isinstance(tokens, list)
-
-        pred = self.predict(tokens)
-        tags = self._get_tags(pred)
-        prob = self._get_prob(pred)
-        res = self._build_response(tokens, tags, prob)
-
-        return res
-
-    def analyze(self, texts, output_format):
+    def tag(self, texts, output_format):
         assert isinstance(texts, list)
 
         if output_format is 'json':
@@ -93,7 +61,7 @@ class Tagger(object):
            list_of_tags = []
 
         for text in texts:
-            tokens = tokenizeAndFilter(text)
+            tokens, offsets = tokenizeAndFilter(text)
 
             pred = self.predict(tokens)
             tags = self._get_tags(pred)
@@ -103,7 +71,7 @@ class Tagger(object):
             if output_format is 'json':
                 piece = {}
                 piece["text"] = text
-                piece["entities"] = self._build_json_response(tokens, tags, prob)["entities"]
+                piece["entities"] = self._build_json_response(tokens, tags, prob, offsets)["entities"]
                 res["texts"].append(piece)
             else:
                 the_tags = list(zip(tokens, tags))
@@ -114,51 +82,7 @@ class Tagger(object):
         else:
             return list_of_tags
 
-    def tag_old(self, tokens):
-        """Tags a sentence named entities.
-
-        Args:
-            sent: a sentence
-
-        Return:
-            labels_pred: list of (token, tag) for a sentence
-
-        Example:
-            >>> sent = 'President Obama is speaking at the White House.'
-            >>> print(self.tag(sent))
-            [('President', 'O'), ('Obama', 'PERSON'), ('is', 'O'),
-             ('speaking', 'O'), ('at', 'O'), ('the', 'O'),
-             ('White', 'LOCATION'), ('House', 'LOCATION'), ('.', 'O')]
-        """
-        assert isinstance(tokens, list)
-
-        pred = self.predict(tokens)
-        tags = self._get_tags(pred)
-        #tags = [t.split('-')[-1] for t in tags]  # remove prefix: e.g. B-Person -> Person
-
-        return list(zip(tokens, tags))
-
-    def get_entities(self, tokens):
-        """Gets entities from a sentence.
-
-        Args:
-            sent: a sentence
-
-        Return:
-            labels_pred: dict of entities for a sentence
-
-        Example:
-            sent = 'President Obama is speaking at the White House.'
-            result = {'Person': ['Obama'], 'LOCATION': ['White House']}
-        """
-        assert isinstance(tokens, list)
-
-        pred = self.predict(tokens)
-        entities = self._get_chunks(tokens, pred)
-
-        return entities
-
-    def _get_chunks(self, tokens, tags):
+    #def _get_chunks(self, tokens, tags, offsets):
         """
         Args:
             tokens: sequence of tokens
@@ -172,9 +96,11 @@ class Tagger(object):
             tags = ['O', 'B-Person', 'O', 'O', 'O', 'O', 'B-Location', 'I-Location', 'O']
             result = {'Person': ['Obama'], 'LOCATION': ['White House']}
         """
-        chunks = get_entities(tags)
+        """
+        chunks = get_entities(tags, offsets)
         res = defaultdict(list)
         for chunk_type, chunk_start, chunk_end in chunks:
-            res[chunk_type].append(' '.join(tokens[chunk_start: chunk_end]))  # todo delimiter changeable
+            res[chunk_type].append(' '.join(tokens[chunk_start: chunk_end])) 
 
         return res
+        """

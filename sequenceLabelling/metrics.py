@@ -44,14 +44,48 @@ def get_callbacks(log_dir=None, valid=(), tensorboard=True, eary_stopping=True):
     return callbacks
 
 
+def get_entities_with_offsets(seq, offsets):
+    """Gets entities from sequence
+
+    Args:
+        seq (list): sequence of labels.
+        offsets (list of integer pair): sequence of offset position
+
+    Returns:
+        list: list of (chunk_type, chunk_start, chunk_end, pos_start, pos_end)
+
+    Example:
+        >>> seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
+        >>> offsets = [(0,10), (11, 15), (16, 29), (30, 41)]
+        >>> print(get_entities(seq))
+        [('PER', 0, 2, 0, 15), ('LOC', 3, 4, 30, 41)]
+    """
+    i = 0
+    chunks = []
+    seq = seq + ['O']  # add sentinel
+    types = [tag.split('-')[-1] for tag in seq]
+    while i < len(seq):
+        if seq[i].startswith('B'):
+            for j in range(i+1, len(seq)):
+                if seq[j].startswith('I') and types[j] == types[i]:
+                    continue
+                break
+            start_pos = offsets[i][0]
+            end_pos = offsets[j][1]
+            chunks.append((types[i], i, j, start_pos, end_pos))
+            i = j
+        else:
+            i += 1
+    return chunks
+
 def get_entities(seq):
     """Gets entities from sequence.
 
     Args:
-        seq (list): sequence of labels.
+        seq (list): sequence of labels
 
     Returns:
-        list: list of (chunk_type, chunk_start, chunk_end).
+        list: list of (chunk_type, chunk_start, chunk_end)
 
     Example:
         >>> seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
@@ -73,7 +107,6 @@ def get_entities(seq):
         else:
             i += 1
     return chunks
-
 
 def f1_score(y_true, y_pred, sequence_lengths):
     """Evaluates f1 score.

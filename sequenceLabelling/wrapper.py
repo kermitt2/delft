@@ -54,6 +54,7 @@ class Sequence(object):
         self.log_dir = log_dir
         self.embeddings = embeddings 
 
+
     def train(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None):
         self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
         embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
@@ -69,6 +70,7 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p)
         trainer.train(x_train, y_train, x_valid, y_valid)
+
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None, fold_number=10):
         self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
@@ -88,6 +90,7 @@ class Sequence(object):
                           preprocessor=self.p)
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
 
+
     def eval(self, x_test, y_test):
         if self.model:
             # Prepare test data(steps, generator)
@@ -103,21 +106,14 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.'))
 
-    def analyze(self, texts, output_format):
+
+    def tag(self, texts, output_format):
         if self.model:
             tagger = Tagger(self.model, preprocessor=self.p)
-            return tagger.analyze(texts, output_format)
+            return tagger.tag(texts, output_format)
         else:
             raise (OSError('Could not find a model.'))
 
-    '''
-    def tag(self, words):
-        if self.model:
-            tagger = Tagger(self.model, preprocessor=self.p)
-            return tagger.tag(words)
-        else:
-            raise (OSError('Could not find a model.'))
-    '''
 
     def save(self, dir_path='data/models/sequenceLabelling/'):
         
@@ -134,6 +130,7 @@ class Sequence(object):
         
         self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
+
 
     def load(self, dir_path='data/models/sequenceLabelling//'):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))

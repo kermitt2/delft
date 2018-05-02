@@ -26,7 +26,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
      
     def startElement(self, name, attrs):
         if self.accumulated != '':
-            localTokens = tokenizeAndFilter(self.accumulated)
+            localTokens, localOffsets = tokenizeAndFilter(self.accumulated)
             for token in localTokens:
                 self.tokens.append(token)
                 self.labels.append('O')
@@ -54,7 +54,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
         if name == "p":
             # end of sentence 
             if self.accumulated != '':
-                localTokens = tokenizeAndFilter(self.accumulated)
+                localTokens, localOffsets = tokenizeAndFilter(self.accumulated)
                 for token in localTokens:
                     self.tokens.append(token)
                     self.labels.append('O')
@@ -65,7 +65,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             labels = []
         if name == "rs":
             # end of entity
-            localTokens = tokenizeAndFilter(self.accumulated)
+            localTokens, localOffsets = tokenizeAndFilter(self.accumulated)
             begin = True
             if self.currentLabel is None:
                 self.currentLabel = 'O'
