@@ -56,7 +56,7 @@ class TrainingConfig(object):
                  clip_gradients=5.0, 
                  max_epoch=30, 
                  patience=5,
-                 use_roc_auc=False):
+                 use_roc_auc=True):
 
         self.batch_size = batch_size
         self.optimizer = optimizer

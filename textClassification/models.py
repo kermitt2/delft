@@ -1,6 +1,6 @@
 # Class for experimenting various single input DL models at word level
 #
-#   model_name       name of the model to be used into ['lstm', 'bidLstm', 'cnn', 'cudnngru', 'cudnnlstm']
+#   model_type      type of the model to be used into ['lstm', 'bidLstm', 'cnn', 'cudnngru', 'cudnnlstm']
 #   fold_count      number of folds for k-fold training (default is 1)
 #
 
@@ -37,7 +37,7 @@ seed(7)
 from tensorflow import set_random_seed
 set_random_seed(8)
 
-modelNames = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', "gru", "gru_simple", 'lstm_cnn', 'han']
+modelTypes = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', "gru", "gru_simple", 'lstm_cnn', 'han']
 
 # default parameters of the different DL models
 parameters_lstm = {
@@ -591,8 +591,8 @@ def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recur
     return model
 
 
-def getModel(modelName, embedding_vector, nb_classes):
-    parameters = parametersMap[modelName]
+def getModel(model_type, embedding_vector, nb_classes):
+    parameters = parametersMap[model_type]
 
     max_features = embedding_vector.shape[0]
     embed_size = embedding_vector.shape[1]
@@ -604,35 +604,37 @@ def getModel(modelName, embedding_vector, nb_classes):
     recurrent_dropout_rate = parameters['recurrent_dropout_rate']
     dense_size = parameters['dense_size']
 
-    if (modelName == 'bidLstm'):
+    # awww Python has no case/switch statement :D
+    if (model_type == 'bidLstm'):
         model = bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'bidLstm_simple'):
+    elif (model_type == 'bidLstm_simple'):
         model = bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'lstm'):
+    elif (model_type == 'lstm'):
         model = lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'cnn'):
+    elif (model_type == 'cnn'):
         model = cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'cnn2'):
+    elif (model_type == 'cnn2'):
         model = cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'cnn3'):
+    elif (model_type == 'cnn3'):
         model = cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'lstm_cnn'):
+    elif (model_type == 'lstm_cnn'):
         model = lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'conv'):
+    elif (model_type == 'conv'):
         model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'mix1'):
+    elif (model_type == 'mix1'):
         model = mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'dpcnn'):
+    elif (model_type == 'dpcnn'):
         model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'gru'):
+    elif (model_type == 'gru'):
         model = gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    if (modelName == 'gru_simple'):
+    elif (model_type == 'gru_simple'):
         model = gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
-    
+    else:
+        raise (OSError('The model type '+model_type+' is unknown'))
     return model
 
 
-def train_model(model, list_classes, batch_size, max_epoch, train_x, train_y, val_x, val_y):
+def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, train_x, train_y, val_x, val_y):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
@@ -660,29 +662,43 @@ def train_model(model, list_classes, batch_size, max_epoch, train_x, train_y, va
 
         total_loss /= len(list_classes)
         total_roc_auc /= len(list_classes)
-        print("Epoch {0} loss {1} best_loss {2} (for info) ".format(current_epoch, total_loss, best_loss))
-        print("Epoch {0} roc_auc {1} best_roc_auc {2} (for early stop) ".format(current_epoch, total_roc_auc, best_roc_auc))
+        if use_roc_auc:
+            print("Epoch {0} loss {1} best_loss {2} (for info) ".format(current_epoch, total_loss, best_loss))
+            print("Epoch {0} roc_auc {1} best_roc_auc {2} (for early stop) ".format(current_epoch, total_roc_auc, best_roc_auc))
+        else:
+            print("Epoch {0} loss {1} best_loss {2} (for early stop) ".format(current_epoch, total_loss, best_loss))
+            print("Epoch {0} roc_auc {1} best_roc_auc {2} (for info) ".format(current_epoch, total_roc_auc, best_roc_auc))
 
         current_epoch += 1
         if total_loss < best_loss or best_loss == -1 or math.isnan(best_loss) is True:
             best_loss = total_loss
+            if use_roc_auc is False:
+                best_weights = model.get_weights()
+                best_epoch = current_epoch
+        elif use_roc_auc is False:
+            if current_epoch - best_epoch == 5:
+                break
 
         if total_roc_auc > best_roc_auc or best_roc_auc == -1:
             best_roc_auc = total_roc_auc
-            best_weights = model.get_weights()
-            best_epoch = current_epoch
-        else:
+            if use_roc_auc:
+                best_weights = model.get_weights()
+                best_epoch = current_epoch
+        elif use_roc_auc:
             if current_epoch - best_epoch == 5:
                 break
 
     model.set_weights(best_weights)
-    return model, best_roc_auc
 
+    if use_roc_auc:
+        return model, best_roc_auc
+    else:
+        return model, best_loss
 
-def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_name, model_type, embeddings):
+def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_type, use_roc_auc, embeddings):
     fold_size = len(X) // fold_count
     models = []
-    roc_scores = []
+    scores = []
 
     for fold_id in range(0, fold_count):
         print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -698,8 +714,8 @@ def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_nam
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel, best_roc_auc = train_model(getModel(model_type, embeddings, len(list_classes)), 
-                list_classes, batch_size, max_epoch, train_x, train_y, val_x, val_y)
+        foldModel, best_score = train_model(getModel(model_type, embeddings, len(list_classes)), 
+                list_classes, batch_size, max_epoch, use_roc_auc, train_x, train_y, val_x, val_y)
         models.append(foldModel)
         
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
@@ -707,9 +723,15 @@ def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_nam
         #foldModel.save(model_path)
         #del foldModel
 
-        roc_scores.append(best_roc_auc)
-    all_roc_scores = sum(roc_scores)
-    print("Average best roc_auc scores over the", fold_count, "fold: ", all_roc_scores/fold_count)
+        scores.append(best_score)
+
+    all_scores = sum(scores)
+    avg_score = all_scores/fold_count
+    
+    if (use_roc_auc):
+        print("Average best roc_auc scores over the", fold_count, "fold: ", avg_score)
+    else:
+        print("Average best log loss scores over the", fold_count, "fold: ", avg_score)
 
     return models
 

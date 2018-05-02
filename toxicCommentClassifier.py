@@ -13,7 +13,8 @@ import time
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
 def train(embedding_vector, fold_count): 
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=30, fold_number=fold_count, embeddings=embedding_vector)
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=30, 
+        fold_number=fold_count, embeddings=embedding_vector)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
@@ -26,7 +27,8 @@ def train(embedding_vector, fold_count):
 
 """
 def train_and_eval(embedding_vector, fold_count): 
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=25, fold_number=fold_count, embeddings=embedding_vector)
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=25, 
+        fold_number=fold_count, embeddings=embedding_vector)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")

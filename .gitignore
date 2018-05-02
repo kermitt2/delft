@@ -11,6 +11,7 @@ target
 *.old
 *.obj
 *.zip
+*.gz
 data/db
 data/training
 data/eval

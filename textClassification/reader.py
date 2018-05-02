@@ -126,7 +126,7 @@ def load_citation_sentiment_corpus(filepath):
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'n':
+            if pieces[2] is 'o':
                 polarity.append(1)
             else:
                 polarity.append(0)

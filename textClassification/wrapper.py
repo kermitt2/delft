@@ -12,7 +12,7 @@ from textClassification.models import predict
 from textClassification.models import predict_folds
 from textClassification.preprocess import prepare_preprocessor, TextPreprocessor
 
-from sklearn.metrics import log_loss, roc_auc_score, accuracy_score
+from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
 
 from utilities.Embeddings import filter_embeddings
 
@@ -37,10 +37,10 @@ class Classifier(object):
                  clip_gradients=5.0, 
                  max_epoch=50, 
                  patience=5,
-                 max_checkpoints_to_keep=5, 
                  log_dir=None,
                  maxlen=300,
                  fold_number=1,
+                 use_roc_auc=True,
                  embeddings=()):
 
         self.model_config = ModelConfig(model_name, model_type, list_classes, 
@@ -48,8 +48,7 @@ class Classifier(object):
                                         use_char_feature, maxlen, fold_number)
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
-                                              patience, 
-                                              max_checkpoints_to_keep)
+                                              patience, use_roc_auc)
         self.model = None
         self.models = None
         self.p = None
@@ -69,7 +68,7 @@ class Classifier(object):
 
         self.model = getModel(self.model_config.model_type, embeddings, len(self.model_config.list_classes))
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
-            self.training_config.max_epoch, xtr, y, val_x, val_y)
+            self.training_config.max_epoch, self.training_config.use_roc_auc, xtr, y, val_x, val_y)
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None):
@@ -82,7 +81,7 @@ class Classifier(object):
         xtr = self.p.to_sequence(x_train, self.model_config.maxlen)
 
         self.models = train_folds(xtr, y_train, self.model_config.fold_number, self.model_config.list_classes, self.training_config.batch_size, 
-            self.training_config.max_epoch, self.model_config.model_name, self.model_config.model_type, embeddings)
+            self.training_config.max_epoch, self.model_config.model_type, self.training_config.use_roc_auc, embeddings)
 
 
     # classification
@@ -140,6 +139,7 @@ class Classifier(object):
         print("\nEvaluation on", x_test.shape[0], "instances:")
 
         total_accuracy = 0.0
+        total_f1 = 0.0
         total_loss = 0.0
         total_roc_auc = 0.0
 
@@ -151,32 +151,72 @@ class Classifier(object):
         vfunc = np.vectorize(normer)
         result_binary = vfunc(result)
 
+        print(result)
+        print(result_binary)
+        print(y_test)
+
+        # macro-average (average of class scores)
         # we distinguish 1-class and multiclass problems 
         if len(self.model_config.list_classes) is 1:
             total_accuracy = accuracy_score(y_test, result_binary)
+            total_f1 = f1_score(y_test, result_binary)
             total_loss = log_loss(y_test, result)
             total_roc_auc = roc_auc_score(y_test, result)
         else:
             for j in range(0, len(self.model_config.list_classes)):
                 accuracy = accuracy_score(y_test[:, j], result_binary[:, j])
                 total_accuracy += accuracy
+                f1 = f1_score(y_test[:, j], result_binary[:, j], average='micro')
+                total_f1 += f1
                 loss = log_loss(y_test[:, j], result[:, j])
                 total_loss += loss
                 roc_auc = roc_auc_score(y_test[:, j], result[:, j])
                 total_roc_auc += roc_auc
                 print("\nClass:", self.model_config.list_classes[j])
                 print("\taccuracy at 0.5 =", accuracy)
+                print("\tf-1 at 0.5 =", f1)
                 print("\tlog-loss =", loss)
                 print("\troc auc =", roc_auc)
 
         total_accuracy /= len(self.model_config.list_classes)
+        total_f1 /= len(self.model_config.list_classes)
         total_loss /= len(self.model_config.list_classes)
         total_roc_auc /= len(self.model_config.list_classes)
 
         print("\nMacro-average:")
         print("\taverage accuracy at 0.5 =", total_accuracy)
+        print("\taverage f-1 at 0.5 =", total_f1)
         print("\taverage log-loss =", total_loss)
         print("\taverage roc auc =", total_roc_auc)
+
+        total_accuracy = 0.0
+        total_f1 = 0.0
+        total_loss = 0.0
+        total_roc_auc = 0.0
+
+        # micro-average (average of scores for each instance)
+        for i in range(0, result.shape[0]):
+            #for j in range(0, len(self.model_config.list_classes)):
+            accuracy = accuracy_score(y_test[i,:], result_binary[i,:])
+            total_accuracy += accuracy
+            f1 = f1_score(y_test[i,:], result_binary[i,:], average='micro')
+            total_f1 += f1
+            loss = log_loss(y_test[i,:], result[i,:])
+            total_loss += loss
+            roc_auc = roc_auc_score(y_test[i,:], result[i,:])
+            total_roc_auc += roc_auc
+
+        total_accuracy /= result.shape[0]
+        total_f1 /= result.shape[0]
+        total_loss /= result.shape[0]
+        total_roc_auc /= result.shape[0]
+
+        print("\nMicro-average:")
+        print("\taverage accuracy at 0.5 =", total_accuracy)
+        print("\taverage f-1 at 0.5 =", total_f1)
+        print("\taverage log-loss =", total_loss)
+        print("\taverage roc auc =", total_roc_auc)
+
 
     def save(self, dir_path='data/models/textClassification/'):
         # create subfolder for the model if not already exists
