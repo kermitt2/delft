@@ -20,13 +20,9 @@ def train(embedding_vector, fold_count):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('insult', max_epoch=1, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('insult', max_epoch=30, embeddings=embedding_vector)
     model.train(x_train, y_train, x_valid, y_valid)
     print('training done')
-
-    tokens = tokenizeAndFilter('you\'re a moronic wimp who is too lazy to do research! die in hell !!')
-    print(json.dumps(model.analyze(tokens), indent=4, sort_keys=True))
-    print(model.tag(tokens))
 
     # saving the model
     model.save()
@@ -41,6 +37,7 @@ def annotate(texts, embedding_vector, output_format):
     
     start_time = time.time()
 
+    '''
     for text in texts:
         tokens = tokenizeAndFilter(text)
         result = model.analyze(tokens)
@@ -48,7 +45,9 @@ def annotate(texts, embedding_vector, output_format):
         if result["entities"] is not None:
             entities = result["entities"]
             annotations.append(entities)
-    
+    '''
+
+    annotations = model.analyze(texts, output_format)
     runtime = round(time.time() - start_time, 3)
 
     if output_format is 'json':
@@ -77,12 +76,12 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embedding_vector)
+        train(embedding_vector, args.fold_count)
 
     if action == 'tag':
         someTexts = ['This is a gentle test.', 
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
-                     'This is a test and I know where you leave.']
+                     'This is a fucking test and I know where you leave.']
         result = annotate(someTexts, embedding_vector, "json")
         print(json.dumps(result, sort_keys=False, indent=4))
 

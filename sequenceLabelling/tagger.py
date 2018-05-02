@@ -1,6 +1,8 @@
 from collections import defaultdict
 import numpy as np
+import datetime
 from sequenceLabelling.metrics import get_entities
+from sequenceLabelling.tokenizer import tokenizeAndFilter
 
 class Tagger(object):
 
@@ -26,7 +28,7 @@ class Tagger(object):
 
         return prob
 
-    def _build_response(self, tokens, tags, prob):
+    def _build_response_old(self, tokens, tags, prob):
         res = {
             "software": "DeLFT",
             "date": datetime.datetime.now().isoformat(),
@@ -49,7 +51,25 @@ class Tagger(object):
 
         return res
 
-    def analyze(self, tokens):
+    def _build_json_response(self, tokens, tags, prob):
+        res = {
+            "entities": []
+        }
+        chunks = get_entities(tags)
+        for chunk_type, chunk_start, chunk_end in chunks:
+            # TODO: get the original string rather than regenerating it from tokens
+            entity = {
+                "text": ' '.join(tokens[chunk_start: chunk_end]),
+                "class": chunk_type,
+                "score": float(np.average(prob[chunk_start: chunk_end])),
+                "beginOffset": chunk_start,
+                "endOffset": chunk_end
+            }
+            res["entities"].append(entity)
+
+        return res
+
+    def analyze_old(self, tokens):
         assert isinstance(tokens, list)
 
         pred = self.predict(tokens)
@@ -59,7 +79,42 @@ class Tagger(object):
 
         return res
 
-    def tag(self, tokens):
+    def analyze(self, texts, output_format):
+        assert isinstance(texts, list)
+
+        if output_format is 'json':
+            res = {
+                "software": "DeLFT",
+                "date": datetime.datetime.now().isoformat(),
+                "model": self.model.config.model_name,
+                "texts": []
+            }
+        else:
+           list_of_tags = []
+
+        for text in texts:
+            tokens = tokenizeAndFilter(text)
+
+            pred = self.predict(tokens)
+            tags = self._get_tags(pred)
+            prob = self._get_prob(pred)
+            #entities = self._build_response(tokens, tags, prob)
+            
+            if output_format is 'json':
+                piece = {}
+                piece["text"] = text
+                piece["entities"] = self._build_json_response(tokens, tags, prob)["entities"]
+                res["texts"].append(piece)
+            else:
+                the_tags = list(zip(tokens, tags))
+                list_of_tags.append(the_tags)
+
+        if output_format is 'json':
+            return res
+        else:
+            return list_of_tags
+
+    def tag_old(self, tokens):
         """Tags a sentence named entities.
 
         Args:

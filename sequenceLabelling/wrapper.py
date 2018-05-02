@@ -3,15 +3,17 @@ import os
 import numpy as np
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
-from sequenceLabelling.evaluator import Evaluator
+#from sequenceLabelling.evaluator import Evaluator
 from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
+from sequenceLabelling.reader import batch_iter
+from sequenceLabelling.metrics import F1score
 from utilities.Embeddings import filter_embeddings
 
-# based on https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
-# with various modifcations
+# initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
+# with various modifications
 
 class Sequence(object):
 
@@ -21,6 +23,7 @@ class Sequence(object):
 
     def __init__(self, 
                  model_name="",
+                 model_type="",
                  char_emb_size=25, 
                  word_emb_size=300, 
                  char_lstm_units=25,
@@ -39,7 +42,7 @@ class Sequence(object):
                  log_dir=None,
                  embeddings=()):
 
-        self.model_config = ModelConfig(model_name, char_emb_size, word_emb_size, char_lstm_units,
+        self.model_config = ModelConfig(model_name, model_type, char_emb_size, word_emb_size, char_lstm_units,
                                         word_lstm_units, dropout, use_char_feature, use_crf)
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -87,24 +90,34 @@ class Sequence(object):
 
     def eval(self, x_test, y_test):
         if self.model:
-            evaluator = Evaluator(self.model, preprocessor=self.p)
-            evaluator.eval(x_test, y_test)
+            # Prepare test data(steps, generator)
+            train_steps, train_batches = batch_iter(x_test,
+                                                    y_test,
+                                                    batch_size=20,  
+                                                    shuffle=False,
+                                                    preprocessor=self.p)
+            # Build the evaluator and evaluate the model
+            f1score = F1score(train_steps, train_batches, self.p)
+            f1score.model = self.model
+            f1score.on_epoch_end(epoch=-1) 
         else:
             raise (OSError('Could not find a model.'))
 
-    def analyze(self, words):
+    def analyze(self, texts, output_format):
         if self.model:
             tagger = Tagger(self.model, preprocessor=self.p)
-            return tagger.analyze(words)
+            return tagger.analyze(texts, output_format)
         else:
             raise (OSError('Could not find a model.'))
 
+    '''
     def tag(self, words):
         if self.model:
             tagger = Tagger(self.model, preprocessor=self.p)
             return tagger.tag(words)
         else:
             raise (OSError('Could not find a model.'))
+    '''
 
     def save(self, dir_path='data/models/sequenceLabelling/'):
         
@@ -127,7 +140,7 @@ class Sequence(object):
         
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         
-        dummy_embeddings = np.zeros((config.vocab_size, config.word_embedding_size), dtype=np.float32)
+        dummy_embeddings = np.zeros((config.vocab_size+1, config.word_embedding_size), dtype=np.float32)
         self.model = SeqLabelling_BidLSTM_CRF(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 
