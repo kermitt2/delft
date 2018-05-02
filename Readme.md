@@ -17,7 +17,7 @@ DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. 
 
 - BidLSTM-CRF with words and characters input following: 
 
-Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
+[1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
 <!--
 - BidLSTM-CNN with words, characters and custum features input following: 
@@ -42,6 +42,64 @@ By default, the BidLSTM-CRF model is used.
 For tagging some text, use the command:
 
 > python3 nerTagger.py tag
+
+which produces a JSON output with entities, scores and character offsets like this:
+
+```json
+{
+    "model": "ner",
+    "runtime": 0.346,
+    "date": "2018-05-02T11:34:01.521639",
+    "software": "DeLFT",
+    "texts": [
+        {
+            "entities": [
+                {
+                    "endOffset": 17,
+                    "beginOffset": 4,
+                    "class": "LOC",
+                    "text": "University",
+                    "score": 1.0
+                },
+                {
+                    "endOffset": 32,
+                    "beginOffset": 18,
+                    "class": "LOC",
+                    "text": "California",
+                    "score": 1.0
+                },
+                {
+                    "endOffset": 134,
+                    "beginOffset": 125,
+                    "class": "LOC",
+                    "text": "Illinois",
+                    "score": 1.0
+                }
+            ],
+            "text": "The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent."
+        },
+        {
+            "entities": [
+                {
+                    "endOffset": 18,
+                    "beginOffset": 10,
+                    "class": "PER",
+                    "text": "Obama",
+                    "score": 1.0
+                },
+                {
+                    "endOffset": 61,
+                    "beginOffset": 49,
+                    "class": "LOC",
+                    "text": "White House",
+                    "score": 1.0
+                }
+            ],
+            "text": "President Obama is not speaking anymore from the White House."
+        }
+    ]
+}
+```
 
 #### GROBID models
 
@@ -118,9 +176,9 @@ TBD
 
 We use the dataset developed and presented by A. Athar in the following article:
 
-Awais Athar. "Sentiment Analysis of Citations using Sentence Structure-Based Features". Proceedings of the ACL 2011 Student Session, 81-87, 2011. http://www.aclweb.org/anthology/P11-3015
+[2] Awais Athar. "Sentiment Analysis of Citations using Sentence Structure-Based Features". Proceedings of the ACL 2011 Student Session, 81-87, 2011. http://www.aclweb.org/anthology/P11-3015
 
-For a given scientific article, the task is to estimate if the occurrence of a bibliographical citation is positive, neutral or negative given its citation context. 
+For a given scientific article, the task is to estimate if the occurrence of a bibliographical citation is positive, neutral or negative given its citation context. Note that the dataset, similarly to the Toxic Comment classification, is highly unbalanced (86% of the citations are neutral). 
 
 In this example, we formulate the problem as a 3 class regression (`negative`. `neutral`, `positive`). To train the model:
 
@@ -140,25 +198,38 @@ which should produce the following evaluation (using the 2-layers Bidirectional 
 Evaluation on 896 instances:
 
 Class: negative
-    accuracy at 0.5 = 0.9620535714285714
-    log-loss = 0.10431599666467914
-    roc auc = 0.9185061448514498
+    accuracy at 0.5 = 0.9665178571428571
+    f-1 at 0.5 = 0.9665178571428571
+    log-loss = 0.10193770380479757
+    roc auc = 0.9085232470270055
 
 Class: neutral
-    accuracy at 0.5 = 0.9631696428571429
-    log-loss = 0.10217989354726699
-    roc auc = 0.9225231674820029
+    accuracy at 0.5 = 0.8995535714285714
+    f-1 at 0.5 = 0.8995535714285714
+    log-loss = 0.2584601024897698
+    roc auc = 0.8914776135848872
 
 Class: positive
-    accuracy at 0.5 = 0.9296875
-    log-loss = 0.20026920159911502
-    roc auc = 0.8898697968041034
+    accuracy at 0.5 = 0.9252232142857143
+    f-1 at 0.5 = 0.9252232142857143
+    log-loss = 0.20726886795593405
+    roc auc = 0.8892779640954823
 
 Macro-average:
-    average accuracy at 0.5 = 0.9516369047619048
-    average log-loss = 0.13558836393702037
-    average roc auc = 0.910299703045852
+    average accuracy at 0.5 = 0.9304315476190476
+    average f-1 at 0.5 = 0.9304315476190476
+    average log-loss = 0.18922222475016715
+    average roc auc = 0.8964262749024584
+
+Micro-average:
+    average accuracy at 0.5 = 0.9304315476190482
+    average f-1 at 0.5 = 0.9304315476190482
+    average log-loss = 0.18922222475016712
+    average roc auc = 0.9319196428571429
+
 ```
+
+In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average) and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering, is very robust for an unbalanced dataset.
 
 To classify a set of citation contexts:
 

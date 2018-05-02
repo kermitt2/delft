@@ -9,21 +9,15 @@ pattern = re.compile('('+regex+')')
 
 blanks = ' \t\n'
 
-def tokenize(text):
-    return pattern.split(text)
-
 def tokenizeAndFilter(text):
-    #tokens = tokenize(text)
     offset = 0
     offsets = []
     tokens = []
     for index, match in enumerate(pattern.split(text)):
-        print(index, match)
         tokens.append(match)
         position = (offset, offset+len(match))
         offsets.append(position)
         offset = offset+len(match)
-    #tokens = pattern.split(text)
 
     finalTokens = []
     finalOffsets = []

@@ -20,7 +20,7 @@ def train(embedding_vector, fold_count):
     print(len(x_valid), 'validation sequences')
     print(len(x_test), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=1, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
     model.train(x_train, y_train, x_valid, y_valid)
 
     # saving the model

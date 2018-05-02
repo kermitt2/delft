@@ -150,11 +150,7 @@ class Classifier(object):
                 return 1
         vfunc = np.vectorize(normer)
         result_binary = vfunc(result)
-
-        print(result)
-        print(result_binary)
-        print(y_test)
-
+        
         # macro-average (average of class scores)
         # we distinguish 1-class and multiclass problems 
         if len(self.model_config.list_classes) is 1:
