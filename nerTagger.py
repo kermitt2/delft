@@ -1,5 +1,6 @@
 import os
 import json
+import numpy as np
 from utilities.Embeddings import make_embeddings_simple
 import sequenceLabelling
 from sequenceLabelling.tokenizer import tokenizeAndFilter
@@ -13,21 +14,29 @@ def train(embedding_vector, fold_count):
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
-    x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.train')
-    x_valid, y_valid = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testa')
-    x_test, y_test = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testb')
+    x_train1, y_train1 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.train')
+    x_train2, y_train2 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testa')
+
+    # we concatenate train and valid sets
+    x_train = np.concatenate((x_train1, x_train2), axis=0)
+    y_train = np.concatenate((y_train1, y_train2), axis=0)
+
+    x_valid, y_valid = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testb')
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
-    print(len(x_test), 'evaluation sequences')
 
     model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
+
+    start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
+    runtime = round(time.time() - start_time, 3)
+    print("training runtime: %s seconds " % (runtime))
 
     # saving the model
     model.save()
 
 # train and usual eval on CoNLL 2003 eng.testb 
-def train_eval(embedding_vector): 
+def train_eval(embedding_vector, fold_count): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
@@ -39,8 +48,13 @@ def train_eval(embedding_vector):
     print(len(x_test), 'evaluation sequences')
 
     model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
-    model.train(x_train, y_train, x_valid, y_valid)
 
+    start_time = time.time()
+    model.train(x_train, y_train, x_valid, y_valid)
+    runtime = round(time.time() - start_time, 3)
+    print("training runtime: %s seconds " % (runtime))
+
+    print("\nEvaluation on test set:")
     model.eval(x_test, y_test)
 
     # saving the model
@@ -77,7 +91,7 @@ if __name__ == "__main__":
     
     action = args.action    
     if (action != 'train') and (action != 'tag'):
-        print('action not specifed, must be one of [train,tag]')
+        print('action not specifed, must be one of [train,train_eval,tag]')
 
     embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
 

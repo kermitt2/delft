@@ -280,7 +280,7 @@ __Models__:
 
 __NER__:
 
-* benchmark with OntoNores 5 and French NER
+* benchmark with OntoNotes 5 and French NER
 
 __Production stack__:
 

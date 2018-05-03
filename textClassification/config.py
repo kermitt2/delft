@@ -12,7 +12,8 @@ class ModelConfig(object):
                  dropout=0.5, 
                  use_char_feature=False,
                  maxlen=300,
-                 fold_number=1
+                 fold_number=1,
+                 batch_size=128
                  ):
 
         self.model_name = model_name
@@ -30,6 +31,7 @@ class ModelConfig(object):
         self.use_char_feature = use_char_feature
         self.list_classes = list_classes
         self.fold_number = fold_number
+        self.batch_size = batch_size
 
     def save(self, file):
         with open(file, 'w') as f:

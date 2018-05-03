@@ -3,7 +3,6 @@ import os
 import numpy as np
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
-#from sequenceLabelling.evaluator import Evaluator
 from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
@@ -56,7 +55,10 @@ class Sequence(object):
 
 
     def train(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None):
-        self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
+        # TBD if valid is None, segment train to get one
+        x_all = np.concatenate((x_train, x_valid), axis=0)
+        y_all = np.concatenate((y_train, y_valid), axis=0)
+        self.p = prepare_preprocessor(x_all, y_all, vocab_init=vocab_init)
         embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
                                        self.model_config.word_embedding_size)
         self.model_config.vocab_size = len(self.p.vocab_word)

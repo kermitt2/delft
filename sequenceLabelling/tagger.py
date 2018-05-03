@@ -3,7 +3,7 @@ import numpy as np
 import datetime
 from sequenceLabelling.metrics import get_entities
 from sequenceLabelling.metrics import get_entities_with_offsets
-from sequenceLabelling.tokenizer import tokenizeAndFilter
+from utilities.Tokenizer import tokenizeAndFilter
 
 class Tagger(object):
 

@@ -4,7 +4,8 @@ from xml.sax import make_parser, handler
 import pandas as pd
 
 def load_texts_and_classes(filepath):
-    """Load texts and classes from a file in the following simple tab-separated format:
+    """
+    Load texts and classes from a file in the following simple tab-separated format:
 
     id_0    text_0  class_00 ...    class_n0
     id_1    text_1  class_01 ...    class_n1
@@ -35,7 +36,8 @@ def load_texts_and_classes(filepath):
 
 
 def load_texts_and_classes_pandas(filepath):
-    """Load texts and classes from a file in csv format using pandas dataframe:
+    """
+    Load texts and classes from a file in csv format using pandas dataframe:
 
     id      text    class_0     ... class_n
     id_0    text_0  class_00    ... class_n0
@@ -60,11 +62,12 @@ def load_texts_and_classes_pandas(filepath):
     classes = df.iloc[:,2:]
     classes_list = classes.values.tolist()
 
-    return texts_list, np.asarray(classes_list)
+    return np.asarray(texts_list), np.asarray(classes_list)
 
 
 def load_texts_pandas(filepath):
-    """Load texts from a file in csv format using pandas dataframe:
+    """
+    Load texts from a file in csv format using pandas dataframe:
 
     id      text
     id_0    text_0
@@ -86,10 +89,11 @@ def load_texts_pandas(filepath):
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
-    return texts_list
+    return np.asarray(texts_list)
 
 def load_citation_sentiment_corpus(filepath):
-    """Load texts from the citation sentiment corpus:
+    """
+    Load texts from the citation sentiment corpus:
 
     Source_Paper  Target_Paper    Sentiment   Citation_Text
 

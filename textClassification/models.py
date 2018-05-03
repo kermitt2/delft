@@ -11,6 +11,8 @@ import sys, os
 import argparse
 import math
 
+from textClassification.data_generator import DataGenerator
+
 from keras import backend as K
 from keras.engine.topology import Layer
 from keras import initializers, regularizers, constraints
@@ -215,12 +217,13 @@ parametersMap = { 'lstm' : parameters_lstm, 'bidLstm_simple' : parameters_bidLst
                   'dpcnn': parameters_dpcnn, 'conv': parameters_conv }
 
 # basic LSTM
-def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix],
-                  trainable=False)(inp)
+def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix],
+    #              trainable=False)(inp)
     x = LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate)(x)
+                           recurrent_dropout=dropout_rate)(input_layer)
     #x = CuDNNLSTM(recurrent_units, return_sequences=True)(x)
     x = Dropout(dropout_rate)(x)
     x_a = GlobalMaxPool1D()(x)
@@ -240,11 +243,12 @@ def lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     return model
 
 # bidirectional LSTM 
-def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(x)
+                           recurrent_dropout=dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
@@ -263,11 +267,12 @@ def bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_ra
     return model
 
 # bidirectional LSTM with attention layer
-def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(x)
+                           recurrent_dropout=dropout_rate))(input_layer)
     #x = Dropout(dropout_rate)(x)
     x = Attention(maxlen)(x)
     #x = AttentionWeightedAverage(maxlen)(x)
@@ -283,10 +288,11 @@ def bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, rec
 
 
 # conv+GRU with embeddings
-def cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
-    x = Dropout(dropout_rate)(x) 
+def cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+    x = Dropout(dropout_rate)(input_layer) 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
     x = MaxPooling1D(pool_size=2)(x)
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
@@ -302,10 +308,11 @@ def cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurre
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def cnn2_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
-    x = Dropout(dropout_rate)(x) 
+def cnn2_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+    x = Dropout(dropout_rate)(input_layer) 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
     #x = MaxPooling1D(pool_size=2)(x)
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
@@ -322,10 +329,11 @@ def cnn2_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, r
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
-    x = Dropout(dropout_rate)(x) 
+def cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+    x = Dropout(dropout_rate)(input_layer) 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
     #x = MaxPooling1D(pool_size=2)(x)
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
@@ -342,11 +350,12 @@ def cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+def cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate)(x)
+                           recurrent_dropout=dropout_rate)(input_layer)
     #x = Dropout(dropout_rate)(x) 
 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
@@ -369,11 +378,12 @@ def cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-def conv(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
+def conv(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     filter_kernels = [7, 7, 5, 5, 3, 3]
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
-    conv = Conv1D(nb_filter=recurrent_units, filter_length=filter_kernels[0], border_mode='valid', activation='relu')(x)
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
+    conv = Conv1D(nb_filter=recurrent_units, filter_length=filter_kernels[0], border_mode='valid', activation='relu')(input_layer)
     conv = MaxPooling1D(pool_length=3)(conv)
     conv1 = Conv1D(nb_filter=recurrent_units, filter_length=filter_kernels[1], border_mode='valid', activation='relu')(conv)
     conv1 = MaxPooling1D(pool_length=3)(conv1)
@@ -392,12 +402,13 @@ def conv(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     return model
 
 # LSTM + conv
-def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    inp = Input(shape=(maxlen, ))
-    x = Embedding(max_features, embed_size, weights=[embedding_matrix],
-                  trainable=False)(inp)
+def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #inp = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #x = Embedding(max_features, embed_size, weights=[embedding_matrix],
+    #              trainable=False)(inp)
     x = LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate)(x)
+                           recurrent_dropout=dropout_rate)(input_layer)
     x = Dropout(dropout_rate)(x)
 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
@@ -436,17 +447,13 @@ def lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
     return model
 
 # 2 bid. GRU 
-def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    input_layer = Input(shape=(maxlen,))
-
-    #print(max_features)
-    #print(embed_size)
-    #print(embedding_matrix)
-
-    embedding_layer = Embedding(max_features, embed_size, 
-                                weights=[embedding_matrix], trainable=False)(input_layer)
+def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #input_layer = Input(shape=(maxlen,))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #embedding_layer = Embedding(max_features, embed_size, 
+    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=recurrent_dropout_rate))(embedding_layer)
+                           recurrent_dropout=recurrent_dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(x)
@@ -465,17 +472,18 @@ def gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurre
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
     model.compile(loss='binary_crossentropy',
-                  #optimizer=RMSprop(clipvalue=1, clipnorm=1),
-                  optimizer='adam',
+                  optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                  #optimizer='adam',
                   metrics=['accuracy'])
     return model
 
-def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
-                                weights=[embedding_matrix], trainable=False)(input_layer)
+def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #input_layer = Input(shape=(maxlen,))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #embedding_layer = Embedding(max_features, embed_size,
+    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(embedding_layer)
+                           recurrent_dropout=dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate))(x)
@@ -500,12 +508,13 @@ def gru_best(maxlen, max_features, embed_size, recurrent_units, dropout_rate, re
     return model
 
 # 1 layer bid GRU
-def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size,embedding_matrix, nb_classes):
-    input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
-                                weights=[embedding_matrix], trainable=False)(input_layer)
+def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #input_layer = Input(shape=(maxlen,))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #embedding_layer = Embedding(max_features, embed_size,
+    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(embedding_layer)
+                           recurrent_dropout=dropout_rate))(input_layer)
     #x = AttentionWeightedAverage(maxlen)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
@@ -527,12 +536,13 @@ def gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, 
     return model
 
 # bid GRU + bid LSTM
-def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    input_layer = Input(shape=(maxlen,))
-    embedding_layer = Embedding(max_features, embed_size,
-                                weights=[embedding_matrix], trainable=False)(input_layer)
+def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #input_layer = Input(shape=(maxlen,))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #embedding_layer = Embedding(max_features, embed_size,
+    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=recurrent_dropout_rate))(embedding_layer)
+                           recurrent_dropout=recurrent_dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(x)
@@ -553,12 +563,13 @@ def mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurr
     return model
 
 # DPCNN
-def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_matrix, nb_classes):
-    input_layer = Input(shape=(maxlen, ))
-    X = Embedding(max_features, embed_size, weights=[embedding_matrix], 
-                  trainable=False)(input_layer)
+def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
+    #input_layer = Input(shape=(maxlen, ))
+    input_layer = Input(shape=(maxlen, embed_size), )
+    #X = Embedding(max_features, embed_size, weights=[embedding_matrix], 
+    #              trainable=False)(input_layer)
     # first block
-    X_shortcut1 = X
+    X_shortcut1 = input_layer
     X = Conv1D(filters=recurrent_units, kernel_size=2, strides=3)(X)
     X = Activation('relu')(X)
     X = Conv1D(filters=recurrent_units, kernel_size=2, strides=3)(X)
@@ -591,11 +602,11 @@ def dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recur
     return model
 
 
-def getModel(model_type, embedding_vector, nb_classes):
+def getModel(model_type, nb_classes):
     parameters = parametersMap[model_type]
 
-    max_features = embedding_vector.shape[0]
-    embed_size = embedding_vector.shape[1]
+    max_features = parameters['max_features']
+    embed_size = parameters['embed_size']
     maxlen = parameters['maxlen']
     epoch = parameters['epoch']
     batch_size = parameters['batch_size']
@@ -606,35 +617,35 @@ def getModel(model_type, embedding_vector, nb_classes):
 
     # awww Python has no case/switch statement :D
     if (model_type == 'bidLstm'):
-        model = bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = bidLstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'bidLstm_simple'):
-        model = bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = bidLstm_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'lstm'):
-        model = lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = lstm(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'cnn'):
-        model = cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'cnn2'):
-        model = cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = cnn2(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'cnn3'):
-        model = cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = cnn3(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'lstm_cnn'):
-        model = lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = lstm_cnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'conv'):
-        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'mix1'):
-        model = mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = mix1(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'dpcnn'):
-        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = dpcnn(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'gru'):
-        model = gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = gru(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'gru_simple'):
-        model = gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, embedding_vector, nb_classes)
+        model = gru_simple(maxlen, max_features, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     else:
         raise (OSError('The model type '+model_type+' is unknown'))
     return model
 
 
-def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, train_x, train_y, val_x, val_y):
+def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
@@ -643,8 +654,17 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, train_x
 
     while current_epoch <= max_epoch:
 
-        model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
-        y_pred = model.predict(val_x, batch_size=batch_size)
+        #model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
+        model.fit_generator(
+            generator=training_generator,
+            use_multiprocessing=True,
+            workers=6,
+            epochs=1)
+
+        y_pred = model.predict_generator(
+            generator=validation_generator, 
+            use_multiprocessing=True,
+            workers=6)
 
         total_loss = 0.0
         total_roc_auc = 0.0
@@ -695,7 +715,12 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, train_x
     else:
         return model, best_loss
 
-def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_type, use_roc_auc, embeddings):
+def train_folds(X, y, model_config, training_config, embeddings):
+    fold_count = model_config.fold_number
+    max_epoch = training_config.max_epoch
+    model_type = model_config.model_type
+    use_roc_auc = training_config.use_roc_auc
+
     fold_size = len(X) // fold_count
     models = []
     scores = []
@@ -714,8 +739,15 @@ def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_typ
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel, best_score = train_model(getModel(model_type, embeddings, len(list_classes)), 
-                list_classes, batch_size, max_epoch, use_roc_auc, train_x, train_y, val_x, val_y)
+        training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
+            maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
+            embed_size=model_config.word_embedding_size, embeddings=embeddings, shuffle=True)
+        validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
+            maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
+            embed_size=model_config.word_embedding_size, embeddings=embeddings, shuffle=False)
+
+        foldModel, best_score = train_model(getModel(model_type, len(model_config.list_classes)), 
+                model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y)
         models.append(foldModel)
         
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
@@ -735,16 +767,23 @@ def train_folds(X, y, fold_count, list_classes, batch_size, max_epoch, model_typ
 
     return models
 
-def predict(model, xte):
-    y = model.predict(xte)
+def predict(model, predict_generator):
+    y = model.predict_generator(
+            generator=predict_generator, 
+            use_multiprocessing=True,
+            workers=6)
     return y
 
-def predict_folds(models, xte):
+def predict_folds(models, predict_generator):
     fold_count = len(models)
     y_predicts_list = []
     for fold_id in range(0, fold_count):
         model = models[fold_id]
-        y_predicts = model.predict(xte)
+        #y_predicts = model.predict(xte)
+        y_predicts = model.predict_generator(
+            generator=predict_generator, 
+            use_multiprocessing=True,
+            workers=6)
         y_predicts_list.append(y_predicts)
 
     y_predicts = np.ones(y_predicts_list[0].shape)

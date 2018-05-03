@@ -11,7 +11,7 @@ import time
 list_classes = ["negative", "neutral", "positive"]
 
 def train(embedding_vector, fold_count): 
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=30, fold_number=fold_count, 
+    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=50, fold_number=fold_count, 
         use_roc_auc=True, embeddings=embedding_vector)
 
     print('loading citation sentiment corpus...')
@@ -26,7 +26,7 @@ def train(embedding_vector, fold_count):
 
 
 def train_and_eval(embedding_vector, fold_count): 
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=30, fold_number=fold_count, 
+    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=50, fold_number=fold_count, 
         use_roc_auc=True, embeddings=embedding_vector)
 
     print('loading citation sentiment corpus...')

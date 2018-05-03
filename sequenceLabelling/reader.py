@@ -1,7 +1,7 @@
 import numpy as np
 import xml
 from xml.sax import make_parser, handler
-from sequenceLabelling.tokenizer import tokenizeAndFilter
+from utilities.Tokenizer import tokenizeAndFilter
 
 
 class TEIContentHandler(xml.sax.ContentHandler):

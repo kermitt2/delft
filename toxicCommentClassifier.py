@@ -25,27 +25,6 @@ def train(embedding_vector, fold_count):
     # saving the model
     model.save()
 
-"""
-def train_and_eval(embedding_vector, fold_count): 
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=25, 
-        fold_number=fold_count, embeddings=embedding_vector)
-
-    print('loading train dataset...')
-    xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
-
-    # segment train and eval sets
-    x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y)
-
-    if fold_count == 1:
-        model.train(x_train, y_train)
-    else:
-        model.train_nfold(x_train, y_train)
-    model.eval(x_test, y_test)
-
-    # saving the model
-    model.save()
-"""
-
 def test(embedding_vector):
     # load model
     model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, embeddings=embedding_vector)
