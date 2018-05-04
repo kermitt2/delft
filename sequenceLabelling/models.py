@@ -3,7 +3,7 @@ from keras.layers import Dense, LSTM, Bidirectional, Embedding, Input, Dropout, 
 from keras.layers.merge import Concatenate
 from keras.models import Model
 from keras.models import clone_model
-from sequenceLabelling.layers import ChainCRF
+from utilities.layers import ChainCRF
 
 class BaseModel(object):
 

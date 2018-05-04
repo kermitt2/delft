@@ -2,7 +2,7 @@ import os
 import json
 from utilities.Embeddings import make_embeddings_simple
 import sequenceLabelling
-from sequenceLabelling.tokenizer import tokenizeAndFilter
+from utilities.Tokenizer import tokenizeAndFilter
 from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
 import argparse
 import keras.backend as K
@@ -47,7 +47,7 @@ def annotate(texts, embedding_vector, output_format):
             annotations.append(entities)
     '''
 
-    annotations = model.analyze(texts, output_format)
+    annotations = model.tag(texts, output_format)
     runtime = round(time.time() - start_time, 3)
 
     if output_format is 'json':

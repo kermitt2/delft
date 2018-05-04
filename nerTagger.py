@@ -3,7 +3,7 @@ import json
 import numpy as np
 from utilities.Embeddings import make_embeddings_simple
 import sequenceLabelling
-from sequenceLabelling.tokenizer import tokenizeAndFilter
+from utilities.Tokenizer import tokenizeAndFilter
 from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
 import keras.backend as K
 import argparse
