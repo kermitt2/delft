@@ -75,7 +75,7 @@ class Classifier(object):
             maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
             embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
 
-        self.model = getModel(self.model_config.model_type, len(self.model_config.list_classes))
+        self.model = getModel(self.model_config, self.training_config)
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.training_config.use_roc_auc, training_generator, validation_generator, val_y)
 
@@ -267,13 +267,13 @@ class Classifier(object):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         
         #dummy_embeddings = np.zeros((len(self.p.word_index())+1, self.model_config.word_embedding_size), dtype=np.float32)
-        self.model = getModel(self.model_config.model_type, len(self.model_config.list_classes))
+        self.model = getModel(self.model_config, self.training_config)
         if self.model_config.fold_number is 1:
             self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
         else:
             self.models = []
             for i in range(0, self.model_config.fold_number):
-                local_model = getModel(self.model_config.model_type, len(self.model_config.list_classes))
+                local_model = getModel(self.model_config, self.training_config)
                 local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+".model{0}_weights.hdf5".format(i)))
                 self.models.append(local_model)
 

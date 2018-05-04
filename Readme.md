@@ -188,6 +188,7 @@ Training and evalation (ratio):
 
 which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`): 
 
+<!-- eval before data generator
 ```
 Evaluation on 896 instances:
 
@@ -220,10 +221,47 @@ Micro-average:
     average f-1 at 0.5 = 0.9304315476190482
     average log-loss = 0.18922222475016712
     average roc auc = 0.9319196428571429
+```    
+-->
+
+
+```
+Evaluation on 896 instances:
+
+Class: negative
+    accuracy at 0.5 = 0.9654017857142857
+    f-1 at 0.5 = 0.9654017857142857
+    log-loss = 0.1056664130630102
+    roc auc = 0.898580121703854
+
+Class: neutral
+    accuracy at 0.5 = 0.8939732142857143
+    f-1 at 0.5 = 0.8939732142857143
+    log-loss = 0.25354114470640177
+    roc auc = 0.88643347739321
+
+Class: positive
+    accuracy at 0.5 = 0.9185267857142857
+    f-1 at 0.5 = 0.9185267857142856
+    log-loss = 0.1980544119553914
+    roc auc = 0.8930591175116723
+
+Macro-average:
+    average accuracy at 0.5 = 0.9259672619047619
+    average f-1 at 0.5 = 0.9259672619047619
+    average log-loss = 0.18575398990826777
+    average roc auc = 0.8926909055362455
+
+Micro-average:
+    average accuracy at 0.5 = 0.9259672619047624
+    average f-1 at 0.5 = 0.9259672619047624
+    average log-loss = 0.18575398990826741
+    average roc auc = 0.9296875
+
 
 ```
 
-In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering, is very robust for an unbalanced dataset.
+In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tunning, is very robust for an unbalanced dataset and provides higher accuracy.
 
 To classify a set of citation contexts:
 
@@ -234,30 +272,31 @@ which will produce some JSON output like this:
 ```json
 {
     "model": "citations",
-    "software": "DeLFT",
     "classifications": [
         {
-            "positive": 0.8160770535469055,
-            "text": "One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.",
-            "negative": 0.0014772837748751044,
-            "neutral": 0.002285155700519681
+            "positive": 0.9182331562042236,
+            "negative": 0.007965211756527424,
+            "neutral": 0.16550213098526,
+            "text": "One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG."
         },
         {
-            "positive": 0.05530614033341408,
-            "text": "Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.",
-            "negative": 0.2548907399177551,
-            "neutral": 0.23885516822338104
+            "positive": 0.03423646464943886,
+            "negative": 0.5852375030517578,
+            "neutral": 0.5377339720726013,
+            "text": "Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data."
         },
         {
-            "positive": 0.8472888469696045,
-            "text": "However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.",
-            "negative": 0.16778403520584106,
-            "neutral": 0.21162080764770508
+            "positive": 0.7061985731124878,
+            "negative": 0.19738413393497467,
+            "neutral": 0.2151607871055603,
+            "text": "However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms."
         }
     ],
-    "date": "2018-04-30T23:33:24.840211",
-    "runtime": 0.686
+    "software": "DeLFT",
+    "date": "2018-05-04T06:35:43.809242",
+    "runtime": 1.359
 }
+
 ```
 
 

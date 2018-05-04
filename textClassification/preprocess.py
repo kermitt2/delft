@@ -17,8 +17,11 @@ def to_vector_single(text, embeddings, maxlen=300, embed_size=300):
     tokens = tokenizeAndFilterSimple(clean_text(text))
     window = tokens[-maxlen:]
     
+    # TBD: use better initializers (uniform, etc.) 
     x = np.zeros((maxlen, embed_size), )
 
+    # TBD: padding should be left and which vector do we use for padding? 
+    # and what about masking padding later for RNN?
     for i, word in enumerate(window):
         x[i,:] = get_word_vector(word, embeddings, embed_size).astype('float32')
 
@@ -32,6 +35,7 @@ def get_word_vector(word, embeddings, embed_size):
         return np.zeros((embed_size,), dtype=np.float32)
         # alternatively, initialize with random negative values
         #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
+        # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
 def clean_text(text):
     x_ascii = unidecode(text)
