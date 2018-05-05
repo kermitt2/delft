@@ -57,7 +57,8 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         return self
 
     def transform(self, X, y=None):
-        """transforms input(s)
+        """
+        transforms input(s)
 
         Args:
             X: list of list of words
@@ -214,7 +215,9 @@ def pad_sequences(sequences, pad_tok, nlevels=1):
 
 
 def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
-    """Convert class labels from scalars to one-hot vectors."""
+    """
+    Convert class labels from scalars to one-hot vectors
+    """
     if nlevels == 1:
         num_labels = labels_dense.shape[0]
         index_offset = np.arange(num_labels) * num_classes

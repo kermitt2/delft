@@ -3,20 +3,26 @@ import numpy as np
 import datetime
 from sequenceLabelling.metrics import get_entities
 from sequenceLabelling.metrics import get_entities_with_offsets
+from sequenceLabelling.data_generator import DataGenerator
 from utilities.Tokenizer import tokenizeAndFilter
 
 class Tagger(object):
 
-    def __init__(self, model, preprocessor=None):
+    def __init__(self, model, model_config, embeddings=(), preprocessor=None):
         self.model = model
         self.preprocessor = preprocessor
+        self.model_config = model_config
+        self.embeddings = embeddings
 
+    
+    """
     def predict(self, tokens):
         length = np.array([len(tokens)])
         X = self.preprocessor.transform([tokens])
         pred = self.model.predict(X, length)
 
         return pred
+    """
 
     def tag(self, texts, output_format):
         assert isinstance(texts, list)
@@ -31,10 +37,28 @@ class Tagger(object):
         else:
            list_of_tags = []
 
-        for text in texts:
+        predict_generator = DataGenerator(texts, None, None, 
+            batch_size=self.model_config.batch_size, preprocessor=self.preprocessor, 
+            embeddings=self.embeddings, tokenize=True, shuffle=False)
+
+        preds = self.model.predict_generator(
+            generator=predict_generator,
+            use_multiprocessing=True,
+            workers=6)
+        
+        for i in range(0,len(preds)):
+            pred = [preds[i]]
+            text = texts[i]
             tokens, offsets = tokenizeAndFilter(text)
 
-            pred = self.predict(tokens)
+            """
+            for text in texts:
+                tokens, offsets = tokenizeAndFilter(text)
+            
+                pred2 = self.predict(tokens)
+                print("pred2:", pred2)
+            """
+
             tags = self._get_tags(pred)
             prob = self._get_prob(pred)
             #entities = self._build_response(tokens, tags, prob)

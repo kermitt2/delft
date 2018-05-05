@@ -5,7 +5,8 @@ from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoin
 # based on https://github.com/Hironsan/anago/blob/master/anago/metrics.py
 
 def get_callbacks(log_dir=None, valid=(), tensorboard=True, eary_stopping=True):
-    """Get callbacks.
+    """
+    Get callbacks.
 
     Args:
         log_dir (str): the destination to save logs(for TensorBoard).
@@ -45,7 +46,8 @@ def get_callbacks(log_dir=None, valid=(), tensorboard=True, eary_stopping=True):
 
 
 def get_entities_with_offsets(seq, offsets):
-    """Gets entities from sequence
+    """
+    Gets entities from sequence
 
     Args:
         seq (list): sequence of labels.
@@ -79,7 +81,8 @@ def get_entities_with_offsets(seq, offsets):
     return chunks
 
 def get_entities(seq):
-    """Gets entities from sequence.
+    """
+    Gets entities from sequence.
 
     Args:
         seq (list): sequence of labels
@@ -108,8 +111,9 @@ def get_entities(seq):
             i += 1
     return chunks
 
-def f1_score(y_true, y_pred, sequence_lengths):
-    """Evaluates f1 score.
+#def f1_score(y_true, y_pred, sequence_lengths):
+    """
+    Evaluates f1 score.
 
     Args:
         y_true (list): true labels.
@@ -125,6 +129,7 @@ def f1_score(y_true, y_pred, sequence_lengths):
         >>> sequence_lengths = []
         >>> print(f1_score(y_true, y_pred, sequence_lengths))
         0.8
+    """
     """
     correct_preds, total_correct, total_preds = 0., 0., 0.
     for lab, lab_pred, length in zip(y_true, y_pred, sequence_lengths):
@@ -142,14 +147,14 @@ def f1_score(y_true, y_pred, sequence_lengths):
     r = correct_preds / total_correct if correct_preds > 0 else 0
     f1 = 2 * p * r / (p + r) if correct_preds > 0 else 0
     return f1
-
+    """
 
 class F1score(Callback):
 
-    def __init__(self, valid_steps, valid_batches, preprocessor=None):
+    def __init__(self, validation_generator, preprocessor=None):
         super(F1score, self).__init__()
-        self.valid_steps = valid_steps
-        self.valid_batches = valid_batches
+        self.valid_steps = len(validation_generator)
+        self.valid_batches = validation_generator
         self.p = preprocessor
 
     def on_epoch_end(self, epoch, logs={}):

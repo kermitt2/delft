@@ -1,12 +1,12 @@
 import numpy as np
 import xml
 from xml.sax import make_parser, handler
-from utilities.Tokenizer import tokenizeAndFilter
+from utilities.Tokenizer import tokenizeAndFilterSimple
 
 
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
-        XML SAX handler for reading mixed content within xml text tags  
+    XML SAX handler for reading mixed content within xml text tags  
     """
     
     # local sentence
@@ -26,7 +26,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
      
     def startElement(self, name, attrs):
         if self.accumulated != '':
-            localTokens, localOffsets = tokenizeAndFilter(self.accumulated)
+            localTokens = tokenizeAndFilterSimple(self.accumulated)
             for token in localTokens:
                 self.tokens.append(token)
                 self.labels.append('O')
@@ -54,7 +54,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
         if name == "p":
             # end of sentence 
             if self.accumulated != '':
-                localTokens, localOffsets = tokenizeAndFilter(self.accumulated)
+                localTokens = tokenizeAndFilterSimple(self.accumulated)
                 for token in localTokens:
                     self.tokens.append(token)
                     self.labels.append('O')
@@ -65,7 +65,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             labels = []
         if name == "rs":
             # end of entity
-            localTokens, localOffsets = tokenizeAndFilter(self.accumulated)
+            localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
             if self.currentLabel is None:
                 self.currentLabel = 'O'
@@ -93,7 +93,8 @@ class TEIContentHandler(xml.sax.ContentHandler):
 
 
 def load_data_and_labels_xml_string(stringXml):
-    """Load data and label from a string 
+    """
+    Load data and label from a string 
     the format is as follow:
     <p> 
         bla bla you are a <rs type="insult">CENSURED</rs>, 
@@ -117,7 +118,8 @@ def load_data_and_labels_xml_string(stringXml):
 
 
 def load_data_and_labels_xml_file(filepathXml):
-    """Load data and label from an XML file
+    """
+    Load data and label from an XML file
     the format is as follow:
     <p> 
         bla bla you are a <rs type="insult">CENSURED</rs>, 
@@ -141,7 +143,8 @@ def load_data_and_labels_xml_file(filepathXml):
 
 
 def load_data_and_labels_crf_file(filepath):
-    """Load data, features and label from a CRF matrix string 
+    """
+    Load data, features and label from a CRF matrix string 
     the format is as follow:
 
     token_0 f0_0 f0_1 ... f0_n label_0
@@ -161,7 +164,8 @@ def load_data_and_labels_crf_file(filepath):
 
 
 def load_data_and_labels_crf_string(crfString):
-    """Load data, features and label from a CRF matrix file 
+    """
+    Load data, features and label from a CRF matrix file 
     the format is as follow:
 
     token_0 f0_0 f0_1 ... f0_n label_0
@@ -181,7 +185,8 @@ def load_data_and_labels_crf_string(crfString):
 
 
 def load_data_and_labels_conll(filename):
-    """Load data and label from a file.
+    """
+    Load data and label from a file.
 
     Args:
         filename (str): path to the file.
@@ -191,9 +196,9 @@ def load_data_and_labels_conll(filename):
 
         For example:
         ```
-        EU	B-ORG
-        rejects	O
-        German	B-MISC
+        EU  B-ORG
+        rejects O
+        German  B-MISC
         call	O
         to	O
         boycott	O
@@ -210,6 +215,9 @@ def load_data_and_labels_conll(filename):
         tuple(numpy array, numpy array): data and labels
 
     """
+
+    # TBD: for consistency the tokenization in the CoNLL files should not be considered, 
+    # only the standard DeLFT tokenization, in line with the word embeddings
     sents, labels = [], []
     with open(filename) as f:
         words, tags = [], []
@@ -226,14 +234,11 @@ def load_data_and_labels_conll(filename):
                 tags.append(tag)
     return np.asarray(sents), np.asarray(labels)
 
-
+"""
 def batch_iter(data, labels, batch_size, shuffle=True, preprocessor=None):
     num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
 
     def data_generator():
-        """
-        Generates a batch iterator for a dataset.
-        """
         data_size = len(data)
         while True:
             # Shuffle the data at each epoch
@@ -255,6 +260,7 @@ def batch_iter(data, labels, batch_size, shuffle=True, preprocessor=None):
                     yield X, y
 
     return num_batches_per_epoch, data_generator()
+"""
 
 if __name__ == "__main__":
     # some tests

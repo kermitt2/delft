@@ -1,4 +1,5 @@
-from sequenceLabelling.reader import batch_iter
+#from sequenceLabelling.reader import batch_iter
+from sequenceLabelling.data_generator import DataGenerator
 from keras.optimizers import Adam
 from sequenceLabelling.metrics import get_callbacks
 import numpy as np
@@ -14,6 +15,7 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor=None,
+                 embeddings=(),
                  ):
 
         # for single model training
@@ -26,7 +28,7 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-
+        self.embeddings = embeddings
 
     """ train the instance self.model """
     def train(self, x_train, y_train, x_valid, y_valid):
@@ -56,6 +58,7 @@ class Trainer(object):
         """
 
         # Prepare training and validation data(steps, generator)
+        """
         train_steps, train_batches = batch_iter(x_train,
                                                 y_train,
                                                 self.training_config.batch_size,
@@ -64,15 +67,40 @@ class Trainer(object):
                                                 y_valid,
                                                 self.training_config.batch_size,
                                                 preprocessor=self.preprocessor)
+        """
+    
 
+        training_generator = DataGenerator(x_train, y_train, labels=self.preprocessor.vocab_tag, 
+            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+            embeddings=self.embeddings, shuffle=True)
+
+        validation_generator = DataGenerator(x_valid, y_valid, labels=self.preprocessor.vocab_tag, 
+            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+            embeddings=self.embeddings, shuffle=False)
+
+
+
+
+        """
         callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                   eary_stopping=True,
                                   valid=(valid_steps, valid_batches, self.preprocessor))
+        """
+        callbacks = get_callbacks(log_dir=self.checkpoint_path,
+                                  eary_stopping=True,
+                                  valid=(validation_generator, self.preprocessor))
 
+        """
         local_model.fit_generator(generator=train_batches,
-                                 steps_per_epoch=train_steps,
-                                 epochs=max_epoch,
-                                 callbacks=callbacks)
+                                  steps_per_epoch=train_steps,
+                                  epochs=max_epoch,
+                                  callbacks=callbacks)
+        """
+        local_model.fit_generator(generator=training_generator,
+                                    epochs=max_epoch,
+                                    use_multiprocessing=True,
+                                    workers=6,
+                                    callbacks=callbacks)
 
         return local_model
 

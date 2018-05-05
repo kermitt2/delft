@@ -37,6 +37,7 @@ def tokenizeAndFilterSimple(text):
     """
     Tokenization following the above pattern without offset information
     """
+    print(text)
     tokens = []
     for index, match in enumerate(pattern.split(text)):
         tokens.append(match)

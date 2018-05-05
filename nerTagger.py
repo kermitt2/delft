@@ -25,7 +25,7 @@ def train(embedding_vector, fold_count):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector, fold_number=fold_count)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -47,7 +47,7 @@ def train_eval(embedding_vector, fold_count):
     print(len(x_valid), 'validation sequences')
     print(len(x_test), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector, fold_number=fold_count)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)

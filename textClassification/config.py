@@ -13,15 +13,14 @@ class ModelConfig(object):
                  use_char_feature=False,
                  maxlen=300,
                  fold_number=1,
-                 batch_size=128
+                 batch_size=64
                  ):
 
         self.model_name = model_name
         self.model_type = model_type
 
-        # Number of unique words in the vocab (plus 2, for <UNK>, <PAD>).
-        self.vocab_size = None
-        self.char_vocab_size = None
+        #self.vocab_size = None
+        #self.char_vocab_size = None
 
         self.char_embedding_size = char_emb_size
         self.word_embedding_size = word_emb_size
@@ -31,7 +30,7 @@ class ModelConfig(object):
         self.use_char_feature = use_char_feature
         self.list_classes = list_classes
         self.fold_number = fold_number
-        self.batch_size = batch_size
+        self.batch_size = batch_size # this is the batch size for test and prediction
 
     def save(self, file):
         with open(file, 'w') as f:
@@ -60,7 +59,7 @@ class TrainingConfig(object):
                  patience=5,
                  use_roc_auc=True):
 
-        self.batch_size = batch_size
+        self.batch_size = batch_size # this is the batch size for training
         self.optimizer = optimizer
         self.learning_rate = learning_rate
         self.lr_decay = lr_decay

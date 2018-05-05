@@ -38,7 +38,8 @@ class BaseModel(object):
 
 
 class SeqLabelling_BidLSTM_CRF(BaseModel):
-    """A Keras implementation of BidLSTM-CRF for sequence labelling.
+    """
+    A Keras implementation of BidLSTM-CRF for sequence labelling.
 
     References
     --
@@ -59,7 +60,7 @@ class SeqLabelling_BidLSTM_CRF(BaseModel):
                                         output_dim=embeddings.shape[1], trainable=False,
                                         mask_zero=True, 
                                         weights=[embeddings])(word_ids)
-
+        
         # build character based embedding
         char_ids = Input(batch_shape=(None, None, None), dtype='int32')
         char_embeddings = Embedding(input_dim=config.char_vocab_size,
@@ -92,7 +93,8 @@ class SeqLabelling_BidLSTM_CRF(BaseModel):
 
 
 class SeqLabelling_BidLSTM_CNN(BaseModel):
-    """A Keras implementation of BidLSTM-CNN for sequence labelling.
+    """
+    A Keras implementation of BidLSTM-CNN for sequence labelling.
 
     References
     --

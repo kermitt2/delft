@@ -12,7 +12,9 @@ class ModelConfig(object):
                  word_lstm_units=100, 
                  dropout=0.5, 
                  use_char_feature=True, 
-                 use_crf=True):
+                 use_crf=True,
+                 fold_number=1,
+                 batch_size=64):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -29,6 +31,8 @@ class ModelConfig(object):
 
         self.use_char_feature = use_char_feature
         self.use_crf = use_crf
+        self.fold_number = fold_number
+        self.batch_size = batch_size # this is the batch size for test and prediction
 
     def save(self, file):
         with open(file, 'w') as f:

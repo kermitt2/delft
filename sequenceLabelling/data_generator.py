@@ -1,21 +1,22 @@
 import numpy as np
 import keras
 from textClassification.preprocess import to_vector_single
+from utilities.Tokenizer import tokenizeAndFilterSimple
 
-# generate batch of data to feed text classification model, both for training and prediction
+# generate batch of data to feed sequence labelling model, both for training and prediction
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, x, y, batch_size=256, maxlen=300, list_classes=[], embed_size=300, embeddings=(), shuffle=True):
+    def __init__(self, x, y, labels=None, batch_size=24, preprocessor=None, embeddings=(), tokenize=False, shuffle=True):
         'Initialization'
         self.x = x
         self.y = y
+        #self.labels = labels
         self.batch_size = batch_size
-        self.maxlen = maxlen
+        self.preprocessor = preprocessor
         self.embeddings = embeddings
-        self.embed_size = embed_size
-        self.list_classes = list_classes
         self.shuffle = shuffle
+        self.tokenize = tokenize
         self.on_epoch_end()
 
     def __len__(self):
@@ -47,19 +48,39 @@ class DataGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples' 
         max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
 
-        batch_x = np.zeros((max_iter, self.maxlen, self.embed_size), dtype='float32')
+        #batch_x = np.zeros((max_iter, self.maxlen, self.embed_size), dtype='float32')
+        sub_x = self.x[(index*self.batch_size):(index*self.batch_size)+max_iter]
+        
+        if self.tokenize:
+            batch_x = []
+            for i in range(0, max_iter):
+                tokens = tokenizeAndFilterSimple(sub_x[i])
+                batch_x.append(tokens)
+        else:
+            batch_x = sub_x
         batch_y = None
+
         if self.y is not None:
-            batch_y = np.zeros((max_iter, len(self.list_classes)), dtype='float32')
+            batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
+            #batch_y = np.zeros((max_iter, len(self.list_classes)), dtype='float32')
 
         # Generate data
+        """
         for i in range(0, max_iter):
+
             # Store sample
-            batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen, self.embed_size)
-            
+            batch_x[i] = self.x[(index*self.batch_size)+i]
+            #, self.embeddings, self.maxlen, self.embed_size
+
             # Store class
             # classes are numerical, so nothing to vectorize for y
             if self.y is not None:
                 batch_y[i] = self.y[(index*self.batch_size)+i]
-     
+        """
+        if self.preprocessor:
+            if self.y is not None:
+                batch_x, batch_y = self.preprocessor.transform(batch_x, batch_y)
+            else:
+                batch_x = self.preprocessor.transform(batch_x)
+
         return batch_x, batch_y

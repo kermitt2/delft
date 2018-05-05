@@ -7,7 +7,8 @@ from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
-from sequenceLabelling.reader import batch_iter
+#from sequenceLabelling.reader import batch_iter
+from sequenceLabelling.data_generator import DataGenerator
 from sequenceLabelling.metrics import F1score
 from utilities.Embeddings import filter_embeddings
 
@@ -39,10 +40,11 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
+                 fold_number=1,
                  embeddings=()):
 
         self.model_config = ModelConfig(model_name, model_type, char_emb_size, word_emb_size, char_lstm_units,
-                                        word_lstm_units, dropout, use_char_feature, use_crf)
+                                        word_lstm_units, dropout, use_char_feature, use_crf, fold_number, batch_size)
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               patience, 
@@ -70,7 +72,8 @@ class Sequence(object):
                           self.models,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
+                          preprocessor=self.p,
+                          embeddings=self.embeddings)
         trainer.train(x_train, y_train, x_valid, y_valid)
 
 
@@ -89,20 +92,27 @@ class Sequence(object):
                           self.models,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
+                          preprocessor=self.p,
+                          embeddings=self.embeddings)
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
 
 
     def eval(self, x_test, y_test):
         if self.model:
             # Prepare test data(steps, generator)
+            """
             train_steps, train_batches = batch_iter(x_test,
                                                     y_test,
                                                     batch_size=20,  
                                                     shuffle=False,
                                                     preprocessor=self.p)
+            """
+            test_generator = DataGenerator(x_test, y_test, labels=self.model_config.labels, 
+            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+            embeddings=self.embeddings, shuffle=False)
+
             # Build the evaluator and evaluate the model
-            f1score = F1score(train_steps, train_batches, self.p)
+            f1score = F1score(test_generator, self.p)
             f1score.model = self.model
             f1score.on_epoch_end(epoch=-1) 
         else:
@@ -111,7 +121,7 @@ class Sequence(object):
 
     def tag(self, texts, output_format):
         if self.model:
-            tagger = Tagger(self.model, preprocessor=self.p)
+            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
             return tagger.tag(texts, output_format)
         else:
             raise (OSError('Could not find a model.'))

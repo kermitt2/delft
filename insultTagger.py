@@ -20,7 +20,7 @@ def train(embedding_vector, fold_count):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('insult', max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('insult', max_epoch=50, embeddings=embedding_vector, fold_number=fold_count)
     model.train(x_train, y_train, x_valid, y_valid)
     print('training done')
 
@@ -36,16 +36,6 @@ def annotate(texts, embedding_vector, output_format):
     model.load()
     
     start_time = time.time()
-
-    '''
-    for text in texts:
-        tokens = tokenizeAndFilter(text)
-        result = model.analyze(tokens)
-        print(json.dumps(result, indent=4, sort_keys=True))
-        if result["entities"] is not None:
-            entities = result["entities"]
-            annotations.append(entities)
-    '''
 
     annotations = model.tag(texts, output_format)
     runtime = round(time.time() - start_time, 3)

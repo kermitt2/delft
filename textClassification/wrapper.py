@@ -266,7 +266,6 @@ class Classifier(object):
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         
-        #dummy_embeddings = np.zeros((len(self.p.word_index())+1, self.model_config.word_embedding_size), dtype=np.float32)
         self.model = getModel(self.model_config, self.training_config)
         if self.model_config.fold_number is 1:
             self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
