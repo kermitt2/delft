@@ -11,6 +11,7 @@ class Trainer(object):
     def __init__(self,
                  model,
                  models,
+                 model_config,
                  training_config,
                  checkpoint_path='',
                  save_path='',
@@ -24,17 +25,21 @@ class Trainer(object):
         # for n-folds training
         self.models = models
 
+        self.model_config = model_config
         self.training_config = training_config
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
         self.embeddings = embeddings
 
+
     """ train the instance self.model """
     def train(self, x_train, y_train, x_valid, y_valid):
         self.model.summary()
         self.model.compile(loss=self.model.crf.loss,
                            optimizer=Adam(lr=self.training_config.learning_rate))
+        #self.model.compile(loss='binary_crossentropy', 
+        #                    optimizer='adam', metrics=['accuracy'])
         self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
                                                   self.training_config.max_epoch)
 
@@ -42,60 +47,23 @@ class Trainer(object):
         this model will be returned with trained weights """
     def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50):
         # todo: if valid set if None, create it as random segment of the shuffled train set 
-        """
-        best_log_loss = -1
-        best_roc_auc = -1
-        best_weights = None
-        best_epoch = 0
-        current_epoch = 0
 
-        local_model = self.model.clone_model()
-        local_model.set_weights(self.model.get_weights())
-        local_model.summary()
-        local_model.compile(loss=self.model.crf.loss,
-                            optimizer=Adam(lr=self.training_config.learning_rate))
-        local_model.set_weights(self.model.get_weights())
-        """
-
-        # Prepare training and validation data(steps, generator)
-        """
-        train_steps, train_batches = batch_iter(x_train,
-                                                y_train,
-                                                self.training_config.batch_size,
-                                                preprocessor=self.preprocessor)
-        valid_steps, valid_batches = batch_iter(x_valid,
-                                                y_valid,
-                                                self.training_config.batch_size,
-                                                preprocessor=self.preprocessor)
-        """
-    
-
-        training_generator = DataGenerator(x_train, y_train, labels=self.preprocessor.vocab_tag, 
+        training_generator = DataGenerator(x_train, y_train, 
             batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+            word_embed_size=self.model_config.word_embedding_size, 
+            char_embed_size=self.model_config.char_embedding_size, 
             embeddings=self.embeddings, shuffle=True)
 
-        validation_generator = DataGenerator(x_valid, y_valid, labels=self.preprocessor.vocab_tag, 
-            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+        validation_generator = DataGenerator(x_valid, y_valid,  
+            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+            word_embed_size=self.model_config.word_embedding_size, 
+            char_embed_size=self.model_config.char_embedding_size, 
             embeddings=self.embeddings, shuffle=False)
 
-
-
-
-        """
-        callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                  eary_stopping=True,
-                                  valid=(valid_steps, valid_batches, self.preprocessor))
-        """
         callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                   eary_stopping=True,
                                   valid=(validation_generator, self.preprocessor))
 
-        """
-        local_model.fit_generator(generator=train_batches,
-                                  steps_per_epoch=train_steps,
-                                  epochs=max_epoch,
-                                  callbacks=callbacks)
-        """
         local_model.fit_generator(generator=training_generator,
                                     epochs=max_epoch,
                                     use_multiprocessing=True,

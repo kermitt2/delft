@@ -70,6 +70,7 @@ class Sequence(object):
 
         trainer = Trainer(self.model, 
                           self.models,
+                          self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
@@ -90,6 +91,7 @@ class Sequence(object):
 
         trainer = Trainer(self.model, 
                           self.models,
+                          self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
@@ -107,9 +109,11 @@ class Sequence(object):
                                                     shuffle=False,
                                                     preprocessor=self.p)
             """
-            test_generator = DataGenerator(x_test, y_test, labels=self.model_config.labels, 
-            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-            embeddings=self.embeddings, shuffle=False)
+            test_generator = DataGenerator(x_test, y_test, 
+              batch_size=self.training_config.batch_size, preprocessor=self.p, 
+              word_embed_size=self.model_config.word_embedding_size, 
+              char_embed_size=self.model_config.char_embedding_size, 
+              embeddings=self.embeddings, shuffle=False)
 
             # Build the evaluator and evaluate the model
             f1score = F1score(test_generator, self.p)

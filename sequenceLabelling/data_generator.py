@@ -1,20 +1,30 @@
 import numpy as np
 import keras
-from textClassification.preprocess import to_vector_single
+from sequenceLabelling.preprocess import to_vector_single
 from utilities.Tokenizer import tokenizeAndFilterSimple
 
 # generate batch of data to feed sequence labelling model, both for training and prediction
 
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, x, y, labels=None, batch_size=24, preprocessor=None, embeddings=(), tokenize=False, shuffle=True):
+    def __init__(self, x, y, 
+                batch_size=24, 
+                preprocessor=None, 
+                word_embed_size=300, 
+                char_embed_size=25, 
+                embeddings=(), 
+                tokenize=False, 
+                shuffle=True):
         'Initialization'
         self.x = x
         self.y = y
-        #self.labels = labels
-        self.batch_size = batch_size
         self.preprocessor = preprocessor
+        if preprocessor:
+            self.labels = preprocessor.vocab_tag
+        self.batch_size = batch_size
         self.embeddings = embeddings
+        self.word_embed_size = word_embed_size
+        self.char_embed_size = char_embed_size
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.on_epoch_end()
@@ -27,8 +37,16 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         'Generate one batch of data'
         # generate data for the current batch index
+        batch_x, batch_c, batch_l, batch_y = self.__data_generation(index)
+        return [batch_x, batch_c, batch_l], batch_y
+
+    """
+    def old__getitem__(self, index):
+        'Generate one batch of data'
+        # generate data for the current batch index
         batch_x, batch_y = self.__data_generation(index)
         return batch_x, batch_y
+    """
 
     def shuffle_pair(self, a, b):
         # generate permutation index array
@@ -44,7 +62,8 @@ class DataGenerator(keras.utils.Sequence):
             else:      
                 self.shuffle_pair(self.x,self.y)
 
-    def __data_generation(self, index):
+    """
+    def __data_generation_old(self, index):
         'Generates data containing batch_size samples' 
         max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
 
@@ -65,22 +84,62 @@ class DataGenerator(keras.utils.Sequence):
             #batch_y = np.zeros((max_iter, len(self.list_classes)), dtype='float32')
 
         # Generate data
-        """
-        for i in range(0, max_iter):
-
-            # Store sample
-            batch_x[i] = self.x[(index*self.batch_size)+i]
-            #, self.embeddings, self.maxlen, self.embed_size
-
-            # Store class
-            # classes are numerical, so nothing to vectorize for y
-            if self.y is not None:
-                batch_y[i] = self.y[(index*self.batch_size)+i]
-        """
         if self.preprocessor:
             if self.y is not None:
                 batch_x, batch_y = self.preprocessor.transform(batch_x, batch_y)
             else:
                 batch_x = self.preprocessor.transform(batch_x)
-
+ 
         return batch_x, batch_y
+    """
+
+    def __data_generation(self, index):
+        'Generates data containing batch_size samples' 
+        max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
+
+        # restrict data to index window
+        sub_x = self.x[(index*self.batch_size):(index*self.batch_size)+max_iter]
+
+        # tokenize texts in self.x if not already done
+        max_length_x = 0
+        if self.tokenize:
+            x_tokenized = []
+            for i in range(0, max_iter):
+                tokens = tokenizeAndFilterSimple(sub_x[i])
+                if len(tokens) > max_length_x:
+                    max_length_x = len(tokens)
+                x_tokenized.append(tokens)
+        else:
+            for tokens in sub_x:
+                if len(tokens) > max_length_x:
+                    max_length_x = len(tokens)
+            x_tokenized = sub_x
+
+        batch_x = np.zeros((max_iter, max_length_x, self.word_embed_size), dtype='float32')
+        batch_c = np.zeros((max_iter, max_length_x, self.char_embed_size), dtype='float32')
+
+        batch_y = None
+        max_length_y = max_length_x
+        if self.y is not None:
+            # note: tags are always already "tokenized",
+            batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
+
+        # generate data
+        for i in range(0, max_iter):
+            # store sample embeddings 
+            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x, self.word_embed_size)
+
+            # store tag embeddings
+            if self.y is not None:
+                # hot one encoding for tags
+                batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
+
+        if self.y is not None:
+            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y)
+        else:
+            batches = self.preprocessor.transform(x_tokenized)
+        batch_c = batches[1]
+        batch_length = batches[2]
+        
+        return batch_x, np.asarray(batch_c), batch_length, batch_y
+        

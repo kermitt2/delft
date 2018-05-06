@@ -52,7 +52,7 @@ def make_embeddings_simple(embeddingspath, hasHeader):
                 else:
                     begin = False
             word = line[0]
-            vector = np.array([float(val) for val in line[1:len(line)-1]])
+            vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
             # note: above is working fine with FastText, but with Glove the -1 would need to be removed 
             model[word] = vector
     print('embeddings loaded for', nbWords, "words and", embed_size, "dimensions")

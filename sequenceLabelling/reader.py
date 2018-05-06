@@ -234,34 +234,6 @@ def load_data_and_labels_conll(filename):
                 tags.append(tag)
     return np.asarray(sents), np.asarray(labels)
 
-"""
-def batch_iter(data, labels, batch_size, shuffle=True, preprocessor=None):
-    num_batches_per_epoch = int((len(data) - 1) / batch_size) + 1
-
-    def data_generator():
-        data_size = len(data)
-        while True:
-            # Shuffle the data at each epoch
-            if shuffle:
-                shuffle_indices = np.random.permutation(np.arange(data_size))
-                shuffled_data = data[shuffle_indices]
-                shuffled_labels = labels[shuffle_indices]
-            else:
-                shuffled_data = data
-                shuffled_labels = labels
-
-            for batch_num in range(num_batches_per_epoch):
-                start_index = batch_num * batch_size
-                end_index = min((batch_num + 1) * batch_size, data_size)
-                X, y = shuffled_data[start_index: end_index], shuffled_labels[start_index: end_index]
-                if preprocessor:
-                    yield preprocessor.transform(X, y)
-                else:
-                    yield X, y
-
-    return num_batches_per_epoch, data_generator()
-"""
-
 if __name__ == "__main__":
     # some tests
     xmlPath = '../../data/sequence/train.xml'

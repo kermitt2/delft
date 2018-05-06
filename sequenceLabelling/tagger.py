@@ -8,21 +8,15 @@ from utilities.Tokenizer import tokenizeAndFilter
 
 class Tagger(object):
 
-    def __init__(self, model, model_config, embeddings=(), preprocessor=None):
+    def __init__(self, 
+                model, 
+                model_config, 
+                embeddings=(), 
+                preprocessor=None):
         self.model = model
         self.preprocessor = preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
-
-    
-    """
-    def predict(self, tokens):
-        length = np.array([len(tokens)])
-        X = self.preprocessor.transform([tokens])
-        pred = self.model.predict(X, length)
-
-        return pred
-    """
 
     def tag(self, texts, output_format):
         assert isinstance(texts, list)
@@ -37,8 +31,10 @@ class Tagger(object):
         else:
            list_of_tags = []
 
-        predict_generator = DataGenerator(texts, None, None, 
+        predict_generator = DataGenerator(texts, None, 
             batch_size=self.model_config.batch_size, preprocessor=self.preprocessor, 
+            word_embed_size=self.model_config.word_embedding_size,
+            char_embed_size=self.model_config.char_embedding_size,
             embeddings=self.embeddings, tokenize=True, shuffle=False)
 
         preds = self.model.predict_generator(
@@ -51,17 +47,8 @@ class Tagger(object):
             text = texts[i]
             tokens, offsets = tokenizeAndFilter(text)
 
-            """
-            for text in texts:
-                tokens, offsets = tokenizeAndFilter(text)
-            
-                pred2 = self.predict(tokens)
-                print("pred2:", pred2)
-            """
-
             tags = self._get_tags(pred)
             prob = self._get_prob(pred)
-            #entities = self._build_response(tokens, tags, prob)
             
             if output_format is 'json':
                 piece = {}

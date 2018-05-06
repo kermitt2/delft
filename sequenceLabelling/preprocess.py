@@ -94,7 +94,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             lengths.append(len(sent))
             for w in sent:
                 if self.use_char_feature:
-                    char_ids.append(self._get_char_ids(w))
+                    char_ids.append(self.get_char_ids(w))
 
                 w = self._lower(w)
                 w = self._normalize_num(w)
@@ -127,7 +127,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         indice_tag = {i: t for t, i in self.vocab_tag.items()}
         return [indice_tag[y_] for y_ in y]
 
-    def _get_char_ids(self, word):
+    def get_char_ids(self, word):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]
 
     def _lower(self, word):
@@ -245,3 +245,30 @@ def prepare_preprocessor(X, y, use_char=True, vocab_init=None):
 
     return p
 
+def to_vector_single(tokens, embeddings, maxlen=300, embed_size=300):
+    """
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
+    vector when appropriate
+    """
+    window = tokens[-maxlen:]
+    
+    # TBD: use better initializers (uniform, etc.) 
+    x = np.zeros((maxlen, embed_size), )
+
+    # TBD: padding should be left and which vector do we use for padding? 
+    # and what about masking padding later for RNN?
+    for i, word in enumerate(window):
+        x[i,:] = get_word_vector(word, embeddings, embed_size).astype('float32')
+
+    return x
+
+def get_word_vector(word, embeddings, embed_size):
+    if word in embeddings:
+        return embeddings[word]
+    else:
+        # for unknown word, we use a vector filled with 0.0
+        return np.zeros((embed_size,), dtype=np.float32)
+        # alternatively, initialize with random negative values
+        #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
+        # alternatively use fasttext OOV ngram possibilities (if ngram available)

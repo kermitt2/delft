@@ -90,7 +90,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     action = args.action    
-    if (action != 'train') and (action != 'tag'):
+    if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
         print('action not specifed, must be one of [train,train_eval,tag]')
 
     embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
