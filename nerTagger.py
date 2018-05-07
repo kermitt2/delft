@@ -58,6 +58,26 @@ def train_eval(embedding_vector, fold_count):
     # saving the model
     model.save()
 
+# usual eval on CoNLL 2003 eng.testb 
+def eval(embedding_vector): 
+    root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
+
+    print('Loading data...')
+    x_test, y_test = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testb')
+    print(len(x_test), 'evaluation sequences')
+
+    # load model
+    model = sequenceLabelling.Sequence('ner', embeddings=embedding_vector)
+    model.load()
+
+    start_time = time.time()
+
+    print("\nEvaluation on test set:")
+    model.eval(x_test, y_test)
+    runtime = round(time.time() - start_time, 3)
+    
+    print("runtime: %s seconds " % (runtime))
+
 # annotate a list of texts, provides results in a list of offset mentions 
 def annotate(texts, embedding_vector, output_format):
     annotations = []
@@ -88,8 +108,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     action = args.action    
-    if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
-        print('action not specifed, must be one of [train,train_eval,tag]')
+    if (action != 'train') and (action != 'tag') and (action != 'eval') and (action != 'train_eval'):
+        print('action not specifed, must be one of [train,train_eval,eval,tag]')
 
     embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
 
@@ -100,6 +120,9 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
         train_eval(embedding_vector, args.fold_count)
+
+    if action == 'eval':
+        eval(embedding_vector)
 
     if action == 'tag':
         someTexts = ['The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.',

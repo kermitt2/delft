@@ -11,7 +11,7 @@ class ModelConfig(object):
                  char_lstm_units=25,
                  word_lstm_units=100, 
                  dropout=0.5, 
-                 recurrent_dropout=0.25,
+                 recurrent_dropout=0.3,
                  use_char_feature=True, 
                  use_crf=True,
                  fold_number=1,

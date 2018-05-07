@@ -19,14 +19,14 @@ DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. 
 [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
 <!--
-- BidLSTM-CNN with words, characters and custum features input following: 
+- BidLSTM-CNN with words, characters and custom casing features input following: 
 
 Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
 -->
 
 ### Usage
 
-TBD
+...
 
 ### Examples
 
@@ -36,7 +36,11 @@ Assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.t
 
 > python3 nerTagger.py train_eval
 
-By default, the BidLSTM-CRF model is used. With this model, current f1 score on CoNLL 2003 testb set is __90.85__ (using _train_ set for training and _testa_ for validation).
+By default, the BidLSTM-CRF model is used. With this available model, current f1 score on CoNLL 2003 testb set is __90.85__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+
+For evaluating against CoNLL 2003 testb set with the existing model:
+
+> python3 nerTagger.py eval
 
 For training with all the available data:
 
@@ -139,7 +143,7 @@ Note: by default the first 300 tokens of the text to be classified are used, whi
 
 ### Usage
 
-TBD
+...
 
 ### Examples
 

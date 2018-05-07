@@ -626,6 +626,7 @@ def getModel(model_config, training_config):
     use_roc_auc = training_config.use_roc_auc
     nb_classes = len(model_config.list_classes)    
     dropout_rate = model_config.dropout
+    recurrent_dropout_rate = model_config.recurrent_dropout
 
     # awww Python has no case/switch statement :D
     if (model_type == 'bidLstm'):

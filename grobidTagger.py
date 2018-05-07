@@ -15,7 +15,7 @@ models = ['affiliation-address', 'citation', 'date', 'header', 'name-citztion', 
 # train a GROBID model with all available data 
 def train(model, embedding_vector): 
     print('Loading data...')
-    x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+    x_train, y_train, f_train = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
     print(len(x_train), 'train sequences')
 
@@ -32,7 +32,7 @@ def train(model, embedding_vector):
 # split data, train a GROBID model and evaluate it 
 def train_eval(model, embedding_vector): 
     print('Loading data...')
-    x_all, y_all = load_data_and_labels_conll('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+    x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
     x_train, eval_x, y_train, eval_y = train_test_split(x_all, y_all, test_size=0.1)
 
@@ -52,7 +52,6 @@ def train_eval(model, embedding_vector):
 
     # saving the model
     model.save()
-
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 

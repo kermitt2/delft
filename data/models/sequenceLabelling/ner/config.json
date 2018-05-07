@@ -1,0 +1,15 @@
+{
+    "batch_size": 20,
+    "num_char_lstm_units": 25,
+    "use_char_feature": true,
+    "model_type": "",
+    "char_vocab_size": 86,
+    "num_word_lstm_units": 100,
+    "recurrent_dropout": 0.25,
+    "use_crf": true,
+    "model_name": "ner",
+    "fold_number": 1,
+    "dropout": 0.5,
+    "word_embedding_size": 300,
+    "char_embedding_size": 25
+}

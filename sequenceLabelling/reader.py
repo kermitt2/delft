@@ -2,7 +2,7 @@ import numpy as np
 import xml
 from xml.sax import make_parser, handler
 from utilities.Tokenizer import tokenizeAndFilterSimple
-
+import re
 
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
@@ -152,15 +152,36 @@ def load_data_and_labels_crf_file(filepath):
     ...
     token_m fm_0 fm_1 ... fm_n label_m
 
+    field separator can be either space or tab
+
     Returns:
-        tuple(numpy array, numpy array): data and labels
+        tuple(numpy array, numpy array, numpy array): tokens, labels, features
 
     """
-    tokens = []
+    sents = []
     labels = []
-    features = []
+    featureSets = []
 
-    return tokens, labels, features
+    with open(filename) as f:
+        tokens, tags, features = [], []
+        for line in f:
+            line = line.strip()
+            if len(line) == 0:
+                if len(tokens) != 0:
+                    sents.append(tokens)
+                    labels.append(tags)
+                    featureSets.append(features)
+                    tokens, tags, features = [], [], []
+            else:
+                #pieces = line.split('\t')
+                pieces = re.split(' |\t', line)
+                token = pieces[0]
+                tag = pieces[len(pieces)-1]
+                localFeatures = pieces[1:len(pieces)-2]
+                tokens.append(token)
+                tags.append(tag)
+                features.append[localFeatures]
+    return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
 
 
 def load_data_and_labels_crf_string(crfString):
@@ -173,15 +194,59 @@ def load_data_and_labels_crf_string(crfString):
     ...
     token_m fm_0 fm_1 ... fm_n label_m
 
+    field separator can be either space or tab
+
     Returns:
-        tuple(numpy array, numpy array): data and labels
+        tuple(numpy array, numpy array, numpy array): tokens, labels, features
 
     """
-    tokens = []
+    sents = []
     labels = []
-    features = []
+    featureSets = []
 
-    return tokens, labels, features
+    for line in crfString.splitlines():
+        tokens, tags, features = [], []
+        line = line.strip()
+        if len(line) == 0:
+            if len(tokens) != 0:
+                sents.append(tokens)
+                labels.append(tags)
+                featureSets.append(features)
+                tokens, tags, features = [], [], []
+        else:
+            #pieces = line.split('\t')
+            pieces = re.split(' |\t', line)
+            token = pieces[0]
+            tag = pieces[len(pieces)-1]
+            localFeatures = pieces[1:len(pieces)-2]
+            tokens.append(token)
+            tags.append(tag)
+            features.append[localFeatures]
+    return sents, labels, featureSets
+
+
+def load_data_crf_string(crfString):
+    """
+    Load data and features from a CRF matrix file 
+    the format is as follow:
+
+    token_0 f0_0 f0_1 ... f0_n
+    token_1 f1_0 f1_1 ... f1_n
+    ...
+    token_m fm_0 fm_1 ... fm_n
+
+    field separator can be either space or tab
+
+    Returns:
+        tuple(numpy array, numpy array): tokens, features
+
+    """
+    sents = []
+    featureSets = []
+
+
+
+    return sents, featureSets
 
 
 def load_data_and_labels_conll(filename):

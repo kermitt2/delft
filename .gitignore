@@ -16,9 +16,12 @@ data/db
 data/training
 data/eval
 data/embeddings
-data/models/sequenceLabelling/*/*.json
-data/models/sequenceLabelling/*/*.hdf5
-data/models/sequenceLabelling/*/*.pkl
+data/models/sequenceLabelling/insult/*.json
+data/models/sequenceLabelling/insult/*.hdf5
+data/models/sequenceLabelling/insult/*.pkl
+data/models/sequenceLabelling/grobid/*.json
+data/models/sequenceLabelling/grobid/*.hdf5
+data/models/sequenceLabelling/grobid/*.pkl
 data/models/textClassification/*/*.json
 data/models/textClassification/*/*.hdf5
 data/models/textClassification/*/*.pkl
