@@ -1,6 +1,10 @@
 import os
 
 import numpy as np
+# seed is fixed for reproducibility
+np.random.seed(7)
+from tensorflow import set_random_seed
+set_random_seed(7)
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
 from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF

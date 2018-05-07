@@ -1,6 +1,9 @@
 import itertools
 import re
 import numpy as np
+np.random.seed(7)
+from tensorflow import set_random_seed
+set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
 

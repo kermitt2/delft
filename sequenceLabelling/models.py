@@ -4,6 +4,10 @@ from keras.layers.merge import Concatenate
 from keras.models import Model
 from keras.models import clone_model
 from utilities.layers import ChainCRF
+import numpy as np
+np.random.seed(7)
+from tensorflow import set_random_seed
+set_random_seed(7)
 
 class BaseModel(object):
 
@@ -95,35 +99,29 @@ class SeqLabelling_BidLSTM_CNN(BaseModel):
     """
 
     def __init__(self, config, embeddings=None, ntags=None):
-
-        # :: Create a mapping for the labels ::
+        
         """
-        label2Idx = {}
-        for label in labelSet:
-            label2Idx[label] = len(label2Idx)
-
         # :: Hard coded case lookup ::
         case2Idx = {'numeric': 0, 'allLower':1, 'allUpper':2, 'initialUpper':3, 'other':4, 'mainly_numeric':5, 'contains_digit': 6, 'PADDING_TOKEN':7}
         caseEmbeddings = np.identity(len(case2Idx), dtype='float32')
-
-        char2Idx = {"PADDING":0, "UNKNOWN":1}
-        for c in " 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-_()[]{}!?:;#'\"/\\%$`&=*+@^~|":
-            char2Idx[c] = len(char2Idx)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), )
 
         # build character based embedding        
         character_input = Input(shape=(None,config.char_embedding_size,),name='char_input')
-        embed_char_out = TimeDistributed(Embedding(len(char2Idx),30,embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)), 
-                            name='char_embedding')(character_input)
-        dropout = Dropout(0.5)(embed_char_out)
+        char_embeddings = TimeDistributed(
+                                Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)), 
+                                    name='char_embedding')(character_input)
+        dropout = Dropout(0.5)(char_embeddings)
         
         conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
         maxpool_out = TimeDistributed(MaxPooling1D(52))(conv1d_out)
         
         char = TimeDistributed(Flatten())(maxpool_out)
-        char = Dropout(0.5)(char)
+        char = Dropout(config.dropout)(char)
         
         # custom features input and embeddings
         casing_input = Input(shape=(None,), dtype='int32', name='casing_input')
@@ -132,8 +130,8 @@ class SeqLabelling_BidLSTM_CNN(BaseModel):
 
         # combine words, custom features and characters
         x = concatenate([word_embeddings, casing, char])
-        x = Bidirectional(LSTM(200, return_sequences=True, dropout=0.50, recurrent_dropout=0.25))(x)
-        x = TimeDistributed(Dense(len(label2Idx), activation='softmax'))(x)
+        x = Bidirectional(LSTM(200, return_sequences=True, dropout=config.dropout, recurrent_dropout=config.recurrent_dropout))(x)
+        x = TimeDistributed(Dense(ntags, activation='softmax'))(x)
         
         model = Model(inputs=[words_input, character_input, casing_input], outputs=[x])
         self.config = config

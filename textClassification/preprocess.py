@@ -1,8 +1,11 @@
 import itertools
 import regex as re
 import numpy as np
-#from sklearn.externals import joblib
-#from keras.preprocessing import text, sequence
+# seed is fixed for reproducibility
+np.random.seed(7)
+from tensorflow import set_random_seed
+set_random_seed(7)
+
 from unidecode import unidecode
 from utilities.Tokenizer import tokenizeAndFilterSimple
 

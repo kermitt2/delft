@@ -2,8 +2,10 @@ import os
 
 import numpy as np
 # seed is fixed for reproducibility
-from numpy.random import seed
-seed(7)
+np.random.seed(7)
+from tensorflow import set_random_seed
+set_random_seed(7)
+
 import datetime
 
 from textClassification.config import ModelConfig, TrainingConfig

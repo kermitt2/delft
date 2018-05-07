@@ -29,6 +29,50 @@ def train(model, embedding_vector):
     # saving the model
     model.save()
 
+# split data, train a GROBID model and evaluate it 
+def train_eval(model, embedding_vector): 
+    print('Loading data...')
+    x_all, y_all = load_data_and_labels_conll('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+
+    x_train, eval_x, y_train, eval_y = train_test_split(x_all, y_all, test_size=0.1)
+
+    print(len(x_train), 'train sequences')
+    print(len(x_eval), 'evaluation sequences')
+
+    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings=embedding_vector)
+
+    start_time = time.time()
+    model.train(x_train, y_train, x_valid, y_valid)
+    runtime = round(time.time() - start_time, 3)
+    print("training runtime: %s seconds " % (runtime))
+
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_eval, y_eval)
+
+    # saving the model
+    model.save()
+
+
+# annotate a list of texts, this is relevant only of models taking only text as input 
+# (so not text with layout information) 
+def annotate_text(texts, model, embedding_vector, output_format):
+    annotations = []
+
+    # load model
+    model = sequenceLabelling.Sequence('grobid-'+model, embeddings=embedding_vector)
+    model.load()
+
+    start_time = time.time()
+
+    annotations = model.tag(texts, output_format)
+    runtime = round(time.time() - start_time, 3)
+
+    if output_format is 'json':
+        annotations["runtime"] = runtime
+    else:
+        print("runtime: %s seconds " % (runtime))
+    return annotations
 
 
 if __name__ == "__main__":
@@ -69,7 +113,7 @@ if __name__ == "__main__":
             someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
             someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(2) (1999) 1–33.")
 
-        result = annotate(someTexts, model, embedding_vector, "json")
+        result = annotate_text(someTexts, model, embedding_vector, "json")
         print(json.dumps(result, sort_keys=False, indent=4))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388

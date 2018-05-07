@@ -3,8 +3,10 @@ from sequenceLabelling.data_generator import DataGenerator
 from keras.optimizers import Adam
 from sequenceLabelling.metrics import get_callbacks
 import numpy as np
-np.random.seed(7)
 # seed is fixed for reproducibility
+np.random.seed(7)
+from tensorflow import set_random_seed
+set_random_seed(7)
 
 class Trainer(object):
 

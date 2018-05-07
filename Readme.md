@@ -265,7 +265,7 @@ Micro-average:
 
 ```
 
-In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tunning, is very robust for an unbalanced dataset and provides higher accuracy.
+In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
 
 To classify a set of citation contexts:
 
