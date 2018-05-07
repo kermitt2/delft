@@ -1,0 +1,15 @@
+{
+    "model_type": "",
+    "model_name": "grobid-citation",
+    "num_word_lstm_units": 100,
+    "fold_number": 1,
+    "word_embedding_size": 300,
+    "num_char_lstm_units": 25,
+    "batch_size": 20,
+    "use_char_feature": true,
+    "recurrent_dropout": 0.25,
+    "use_crf": true,
+    "char_vocab_size": 206,
+    "dropout": 0.5,
+    "char_embedding_size": 25
+}

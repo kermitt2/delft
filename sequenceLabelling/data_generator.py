@@ -36,7 +36,10 @@ class DataGenerator(keras.utils.Sequence):
     def __len__(self):
         'Denotes the number of batches per epoch'
         # The number of batches is set so that each training sample is seen at most once per epoch
-        return int(np.floor(len(self.x) / self.batch_size) + 1)
+        if (len(self.x) % self.batch_size) == 0:
+            return int(np.floor(len(self.x) / self.batch_size))
+        else:
+            return int(np.floor(len(self.x) / self.batch_size) + 1)
 
     def __getitem__(self, index):
         'Generate one batch of data'
@@ -103,6 +106,7 @@ class DataGenerator(keras.utils.Sequence):
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y)
         else:
             batches = self.preprocessor.transform(x_tokenized)
+
         batch_c = batches[0]
         batch_length = batches[1]
         

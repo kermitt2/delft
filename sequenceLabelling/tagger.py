@@ -85,7 +85,7 @@ class Tagger(object):
             entity = {
                 "text": ' '.join(tokens[chunk_start: chunk_end]),
                 "class": chunk_type,
-                "score": float(np.average(prob[chunk_start: chunk_end])),
+                "score": float(np.average(prob[chunk_start:chunk_end])),
                 "beginOffset": pos_start,
                 "endOffset": pos_end
             }

@@ -73,7 +73,7 @@ def get_entities_with_offsets(seq, offsets):
                     continue
                 break
             start_pos = offsets[i][0]
-            end_pos = offsets[j][1]
+            end_pos = offsets[j-1][1]-1
             chunks.append((types[i], i, j, start_pos, end_pos))
             i = j
         else:

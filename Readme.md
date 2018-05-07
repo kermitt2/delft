@@ -313,7 +313,7 @@ which will produce some JSON output like this:
 
 __Embeddings__: 
 
-* to free a lot of memory, use serialized embeddings with LMDB, similarly as in https://github.com/kermitt2/nerd/tree/0.0.3 (via the Python package called lmdb,  optionally see also Caffe for storing and using HDF5)
+* to free a lot of memory and keep embeddings always immediatly warm (loading embeddings in python takes an awful amount of time), use serialized embeddings with LMDB, similarly as in https://github.com/kermitt2/nerd/tree/0.0.3 (via the Python package called lmdb,  optionally see also Caffe for storing and using HDF5)
 
 * use OOV mechanisms
 

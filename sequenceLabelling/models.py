@@ -108,16 +108,16 @@ class SeqLabelling_BidLSTM_CNN(BaseModel):
         word_input = Input(shape=(None, config.word_embedding_size), )
 
         # build character based embedding        
-        character_input = Input(shape=(None,config.char_embedding_size,),name='char_input')
+        character_input = Input(shape=(None,config.char_vocab_size,),name='char_input')
         char_embeddings = TimeDistributed(
                                 Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
                                     embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)), 
                                     name='char_embedding')(character_input)
-        dropout = Dropout(0.5)(char_embeddings)
+        dropout = Dropout(config.dropout)(char_embeddings)
         
         conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
-        maxpool_out = TimeDistributed(MaxPooling1D(52))(conv1d_out)
+        maxpool_out = TimeDistributed(MaxPooling1D(config.char_vocab_size))(conv1d_out)
         
         char = TimeDistributed(Flatten())(maxpool_out)
         char = Dropout(config.dropout)(char)

@@ -4,20 +4,24 @@ import numpy as np
 from utilities.Embeddings import make_embeddings_simple
 import sequenceLabelling
 from utilities.Tokenizer import tokenizeAndFilter
+from sklearn.model_selection import train_test_split
 from sequenceLabelling.reader import load_data_and_labels_crf_file
 import keras.backend as K
 import argparse
 import time
 
-models = ['affiliation-address', 'citation', 'date', 'header', 'name-citztion', 'name-header']
+models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header']
 
 
 # train a GROBID model with all available data 
 def train(model, embedding_vector): 
     print('Loading data...')
-    x_train, y_train, f_train = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+    x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+
+    x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
+    print(len(x_valid), 'validation sequences')
 
     model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings=embedding_vector)
 
@@ -34,9 +38,11 @@ def train_eval(model, embedding_vector):
     print('Loading data...')
     x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
-    x_train, eval_x, y_train, eval_y = train_test_split(x_all, y_all, test_size=0.1)
+    x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
+    x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
+    print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
     model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings=embedding_vector)
@@ -100,17 +106,23 @@ if __name__ == "__main__":
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embedding_vector, args.fold_count)
+        train_eval(model, embedding_vector)
 
     if action == 'tag':
         someTexts = []
 
-        if model is 'date':
+        if model == 'date':
             someTexts.append("January 2006")
             someTexts.append("March the 27th, 2001")
-        elif model is 'citation':
+        elif model == 'citation':
             someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
-            someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(2) (1999) 1–33.")
+            someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
+        elif model == 'name-citation':
+            someTexts.append("L. Romary and L. Foppiano")
+            someTexts.append("Maniscalco, S., Francica, F., Zaffino, R.L.")
+        elif model == 'name-header':
+            someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
+            someTexts.append("Irène Charon ⋆ and Olivier Hudry")
 
         result = annotate_text(someTexts, model, embedding_vector, "json")
         print(json.dumps(result, sort_keys=False, indent=4))

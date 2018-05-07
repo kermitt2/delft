@@ -34,7 +34,7 @@ def train(embedding_vector):
     model.save()
 
 # train and usual eval on CoNLL 2003 eng.testb 
-def train_eval(embedding_vector, fold_count): 
+def train_eval(embedding_vector): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(embedding_vector, args.fold_count)
+        train_eval(embedding_vector)
 
     if action == 'eval':
         eval(embedding_vector)

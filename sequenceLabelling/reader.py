@@ -162,8 +162,8 @@ def load_data_and_labels_crf_file(filepath):
     labels = []
     featureSets = []
 
-    with open(filename) as f:
-        tokens, tags, features = [], []
+    with open(filepath) as f:
+        tokens, tags, features = [], [], []
         for line in f:
             line = line.strip()
             if len(line) == 0:
@@ -179,8 +179,8 @@ def load_data_and_labels_crf_file(filepath):
                 tag = pieces[len(pieces)-1]
                 localFeatures = pieces[1:len(pieces)-2]
                 tokens.append(token)
-                tags.append(tag)
-                features.append[localFeatures]
+                tags.append(_translate_tags_grobid_to_IOB(tag))
+                features.append(localFeatures)
     return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
 
 
@@ -205,7 +205,7 @@ def load_data_and_labels_crf_string(crfString):
     featureSets = []
 
     for line in crfString.splitlines():
-        tokens, tags, features = [], []
+        tokens, tags, features = [], [], []
         line = line.strip()
         if len(line) == 0:
             if len(tokens) != 0:
@@ -220,8 +220,8 @@ def load_data_and_labels_crf_string(crfString):
             tag = pieces[len(pieces)-1]
             localFeatures = pieces[1:len(pieces)-2]
             tokens.append(token)
-            tags.append(tag)
-            features.append[localFeatures]
+            tags.append(_translate_tags_grobid_to_IOB(tag))
+            features.append(localFeatures)
     return sents, labels, featureSets
 
 
@@ -248,6 +248,22 @@ def load_data_crf_string(crfString):
 
     return sents, featureSets
 
+
+def _translate_tags_grobid_to_IOB(tag):
+    """
+    Convert labels as used by GROBID to the more standard IOB2 
+    """
+    if tag.endswith('other>'):
+        # outside
+        return 'O'
+    elif tag.startswith('I-'):
+        # begin
+        return 'B-'+tag[2:]
+    elif tag.startswith('<'):
+        # inside
+        return 'I-'+tag
+    else:
+        return tag
 
 def load_data_and_labels_conll(filename):
     """

@@ -150,6 +150,20 @@ def pad_sequences(sequences, pad_tok, nlevels=1):
         max_length = len(max(sequences, key=len))
         sequence_padded, sequence_length = _pad_sequences(sequences, pad_tok, max_length)
     elif nlevels == 2:
+        """
+        print("len(sequences):", len(sequences))
+        if len(sequences) == 0:
+            print("sequences is empty")
+        p=0
+        for seq in sequences:
+            if seq is None:
+                print("seq is none at", p)
+            if len(seq) == 0:
+                print(p-1, sequences[p-1])
+                print(p, sequences[p])
+                print(p+1, sequences[p+1])
+            p += 1   
+        """ 
         max_length_word = max(len(max(seq, key=len)) for seq in sequences)
         sequence_padded, sequence_length = [], []
         for seq in sequences:

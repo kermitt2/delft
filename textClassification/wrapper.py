@@ -12,13 +12,13 @@ from textClassification.config import ModelConfig, TrainingConfig
 from textClassification.models import getModel
 from textClassification.models import train_model
 from textClassification.models import train_folds
-from textClassification.models import train_test_split
 from textClassification.models import predict
 from textClassification.models import predict_folds
 from textClassification.data_generator import DataGenerator
 from textClassification.preprocess import to_vector_single
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
+from sklearn.model_selection import train_test_split
 
 from utilities.Embeddings import filter_embeddings
 
