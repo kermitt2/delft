@@ -4,7 +4,7 @@ import numpy as np
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
 
-# this is based on https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
+# this is loosely based on https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
 
 UNK = '<UNK>'
 PAD = '<PAD>'
@@ -12,10 +12,9 @@ PAD = '<PAD>'
 class WordPreprocessor(BaseEstimator, TransformerMixin):
 
     def __init__(self,
-                 lowercase=True,
+                 lowercase=False,
                  num_norm=True,
                  use_char_feature=True,
-                 vocab_init=None,
                  padding=True,
                  return_lengths=True):
 
@@ -24,33 +23,24 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         self.use_char_feature = use_char_feature
         self.padding = padding
         self.return_lengths = return_lengths
-        self.vocab_word = None
         self.vocab_char = None
         self.vocab_tag  = None
-        self.vocab_init = vocab_init or {}
 
     def fit(self, X, y):
-        words = {PAD: 0, UNK: 1}
         chars = {PAD: 0, UNK: 1}
         tags  = {PAD: 0}
 
-        for w in set(itertools.chain(*X)) | set(self.vocab_init):
+        for w in set(itertools.chain(*X)): 
             if not self.use_char_feature:
                 continue
             for c in w:
                 if c not in chars:
                     chars[c] = len(chars)
 
-            w = self._lower(w)
-            w = self._normalize_num(w)
-            if w not in words:
-                words[w] = len(words)
-
         for t in itertools.chain(*y):
             if t not in tags:
                 tags[t] = len(tags)
 
-        self.vocab_word = words
         self.vocab_char = chars
         self.vocab_tag  = tags
 
@@ -58,53 +48,25 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
 
     def transform(self, X, y=None):
         """
-        transforms input(s)
+        transforms input into sequence
 
         Args:
-            X: list of list of words
+            X: list of list of word tokens
             y: list of list of tags
 
         Returns:
-            numpy array: sentences
-            numpy array: tags
-
-        Examples:
-            >>> X = [['President', 'Obama', 'is', 'speaking']]
-            >>> print(self.transform(X))
-            [
-                [
-                    [1999, 1037, 22123, 48388],       # word ids
-                ],
-                [
-                    [
-                        [1, 2, 3, 4, 5, 6, 7, 8, 9],  # list of char ids
-                        [1, 2, 3, 4, 5, 0, 0, 0, 0],  # 0 is a pad
-                        [1, 2, 0, 0, 0, 0, 0, 0, 0],
-                        [1, 2, 3, 4, 5, 6, 7, 8, 0]
-                    ]
-                ]
-            ]
+            numpy array: sentences with char and length sequences
+            numpy array: sequence of tags
         """
-        words = []
         chars = []
         lengths = []
         for sent in X:
-            word_ids = []
             char_ids = []
             lengths.append(len(sent))
             for w in sent:
                 if self.use_char_feature:
                     char_ids.append(self.get_char_ids(w))
 
-                w = self._lower(w)
-                w = self._normalize_num(w)
-                if w in self.vocab_word:
-                    word_id = self.vocab_word[w]
-                else:
-                    word_id = self.vocab_word[UNK]
-                word_ids.append(word_id)
-
-            words.append(word_ids)
             if self.use_char_feature:
                 chars.append(char_ids)
 
@@ -112,9 +74,9 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             y = [[self.vocab_tag[t] for t in sent] for sent in y]
 
         if self.padding:
-            sents, y = self.pad_sequence(words, chars, y)
+            sents, y = self.pad_sequence(chars, y)
         else:
-            sents = [words, chars]
+            sents = [chars]
 
         if self.return_lengths:
             lengths = np.asarray(lengths, dtype=np.int32)
@@ -130,30 +92,18 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
     def get_char_ids(self, word):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]
 
-    def _lower(self, word):
-        return word.lower() if self.lowercase else word
-
-    def _normalize_num(self, word):
-        if self.num_norm:
-            return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
-        else:
-            return word
-
-    def pad_sequence(self, word_ids, char_ids, labels=None):
+    def pad_sequence(self, char_ids, labels=None):
         if labels:
             labels, _ = pad_sequences(labels, 0)
             labels = np.asarray(labels)
             labels = dense_to_one_hot(labels, len(self.vocab_tag), nlevels=2)
 
-        word_ids, sequence_lengths = pad_sequences(word_ids, 0)
-        word_ids = np.asarray(word_ids)
-
         if self.use_char_feature:
             char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
             char_ids = np.asarray(char_ids)
-            return [word_ids, char_ids], labels
+            return [char_ids], labels
         else:
-            return word_ids, labels
+            return labels
 
     def save(self, file_path):
         joblib.dump(self, file_path)
@@ -239,13 +189,13 @@ def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
         raise ValueError('nlevels can take 1 or 2, not take {}.'.format(nlevels))
 
 
-def prepare_preprocessor(X, y, use_char=True, vocab_init=None):
-    p = WordPreprocessor(vocab_init=vocab_init)
+def prepare_preprocessor(X, y, use_char=True):
+    p = WordPreprocessor()
     p.fit(X, y)
 
     return p
 
-def to_vector_single(tokens, embeddings, maxlen=300, embed_size=300):
+def to_vector_single(tokens, embeddings, maxlen=300, embed_size=300, lowercase=False, num_norm=True):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
@@ -259,11 +209,15 @@ def to_vector_single(tokens, embeddings, maxlen=300, embed_size=300):
     # TBD: padding should be left and which vector do we use for padding? 
     # and what about masking padding later for RNN?
     for i, word in enumerate(window):
-        x[i,:] = get_word_vector(word, embeddings, embed_size).astype('float32')
+        x[i,:] = get_word_vector(word, embeddings, embed_size, lowercase, num_norm).astype('float32')
 
     return x
 
-def get_word_vector(word, embeddings, embed_size):
+def get_word_vector(word, embeddings, embed_size, lowercase=False, num_norm=True):
+    if lowercase:
+        word = _lower(word)
+    if num_norm:
+        word = _normalize_num(word)
     if word in embeddings:
         return embeddings[word]
     else:
@@ -272,3 +226,9 @@ def get_word_vector(word, embeddings, embed_size):
         # alternatively, initialize with random negative values
         #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
         # alternatively use fasttext OOV ngram possibilities (if ngram available)
+
+def _lower(word):
+    return word.lower() 
+
+def _normalize_num(word):
+    return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)

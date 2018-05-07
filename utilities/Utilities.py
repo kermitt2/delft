@@ -1,6 +1,9 @@
 # some convenient methods for all models
 import regex as re
 import numpy as np
+# seed is fixed for reproducibility
+from numpy.random import seed
+seed(7)
 import pandas as pd
 import sys
 import os.path
@@ -92,28 +95,6 @@ def split_data_and_labels(x, y, ratio):
             x2.append(x[i])
             y2.append(y[i])
     return np.asarray(x1),np.asarray(y1),np.asarray(x2),np.asarray(y2)    
-    
-
-# stemming 
-"""
-stemmer = EnglishStemmer()
-
-def stem_word(text):
-    return stemmer.stem(text)
-
-def lemmatize_word(text):
-    return lemmatizer.lemmatize(text)
-
-def apply_stopword(text):
-    return '' if text.lower() in stopwords else text
-
-def reduce_text(conversion, text):
-    return " ".join(map(conversion, wordpunct_tokenize(text.lower())))
-
-def reduce_texts(conversion, texts):
-    return [reduce_text(conversion, str(text))
-            for text in tqdm(texts)]
-"""
 
 
 url_regex = re.compile(r"https?:\/\/[a-zA-Z0-9_\-\.]+(?:com|org|fr|de|uk|se|net|edu|gov|int|mil|biz|info|br|ca|cn|in|jp|ru|au|us|ch|it|nl|no|es|pl|ir|cz|kr|co|gr|za|tw|hu|vn|be|mx|at|tr|dk|me|ar|fi|nz)\/?\b")

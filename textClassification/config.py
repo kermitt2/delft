@@ -10,6 +10,7 @@ class ModelConfig(object):
                  char_emb_size=0, 
                  word_emb_size=300, 
                  dropout=0.5, 
+                 recurrent_dropout=0.25,
                  use_char_feature=False,
                  maxlen=300,
                  fold_number=1,
@@ -25,6 +26,7 @@ class ModelConfig(object):
         self.char_embedding_size = char_emb_size
         self.word_embedding_size = word_emb_size
         self.dropout = dropout
+        self.recurrent_dropout = recurrent_dropout
         self.maxlen = maxlen
 
         self.use_char_feature = use_char_feature

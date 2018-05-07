@@ -8,9 +8,7 @@ import argparse
 import keras.backend as K
 import time
 
-def train(embedding_vector, fold_count): 
-    root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
-
+def train(embedding_vector): 
     train_path = os.path.join(root, 'corrected.xml')
     valid_path = os.path.join(root, 'valid.xml')
 
@@ -20,7 +18,7 @@ def train(embedding_vector, fold_count):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('insult', max_epoch=50, embeddings=embedding_vector, fold_number=fold_count)
+    model = sequenceLabelling.Sequence('insult', max_epoch=50, embeddings=embedding_vector)
     model.train(x_train, y_train, x_valid, y_valid)
     print('training done')
 
@@ -64,9 +62,7 @@ if __name__ == "__main__":
     embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
 
     if action == 'train':
-        if args.fold_count < 1:
-            raise ValueError("fold-count should be equal or more than 1")
-        train(embedding_vector, args.fold_count)
+        train(embedding_vector)
 
     if action == 'tag':
         someTexts = ['This is a gentle test.', 

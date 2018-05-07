@@ -1,4 +1,7 @@
 import numpy as np
+# seed is fixed for reproducibility
+from numpy.random import seed
+seed(7)
 import keras
 from textClassification.preprocess import to_vector_single
 

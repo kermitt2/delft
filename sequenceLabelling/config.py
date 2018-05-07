@@ -11,6 +11,7 @@ class ModelConfig(object):
                  char_lstm_units=25,
                  word_lstm_units=100, 
                  dropout=0.5, 
+                 recurrent_dropout=0.25,
                  use_char_feature=True, 
                  use_crf=True,
                  fold_number=1,
@@ -19,8 +20,6 @@ class ModelConfig(object):
         self.model_name = model_name
         self.model_type = model_type
 
-        # Number of unique words in the vocab (plus 2, for <UNK>, <PAD>).
-        self.vocab_size = None
         self.char_vocab_size = None
 
         self.char_embedding_size = char_emb_size
@@ -28,6 +27,7 @@ class ModelConfig(object):
         self.word_embedding_size = word_emb_size
         self.num_word_lstm_units = word_lstm_units
         self.dropout = dropout
+        self.recurrent_dropout = recurrent_dropout
 
         self.use_char_feature = use_char_feature
         self.use_crf = use_crf
@@ -59,7 +59,6 @@ class TrainingConfig(object):
                  clip_gradients=5.0, 
                  max_epoch=50, 
                  patience=5,
-                 use_roc_auc=False,
                  max_checkpoints_to_keep=5):
 
         self.batch_size = batch_size
@@ -69,5 +68,4 @@ class TrainingConfig(object):
         self.clip_gradients = clip_gradients
         self.max_epoch = max_epoch
         self.patience = patience
-        self.use_roc_auc = use_roc_auc
         self.max_checkpoints_to_keep = max_checkpoints_to_keep

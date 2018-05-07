@@ -7,9 +7,8 @@ from utilities.layers import ChainCRF
 
 class BaseModel(object):
 
-    def __init__(self, config, embeddings, ntags):
+    def __init__(self, config, ntags):
         self.config = config
-        self.embeddings = embeddings
         self.ntags = ntags
         self.model = None
 
@@ -48,17 +47,17 @@ class SeqLabelling_BidLSTM_CRF(BaseModel):
     https://arxiv.org/abs/1603.01360
     """
 
-    def __init__(self, config, embeddings=None, ntags=None):
+    def __init__(self, config, ntags=None):
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), )
 
         # build character based embedding
-        char_ids = Input(batch_shape=(None, None, None), dtype='int32')
+        char_input = Input(shape=(None, None), dtype='int32')
         char_embeddings = Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
                                     mask_zero=True
-                                    )(char_ids)
+                                    )(char_input)
         s = K.shape(char_embeddings)
         char_embeddings = Lambda(lambda x: K.reshape(x, shape=(-1, s[-2], config.char_embedding_size)))(char_embeddings)
 
@@ -72,61 +71,16 @@ class SeqLabelling_BidLSTM_CRF(BaseModel):
         x = Concatenate(axis=-1)([word_input, char_embeddings])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, return_sequences=True))(x)
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units, return_sequences=True, recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
         x = Dense(ntags)(x)
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        sequence_lengths = Input(batch_shape=(None, 1), dtype='int32')
-        self.model = Model(inputs=[word_input, char_ids, sequence_lengths], outputs=[pred])
-        self.config = config
-
-
-    def old__init__(self, config, embeddings=None, ntags=None):
-
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(batch_shape=(None, None), dtype='int32')
-        
-        if embeddings is None:
-            word_embeddings = Embedding(input_dim=config.vocab_size,
-                                        output_dim=config.word_embedding_size, trainable=False,
-                                        mask_zero=True)(word_input)
-        else:
-            word_embeddings = Embedding(input_dim=embeddings.shape[0],
-                                        output_dim=embeddings.shape[1], trainable=False,
-                                        mask_zero=True, 
-                                        weights=[embeddings])(word_input)
-        
-        # build character based embedding
-        char_ids = Input(batch_shape=(None, None, None), dtype='int32')
-        char_embeddings = Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=True
-                                    )(char_ids)
-        s = K.shape(char_embeddings)
-        char_embeddings = Lambda(lambda x: K.reshape(x, shape=(-1, s[-2], config.char_embedding_size)))(char_embeddings)
-
-        fwd_state = LSTM(config.num_char_lstm_units, return_state=True)(char_embeddings)[-2]
-        bwd_state = LSTM(config.num_char_lstm_units, return_state=True, go_backwards=True)(char_embeddings)[-2]
-        char_embeddings = Concatenate(axis=-1)([fwd_state, bwd_state])
-        # shape = (batch size, max sentence length, char hidden size)
-        char_embeddings = Lambda(lambda x: K.reshape(x, shape=[-1, s[1], 2 * config.num_char_lstm_units]))(char_embeddings)
-
-        # combine characters and word embeddings
-        x = Concatenate(axis=-1)([word_embeddings, char_embeddings])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, return_sequences=True))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
-
-        sequence_lengths = Input(batch_shape=(None, 1), dtype='int32')
-        self.model = Model(inputs=[word_input, char_ids, sequence_lengths], outputs=[pred])
+        # length of sequence not used for the moment (but used for f1 communication)
+        length_input = Input(batch_shape=(None, 1), dtype='int32')
+        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
         self.config = config
 
 
@@ -156,20 +110,11 @@ class SeqLabelling_BidLSTM_CNN(BaseModel):
         for c in " 0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.,-_()[]{}!?:;#'\"/\\%$`&=*+@^~|":
             char2Idx[c] = len(char2Idx)
 
-        # build word embedding
-        word_ids = Input(shape=(None,),dtype='int32', name='words_input')
-        if embeddings is None:
-            word_embeddings = Embedding(input_dim=config.vocab_size,
-                                        output_dim=config.word_embedding_size, trainable=False,
-                                        mask_zero=True)(word_ids)
-        else:
-            word_embeddings = Embedding(input_dim=embeddings.shape[0],
-                                        output_dim=embeddings.shape[1], trainable=False,
-                                        mask_zero=True, 
-                                        weights=[embeddings])(word_ids)
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), )
 
         # build character based embedding        
-        character_input = Input(shape=(None,52,),name='char_input')
+        character_input = Input(shape=(None,config.char_embedding_size,),name='char_input')
         embed_char_out = TimeDistributed(Embedding(len(char2Idx),30,embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5)), 
                             name='char_embedding')(character_input)
         dropout = Dropout(0.5)(embed_char_out)

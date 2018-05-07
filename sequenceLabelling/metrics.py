@@ -119,6 +119,11 @@ class F1score(Callback):
         self.valid_batches = validation_generator
         self.p = preprocessor
 
+        self.f1 = -1.0
+        self.correct_preds = 0
+        self.total_correct = 0
+        self.total_preds = 0
+
     def on_epoch_end(self, epoch, logs={}):
         correct_preds, total_correct, total_preds = 0., 0., 0.
         for i, (data, label) in enumerate(self.valid_batches):
@@ -140,11 +145,17 @@ class F1score(Callback):
             total_preds += b
             total_correct += c
 
-        f1 = self._calc_f1(correct_preds, total_correct, total_preds)
+        f1 = self.calc_f1(correct_preds, total_correct, total_preds)
         print(' - f1: {:04.2f}'.format(f1 * 100))
+        
+        # save eval
         logs['f1'] = f1
+        self.last_f1 = f1
+        self.correct_preds = correct_preds
+        self.total_correct = total_correct
+        self.total_preds = total_preds
 
-    def _calc_f1(self, correct_preds, total_correct, total_preds):
+    def calc_f1(self, correct_preds, total_correct, total_preds):
         p = correct_preds / total_preds if correct_preds > 0 else 0
         r = correct_preds / total_correct if correct_preds > 0 else 0
         f1 = 2 * p * r / (p + r) if correct_preds > 0 else 0

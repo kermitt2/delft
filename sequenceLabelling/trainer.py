@@ -37,9 +37,8 @@ class Trainer(object):
     def train(self, x_train, y_train, x_valid, y_valid):
         self.model.summary()
         self.model.compile(loss=self.model.crf.loss,
-                           optimizer=Adam(lr=self.training_config.learning_rate))
-        #self.model.compile(loss='binary_crossentropy', 
-        #                    optimizer='adam', metrics=['accuracy'])
+                           optimizer='adam')
+                           #optimizer=Adam(lr=self.training_config.learning_rate))
         self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
                                                   self.training_config.max_epoch)
 

@@ -2,8 +2,7 @@
 
 # DeLFT 
 
-__Work in progress !__ This is an early alpha version and you very likely don't want to try it at this stage ;) 
-
+__Work in progress !__ 
 
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard and _augment_ state-of-the-art Deep Learning architectures which can all be used within the same environment. 
 
@@ -35,9 +34,13 @@ TBD
 
 Assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
 
-> python3 nerTagger.py train
+> python3 nerTagger.py train_eval
 
-By default, the BidLSTM-CRF model is used. 
+By default, the BidLSTM-CRF model is used. With this model, current f1 score on CoNLL 2003 testb set is __90.85__ (using _train_ set for training and _testa_ for validation).
+
+For training with all the available data:
+
+> python3 nerTagger.py train
 
 For tagging some text, use the command:
 
@@ -99,6 +102,7 @@ which produces a JSON output with entities, scores and character offsets like th
 
 DeLFT supports GROBID training data (originally for CRF) and GROBID feature matrix to be labelled. 
 
+(To be completed)
 
 #### Insult recognition
 
@@ -108,14 +112,14 @@ For training:
 
 > python3 insultTagger.py train
 
-By default training uses the whole train set, for n-folds training, which provides better and more stable accuracy, uses: 
+By default training uses the whole train set.
 
-> python3 insultTagger.py tag --fold-count 10
 
 #### Creating your own model
 
 As long your task is a sequence labelling of text, adding a new corpus and create an additional model should be straightfoward. If you want to build a model named `toto` based on labelled data in one of the supported format (CoNLL, TEI or GROBID CRF), create the subdirectory `data/sequenceLabelling/toto` and copy your training data under it.  
 
+(To be completed)
 
 ## Text classification
 
@@ -305,11 +309,9 @@ which will produce some JSON output like this:
 
 __Embeddings__: 
 
-* use a data generator for feeding the models with embeddings, so that embeddings are removed from the models (models are really big because they contain each embeddings matrix for the training vocabulary, it does not make sense to have a set of big and redundant models like that in production), see `model.fit_generator()`
-
 * to free a lot of memory, use serialized embeddings with LMDB, similarly as in https://github.com/kermitt2/nerd/tree/0.0.3 (via the Python package called lmdb,  optionally see also Caffe for storing and using HDF5)
 
-* use OOV (FastText) mechanisms
+* use OOV mechanisms
 
 __Models__:
 

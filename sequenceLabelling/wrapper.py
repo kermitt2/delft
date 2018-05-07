@@ -7,7 +7,6 @@ from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
-#from sequenceLabelling.reader import batch_iter
 from sequenceLabelling.data_generator import DataGenerator
 from sequenceLabelling.metrics import F1score
 from utilities.Embeddings import filter_embeddings
@@ -29,6 +28,7 @@ class Sequence(object):
                  char_lstm_units=25,
                  word_lstm_units=100, 
                  dropout=0.5, 
+                 recurrent_dropout=0.25,
                  use_char_feature=True, 
                  use_crf=True,
                  batch_size=20, 
@@ -43,12 +43,13 @@ class Sequence(object):
                  fold_number=1,
                  embeddings=()):
 
-        self.model_config = ModelConfig(model_name, model_type, char_emb_size, word_emb_size, char_lstm_units,
-                                        word_lstm_units, dropout, use_char_feature, use_crf, fold_number, batch_size)
+        self.model_config = ModelConfig(model_name, model_type, char_emb_size, word_emb_size, 
+                                        char_lstm_units, word_lstm_units, dropout, 
+                                        recurrent_dropout, use_char_feature, use_crf, 
+                                        fold_number, batch_size)
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
-                                              patience, 
-                                              max_checkpoints_to_keep)
+                                              patience, max_checkpoints_to_keep)
         self.model = None
         self.models = None
         self.p = None
@@ -56,17 +57,13 @@ class Sequence(object):
         self.embeddings = embeddings 
 
 
-    def train(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None):
+    def train(self, x_train, y_train, x_valid=None, y_valid=None):
         # TBD if valid is None, segment train to get one
         x_all = np.concatenate((x_train, x_valid), axis=0)
         y_all = np.concatenate((y_train, y_valid), axis=0)
-        self.p = prepare_preprocessor(x_all, y_all, vocab_init=vocab_init)
-        embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-                                       self.model_config.word_embedding_size)
-        self.model_config.vocab_size = len(self.p.vocab_word)
+        self.p = prepare_preprocessor(x_all, y_all)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
-
-        self.model = SeqLabelling_BidLSTM_CRF(self.model_config, embeddings, len(self.p.vocab_tag))
+        self.model = SeqLabelling_BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
 
         trainer = Trainer(self.model, 
                           self.models,
@@ -78,15 +75,12 @@ class Sequence(object):
         trainer.train(x_train, y_train, x_valid, y_valid)
 
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, vocab_init=None, fold_number=10):
-        self.p = prepare_preprocessor(x_train, y_train, vocab_init=vocab_init)
-        embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-                                       self.model_config.word_embedding_size)
-        self.model_config.vocab_size = len(self.p.vocab_word)
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
+        self.p = prepare_preprocessor(x_train, y_train)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
 
         for k in range(0,fold_number-1):
-            self.model = SeqLabelling_BidLSTM_CRF(self.model_config, embeddings, len(self.p.vocab_tag))
+            self.model = SeqLabelling_BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
             self.models.append(model)
 
         trainer = Trainer(self.model, 
@@ -100,28 +94,48 @@ class Sequence(object):
 
 
     def eval(self, x_test, y_test):
-        if self.model:
-            # Prepare test data(steps, generator)
-            """
-            train_steps, train_batches = batch_iter(x_test,
-                                                    y_test,
-                                                    batch_size=20,  
-                                                    shuffle=False,
-                                                    preprocessor=self.p)
-            """
-            test_generator = DataGenerator(x_test, y_test, 
-              batch_size=self.training_config.batch_size, preprocessor=self.p, 
-              word_embed_size=self.model_config.word_embedding_size, 
-              char_embed_size=self.model_config.char_embedding_size, 
-              embeddings=self.embeddings, shuffle=False)
+        if self.model_config.fold_number is 1:
+            if self.model:
+                # Prepare test data(steps, generator)
+                test_generator = DataGenerator(x_test, y_test, 
+                  batch_size=self.training_config.batch_size, preprocessor=self.p, 
+                  word_embed_size=self.model_config.word_embedding_size, 
+                  char_embed_size=self.model_config.char_embedding_size, 
+                  embeddings=self.embeddings, shuffle=False)
 
-            # Build the evaluator and evaluate the model
-            f1score = F1score(test_generator, self.p)
-            f1score.model = self.model
-            f1score.on_epoch_end(epoch=-1) 
+                # Build the evaluator and evaluate the model
+                f1score = F1score(test_generator, self.p)
+                f1score.model = self.model
+                f1score.on_epoch_end(epoch=-1) 
+            else:
+                raise (OSError('Could not find a model.'))
+        """
         else:
-            raise (OSError('Could not find a model.'))
+            if self.models is not None:
+                total_f1 = 0
+                total_correct_preds = 0
+                total_total_correct = 0
+                total_total_preds = 0
+                for i in range(0, self.model_config.fold_number):
+                    # Prepare test data(steps, generator)
+                    test_generator = DataGenerator(x_test, y_test, 
+                      batch_size=self.training_config.batch_size, preprocessor=self.p, 
+                      word_embed_size=self.model_config.word_embedding_size, 
+                      char_embed_size=self.model_config.char_embedding_size, 
+                      embeddings=self.embeddings, shuffle=False)
 
+                    # Build the evaluator and evaluate the model
+                    f1score = F1score(test_generator, self.p)
+                    f1score.model = self.models[i]
+                    f1score.on_epoch_end(epoch=-1) 
+                    f1 = f1score.f1
+                    correct_preds = f1score.correct_preds
+                    total_correct = f1score.total_correct
+                    total_preds = f1score.total_preds
+
+                macro_f1 = f1score.calc_f1(total_correct_preds, total_total_correct, total_total_preds)
+                micro_f1 = total_f1 / self.model_config.fold_number
+        """
 
     def tag(self, texts, output_format):
         if self.model:
@@ -148,12 +162,11 @@ class Sequence(object):
         print('model saved')
 
 
-    def load(self, dir_path='data/models/sequenceLabelling//'):
+    def load(self, dir_path='data/models/sequenceLabelling/'):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         
         config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         
-        dummy_embeddings = np.zeros((config.vocab_size+1, config.word_embedding_size), dtype=np.float32)
-        self.model = SeqLabelling_BidLSTM_CRF(config, dummy_embeddings, ntags=len(self.p.vocab_tag))
+        self.model = SeqLabelling_BidLSTM_CRF(config, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 

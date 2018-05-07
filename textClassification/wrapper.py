@@ -1,6 +1,9 @@
 import os
 
 import numpy as np
+# seed is fixed for reproducibility
+from numpy.random import seed
+seed(7)
 import datetime
 
 from textClassification.config import ModelConfig, TrainingConfig
@@ -21,7 +24,6 @@ class Classifier(object):
 
     config_file = 'config.json'
     weight_file = 'model_weights.hdf5'
-    #preprocessor_file = 'preprocessor.pkl'
 
     def __init__(self, 
                  model_name="",
@@ -30,6 +32,7 @@ class Classifier(object):
                  char_emb_size=25, 
                  word_emb_size=300, 
                  dropout=0.5, 
+                 recurrent_dropout=0.25,
                  use_char_feature=False, 
                  batch_size=256, 
                  optimizer='adam', 
@@ -45,26 +48,17 @@ class Classifier(object):
                  embeddings=()):
 
         self.model_config = ModelConfig(model_name, model_type, list_classes, 
-                                        char_emb_size, word_emb_size, dropout, 
+                                        char_emb_size, word_emb_size, dropout, recurrent_dropout,
                                         use_char_feature, maxlen, fold_number, batch_size)
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               patience, use_roc_auc)
         self.model = None
         self.models = None
-        #self.p = None
         self.log_dir = log_dir
         self.embeddings = embeddings 
 
     def train(self, x_train, y_train, vocab_init=None):
-        #self.p = prepare_preprocessor(x_train, vocab_init)
-
-        #embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-        #                               self.model_config.word_embedding_size)
-
-        #x_train = self.p.to_sequence(x_train, self.model_config.maxlen)
-        #x_train = self.p.to_vector(x_train, self.embeddings, maxlen=self.model_config.maxlen)
-
         # create validation set in case we don't use k-folds
         xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
 
@@ -81,34 +75,21 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None):
-
-        #self.p = prepare_preprocessor(x_train, vocab_init=vocab_init)
-
-        #embeddings = filter_embeddings(self.embeddings, self.p.vocab_word,
-        #                               self.model_config.word_embedding_size)
-
-        #xtr = self.p.to_sequence(x_train, self.model_config.maxlen)
-
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings)
 
     # classification
     def predict(self, texts, output_format='json'):
         if self.model_config.fold_number is 1:
             if self.model is not None:
-                #classifier = Classifier(self.model, preprocessor=self.p)
-                #x_t = self.p.to_sequence(texts, maxlen=300)
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
 
-                #x_t = self.p.to_vector(texts, self.embeddings, maxlen=self.model_config.maxlen, embed_size=self.model_config.word_embedding_size)
                 result = predict(self.model, predict_generator)
             else:
                 raise (OSError('Could not find a model.'))
         else:
             if self.models is not None:
-                #x_t = self.p.to_sequence(texts, maxlen=300)
-                #x_t = self.p.to_vector(texts, self.embeddings, maxlen=self.model_config.maxlen, embed_size=self.model_config.word_embedding_size)
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
@@ -142,8 +123,6 @@ class Classifier(object):
     def eval(self, x_test, y_test):
         if self.model_config.fold_number is 1:
             if self.model is not None:
-                #x_t = self.p.to_sequence(x_test, maxlen=300)
-
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
@@ -153,7 +132,6 @@ class Classifier(object):
                 raise (OSError('Could not find a model.'))
         else:
             if self.models is not None:
-                #x_t = self.p.to_sequence(x_test, maxlen=300)
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)

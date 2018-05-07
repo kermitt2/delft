@@ -1,4 +1,7 @@
 import numpy as np
+# seed is fixed for reproducibility
+from numpy.random import seed
+seed(7)
 import keras
 from sequenceLabelling.preprocess import to_vector_single
 from utilities.Tokenizer import tokenizeAndFilterSimple
@@ -40,14 +43,6 @@ class DataGenerator(keras.utils.Sequence):
         batch_x, batch_c, batch_l, batch_y = self.__data_generation(index)
         return [batch_x, batch_c, batch_l], batch_y
 
-    """
-    def old__getitem__(self, index):
-        'Generate one batch of data'
-        # generate data for the current batch index
-        batch_x, batch_y = self.__data_generation(index)
-        return batch_x, batch_y
-    """
-
     def shuffle_pair(self, a, b):
         # generate permutation index array
         permutation = np.random.permutation(a.shape[0])
@@ -61,37 +56,6 @@ class DataGenerator(keras.utils.Sequence):
                 np.random.shuffle(self.x)
             else:      
                 self.shuffle_pair(self.x,self.y)
-
-    """
-    def __data_generation_old(self, index):
-        'Generates data containing batch_size samples' 
-        max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
-
-        #batch_x = np.zeros((max_iter, self.maxlen, self.embed_size), dtype='float32')
-        sub_x = self.x[(index*self.batch_size):(index*self.batch_size)+max_iter]
-        
-        if self.tokenize:
-            batch_x = []
-            for i in range(0, max_iter):
-                tokens = tokenizeAndFilterSimple(sub_x[i])
-                batch_x.append(tokens)
-        else:
-            batch_x = sub_x
-        batch_y = None
-
-        if self.y is not None:
-            batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
-            #batch_y = np.zeros((max_iter, len(self.list_classes)), dtype='float32')
-
-        # Generate data
-        if self.preprocessor:
-            if self.y is not None:
-                batch_x, batch_y = self.preprocessor.transform(batch_x, batch_y)
-            else:
-                batch_x = self.preprocessor.transform(batch_x)
- 
-        return batch_x, batch_y
-    """
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples' 
@@ -116,7 +80,7 @@ class DataGenerator(keras.utils.Sequence):
             x_tokenized = sub_x
 
         batch_x = np.zeros((max_iter, max_length_x, self.word_embed_size), dtype='float32')
-        batch_c = np.zeros((max_iter, max_length_x, self.char_embed_size), dtype='float32')
+        #batch_c = np.zeros((max_iter, max_length_x, self.char_embed_size), dtype='float32')
 
         batch_y = None
         max_length_y = max_length_x
@@ -138,8 +102,7 @@ class DataGenerator(keras.utils.Sequence):
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y)
         else:
             batches = self.preprocessor.transform(x_tokenized)
-        batch_c = batches[1]
-        batch_length = batches[2]
+        batch_c = batches[0]
+        batch_length = batches[1]
         
         return batch_x, np.asarray(batch_c), batch_length, batch_y
-        
