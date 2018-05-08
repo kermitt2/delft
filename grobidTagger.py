@@ -1,7 +1,7 @@
 import os
 import json
 import numpy as np
-from utilities.Embeddings import make_embeddings_simple
+from utilities.Embeddings import Embeddings
 import sequenceLabelling
 from utilities.Tokenizer import tokenizeAndFilter
 from sklearn.model_selection import train_test_split
@@ -98,7 +98,7 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
         print('action not specifed, must be one of [train,train_eval,tag]')
 
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
+    embedding_vector = Embeddings("fasttext-crawl").model
 
     if action == 'train':
         train(model, embedding_vector)

@@ -1,6 +1,6 @@
 import os
 import json
-from utilities.Embeddings import make_embeddings_simple
+from utilities.Embeddings import Embeddings
 from utilities.Utilities import split_data_and_labels
 from textClassification.reader import load_citation_sentiment_corpus
 import textClassification
@@ -72,8 +72,7 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'train_eval') and (action != 'classify'):
         print('action not specifed, must be one of [train,train_eval,classify]')
 
-    print('importing embeddings...')
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
+    embedding_vector = Embeddings("fasttext-crawl").model
 
     if action == 'train':
         if args.fold_count < 1:

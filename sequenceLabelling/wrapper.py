@@ -13,7 +13,6 @@ from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
 from sequenceLabelling.data_generator import DataGenerator
 from sequenceLabelling.metrics import F1score
-from utilities.Embeddings import filter_embeddings
 
 # initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
 # with various modifications

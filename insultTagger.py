@@ -1,6 +1,6 @@
 import os
 import json
-from utilities.Embeddings import make_embeddings_simple
+from utilities.Embeddings import Embeddings
 import sequenceLabelling
 from utilities.Tokenizer import tokenizeAndFilter
 from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'tag'):
         print('action not specifed, must be one of [train,tag]')
 
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
+    embedding_vector = Embeddings("fasttext-crawl").model
 
     if action == 'train':
         train(embedding_vector)

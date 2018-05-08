@@ -20,7 +20,6 @@ from textClassification.preprocess import to_vector_single
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
-from utilities.Embeddings import filter_embeddings
 
 class Classifier(object):
 

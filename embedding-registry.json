@@ -1,0 +1,37 @@
+{
+    "embeddings": [
+        {
+            "name": "glove-840B",
+            "path": "/mnt/data/wikipedia/embeddings/glove.840B.300d.txt",
+            "type": "glove",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "fasttext-crawl",
+            "path": "/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "fasttext-wiki",
+            "path": "/mnt/data/wikipedia/embeddings/wiki.en.bin",
+            "type": "fasttext",
+            "format": "bin", 
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "word2vec",
+            "path": "GoogleNews-vectors-negative300.vec",
+            "type": "w2v",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word"
+        }
+    ]
+}
+

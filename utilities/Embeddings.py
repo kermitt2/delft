@@ -1,11 +1,74 @@
-# Build custom embeddings on textual content of the data sets
+# Manage pre-trained embeddings 
 
 from keras.preprocessing import text, sequence
 import numpy as np
 import sys
 import os.path
+import json
+
+
+class Embeddings(object):
+
+    def __init__(self, name, path='./embedding-registry.json'):
+        self.name = name
+        self.embed_size = 0
+        self.model = {}
+        self.registry = self._load_embedding_registry(path)
+        if type == 'glove':
+            self.make_embeddings_simple(name, False)
+        else:
+            self.make_embeddings_simple(name, True)
+        
+    def __getattr__(self, name):
+        return getattr(self.model, name)
+
+    def _load_embedding_registry(self, path='./embedding-registry.json'):
+        """
+        Load the description of available embeddings. Each description provides a name, 
+        a file path (used only if necessary) and a embeddings type (to take into account
+        small variation of format)
+        """
+        registry_json = open(path).read()
+        return json.loads(registry_json)
+
+    def make_embeddings_simple(self, name="fasttext-crawl", hasHeader=True):
+        nbWords = 0
+        print('loading embeddings...')
+        begin = True
+        description = self._get_description(name)
+        if description is not None:
+            embeddings_path = description["path"]
+            embeddings_type = description["type"]
+            with open(embeddings_path) as f:
+                for line in f:
+                    line = line.split(' ')
+                    if begin:
+                        if hasHeader:
+                            # first line gives the nb of words and the embedding size
+                            nbWords = line[0]
+                            self.embed_size = line[1].replace("\n", "")
+                            begin = False
+                            continue
+                        else:
+                            begin = False
+                    word = line[0]
+                    if embeddings_type == 'glove':
+                        vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    else:
+                        vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                    if self.embed_size == 0:
+                        self.embed_size = len(vector)
+                    self.model[word] = vector
+            print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+
+    def _get_description(self, name):
+        for emb in self.registry["embeddings"]:
+            if emb["name"] == name:
+                return emb
+        return None
 
 # based on https://machinelearningmastery.com/use-word-embedding-layers-deep-learning-keras/
+# not used
 def make_embeddings(embeddingspath, max_features, embed_size, word_index, skipHeader):
     embeddings_index = {}
     f = open(embeddingspath)
@@ -33,66 +96,10 @@ def make_embeddings(embeddingspath, max_features, embed_size, word_index, skipHe
             embedding_matrix[i] = embedding_vector
     return embedding_matrix
 
-def make_embeddings_simple(embeddingspath, hasHeader):
-    model = {}
-    embed_size = 0
-    nbWords = 0
-    print('loading embeddings...')
-    begin = True
-    with open(embeddingspath) as f:
-        for line in f:
-            line = line.split(' ')
-            if begin:
-                if hasHeader:
-                    # first line gives the nb of words and the embedding size
-                    nbWords = line[0]
-                    embed_size = line[1].replace("\n", "")
-                    begin = False
-                    continue
-                else:
-                    begin = False
-            word = line[0]
-            vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
-            # note: above is working fine with FastText, but with Glove the -1 would need to be removed 
-            model[word] = vector
-    print('embeddings loaded for', nbWords, "words and", embed_size, "dimensions")
-    return embed_size, model
-
-def filter_embeddings(embeddings, vocab, embed_size):
-    """Load embeddings for a given vocab in a numpy array
-
-    Args:
-        embeddings (dict): the embeddings to be used
-        vocab (dict): word_index to restrain embeddings
-        embed_size: dimension of the embeddings
-
-    Returns:
-        numpy array: an array of word embeddings limited to the provided vocab
-    """
-    _embeddings = np.zeros([len(vocab)+1, embed_size])
-    for word in vocab:
-        if word in embeddings:
-            word_idx = vocab[word]
-            _embeddings[word_idx] = embeddings[word]
-
-    return _embeddings
-
-def make_embeddings_fastText(embeddingspath, max_features, embed_size, word_index):
-    fastTextModel = FastText.load_fasttext_format(embeddingspath)
-
-    nb_words = min(max_features, len(word_index))
-    embedding_matrix = np.zeros((nb_words, embed_size))
-    for word, i in word_index.items():
-        if i >= max_features:
-            continue
-        # normally the following will give a vector for oov via ngram stuffs in fastText
-        embedding_vector = fastTextModel[word]
-        if embedding_vector is not None:
-            embedding_matrix[i] = embedding_vector
-    return embedding_matrix
 
 # extend the given embeddings with oov embeddings produced by mimick, see
 # https://github.com/yuvalpinter/Mimick
+# not used
 def make_embeddings_with_oov(embeddingspath, oov_embeddings_path, max_features, embed_size, word_index, skipHeader):
     embeddings_index = {}
     f = open(embeddingspath)

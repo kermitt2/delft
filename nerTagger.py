@@ -1,9 +1,9 @@
 import os
 import json
 import numpy as np
-from utilities.Embeddings import make_embeddings_simple
 import sequenceLabelling
 from utilities.Tokenizer import tokenizeAndFilter
+from utilities.Embeddings import Embeddings
 from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
 import keras.backend as K
 import argparse
@@ -45,7 +45,7 @@ def train_eval(embedding_vector):
     print(len(x_valid), 'validation sequences')
     print(len(x_test), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector, fold_number=fold_count)
+    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -111,7 +111,8 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'tag') and (action != 'eval') and (action != 'train_eval'):
         print('action not specifed, must be one of [train,train_eval,eval,tag]')
 
-    embed_size, embedding_vector = make_embeddings_simple("/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec", True)
+    #embedding_vector = Embeddings("fasttext-crawl").model
+    embedding_vector = Embeddings("glove-840B").model
 
     if action == 'train':
         train(embedding_vector)
