@@ -38,7 +38,7 @@ Assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.t
 
 > python3 nerTagger.py train_eval
 
-By default, the BidLSTM-CRF model is used. With this available model, current f1 score on CoNLL 2003 testb set is __90.85__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, current f1 score on CoNLL 2003 testb set is __91.07__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
