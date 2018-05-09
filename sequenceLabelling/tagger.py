@@ -1,8 +1,6 @@
 from collections import defaultdict
 import numpy as np
 import datetime
-from sequenceLabelling.metrics import get_entities
-from sequenceLabelling.metrics import get_entities_with_offsets
 from sequenceLabelling.data_generator import DataGenerator
 from utilities.Tokenizer import tokenizeAndFilter
 
@@ -11,7 +9,7 @@ class Tagger(object):
     def __init__(self, 
                 model, 
                 model_config, 
-                embeddings=(), 
+                embeddings=None, 
                 preprocessor=None):
         self.model = model
         self.preprocessor = preprocessor
@@ -32,8 +30,8 @@ class Tagger(object):
            list_of_tags = []
 
         predict_generator = DataGenerator(texts, None, 
-            batch_size=self.model_config.batch_size, preprocessor=self.preprocessor, 
-            word_embed_size=self.model_config.word_embedding_size,
+            batch_size=self.model_config.batch_size, 
+            preprocessor=self.preprocessor, 
             char_embed_size=self.model_config.char_embedding_size,
             embeddings=self.embeddings, tokenize=True, shuffle=False)
 
@@ -93,3 +91,70 @@ class Tagger(object):
 
         return res
 
+
+def get_entities_with_offsets(seq, offsets):
+    """
+    Gets entities from sequence
+
+    Args:
+        seq (list): sequence of labels.
+        offsets (list of integer pair): sequence of offset position
+
+    Returns:
+        list: list of (chunk_type, chunk_start, chunk_end, pos_start, pos_end)
+
+    Example:
+        >>> seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
+        >>> offsets = [(0,10), (11, 15), (16, 29), (30, 41)]
+        >>> print(get_entities(seq))
+        [('PER', 0, 2, 0, 15), ('LOC', 3, 4, 30, 41)]
+    """
+    i = 0
+    chunks = []
+    seq = seq + ['O']  # add sentinel
+    types = [tag.split('-')[-1] for tag in seq]
+    while i < len(seq):
+        if seq[i].startswith('B'):
+            for j in range(i+1, len(seq)):
+                if seq[j].startswith('I') and types[j] == types[i]:
+                    continue
+                break
+            start_pos = offsets[i][0]
+            end_pos = offsets[j-1][1]-1
+            chunks.append((types[i], i, j, start_pos, end_pos))
+            i = j
+        else:
+            i += 1
+    return chunks
+
+
+def get_entities(seq):
+    """
+    Gets entities from sequence.
+
+    Args:
+        seq (list): sequence of labels
+
+    Returns:
+        list: list of (chunk_type, chunk_start, chunk_end)
+
+    Example:
+        >>> seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
+        >>> print(get_entities(seq))
+        [('PER', 0, 2), ('LOC', 3, 4)]
+    """
+    i = 0
+    chunks = []
+    seq = seq + ['O']  # add sentinel
+    types = [tag.split('-')[-1] for tag in seq]
+    while i < len(seq):
+        if seq[i].startswith('B'):
+            for j in range(i+1, len(seq)):
+                if seq[j].startswith('I') and types[j] == types[i]:
+                    continue
+                break
+            chunks.append((types[i], i, j))
+            i = j
+        else:
+            i += 1
+    return chunks

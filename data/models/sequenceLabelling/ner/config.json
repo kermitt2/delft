@@ -1,15 +1,16 @@
 {
-    "model_type": "",
-    "num_word_lstm_units": 100,
-    "model_name": "ner",
-    "num_char_lstm_units": 25,
     "char_embedding_size": 25,
+    "dropout": 0.5,
+    "embeddings_name": "glove-840B",
+    "num_word_lstm_units": 100,
+    "recurrent_dropout": 0.25,
+    "batch_size": 20,
+    "word_embedding_size": 300,
     "fold_number": 1,
     "char_vocab_size": 86,
-    "batch_size": 20,
+    "use_crf": true,
     "use_char_feature": true,
-    "dropout": 0.5,
-    "recurrent_dropout": 0.25,
-    "word_embedding_size": 300,
-    "use_crf": true
+    "model_name": "ner",
+    "num_char_lstm_units": 25,
+    "model_type": "BidLSTM_CRF"
 }

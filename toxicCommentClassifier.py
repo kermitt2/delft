@@ -12,9 +12,9 @@ import time
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
-def train(embedding_vector, fold_count): 
+def train(embeddings_name, fold_count): 
     model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=30, 
-        fold_number=fold_count, embeddings=embedding_vector)
+        fold_number=fold_count, embeddings_name=embeddings_name)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
@@ -25,9 +25,9 @@ def train(embedding_vector, fold_count):
     # saving the model
     model.save()
 
-def test(embedding_vector):
+def test():
     # load model
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, embeddings=embedding_vector)
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes)
     model.load()
 
     print('loading test dataset...')
@@ -39,9 +39,9 @@ def test(embedding_vector):
     return result
 
 # classify a list of texts
-def classify(texts, embedding_vector, output_format):
+def classify(texts, output_format):
     # load model
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, embeddings=embedding_vector)
+    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -61,16 +61,20 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'classify') and (action != 'test'):
         print('action not specifed, must be one of [train,test,classify]')
 
-    embedding_vector = Embeddings("fasttext-crawl").model
+    # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
+    # embedding-registry.json
+    # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
+    # and that the path in the registry to the embedding file is correct on your system
+    embeddings_name = "fasttext-crawl"
 
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
         else:
-            train(embedding_vector, args.fold_count)
+            train(embeddings_name, args.fold_count)
 
     if action == 'test':
-        y_test = test(embedding_vector)    
+        y_test = test()    
 
         # write test predictions as a submission file 
         sample_submission = pd.read_csv("data/textClassification/toxic/sample_submission.csv")
@@ -79,7 +83,7 @@ if __name__ == "__main__":
 
     if action == 'classify':
         someTexts = ['This is a gentle test.', 'This is a fucking test!', 'With all due respects, I think you\'re a moron.']
-        result = classify(someTexts, embedding_vector, "json")
+        result = classify(someTexts, "json")
         print(json.dumps(result, sort_keys=False, indent=4))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388

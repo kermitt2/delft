@@ -1,0 +1,16 @@
+{
+    "char_embedding_size": 25,
+    "fold_number": 1,
+    "dropout": 0.5,
+    "use_char_feature": true,
+    "model_name": "grobid-affiliation-address",
+    "char_vocab_size": 149,
+    "num_word_lstm_units": 100,
+    "model_type": "BidLSTM_CRF",
+    "recurrent_dropout": 0.25,
+    "use_crf": true,
+    "word_embedding_size": 300,
+    "batch_size": 20,
+    "num_char_lstm_units": 25,
+    "embeddings_name": "glove-840B"
+}

@@ -14,7 +14,7 @@ models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 
 
 
 # train a GROBID model with all available data 
-def train(model, embedding_vector): 
+def train(model, embeddings_name): 
     print('Loading data...')
     x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
@@ -23,7 +23,7 @@ def train(model, embedding_vector):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings_name=embeddings_name)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -34,7 +34,7 @@ def train(model, embedding_vector):
     model.save()
 
 # split data, train a GROBID model and evaluate it 
-def train_eval(model, embedding_vector): 
+def train_eval(model, embeddings_name): 
     print('Loading data...')
     x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
@@ -45,7 +45,7 @@ def train_eval(model, embedding_vector):
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings_name=embeddings_name)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -61,11 +61,11 @@ def train_eval(model, embedding_vector):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, embedding_vector, output_format):
+def annotate_text(texts, model, output_format):
     annotations = []
 
     # load model
-    model = sequenceLabelling.Sequence('grobid-'+model, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('grobid-'+model)
     model.load()
 
     start_time = time.time()
@@ -98,15 +98,19 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
         print('action not specifed, must be one of [train,train_eval,tag]')
 
-    embedding_vector = Embeddings("fasttext-crawl").model
+    # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
+    # embedding-registry.json
+    # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
+    # and that the path in the registry to the embedding file is correct on your system
+    embeddings_name = "glove-840B"
 
     if action == 'train':
-        train(model, embedding_vector)
+        train(model, embeddings_name)
     
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embedding_vector)
+        train_eval(model, embeddings_name)
 
     if action == 'tag':
         someTexts = []
@@ -124,7 +128,7 @@ if __name__ == "__main__":
             someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
 
-        result = annotate_text(someTexts, model, embedding_vector, "json")
+        result = annotate_text(someTexts, model, "json")
         print(json.dumps(result, sort_keys=False, indent=4))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388

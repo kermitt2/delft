@@ -10,7 +10,7 @@ import argparse
 import time
 
 # train a model with all available CoNLL 2003 data 
-def train(embedding_vector): 
+def train(embedding_name): 
     print('Loading data...')
     x_train1, y_train1 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.train')
     x_train2, y_train2 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testa')
@@ -23,7 +23,7 @@ def train(embedding_vector):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings_name=embedding_name)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -34,7 +34,7 @@ def train(embedding_vector):
     model.save()
 
 # train and usual eval on CoNLL 2003 eng.testb 
-def train_eval(embedding_vector): 
+def train_eval(embedding_name): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
@@ -45,7 +45,7 @@ def train_eval(embedding_vector):
     print(len(x_valid), 'validation sequences')
     print(len(x_test), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings_name=embedding_name)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -59,7 +59,7 @@ def train_eval(embedding_vector):
     model.save()
 
 # usual eval on CoNLL 2003 eng.testb 
-def eval(embedding_vector): 
+def eval(): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
@@ -67,7 +67,7 @@ def eval(embedding_vector):
     print(len(x_test), 'evaluation sequences')
 
     # load model
-    model = sequenceLabelling.Sequence('ner', embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner')
     model.load()
 
     start_time = time.time()
@@ -79,11 +79,11 @@ def eval(embedding_vector):
     print("runtime: %s seconds " % (runtime))
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, embedding_vector, output_format):
+def annotate(texts, output_format):
     annotations = []
 
     # load model
-    model = sequenceLabelling.Sequence('ner', embeddings=embedding_vector)
+    model = sequenceLabelling.Sequence('ner')
     model.load()
 
     start_time = time.time()
@@ -111,24 +111,27 @@ if __name__ == "__main__":
     if (action != 'train') and (action != 'tag') and (action != 'eval') and (action != 'train_eval'):
         print('action not specifed, must be one of [train,train_eval,eval,tag]')
 
-    #embedding_vector = Embeddings("fasttext-crawl").model
-    embedding_vector = Embeddings("glove-840B").model
+    # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
+    # embedding-registry.json
+    # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
+    # and that the path in the registry to the embedding file is correct on your system
+    embeddings_name = "glove-840B"
 
     if action == 'train':
-        train(embedding_vector)
+        train(embeddings_name)
     
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(embedding_vector)
+        train_eval(embeddings_name)
 
     if action == 'eval':
-        eval(embedding_vector)
+        eval()
 
     if action == 'tag':
         someTexts = ['The University of California has found that 40 percent of its students suffer food insecurity. At four state universities in Illinois, that number is 35 percent.',
                      'President Obama is not speaking anymore from the White House.']
-        result = annotate(someTexts, embedding_vector, "json")
+        result = annotate(someTexts, "json")
         print(json.dumps(result, sort_keys=False, indent=4))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388

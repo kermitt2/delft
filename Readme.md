@@ -6,7 +6,9 @@ __Work in progress !__
 
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard and _augment_ state-of-the-art Deep Learning architectures which can all be used within the same environment. 
 
-The medium term goal is then to provide good performance (accuracy and runtime) models to a production stack such as Java/Scala and C++. 
+From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and usable in production. This means implementing state-of-the-art models, reducing model size (by removing word embeddings from them in particular), use dynamic data generator so that the trainng data does not need to be loaded completely in memory, to load and manage efficiently an unlimited volume of pre-trained embedding, etc. 
+
+The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
 DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. As always, GPU(s) are required for decent training time. 
 
@@ -110,13 +112,17 @@ DeLFT supports GROBID training data (originally for CRF) and GROBID feature matr
 
 #### Insult recognition
 
-A small experimental model for recognizing insults in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually. 
+A small experimental model for recognizing insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually. 
 
 For training:
 
 > python3 insultTagger.py train
 
 By default training uses the whole train set.
+
+Example of a small tagging test:
+
+> python3 insultTagger.py tag
 
 
 #### Creating your own model
@@ -329,7 +335,7 @@ __NER__:
 
 __Production stack__:
 
-* see how efficiently feed and execute those Keras models with DL4J
+* see how efficiently feed and execute those Keras/Tensorflow models with DL4J/Java
 
 __Build more models and examples__...
 

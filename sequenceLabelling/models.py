@@ -40,7 +40,7 @@ class BaseModel(object):
         return model_copy
 
 
-class SeqLabelling_BidLSTM_CRF(BaseModel):
+class BidLSTM_CRF(BaseModel):
     """
     A Keras implementation of BidLSTM-CRF for sequence labelling.
 
@@ -88,7 +88,7 @@ class SeqLabelling_BidLSTM_CRF(BaseModel):
         self.config = config
 
 
-class SeqLabelling_BidLSTM_CNN(BaseModel):
+class BidLSTM_CNN(BaseModel):
     """
     A Keras implementation of BidLSTM-CNN for sequence labelling.
 

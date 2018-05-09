@@ -11,7 +11,7 @@ from utilities.Tokenizer import tokenizeAndFilterSimple
 
 special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]',re.IGNORECASE)
 
-def to_vector_single(text, embeddings, maxlen=300, embed_size=300):
+def to_vector_single(text, embeddings, maxlen=300):
     """
     Given a string, tokenize it, then convert it to a sequence of word embedding 
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
@@ -21,24 +21,14 @@ def to_vector_single(text, embeddings, maxlen=300, embed_size=300):
     window = tokens[-maxlen:]
     
     # TBD: use better initializers (uniform, etc.) 
-    x = np.zeros((maxlen, embed_size), )
+    x = np.zeros((maxlen, embeddings.embed_size), )
 
     # TBD: padding should be left and which vector do we use for padding? 
     # and what about masking padding later for RNN?
     for i, word in enumerate(window):
-        x[i,:] = get_word_vector(word, embeddings, embed_size).astype('float32')
+        x[i,:] = embeddings.get_word_vector(word).astype('float32')
 
     return x
-
-def get_word_vector(word, embeddings, embed_size):
-    if word in embeddings:
-        return embeddings[word]
-    else:
-        # for unknown word, we use a vector filled with 0.0
-        return np.zeros((embed_size,), dtype=np.float32)
-        # alternatively, initialize with random negative values
-        #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
-        # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
 def clean_text(text):
     x_ascii = unidecode(text)

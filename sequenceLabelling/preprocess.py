@@ -15,14 +15,10 @@ PAD = '<PAD>'
 class WordPreprocessor(BaseEstimator, TransformerMixin):
 
     def __init__(self,
-                 lowercase=False,
-                 num_norm=True,
                  use_char_feature=True,
                  padding=True,
                  return_lengths=True):
 
-        self.lowercase = lowercase
-        self.num_norm = num_norm
         self.use_char_feature = use_char_feature
         self.padding = padding
         self.return_lengths = return_lengths
@@ -212,7 +208,7 @@ def prepare_preprocessor(X, y, use_char=True):
 
     return p
 
-def to_vector_single(tokens, embeddings, maxlen=300, embed_size=300, lowercase=False, num_norm=True):
+def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
@@ -221,28 +217,18 @@ def to_vector_single(tokens, embeddings, maxlen=300, embed_size=300, lowercase=F
     window = tokens[-maxlen:]
     
     # TBD: use better initializers (uniform, etc.) 
-    x = np.zeros((maxlen, embed_size), )
+    x = np.zeros((maxlen, embeddings.embed_size), )
 
     # TBD: padding should be left and which vector do we use for padding? 
     # and what about masking padding later for RNN?
     for i, word in enumerate(window):
-        x[i,:] = get_word_vector(word, embeddings, embed_size, lowercase, num_norm).astype('float32')
+        if lowercase:
+            word = _lower(word)
+        if num_norm:
+            word = _normalize_num(word)
+        x[i,:] = embeddings.get_word_vector(word).astype('float32')
 
     return x
-
-def get_word_vector(word, embeddings, embed_size, lowercase=False, num_norm=True):
-    if lowercase:
-        word = _lower(word)
-    if num_norm:
-        word = _normalize_num(word)
-    if word in embeddings:
-        return embeddings[word]
-    else:
-        # for unknown word, we use a vector filled with 0.0
-        return np.zeros((embed_size,), dtype=np.float32)
-        # alternatively, initialize with random negative values
-        #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
-        # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
 def _lower(word):
     return word.lower() 

@@ -14,10 +14,7 @@ class Embeddings(object):
         self.embed_size = 0
         self.model = {}
         self.registry = self._load_embedding_registry(path)
-        if type == 'glove':
-            self.make_embeddings_simple(name, False)
-        else:
-            self.make_embeddings_simple(name, True)
+        self.make_embeddings_simple(name)
         
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -39,6 +36,9 @@ class Embeddings(object):
         if description is not None:
             embeddings_path = description["path"]
             embeddings_type = description["type"]
+            print("path:", embeddings_path)
+            if embeddings_type == "glove":
+                hasHeader = False
             with open(embeddings_path) as f:
                 for line in f:
                     line = line.split(' ')
@@ -59,6 +59,8 @@ class Embeddings(object):
                     if self.embed_size == 0:
                         self.embed_size = len(vector)
                     self.model[word] = vector
+            if nbWords == 0:
+                nbWords = len(self.model)
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
     def _get_description(self, name):
@@ -66,6 +68,16 @@ class Embeddings(object):
             if emb["name"] == name:
                 return emb
         return None
+
+    def get_word_vector(self, word):
+        if word in self.model:
+            return self.model[word]
+        else:
+            # for unknown word, we use a vector filled with 0.0
+            return np.zeros((self.embed_size,), dtype=np.float32)
+            # alternatively, initialize with random negative values
+            #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
+            # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
 # based on https://machinelearningmastery.com/use-word-embedding-layers-deep-learning-keras/
 # not used

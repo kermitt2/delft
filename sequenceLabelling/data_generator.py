@@ -14,9 +14,8 @@ class DataGenerator(keras.utils.Sequence):
     def __init__(self, x, y, 
                 batch_size=24, 
                 preprocessor=None, 
-                word_embed_size=300, 
                 char_embed_size=25, 
-                embeddings=(), 
+                embeddings=None, 
                 tokenize=False, 
                 shuffle=True):
         'Initialization'
@@ -27,7 +26,6 @@ class DataGenerator(keras.utils.Sequence):
             self.labels = preprocessor.vocab_tag
         self.batch_size = batch_size
         self.embeddings = embeddings
-        self.word_embed_size = word_embed_size
         self.char_embed_size = char_embed_size
         self.shuffle = shuffle
         self.tokenize = tokenize
@@ -83,8 +81,7 @@ class DataGenerator(keras.utils.Sequence):
                     max_length_x = len(tokens)
             x_tokenized = sub_x
 
-        batch_x = np.zeros((max_iter, max_length_x, self.word_embed_size), dtype='float32')
-        #batch_c = np.zeros((max_iter, max_length_x, self.char_embed_size), dtype='float32')
+        batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
 
         batch_y = None
         max_length_y = max_length_x
@@ -95,7 +92,7 @@ class DataGenerator(keras.utils.Sequence):
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings 
-            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x, self.word_embed_size)
+            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             # store tag embeddings
             if self.y is not None:

@@ -7,12 +7,14 @@ from tensorflow import set_random_seed
 set_random_seed(7)
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
-from sequenceLabelling.models import SeqLabelling_BidLSTM_CRF
+from sequenceLabelling.models import BidLSTM_CRF
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
 from sequenceLabelling.data_generator import DataGenerator
-from sequenceLabelling.metrics import F1score
+from sequenceLabelling.trainer import F1scorer
+
+from utilities.Embeddings import Embeddings
 
 # initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
 # with various modifications
@@ -24,10 +26,10 @@ class Sequence(object):
     preprocessor_file = 'preprocessor.pkl'
 
     def __init__(self, 
-                 model_name="",
-                 model_type="",
+                 model_name,
+                 model_type="BidLSTM_CRF",
+                 embeddings_name="glove-840B",
                  char_emb_size=25, 
-                 word_emb_size=300, 
                  char_lstm_units=25,
                  word_lstm_units=100, 
                  dropout=0.5, 
@@ -43,21 +45,32 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
-                 fold_number=1,
-                 embeddings=()):
+                 fold_number=1):
 
-        self.model_config = ModelConfig(model_name, model_type, char_emb_size, word_emb_size, 
-                                        char_lstm_units, word_lstm_units, dropout, 
-                                        recurrent_dropout, use_char_feature, use_crf, 
-                                        fold_number, batch_size)
-        self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
-                                              lr_decay, clip_gradients, max_epoch,
-                                              patience, max_checkpoints_to_keep)
         self.model = None
         self.models = None
         self.p = None
         self.log_dir = log_dir
-        self.embeddings = embeddings 
+        self.embeddings_name = embeddings_name
+        self.embeddings = Embeddings(embeddings_name) 
+
+        self.model_config = ModelConfig(model_name=model_name, 
+                                        model_type=model_type, 
+                                        embeddings_name=embeddings_name, 
+                                        word_emb_size=self.embeddings.embed_size, 
+                                        char_emb_size=char_emb_size, 
+                                        char_lstm_units=char_lstm_units, 
+                                        word_lstm_units=word_lstm_units, 
+                                        dropout=dropout, 
+                                        recurrent_dropout=recurrent_dropout, 
+                                        use_char_feature=use_char_feature, 
+                                        use_crf=use_crf, 
+                                        fold_number=fold_number, 
+                                        batch_size=batch_size)
+
+        self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
+                                              lr_decay, clip_gradients, max_epoch,
+                                              patience, max_checkpoints_to_keep)
 
 
     def train(self, x_train, y_train, x_valid=None, y_valid=None):
@@ -66,15 +79,16 @@ class Sequence(object):
         y_all = np.concatenate((y_train, y_valid), axis=0)
         self.p = prepare_preprocessor(x_all, y_all)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
-        self.model = SeqLabelling_BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
+        self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
 
         trainer = Trainer(self.model, 
                           self.models,
+                          self.embeddings,
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p,
-                          embeddings=self.embeddings)
+                          preprocessor=self.p
+                          )
         trainer.train(x_train, y_train, x_valid, y_valid)
 
 
@@ -83,16 +97,17 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
 
         for k in range(0,fold_number-1):
-            self.model = SeqLabelling_BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
+            self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
             self.models.append(model)
 
         trainer = Trainer(self.model, 
                           self.models,
+                          self.embeddings,
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p,
-                          embeddings=self.embeddings)
+                          preprocessor=self.p
+                          )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
 
 
@@ -102,14 +117,13 @@ class Sequence(object):
                 # Prepare test data(steps, generator)
                 test_generator = DataGenerator(x_test, y_test, 
                   batch_size=self.training_config.batch_size, preprocessor=self.p, 
-                  word_embed_size=self.model_config.word_embedding_size, 
                   char_embed_size=self.model_config.char_embedding_size, 
                   embeddings=self.embeddings, shuffle=False)
 
                 # Build the evaluator and evaluate the model
-                f1score = F1score(test_generator, self.p)
-                f1score.model = self.model
-                f1score.on_epoch_end(epoch=-1) 
+                f1scorer = F1scorer(test_generator, self.p, evaluation=True)
+                f1scorer.model = self.model
+                f1scorer.on_epoch_end(epoch=-1) 
             else:
                 raise (OSError('Could not find a model.'))
         """
@@ -128,15 +142,15 @@ class Sequence(object):
                       embeddings=self.embeddings, shuffle=False)
 
                     # Build the evaluator and evaluate the model
-                    f1score = F1score(test_generator, self.p)
-                    f1score.model = self.models[i]
-                    f1score.on_epoch_end(epoch=-1) 
-                    f1 = f1score.f1
-                    correct_preds = f1score.correct_preds
-                    total_correct = f1score.total_correct
-                    total_preds = f1score.total_preds
+                    f1scorer = F1scorer(test_generator, self.p)
+                    f1scorer.model = self.models[i]
+                    f1scorer.on_epoch_end(epoch=-1) 
+                    f1 = f1scorer.f1
+                    correct_preds = f1scorer.correct_preds
+                    total_correct = f1scorer.total_correct
+                    total_preds = f1scorer.total_preds
 
-                macro_f1 = f1score.calc_f1(total_correct_preds, total_total_correct, total_total_preds)
+                macro_f1 = f1scorer.calc_f1(total_correct_preds, total_total_correct, total_total_preds)
                 micro_f1 = total_f1 / self.model_config.fold_number
         """
 
@@ -168,8 +182,10 @@ class Sequence(object):
     def load(self, dir_path='data/models/sequenceLabelling/'):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
         
-        config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-        
-        self.model = SeqLabelling_BidLSTM_CRF(config, ntags=len(self.p.vocab_tag))
-        self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
+        # load embeddings
+        self.embeddings = Embeddings(self.model_config.embeddings_name) 
+
+        self.model = BidLSTM_CRF(self.model_config, ntags=len(self.p.vocab_tag))
+        self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))

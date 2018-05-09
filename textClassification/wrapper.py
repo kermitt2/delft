@@ -17,6 +17,8 @@ from textClassification.models import predict_folds
 from textClassification.data_generator import DataGenerator
 from textClassification.preprocess import to_vector_single
 
+from utilities.Embeddings import Embeddings
+
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
@@ -29,6 +31,7 @@ class Classifier(object):
     def __init__(self, 
                  model_name="",
                  model_type="gru",
+                 embeddings_name="glove-840B",
                  list_classes=[],
                  char_emb_size=25, 
                  word_emb_size=300, 
@@ -48,16 +51,27 @@ class Classifier(object):
                  use_roc_auc=True,
                  embeddings=()):
 
-        self.model_config = ModelConfig(model_name, model_type, list_classes, 
-                                        char_emb_size, word_emb_size, dropout, recurrent_dropout,
-                                        use_char_feature, maxlen, fold_number, batch_size)
-        self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
-                                              lr_decay, clip_gradients, max_epoch,
-                                              patience, use_roc_auc)
         self.model = None
         self.models = None
         self.log_dir = log_dir
-        self.embeddings = embeddings 
+        self.embeddings_name = embeddings_name
+        self.embeddings = Embeddings(embeddings_name) 
+
+        self.model_config = ModelConfig(model_name=model_name, 
+                                        model_type=model_type, 
+                                        list_classes=list_classes, 
+                                        char_emb_size=char_emb_size, 
+                                        word_emb_size=self.embeddings.embed_size, 
+                                        dropout=dropout, 
+                                        recurrent_dropout=recurrent_dropout,
+                                        use_char_feature=use_char_feature, 
+                                        maxlen=maxlen, 
+                                        fold_number=fold_number, 
+                                        batch_size=batch_size)
+
+        self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
+                                              lr_decay, clip_gradients, max_epoch,
+                                              patience, use_roc_auc)
 
     def train(self, x_train, y_train, vocab_init=None):
         # create validation set in case we don't use k-folds
@@ -65,10 +79,10 @@ class Classifier(object):
 
         training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
             maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-            embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=True)
+            embeddings=self.embeddings, shuffle=True)
         validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
             maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-            embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
+            embeddings=self.embeddings, shuffle=False)
 
         self.model = getModel(self.model_config, self.training_config)
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
@@ -84,7 +98,7 @@ class Classifier(object):
             if self.model is not None:
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
+                    embeddings=self.embeddings, shuffle=False)
 
                 result = predict(self.model, predict_generator)
             else:
@@ -93,7 +107,7 @@ class Classifier(object):
             if self.models is not None:
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
+                    embeddings=self.embeddings, shuffle=False)
 
                 result = predict_folds(self.models, predict_generator)
             else:
@@ -126,7 +140,7 @@ class Classifier(object):
             if self.model is not None:
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
+                    embeddings=self.embeddings, shuffle=False)
 
                 result = predict(self.model, test_generator)
             else:
@@ -135,7 +149,7 @@ class Classifier(object):
             if self.models is not None:
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embed_size=self.model_config.word_embedding_size, embeddings=self.embeddings, shuffle=False)
+                    embeddings=self.embeddings, shuffle=False)
 
                 result = predict_folds(self.models, test_generator)
             else:
@@ -245,6 +259,9 @@ class Classifier(object):
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         
+        # load embeddings
+        self.embeddings = Embeddings(self.model_config.embeddings_name) 
+
         self.model = getModel(self.model_config, self.training_config)
         if self.model_config.fold_number is 1:
             self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
