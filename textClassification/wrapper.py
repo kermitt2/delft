@@ -22,6 +22,7 @@ from utilities.Embeddings import Embeddings
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split
 
+from keras.utils import plot_model
 
 class Classifier(object):
 
@@ -85,6 +86,9 @@ class Classifier(object):
             embeddings=self.embeddings, shuffle=False)
 
         self.model = getModel(self.model_config, self.training_config)
+        # uncomment to plot graph
+        #plot_model(self.model, 
+        #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.training_config.use_roc_auc, training_generator, validation_generator, val_y)
 

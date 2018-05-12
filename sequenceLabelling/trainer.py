@@ -2,9 +2,12 @@ import os
 from sequenceLabelling.data_generator import DataGenerator
 from keras.optimizers import Adam
 from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
-from seqeval.metrics import accuracy_score
-from seqeval.metrics import classification_report
-from seqeval.metrics import f1_score
+from keras.utils import plot_model
+
+# seqeval
+from sequenceLabelling.evaluation import accuracy_score
+from sequenceLabelling.evaluation import classification_report
+from sequenceLabelling.evaluation import f1_score
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -42,11 +45,21 @@ class Trainer(object):
     """ train the instance self.model """
     def train(self, x_train, y_train, x_valid, y_valid):
         self.model.summary()
-        self.model.compile(loss=self.model.crf.loss,
+        print("self.model_config.use_crf:", self.model_config.use_crf)
+        
+        if self.model_config.use_crf:
+            self.model.compile(loss=self.model.crf.loss,
                            optimizer='adam')
+        else:
+            self.model.compile(loss='categorical_crossentropy',
+                           optimizer='nadam')
                            #optimizer=Adam(lr=self.training_config.learning_rate))
+        # uncomment to plot graph
+        #plot_model(self.model, 
+        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
                                                   self.training_config.max_epoch)
+        
 
     """ parameter model local_model must be compiled before calling this method 
         this model will be returned with trained weights """

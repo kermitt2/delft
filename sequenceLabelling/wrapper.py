@@ -7,7 +7,7 @@ from tensorflow import set_random_seed
 set_random_seed(7)
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
-from sequenceLabelling.models import BidLSTM_CRF
+from sequenceLabelling.models import get_model
 from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
@@ -28,8 +28,11 @@ class Sequence(object):
     def __init__(self, 
                  model_name,
                  model_type="BidLSTM_CRF",
+                 #model_type="BidLSTM_CNN",
+                 #model_type="BidLSTM_CNN_CRF",
                  embeddings_name="glove-840B",
                  char_emb_size=25, 
+                 max_char_length=30,
                  char_lstm_units=25,
                  word_lstm_units=100, 
                  dropout=0.5, 
@@ -60,6 +63,7 @@ class Sequence(object):
                                         word_emb_size=self.embeddings.embed_size, 
                                         char_emb_size=char_emb_size, 
                                         char_lstm_units=char_lstm_units, 
+                                        max_char_length=max_char_length,
                                         word_lstm_units=word_lstm_units, 
                                         dropout=dropout, 
                                         recurrent_dropout=recurrent_dropout, 
@@ -79,7 +83,9 @@ class Sequence(object):
         y_all = np.concatenate((y_train, y_valid), axis=0)
         self.p = prepare_preprocessor(x_all, y_all)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
-        self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
+        self.model_config.case_vocab_size = len(self.p.vocab_case)
+        #self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
+        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
 
         trainer = Trainer(self.model, 
                           self.models,
@@ -95,9 +101,12 @@ class Sequence(object):
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
         self.p = prepare_preprocessor(x_train, y_train)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
+        self.model_config.case_vocab_size = len(self.p.vocab_case)
+        self.p.return_lengths = True
 
         for k in range(0,fold_number-1):
-            self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
+            #self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
+            self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
             self.models.append(model)
 
         trainer = Trainer(self.model, 
@@ -187,5 +196,6 @@ class Sequence(object):
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name) 
 
-        self.model = BidLSTM_CRF(self.model_config, ntags=len(self.p.vocab_tag))
+        #self.model = BidLSTM_CRF(self.model_config, ntags=len(self.p.vocab_tag))
+        self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))

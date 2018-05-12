@@ -10,6 +10,7 @@ class ModelConfig(object):
                  word_emb_size=300,
                  char_emb_size=25, 
                  char_lstm_units=25,
+                 max_char_length=30,
                  word_lstm_units=100, 
                  dropout=0.5, 
                  recurrent_dropout=0.3,
@@ -23,11 +24,16 @@ class ModelConfig(object):
         self.embeddings_name = embeddings_name
 
         self.char_vocab_size = None
+        self.case_vocab_size = None
 
         self.char_embedding_size = char_emb_size
         self.num_char_lstm_units = char_lstm_units
+        self.max_char_length = max_char_length
+
         self.word_embedding_size = word_emb_size
         self.num_word_lstm_units = word_lstm_units
+        
+        self.case_embedding_size = 5
         self.dropout = dropout
         self.recurrent_dropout = recurrent_dropout
 

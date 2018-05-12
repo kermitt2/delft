@@ -116,6 +116,7 @@ if __name__ == "__main__":
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
     embeddings_name = "glove-840B"
+    #embeddings_name = "fasttext-crawl"
 
     if action == 'train':
         train(embeddings_name)

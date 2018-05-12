@@ -5,6 +5,7 @@ from tensorflow import set_random_seed
 set_random_seed(7)
 import keras
 from sequenceLabelling.preprocess import to_vector_single
+from sequenceLabelling.preprocess import to_casing_single
 from utilities.Tokenizer import tokenizeAndFilterSimple
 
 # generate batch of data to feed sequence labelling model, both for training and prediction
@@ -42,8 +43,12 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         'Generate one batch of data'
         # generate data for the current batch index
-        batch_x, batch_c, batch_l, batch_y = self.__data_generation(index)
-        return [batch_x, batch_c, batch_l], batch_y
+        if self.preprocessor.return_casing:
+            batch_x, batch_c, batch_a, batch_l, batch_y = self.__data_generation(index)
+            return [batch_x, batch_c, batch_a, batch_l], batch_y
+        else:  
+            batch_x, batch_c, batch_l, batch_y = self.__data_generation(index)
+            return [batch_x, batch_c, batch_l], batch_y
 
     def shuffle_pair(self, a, b):
         # generate permutation index array
@@ -82,6 +87,8 @@ class DataGenerator(keras.utils.Sequence):
             x_tokenized = sub_x
 
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
+        if self.preprocessor.return_casing:
+            batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
 
         batch_y = None
         max_length_y = max_length_x
@@ -94,9 +101,11 @@ class DataGenerator(keras.utils.Sequence):
             # store sample embeddings 
             batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
+            if self.preprocessor.return_casing:
+                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
+
             # store tag embeddings
             if self.y is not None:
-                # hot one encoding for tags
                 batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
         if self.y is not None:
@@ -104,7 +113,10 @@ class DataGenerator(keras.utils.Sequence):
         else:
             batches = self.preprocessor.transform(x_tokenized)
 
-        batch_c = batches[0]
-        batch_length = batches[1]
+        batch_c = np.asarray(batches[0])
+        batch_l = batches[1]
         
-        return batch_x, np.asarray(batch_c), batch_length, batch_y
+        if self.preprocessor.return_casing:
+            return batch_x, batch_c, batch_a, batch_l, batch_y
+        else: 
+            return batch_x, batch_c, batch_l, batch_y

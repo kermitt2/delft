@@ -7,23 +7,33 @@ set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
 
-# this is loosely based on https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
+# this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
 
 UNK = '<UNK>'
 PAD = '<PAD>'
+
+case_index = {'<PAD>': 0, 'numeric': 1, 'allLower':2, 'allUpper':3, 'initialUpper':4, 'other':5, 'mainly_numeric':6, 'contains_digit': 7}
 
 class WordPreprocessor(BaseEstimator, TransformerMixin):
 
     def __init__(self,
                  use_char_feature=True,
                  padding=True,
-                 return_lengths=True):
+                 return_lengths=True, 
+                 return_casing=False, 
+                 return_features=False, 
+                 max_char_length=30
+                 ):
 
         self.use_char_feature = use_char_feature
         self.padding = padding
         self.return_lengths = return_lengths
+        self.return_casing = return_casing
+        self.return_features = return_features
         self.vocab_char = None
         self.vocab_tag  = None
+        self.vocab_case = [k for k, v in case_index.items()]
+        self.max_char_length = max_char_length
 
     def fit(self, X, y):
         chars = {PAD: 0, UNK: 1}
@@ -54,7 +64,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             y: list of list of tags
 
         Returns:
-            numpy array: sentences with char and length sequences
+            numpy array: sentences with char sequences, and optionally length, casing and custom features  
             numpy array: sequence of tags
         """
         chars = []
@@ -77,6 +87,9 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         else:
             sents = [chars]
 
+        # optional additional information
+
+        # lengths
         if self.return_lengths:
             lengths = np.asarray(lengths, dtype=np.int32)
             lengths = lengths.reshape((lengths.shape[0], 1))
@@ -85,6 +98,9 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         return (sents, y) if y is not None else sents
 
     def inverse_transform(self, y):
+        """
+        send back original label string
+        """
         indice_tag = {i: t for t, i in self.vocab_tag.items()}
         return [indice_tag[y_] for y_ in y]
 
@@ -98,7 +114,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             labels = dense_to_one_hot(labels, len(self.vocab_tag), nlevels=2)
 
         if self.use_char_feature:
-            char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2)
+            char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
             char_ids = np.asarray(char_ids)
             return [char_ids], labels
         else:
@@ -133,7 +149,7 @@ def _pad_sequences(sequences, pad_tok, max_length):
     return sequence_padded, sequence_length
 
 
-def pad_sequences(sequences, pad_tok, nlevels=1):
+def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
     """
     Args:
         sequences: a generator of list or tuple.
@@ -160,7 +176,8 @@ def pad_sequences(sequences, pad_tok, nlevels=1):
                 print(p+1, sequences[p+1])
             p += 1   
         """ 
-        max_length_word = max(len(max(seq, key=len)) for seq in sequences)
+        #max_length_word = max(len(max(seq, key=len)) for seq in sequences)
+        max_length_word = max_char_length
         sequence_padded, sequence_length = [], []
         for seq in sequences:
             # all words are same length now
@@ -230,8 +247,51 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
 
     return x
 
+def to_casing_single(tokens, maxlen=300):
+    """
+    Given a list of tokens set the casing, introducing <PAD> and <UNK> padding 
+    when appropriate
+    """
+    window = tokens[-maxlen:]
+    
+    # TBD: use better initializers (uniform, etc.) 
+    x = np.zeros((maxlen), )
+
+    # TBD: padding should be left and which vector do we use for padding? 
+    # and what about masking padding later for RNN?
+    for i, word in enumerate(window):
+        x[i] = float(_casing(word))
+
+    return x    
+
+def _casing(word):   
+        casing = 'other'
+        
+        numDigits = 0
+        for char in word:
+            if char.isdigit():
+                numDigits += 1
+        digitFraction = numDigits / float(len(word))
+        
+        if word.isdigit():
+            casing = 'numeric'
+        elif digitFraction > 0.5:
+            casing = 'mainly_numeric'
+        elif word.islower(): 
+            casing = 'allLower'
+        elif word.isupper(): 
+            casing = 'allUpper'
+        elif word[0].isupper(): 
+            casing = 'initialUpper'
+        elif numDigits > 0:
+            casing = 'contains_digit'
+
+        return case_index[casing]
+
 def _lower(word):
     return word.lower() 
 
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
+
+

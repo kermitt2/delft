@@ -6,7 +6,7 @@ __Work in progress !__
 
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard and _augment_ state-of-the-art Deep Learning architectures which can all be used within the same environment. 
 
-From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and usable in production. This means implementing state-of-the-art models, reducing model size (by removing word embeddings from them in particular), use dynamic data generator so that the trainng data does not need to be loaded completely in memory, to load and manage efficiently an unlimited volume of pre-trained embedding, etc. 
+From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and, with all the limitations due to python, usable in production. This means implementing state-of-the-art models, reducing model size (by removing word embeddings from them in particular), use dynamic data generator so that the training data do not stand completely in memory, to load and manage efficiently an unlimited volume of pre-trained embedding, etc. 
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
@@ -16,15 +16,20 @@ DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. 
 
 ### Available models
 
-- BidLSTM-CRF with words and characters input following: 
+- _BidLSTM-CRF_ with words and characters input following: 
 
 [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
-<!--
-- BidLSTM-CNN with words, characters and custom casing features input following: 
 
-Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
--->
+- _BidLSTM-CNN_ with words, characters and custom casing features input following: 
+
+[2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
+
+
+- _BidLSTM-CNN-CRF_ with words, characters and custom casing features input following: 
+
+[3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
+
 
 ### Usage
 
@@ -184,7 +189,7 @@ TBD
 
 We use the dataset developed and presented by A. Athar in the following article:
 
-[2] Awais Athar. "Sentiment Analysis of Citations using Sentence Structure-Based Features". Proceedings of the ACL 2011 Student Session, 81-87, 2011. http://www.aclweb.org/anthology/P11-3015
+[4] Awais Athar. "Sentiment Analysis of Citations using Sentence Structure-Based Features". Proceedings of the ACL 2011 Student Session, 81-87, 2011. http://www.aclweb.org/anthology/P11-3015
 
 For a given scientific article, the task is to estimate if the occurrence of a bibliographical citation is positive, neutral or negative given its citation context. Note that the dataset, similarly to the Toxic Comment classification, is highly unbalanced (86% of the citations are neutral). 
 
@@ -275,7 +280,7 @@ Micro-average:
 
 ```
 
-In [2], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
+In [4], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
 
 To classify a set of citation contexts:
 
