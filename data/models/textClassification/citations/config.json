@@ -1,18 +1,18 @@
 {
+    "model_name": "citations",
+    "maxlen": 300,
+    "fold_number": 1,
+    "use_char_feature": false,
+    "word_embedding_size": 300,
+    "dropout": 0.5,
     "embeddings_name": "word2vec",
     "model_type": "gru",
     "recurrent_dropout": 0.25,
-    "batch_size": 256,
-    "fold_number": 1,
-    "word_embedding_size": 300,
-    "dropout": 0.5,
     "list_classes": [
         "negative",
         "neutral",
         "positive"
     ],
     "char_embedding_size": 25,
-    "model_name": "citations",
-    "maxlen": 300,
-    "use_char_feature": false
+    "batch_size": 256
 }

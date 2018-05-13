@@ -1,0 +1,21 @@
+{
+    "dropout": 0.5,
+    "list_classes": [
+        "toxic",
+        "severe_toxic",
+        "obscene",
+        "threat",
+        "insult",
+        "identity_hate"
+    ],
+    "use_char_feature": false,
+    "word_embedding_size": 300,
+    "recurrent_dropout": 0.25,
+    "maxlen": 300,
+    "batch_size": 256,
+    "model_type": "gru",
+    "char_embedding_size": 25,
+    "model_name": "toxic",
+    "embeddings_name": "fasttext-crawl",
+    "fold_number": 1
+}
