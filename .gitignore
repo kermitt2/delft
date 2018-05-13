@@ -16,9 +16,6 @@ data/db
 data/training
 data/eval
 data/embeddings
-data/models/textClassification/*/*.json
-data/models/textClassification/*/*.hdf5
-data/models/textClassification/*/*.pkl
 data/sequenceLabelling/CoNLL-2003/eng.*
 data/resources
 data/clearNLP

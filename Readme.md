@@ -291,30 +291,31 @@ which will produce some JSON output like this:
 ```json
 {
     "model": "citations",
+    "date": "2018-05-13T16:06:12.995944",
+    "software": "DeLFT",
     "classifications": [
         {
-            "positive": 0.9182331562042236,
-            "negative": 0.007965211756527424,
-            "neutral": 0.16550213098526,
-            "text": "One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG."
+            "negative": 0.001178970211185515,
+            "text": "One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.",
+            "neutral": 0.187219500541687,
+            "positive": 0.8640883564949036
         },
         {
-            "positive": 0.03423646464943886,
-            "negative": 0.5852375030517578,
-            "neutral": 0.5377339720726013,
-            "text": "Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data."
+            "negative": 0.4590276777744293,
+            "text": "Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.",
+            "neutral": 0.3570767939090729,
+            "positive": 0.18021513521671295
         },
         {
-            "positive": 0.7061985731124878,
-            "negative": 0.19738413393497467,
-            "neutral": 0.2151607871055603,
-            "text": "However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms."
+            "negative": 0.0726129561662674,
+            "text": "However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.",
+            "neutral": 0.12469841539859772,
+            "positive": 0.8224021196365356
         }
     ],
-    "software": "DeLFT",
-    "date": "2018-05-04T06:35:43.809242",
-    "runtime": 1.359
+    "runtime": 1.202
 }
+
 
 ```
 
