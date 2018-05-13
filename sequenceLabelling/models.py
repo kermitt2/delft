@@ -73,7 +73,7 @@ class BidLSTM_CRF(BaseModel):
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
-        x = Concatenate(axis=-1)([word_input, chars])
+        x = Concatenate()([word_input, chars])
         x = Dropout(config.dropout)(x)
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units, 

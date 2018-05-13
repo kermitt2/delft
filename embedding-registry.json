@@ -26,7 +26,7 @@
         },
         {
             "name": "word2vec",
-            "path": "GoogleNews-vectors-negative300.vec",
+            "path": "/mnt/data/wikipedia/embeddings/GoogleNews-vectors-negative300.vec",
             "type": "w2v",
             "format": "vec", 
             "lang": "en",

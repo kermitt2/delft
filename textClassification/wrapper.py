@@ -32,10 +32,9 @@ class Classifier(object):
     def __init__(self, 
                  model_name="",
                  model_type="gru",
-                 embeddings_name="glove-840B",
+                 embeddings_name=None,
                  list_classes=[],
                  char_emb_size=25, 
-                 word_emb_size=300, 
                  dropout=0.5, 
                  recurrent_dropout=0.25,
                  use_char_feature=False, 
@@ -56,13 +55,18 @@ class Classifier(object):
         self.models = None
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
-        self.embeddings = Embeddings(embeddings_name) 
+
+        word_emb_size = 0
+        if embeddings_name is not None:
+            self.embeddings = Embeddings(embeddings_name) 
+            word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
+                                        embeddings_name=embeddings_name, 
                                         list_classes=list_classes, 
                                         char_emb_size=char_emb_size, 
-                                        word_emb_size=self.embeddings.embed_size, 
+                                        word_emb_size=word_emb_size, 
                                         dropout=dropout, 
                                         recurrent_dropout=recurrent_dropout,
                                         use_char_feature=use_char_feature, 
@@ -265,6 +269,7 @@ class Classifier(object):
         
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name) 
+        self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = getModel(self.model_config, self.training_config)
         if self.model_config.fold_number is 1:

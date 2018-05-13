@@ -45,8 +45,8 @@ class Embeddings(object):
                     if begin:
                         if hasHeader:
                             # first line gives the nb of words and the embedding size
-                            nbWords = line[0]
-                            self.embed_size = line[1].replace("\n", "")
+                            nbWords = int(line[0])
+                            self.embed_size = int(line[1].replace("\n", ""))
                             begin = False
                             continue
                         else:

@@ -754,10 +754,10 @@ def train_folds(X, y, model_config, training_config, embeddings):
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embed_size=model_config.word_embedding_size, embeddings=embeddings, shuffle=True)
+            embeddings=embeddings, shuffle=True)
         validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embed_size=model_config.word_embedding_size, embeddings=embeddings, shuffle=False)
+            embeddings=embeddings, shuffle=False)
 
         foldModel, best_score = train_model(getModel(model_config, training_config), 
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y)

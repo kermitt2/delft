@@ -6,6 +6,7 @@ class ModelConfig(object):
     def __init__(self, 
                  model_name="",
                  model_type="gru",
+                 embeddings_name="glove-840B", 
                  list_classes=[],
                  char_emb_size=0, 
                  word_emb_size=300, 
@@ -19,6 +20,7 @@ class ModelConfig(object):
 
         self.model_name = model_name
         self.model_type = model_type
+        self.embeddings_name = embeddings_name
 
         #self.vocab_size = None
         #self.char_vocab_size = None

@@ -52,7 +52,7 @@ class Trainer(object):
                            optimizer='adam')
         else:
             self.model.compile(loss='categorical_crossentropy',
-                           optimizer='nadam')
+                           optimizer='adam')
                            #optimizer=Adam(lr=self.training_config.learning_rate))
         # uncomment to plot graph
         #plot_model(self.model, 

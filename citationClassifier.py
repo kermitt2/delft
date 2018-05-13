@@ -11,7 +11,7 @@ import time
 list_classes = ["negative", "neutral", "positive"]
 
 def train(embeddings_name, fold_count): 
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=50, fold_number=fold_count, 
+    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name)
 
     print('loading citation sentiment corpus...')
@@ -26,7 +26,7 @@ def train(embeddings_name, fold_count):
 
 
 def train_and_eval(embeddings_name, fold_count): 
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=50, fold_number=fold_count, 
+    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name)
 
     print('loading citation sentiment corpus...')
@@ -76,7 +76,7 @@ if __name__ == "__main__":
     # embedding-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
-    embeddings_name = "fasttext-crawl"
+    embeddings_name = "glove-840B"
 
     if action == 'train':
         if args.fold_count < 1:

@@ -55,12 +55,16 @@ class Sequence(object):
         self.p = None
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
-        self.embeddings = Embeddings(embeddings_name) 
+
+        word_emb_size = 0
+        if embeddings_name is not None:
+          self.embeddings = Embeddings(embeddings_name) 
+          word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
                                         embeddings_name=embeddings_name, 
-                                        word_emb_size=self.embeddings.embed_size, 
+                                        word_emb_size=word_emb_size, 
                                         char_emb_size=char_emb_size, 
                                         char_lstm_units=char_lstm_units, 
                                         max_char_length=max_char_length,
@@ -195,6 +199,7 @@ class Sequence(object):
 
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name) 
+        self.model_config.word_embedding_size = self.embeddings.embed_size
 
         #self.model = BidLSTM_CRF(self.model_config, ntags=len(self.p.vocab_tag))
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))

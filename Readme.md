@@ -4,9 +4,9 @@
 
 __Work in progress !__ 
 
-__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard and _augment_ state-of-the-art Deep Learning architectures which can all be used within the same environment. 
+__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures which can all be used within the same environment. 
 
-From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and, with all the limitations due to python, usable in production. This means implementing state-of-the-art models, reducing model size (by removing word embeddings from them in particular), use dynamic data generator so that the training data do not stand completely in memory, to load and manage efficiently an unlimited volume of pre-trained embedding, etc. 
+From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient and scalable. This means implementing state-of-the-art models, reducing model size (by removing word embeddings from them in particular), use dynamic data generator so that the training data do not stand completely in memory, to load and manage efficiently an unlimited volume of pre-trained embedding, etc. 
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
