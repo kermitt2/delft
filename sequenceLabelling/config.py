@@ -7,7 +7,7 @@ class ModelConfig(object):
                  model_name="",
                  model_type="BidLSTM_CRF",
                  embeddings_name="glove-840B",
-                 word_emb_size=300,
+                 word_embedding_size=300,
                  char_emb_size=25, 
                  char_lstm_units=25,
                  max_char_length=30,
@@ -30,7 +30,7 @@ class ModelConfig(object):
         self.num_char_lstm_units = char_lstm_units
         self.max_char_length = max_char_length
 
-        self.word_embedding_size = word_emb_size
+        self.word_embedding_size = word_embedding_size
         self.num_word_lstm_units = word_lstm_units
         
         self.case_embedding_size = 5

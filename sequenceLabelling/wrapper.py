@@ -30,7 +30,7 @@ class Sequence(object):
                  model_type="BidLSTM_CRF",
                  #model_type="BidLSTM_CNN",
                  #model_type="BidLSTM_CNN_CRF",
-                 embeddings_name="glove-840B",
+                 embeddings_name=None,
                  char_emb_size=25, 
                  max_char_length=30,
                  char_lstm_units=25,
@@ -64,7 +64,7 @@ class Sequence(object):
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
                                         embeddings_name=embeddings_name, 
-                                        word_emb_size=word_emb_size, 
+                                        word_embedding_size=word_emb_size, 
                                         char_emb_size=char_emb_size, 
                                         char_lstm_units=char_lstm_units, 
                                         max_char_length=max_char_length,
@@ -201,6 +201,5 @@ class Sequence(object):
         self.embeddings = Embeddings(self.model_config.embeddings_name) 
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
-        #self.model = BidLSTM_CRF(self.model_config, ntags=len(self.p.vocab_tag))
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))

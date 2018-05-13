@@ -206,6 +206,8 @@ class BidLSTM_CNN_CRF(BaseModel):
 
 def get_model(config, preprocessor, ntags=None):
     if config.model_type == 'BidLSTM_CRF':
+        preprocessor.return_casing = False
+        config.use_crf = True
         return BidLSTM_CRF(config, ntags)
     elif config.model_type == 'BidLSTM_CNN':
         preprocessor.return_casing = True
