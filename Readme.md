@@ -6,11 +6,48 @@ __Work in progress !__
 
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures which can all be used within the same environment. 
 
-From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient and scalable. This means implementing state-of-the-art models, reducing model size (by removing word embeddings from them in particular), use dynamic data generator so that the training data do not stand completely in memory, to load and manage efficiently an unlimited volume of pre-trained embedding, etc. 
+From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment (with all the known limitations of Python of course for this purpose). The benefits of DELFT are:
+
+* re-implements a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems,
+
+* reduces model size, in particular by removing word embeddings from them: for instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB.
+
+* use dynamic data generator so that the training data do not need to stand completely in memory, 
+
+<!--
+* load and manage efficiently an unlimited volume of pre-trained embedding: . 
+-->>
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
-DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. As always, GPU(s) are required for decent training time. 
+DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. At this stage, we do not garantee that DeLFT will run with other different versions of these library of Keras backend version (). As always, GPU(s) are required for decent training time. 
+
+## Install 
+
+Get the github repo:
+
+> git clone https://github.com/kermitt2/delft
+
+It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
+
+> virtualenv --system-site-packages -p python3 env
+> source env/bin/activate
+
+Install then the dependencies:
+
+> pip3 install -r requirements.txt
+
+You need then to download some pre-trained word embeddings and notify their path into the embedding registry. We suggest for exploiting the provided models:
+
+- _glove Common Crawl_: [glove-840B](http://nlp.stanford.edu/data/glove.840B.300d.zip) 
+
+- _fasttext Common Crawl_: [fasttext-crawl](https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip) 
+
+- _word2vec GoogleNews_: [word2vec](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing)
+
+Then edit the file `embedding-registry.json` and modifiy the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unziped.
+
+You're ready to use DeLFT. 
 
 ## Sequence Labelling
 
