@@ -178,11 +178,12 @@ which produces a JSON output with entities, scores and character offsets like th
 ```
 
 ![Reproducibility](https://abstrusegoose.com/strips/muggle_problems.png)
-This work is licensed under a [Creative Commons Attribution-Noncommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/). 
+
+This above work is licensed under a [Creative Commons Attribution-Noncommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/). 
 
 #### GROBID models
 
-DeLFT supports GROBID training data (originally for CRF) and GROBID feature matrix to be labelled. 
+DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. 
 
 (To be completed)
 
@@ -432,9 +433,9 @@ which will produce some JSON output like this:
 
 __Embeddings__: 
 
-* to free a lot of memory and keep embeddings always immediatly warm (loading embeddings in python takes an awful amount of time), use serialized embeddings with LMDB, similarly as in https://github.com/kermitt2/nerd/tree/0.0.3 (via the Python package called lmdb,  optionally see also Caffe for storing and using HDF5)
+* use/experiment OOV mechanisms
 
-* use OOV mechanisms
+* support `.bin` FastText format
 
 __Models__:
 
@@ -444,13 +445,15 @@ __Models__:
 
 __NER__:
 
-* benchmark with OntoNotes 5 and French NER
+* benchmark with OntoNotes 5 (English and other languages) and French NER
 
 __Production stack__:
 
 * see how efficiently feed and execute those Keras/Tensorflow models with DL4J/Java
 
 __Build more models and examples__...
+
+* e.g. POS tagger and dependency parser
 
 ## License and contact
 
