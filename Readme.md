@@ -79,7 +79,7 @@ For instance, in a traditional approach `glove-840B` takes around 2 minutes to l
 
 By default, the LMDB databases are stored under the subdirectory `data/db`. The size of a database is roughly equivalent to the size of the original uncompressed embeddings file. To modify this path, edit the file `embedding-registry.json` and change the value of the attribute `embedding-lmdb-path`.
 
-> I have plenty of memories on my machine, I don't care about load time because I need to grab a coffee, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management ! 
+> I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management ! 
 
 Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedding-registry.json`, the embeddings will be loaded in memory as immutable data, like in the usual Keras scripts. 
 
