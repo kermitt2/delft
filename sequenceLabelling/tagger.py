@@ -127,34 +127,3 @@ def get_entities_with_offsets(seq, offsets):
             i += 1
     return chunks
 
-
-def get_entities(seq):
-    """
-    Gets entities from sequence.
-
-    Args:
-        seq (list): sequence of labels
-
-    Returns:
-        list: list of (chunk_type, chunk_start, chunk_end)
-
-    Example:
-        >>> seq = ['B-PER', 'I-PER', 'O', 'B-LOC']
-        >>> print(get_entities(seq))
-        [('PER', 0, 2), ('LOC', 3, 4)]
-    """
-    i = 0
-    chunks = []
-    seq = seq + ['O']  # add sentinel
-    types = [tag.split('-')[-1] for tag in seq]
-    while i < len(seq):
-        if seq[i].startswith('B'):
-            for j in range(i+1, len(seq)):
-                if seq[j].startswith('I') and types[j] == types[i]:
-                    continue
-                break
-            chunks.append((types[i], i, j))
-            i = j
-        else:
-            i += 1
-    return chunks
