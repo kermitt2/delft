@@ -33,6 +33,7 @@ Get the github repo:
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 > virtualenv --system-site-packages -p python3 env
+
 > source env/bin/activate
 
 Install the dependencies:
