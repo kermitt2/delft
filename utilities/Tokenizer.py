@@ -47,6 +47,7 @@ def tokenizeAndFilterSimple(text):
         if token not in blanks:
             finalTokens.append(token)
         i += 1
+    
     return finalTokens
 
 def filterSpace(token):

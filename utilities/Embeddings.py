@@ -146,7 +146,7 @@ class Embeddings(object):
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
             if os.path.isdir(envFilePath):
                 # open the database in read mode
-                self.env = lmdb.open(envFilePath, readonly=True)
+                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
                 # we need to set self.embed_size and self.vocab_size
                 with self.env.begin() as txn:
                     stats = txn.stat()
@@ -165,7 +165,7 @@ class Embeddings(object):
                 # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
                 # when opening new transaction !
                 self.env.close()
-                self.env = lmdb.open(envFilePath, readonly=True)
+                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
             else: 
                 # create and load the database in write mode
                 self.env = lmdb.open(envFilePath, map_size=map_size)
@@ -185,6 +185,7 @@ class Embeddings(object):
             return self.get_word_vector_in_memory(word)
         try:    
             with self.env.begin() as txn:
+                txn = self.env.begin()   
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
                     word_vector = _deserialize_pickle(vector)
@@ -200,7 +201,7 @@ class Embeddings(object):
             # when opening new transaction !
             self.env.close()
             envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
-            self.env = lmdb.open(envFilePath, readonly=True)
+            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
             return self.get_word_vector(word)
         return word_vector
 
