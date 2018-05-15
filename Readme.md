@@ -1,8 +1,9 @@
+<img align="right" width="150" height="150" src="doc/cat-delft-small.jpg">
+
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 # DeLFT 
 
-<img align="right" width="100" height="100" src="doc/cat-delft-small.jpg">
 
 __Work in progress !__ 
 
@@ -179,7 +180,7 @@ which produces a JSON output with entities, scores and character offsets like th
 
 ```
 
-![Reproducibility](https://abstrusegoose.com/strips/muggle_problems.png)
+<img align="center" src="https://abstrusegoose.com/strips/muggle_problems.png">
 
 This above work is licensed under a [Creative Commons Attribution-Noncommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/). 
 
