@@ -1,6 +1,8 @@
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
-# DeLFT ![The Cat](doc/cat-delft-small.jpg)
+# DeLFT 
+
+<img align="right" width="100" height="100" src="doc/cat-delft-small.jpg">
 
 __Work in progress !__ 
 
