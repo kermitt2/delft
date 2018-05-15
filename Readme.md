@@ -14,9 +14,7 @@ From the observation that most of the open source implementations using Keras ar
 
 * Use dynamic data generator so that the training data do not need to stand completely in memory.
 
-<!--
-* load and manage efficiently an unlimited volume of pre-trained embedding: . 
--->
+* Load and manage efficiently an unlimited volume of pre-trained embedding: instead of loading pre-trained embeddings in memory - which is horribly slow in Python and limit the number of embeddings to be used simultaneously - the pre-trained embeddings are compiled the first time they are accessed and store efficiently in a LMDB database. This permets to have the pre-trained embeddings immediatly "warm" (no load time), to free memory and to use any number of embeddings with a very negligible impact on runtime when using SSD. 
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
@@ -66,6 +64,17 @@ Then edit the file `embedding-registry.json` and modifiy the value for `path` ac
 ```
 
 You're ready to use DeLFT. 
+
+## Management of embeddings 
+
+The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialized and stored in a LMDB database, a very efficient embedded database using memory page. The next time these embeddings will be accessed, they will be immediatly available. 
+
+Our approach solves the bottleneck problem pointed for instance [here](https://spenai.org/bravepineapple/faster_em/) in a much better way than quantizing+compression or prunning. After being compiled and stored at the first access, any volume of embeddings vectors can be accessed immediatly without any loading, with a negligible usage of memory, without any accuracy loss and with a negligible impact on runtime when using SSD. 
+
+For instance, in a traditional approach `glove-840B` takes around 2 minutes to load and 4GB in memory. Following our approach, after a first load time of around 4 minutes, `glove-840B` takes a few milliseconds to load and a couple MB in memory, for an impact on runtime of around 1% for any further command line calls.
+
+By default, the LMDB database is stored under the subdirectory `data/db`. The size of the database is roughly equivalent to the size of the original uncompressed embeddings file. To modify this path, edit the file `embedding-registry.json` and change the value of the attribute `embedding-lmdb-path`.
+
 
 ## Sequence Labelling
 
@@ -184,7 +193,7 @@ Example of a small tagging test:
 
 > python3 insultTagger.py tag
 
-will produced __socially offensive language warning__ result like this: 
+will produced (__socially offensive language warning!__) result like this: 
 
 ```json
 {

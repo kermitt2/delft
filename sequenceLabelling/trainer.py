@@ -45,7 +45,7 @@ class Trainer(object):
     """ train the instance self.model """
     def train(self, x_train, y_train, x_valid, y_valid):
         self.model.summary()
-        print("self.model_config.use_crf:", self.model_config.use_crf)
+        #print("self.model_config.use_crf:", self.model_config.use_crf)
         
         if self.model_config.use_crf:
             self.model.compile(loss=self.model.crf.loss,

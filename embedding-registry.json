@@ -32,6 +32,7 @@
             "lang": "en",
             "item": "word"
         }
-    ]
+    ],
+    "embedding-lmdb-path": "data/db"
 }
 
