@@ -179,8 +179,9 @@ which produces a JSON output with entities, scores and character offsets like th
 }
 
 ```
-
-<img align="center" src="https://abstrusegoose.com/strips/muggle_problems.png">
+<p align="center">
+    <img src="https://abstrusegoose.com/strips/muggle_problems.png">
+</p>
 
 This above work is licensed under a [Creative Commons Attribution-Noncommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/). 
 
