@@ -22,7 +22,7 @@ class Embeddings(object):
         self.name = name
         self.embed_size = 0
         self.vocab_size = 0
-        #self.model = {}
+        self.model = {}
         self.registry = self._load_embedding_registry(path)
         self.embedding_lmdb_path = None
         if self.registry is not None:
@@ -42,7 +42,7 @@ class Embeddings(object):
         registry_json = open(path).read()
         return json.loads(registry_json)
 
-    def make_embeddings_simple_old(self, name="fasttext-crawl", hasHeader=True):
+    def make_embeddings_simple_in_memory(self, name="fasttext-crawl", hasHeader=True):
         nbWords = 0
         print('loading embeddings...')
         begin = True
@@ -138,36 +138,38 @@ class Embeddings(object):
 
 
     def make_embeddings_simple(self, name="fasttext-crawl", hasHeader=True):
-        if self.embedding_lmdb_path is None:
-            raise (OSError('Path to embedding database does not exist'))
-        # check if the lmdb database exists
-        envFilePath = os.path.join(self.embedding_lmdb_path, name)
-        if os.path.isdir(envFilePath):
-            # open the database in read mode
-            self.env = lmdb.open(envFilePath, readonly=True)
-            # we need to set self.embed_size and self.vocab_size
-            with self.env.begin() as txn:
-                stats = txn.stat()
-                size = stats['entries']
-                self.vocab_size = size
+        if self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
+            print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
+            self.make_embeddings_simple_in_memory(name, hasHeader)
+        else:    
+            # check if the lmdb database exists
+            envFilePath = os.path.join(self.embedding_lmdb_path, name)
+            if os.path.isdir(envFilePath):
+                # open the database in read mode
+                self.env = lmdb.open(envFilePath, readonly=True)
+                # we need to set self.embed_size and self.vocab_size
+                with self.env.begin() as txn:
+                    stats = txn.stat()
+                    size = stats['entries']
+                    self.vocab_size = size
 
-            with self.env.begin() as txn:
-                cursor = txn.cursor()
-                for key, value in cursor:
-                    vector = _deserialize_pickle(value)
-                    self.embed_size = vector.shape[0]
-                    break
-                cursor.close()
+                with self.env.begin() as txn:
+                    cursor = txn.cursor()
+                    for key, value in cursor:
+                        vector = _deserialize_pickle(value)
+                        self.embed_size = vector.shape[0]
+                        break
+                    cursor.close()
 
-            # no idea why, but we need to close and reopen the environment to avoid
-            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-            # when opening new transaction !
-            self.env.close()
-            self.env = lmdb.open(envFilePath, readonly=True)
-        else: 
-            # create and load the database in write mode
-            self.env = lmdb.open(envFilePath, map_size=map_size)
-            self.make_embeddings_lmdb(name, hasHeader)
+                # no idea why, but we need to close and reopen the environment to avoid
+                # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+                # when opening new transaction !
+                self.env.close()
+                self.env = lmdb.open(envFilePath, readonly=True)
+            else: 
+                # create and load the database in write mode
+                self.env = lmdb.open(envFilePath, map_size=map_size)
+                self.make_embeddings_lmdb(name, hasHeader)
 
 
     def _get_description(self, name):
@@ -179,8 +181,8 @@ class Embeddings(object):
 
     def get_word_vector(self, word):
         if self.env is None:
-            # db not available
-            raise (OSError('The embedding database does not exist'))
+            # db not available, the embeddings should be available in memory (normally!)
+            return self.get_word_vector_in_memory(word)
         try:    
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding='UTF-8'))
@@ -202,7 +204,7 @@ class Embeddings(object):
             return self.get_word_vector(word)
         return word_vector
 
-    def get_word_vector_old(self, word):
+    def get_word_vector_in_memory(self, word):
         if word in self.model:
             return self.model[word]
         else:

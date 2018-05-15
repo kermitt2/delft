@@ -14,11 +14,11 @@ From the observation that most of the open source implementations using Keras ar
 
 * Use dynamic data generator so that the training data do not need to stand completely in memory.
 
-* Load and manage efficiently an unlimited volume of pre-trained embedding: instead of loading pre-trained embeddings in memory - which is horribly slow in Python and limit the number of embeddings to be used simultaneously - the pre-trained embeddings are compiled the first time they are accessed and store efficiently in a LMDB database. This permets to have the pre-trained embeddings immediatly "warm" (no load time), to free memory and to use any number of embeddings with a very negligible impact on runtime when using SSD. 
+* Load and manage efficiently an unlimited volume of pre-trained embedding: instead of loading pre-trained embeddings in memory - which is horribly slow in Python and limit the number of embeddings to be used simultaneously - the pre-trained embeddings are compiled the first time they are accessed and store efficiently in a LMDB database. This permits to have the pre-trained embeddings immediatly "warm" (no load time), to free memory and to use any number of embeddings with a very negligible impact on runtime when using SSD. 
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
-DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. At this stage, we do not garantee that DeLFT will run with other different versions of these library of Keras backend version (). As always, GPU(s) are required for decent training time. 
+DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. At this stage, we do not garantee that DeLFT will run with other different versions of these library or other Keras backend versions. As always, GPU(s) are required for decent training time. 
 
 ## Install 
 
@@ -67,13 +67,17 @@ You're ready to use DeLFT.
 
 ## Management of embeddings 
 
-The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialized and stored in a LMDB database, a very efficient embedded database using memory page. The next time these embeddings will be accessed, they will be immediatly available. 
+The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialized and stored in a LMDB database, a very efficient embedded database using memory page (already used in the Machine Learning world by Caffe and Torch for managing large training data). The next time these embeddings will be accessed, they will be immediatly available. 
 
-Our approach solves the bottleneck problem pointed for instance [here](https://spenai.org/bravepineapple/faster_em/) in a much better way than quantizing+compression or prunning. After being compiled and stored at the first access, any volume of embeddings vectors can be accessed immediatly without any loading, with a negligible usage of memory, without any accuracy loss and with a negligible impact on runtime when using SSD. 
+Our approach solves the bottleneck problem pointed for instance [here](https://spenai.org/bravepineapple/faster_em/) in a much better way than quantizing+compression or prunning. After being compiled and stored at the first access, any volume of embeddings vectors can be used immediatly without any loading, with a negligible usage of memory, without any accuracy loss and with a negligible impact on runtime when using SSD. 
 
-For instance, in a traditional approach `glove-840B` takes around 2 minutes to load and 4GB in memory. Following our approach, after a first load time of around 4 minutes, `glove-840B` takes a few milliseconds to load and a couple MB in memory, for an impact on runtime of around 1% for any further command line calls.
+For instance, in a traditional approach `glove-840B` takes around 2 minutes to load and 4GB in memory. Managed with LMDB, after a first load time of around 4 minutes, `glove-840B` can be accessed immediatly and takes only a couple MB in memory, for an impact on runtime negligible (around 1% slower) for any further command line calls.
 
-By default, the LMDB database is stored under the subdirectory `data/db`. The size of the database is roughly equivalent to the size of the original uncompressed embeddings file. To modify this path, edit the file `embedding-registry.json` and change the value of the attribute `embedding-lmdb-path`.
+By default, the LMDB databases are stored under the subdirectory `data/db`. The size of a database is roughly equivalent to the size of the original uncompressed embeddings file. To modify this path, edit the file `embedding-registry.json` and change the value of the attribute `embedding-lmdb-path`.
+
+> I have plenty of memories on my machine, I don't care about load time because I need to grab a coffee, I only process one language at the time, so I am interested in taking advantage of the LMDB emebedding management ! 
+
+Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedding-registry.json`, the embeddings will be loaded in memory as immutable data, like in the usual Keras scripts. 
 
 
 ## Sequence Labelling
@@ -172,6 +176,9 @@ which produces a JSON output with entities, scores and character offsets like th
 }
 
 ```
+
+![Reproducibility](https://abstrusegoose.com/strips/muggle_problems.png)
+This work is licensed under a [Creative Commons Attribution-Noncommercial 3.0 United States License](http://creativecommons.org/licenses/by-nc/3.0/us/). 
 
 #### GROBID models
 
