@@ -12,7 +12,7 @@ target
 *.obj
 *.zip
 *.gz
-data/db
+data/db/*
 data/training
 data/eval
 data/embeddings
