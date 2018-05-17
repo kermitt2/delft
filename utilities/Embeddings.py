@@ -210,9 +210,9 @@ class Embeddings(object):
             return self.model[word]
         else:
             # for unknown word, we use a vector filled with 0.0
-            return np.zeros((self.embed_size,), dtype=np.float32)
+            #return np.zeros((self.embed_size,), dtype=np.float32)
             # alternatively, initialize with random negative values
-            #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
+            return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
             # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
 def _serialize_byteio(array):
