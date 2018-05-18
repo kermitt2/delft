@@ -47,7 +47,7 @@ def train_eval(embedding_name, fold_count=1):
 
     # restrict training on train set, use validation set for early stop, as in most papers
     model = sequenceLabelling.Sequence('ner', 
-                                    max_epoch=1, 
+                                    max_epoch=60, 
                                     embeddings_name=embedding_name, 
                                     early_stop=True, 
                                     fold_number=fold_count)
