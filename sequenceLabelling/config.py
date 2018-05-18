@@ -66,6 +66,7 @@ class TrainingConfig(object):
                  lr_decay=0.9,
                  clip_gradients=5.0, 
                  max_epoch=50, 
+                 early_stop=True,
                  patience=5,
                  max_checkpoints_to_keep=5):
 
@@ -75,5 +76,7 @@ class TrainingConfig(object):
         self.lr_decay = lr_decay
         self.clip_gradients = clip_gradients
         self.max_epoch = max_epoch
+        self.early_stop = early_stop
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
+        

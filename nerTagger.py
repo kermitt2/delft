@@ -23,7 +23,7 @@ def train(embedding_name):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings_name=embedding_name)
+    model = sequenceLabelling.Sequence('ner', max_epoch=60, embeddings_name=embedding_name)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -34,7 +34,7 @@ def train(embedding_name):
     model.save()
 
 # train and usual eval on CoNLL 2003 eng.testb 
-def train_eval(embedding_name): 
+def train_eval(embedding_name, fold_count=1): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     print('Loading data...')
@@ -45,10 +45,29 @@ def train_eval(embedding_name):
     print(len(x_valid), 'validation sequences')
     print(len(x_test), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('ner', max_epoch=50, embeddings_name=embedding_name)
+    # restrict training on train set, use validation set for early stop, as in most papers
+    model = sequenceLabelling.Sequence('ner', 
+                                    max_epoch=1, 
+                                    embeddings_name=embedding_name, 
+                                    early_stop=True, 
+                                    fold_number=fold_count)
+    
+    # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
+    # as (Chui & Nochols, 2016) and (Peters and al., 2017, 2018)
+    # this leads obviously to much higher results (~ +0.5 f1 score)
+    """
+    model = sequenceLabelling.Sequence('ner', 
+                                    max_epoch=25, 
+                                    embeddings_name=embedding_name, 
+                                    early_stop=False, 
+                                    fold_number=fold_count)
+    """
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid, y_valid)
+    if fold_count == 1:
+        model.train(x_train, y_train, x_valid, y_valid)
+    else:
+        model.train_nfold(x_train, y_train, x_valid, y_valid, fold_number=fold_count)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -124,7 +143,7 @@ if __name__ == "__main__":
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(embeddings_name)
+        train_eval(embeddings_name, fold_count=args.fold_count)
 
     if action == 'eval':
         eval()

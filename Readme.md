@@ -36,7 +36,11 @@ It is advised to setup first a virtual environment to avoid falling into one of 
 
 > source env/bin/activate
 
-Install the dependencies:
+Install the dependencies, if you have a GPU and CUDA (>=8.0) installed use:
+
+> pip3 install -r requirements-gpu.txt
+
+otherwise if you can use only your CPU:
 
 > pip3 install -r requirements.txt
 
@@ -111,11 +115,13 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 #### NER
 
-Assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
+DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, the current f1 score on CoNLL 2003 _testb_ set is __91.05__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+
+For re-training a model, assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
 
 > python3 nerTagger.py train_eval
 
-By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, current f1 score on CoNLL 2003 testb set is __91.07__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+By default, the BidLSTM-CRF model is used. Documnetation on slecting other models and setting hyperparameters to be included here !
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
@@ -125,7 +131,11 @@ For training with all the available data:
 
 > python3 nerTagger.py train
 
-For tagging some text, use the command:
+You can also train with n-folds options: the model will be trained n times with different seed values, the evaluation will then give the average scores over these n models and for the best model which will be saved. For 10-fold training for instance, use:
+
+> python3 nerTagger.py train_eval --fold-count 10
+
+After training a model, for tagging some text, use the command:
 
 > python3 nerTagger.py tag
 

@@ -7,7 +7,7 @@ from keras.utils import plot_model
 # seqeval
 from sequenceLabelling.evaluation import accuracy_score
 from sequenceLabelling.evaluation import classification_report
-from sequenceLabelling.evaluation import f1_score
+from sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -66,19 +66,30 @@ class Trainer(object):
     def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50):
         # todo: if valid set if None, create it as random segment of the shuffled train set 
 
-        training_generator = DataGenerator(x_train, y_train, 
-            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-            char_embed_size=self.model_config.char_embedding_size, 
-            embeddings=self.embeddings, shuffle=True)
+        if self.training_config.early_stop:
+            training_generator = DataGenerator(x_train, y_train, 
+                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+                char_embed_size=self.model_config.char_embedding_size, 
+                embeddings=self.embeddings, shuffle=True)
 
-        validation_generator = DataGenerator(x_valid, y_valid,  
-            batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-            char_embed_size=self.model_config.char_embedding_size, 
-            embeddings=self.embeddings, shuffle=False)
+            validation_generator = DataGenerator(x_valid, y_valid,  
+                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+                char_embed_size=self.model_config.char_embedding_size, 
+                embeddings=self.embeddings, shuffle=False)
 
-        callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                  eary_stopping=True,
-                                  valid=(validation_generator, self.preprocessor))
+            callbacks = get_callbacks(log_dir=self.checkpoint_path,
+                                      eary_stopping=True,
+                                      valid=(validation_generator, self.preprocessor))
+        else:
+            x_train = np.concatenate((x_train, x_valid), axis=0)
+            y_train = np.concatenate((y_train, y_valid), axis=0)
+            training_generator = DataGenerator(x_train, y_train, 
+                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+                char_embed_size=self.model_config.char_embedding_size, 
+                embeddings=self.embeddings, shuffle=True)
+
+            callbacks = get_callbacks(log_dir=self.checkpoint_path,
+                                      eary_stopping=False)
 
         local_model.fit_generator(generator=training_generator,
                                     epochs=max_epoch,
@@ -89,41 +100,52 @@ class Trainer(object):
         return local_model
 
     """ n-fold training for the instance model 
-        the n models are stored in self.models, and self.model is left untrained  """
-    def train_nfold(self, x_train, y_train, fold_count):
-        fold_count = len(models)
+        the n models are stored in self.models, and self.model left unset at this stage """
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None):
+        fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
         
         for fold_id in range(0, fold_count):
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
 
-            fold_start = fold_size * fold_id
-            fold_end = fold_start + fold_size
+            if x_valid is None:
+                # segment train and valid
+                fold_start = fold_size * fold_id
+                fold_end = fold_start + fold_size
 
-            if fold_id == fold_size - 1:
-                fold_end = len(x_train)
+                if fold_id == fold_size - 1:
+                    fold_end = len(x_train)
 
-            train_x = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
-            train_y = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
+                train_x = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
+                train_y = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
 
-            val_x = x_train[fold_start:fold_end]
-            val_y = y_train[fold_start:fold_end]
+                val_x = x_train[fold_start:fold_end]
+                val_y = y_train[fold_start:fold_end]
+            else:
+                # reuse given segmentation
+                train_x = x_train
+                train_y = y_train
 
-            foldModel = models[fold_id]
+                val_x = x_valid
+                val_y = y_valid
 
+            foldModel = self.models[fold_id]
             foldModel.summary()
-            foldModel.compile(loss=self.model.crf.loss,
-                           optimizer=Adam(lr=self.training_config.learning_rate))
+            if self.model_config.use_crf:
+                foldModel.compile(loss=foldModel.crf.loss,
+                               optimizer='adam')
+            else:
+                foldModel.compile(loss='categorical_crossentropy',
+                               optimizer='adam')
 
-            foldModel = train_model(foldModel, 
-                                    self.training_config.batch_size, 
-                                    max_epoch, 
+            foldModel = self.train_model(foldModel, 
                                     train_x, 
                                     train_y, 
                                     val_x, 
-                                    val_y)
-            self.models.append(foldModel)
+                                    val_y,
+                                    max_epoch=self.training_config.max_epoch)
+            self.models[fold_id] = foldModel
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True):
@@ -173,6 +195,10 @@ class F1scorer(Callback):
         self.p = preprocessor
 
         self.f1 = -1.0
+        self.accuracy = -1.0
+        self.precision = -1.0
+        self.recall = -1.0
+        self.report = None
         self.evaluation = evaluation
 
     def on_epoch_end(self, epoch, logs={}):
@@ -201,7 +227,11 @@ class F1scorer(Callback):
         print("\tf1 (micro): {:04.2f}".format(f1 * 100))
 
         if self.evaluation:
-            print(classification_report(y_true, y_pred, digits=4))
+            self.accuracy = accuracy_score(y_true, y_pred)
+            self.precision = precision_score(y_true, y_pred)
+            self.recall = recall_score(y_true, y_pred)
+            self.report = classification_report(y_true, y_pred, digits=4)
+            print(self.report)
 
         # save eval
         logs['f1'] = f1
