@@ -121,11 +121,25 @@ For re-training a model, assuming that the usual CoNLL-2003 NER dataset (`eng.tr
 
 > python3 nerTagger.py train_eval
 
-By default, the BidLSTM-CRF model is used. Documnetation on slecting other models and setting hyperparameters to be included here !
+By default, the BidLSTM-CRF model is used. Documentation on selecting other models and setting hyperparameters to be included here !
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
 > python3 nerTagger.py eval
+
+```
+    Evaluation on test set:
+        f1 (micro): 91.05
+                 precision    recall  f1-score   support
+
+            ORG     0.8967    0.8784    0.8875      1661
+           MISC     0.8003    0.8162    0.8082       702
+            PER     0.9634    0.9604    0.9619      1617
+            LOC     0.9197    0.9341    0.9268      1668
+
+    avg / total     0.9104    0.9106    0.9105      5648
+
+```
 
 For training with all the available data:
 
@@ -469,6 +483,14 @@ __Production stack__:
 __Build more models and examples__...
 
 * e.g. POS tagger and dependency parser
+
+## Acknowledgments
+
+* Keras CRF implementation by Philipp Gross 
+
+* The evaluations for sequence labelling are based on a modified version of https://github.com/chakki-works/seqeval
+
+* The preprocessor of the sequence labelling part is derived from https://github.com/Hironsan/anago/
 
 ## License and contact
 
