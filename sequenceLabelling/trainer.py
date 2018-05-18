@@ -163,7 +163,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True):
     callbacks = []
 
     if valid:
-        callbacks.append(F1scorer(*valid))
+        callbacks.append(Scorer(*valid))
 
     if log_dir:
         if not os.path.exists(log_dir):
@@ -182,14 +182,14 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True):
     return callbacks
 
 
-class F1scorer(Callback):
+class Scorer(Callback):
 
     def __init__(self, validation_generator, preprocessor=None, evaluation=False):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
         validation step and we will simply produce f1 score
         """
-        super(F1scorer, self).__init__()
+        super(Scorer, self).__init__()
         self.valid_steps = len(validation_generator)
         self.valid_batches = validation_generator
         self.p = preprocessor

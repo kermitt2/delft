@@ -115,7 +115,7 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 #### NER
 
-DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, the current f1 score on CoNLL 2003 _testb_ set is __91.05__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, the current f1 score on CoNLL 2003 _testb_ set is __91.09__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
 
 For re-training a model, assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
 
@@ -145,7 +145,7 @@ For training with all the available data:
 
 > python3 nerTagger.py train
 
-You can also train with n-folds options: the model will be trained n times with different seed values, the evaluation will then give the average scores over these n models and for the best model which will be saved. For 10-fold training for instance, use:
+You can also train multiple times with the n-folds options: the model will be trained n times with different seed values but with the same sets if the evaluation set is provided. The evaluation will then give the average scores over these n models (against test set) and for the best model which will be saved. For 10 times training for instance, use:
 
 > python3 nerTagger.py train_eval --fold-count 10
 

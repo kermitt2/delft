@@ -12,7 +12,7 @@ from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from sequenceLabelling.tagger import Tagger
 from sequenceLabelling.trainer import Trainer
 from sequenceLabelling.data_generator import DataGenerator
-from sequenceLabelling.trainer import F1scorer
+from sequenceLabelling.trainer import Scorer
 
 from utilities.Embeddings import Embeddings
 
@@ -145,9 +145,9 @@ class Sequence(object):
               embeddings=self.embeddings, shuffle=False)
 
             # Build the evaluator and evaluate the model
-            f1scorer = F1scorer(test_generator, self.p, evaluation=True)
-            f1scorer.model = self.model
-            f1scorer.on_epoch_end(epoch=-1) 
+            scorer = Scorer(test_generator, self.p, evaluation=True)
+            scorer.model = self.model
+            scorer.on_epoch_end(epoch=-1) 
         else:
             raise (OSError('Could not find a model.'))
 
@@ -157,6 +157,8 @@ class Sequence(object):
             total_f1 = 0
             best_f1 = 0
             best_index = 0
+            worst_f1 = 1
+            worst_index = 0
             reports = []
             total_precision = 0
             total_recall = 0
@@ -170,17 +172,20 @@ class Sequence(object):
                   embeddings=self.embeddings, shuffle=False)
 
                 # Build the evaluator and evaluate the model
-                f1scorer = F1scorer(test_generator, self.p, evaluation=True)
-                f1scorer.model = self.models[i]
-                f1scorer.on_epoch_end(epoch=-1) 
-                f1 = f1scorer.f1
-                precision = f1scorer.precision
-                recall = f1scorer.recall
-                reports.append(f1scorer.report)
+                scorer = Scorer(test_generator, self.p, evaluation=True)
+                scorer.model = self.models[i]
+                scorer.on_epoch_end(epoch=-1) 
+                f1 = scorer.f1
+                precision = scorer.precision
+                recall = scorer.recall
+                reports.append(scorer.report)
                 
                 if best_f1 < f1:
                     best_f1 = f1
                     best_index = i
+                if worst_f1 > f1:
+                    worst_f1 = f1
+                    worst_index = i
                 total_f1 += f1
                 total_precision += precision
                 total_recall += recall
@@ -194,8 +199,11 @@ class Sequence(object):
             print("\tmacro precision =", macro_precision)
             print("\tmacro recall =", macro_recall, "\n")
 
+            print("\n** Worst ** model scores - \n")
+            print(reports[worst_index])
+
             self.model = self.models[best_index]
-            print("\nBest model scores - \n")
+            print("\n** Best ** model scores - \n")
             print(reports[best_index])
         
 
