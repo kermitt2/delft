@@ -191,9 +191,9 @@ class Embeddings(object):
                     word_vector = _deserialize_pickle(vector)
                     vector = None
                 else:
-                    word_vector =  np.zeros((self.embed_size,), dtype=np.float32)
+                    #word_vector =  np.zeros((self.embed_size,), dtype=np.float32)
                     # alternatively, initialize with random negative values
-                    #return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
+                    word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
                     # alternatively use fasttext OOV ngram possibilities (if ngram available)
         except lmdb.Error:
             # no idea why, but we need to close and reopen the environment to avoid
@@ -212,7 +212,7 @@ class Embeddings(object):
             # for unknown word, we use a vector filled with 0.0
             #return np.zeros((self.embed_size,), dtype=np.float32)
             # alternatively, initialize with random negative values
-            return np.random.uniform(low=-0.5, high=0.0, size=(embeddings.shape[1],))
+            return np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
             # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
 def _serialize_byteio(array):
