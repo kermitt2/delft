@@ -1,5 +1,5 @@
 import keras.backend as K
-from keras.layers import Dense, LSTM, Bidirectional, Embedding, Input, Dropout, Lambda, Flatten
+from keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Lambda, Flatten
 from keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D, MaxPooling1D
 from keras.layers.merge import Concatenate
 from keras.initializers import RandomUniform
@@ -25,6 +25,14 @@ def get_model(config, preprocessor, ntags=None):
         preprocessor.return_casing = True
         config.use_crf = True
         return BidLSTM_CNN_CRF(config, ntags)
+    elif config.model_type == 'BidGRU_CRF':
+        preprocessor.return_casing = False
+        config.use_crf = True
+        return BidGRU_CRF(config, ntags)
+    elif config.model_type == 'BidLSTM_CRF_CASING':
+        preprocessor.return_casing = True
+        config.use_crf = True
+        return BidLSTM_CRF_CASING(config, ntags)
     else:
         raise (OSError('Model name does exist: ' + config.model_type))
 
@@ -221,4 +229,103 @@ class BidLSTM_CNN_CRF(BaseModel):
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
         self.config = config
 
+
+class BidGRU_CRF(BaseModel):
+    """
+    A Keras implementation of BidGRU-CRF for sequence labelling.
+    """
+    def __init__(self, config, ntags=None):
+
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
+        # length of sequence not used for the moment (but used for f1 communication)
+        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        # combine characters and word embeddings
+        x = Concatenate()([word_input, chars])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(GRU(units=config.num_word_lstm_units, 
+                               return_sequences=True, 
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Bidirectional(GRU(units=config.num_word_lstm_units, 
+                               return_sequences=True, 
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        x = Dense(ntags)(x)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
+        self.config = config
+
+
+class BidLSTM_CRF_CASING(BaseModel):
+    """
+    A Keras implementation of BidLSTM-CRF for sequence labelling.
+
+    References
+    --
+    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
+    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
+    https://arxiv.org/abs/1603.01360
+    """
+
+    def __init__(self, config, ntags=None):
+
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
+        # custom features input and embeddings
+        casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
+        
+        casing_embedding = Embedding(input_dim=config.case_vocab_size, 
+                           output_dim=config.case_embedding_size,
+                           mask_zero=True,
+                           trainable=False,
+                           name='casing_embedding')(casing_input)
+        casing_embedding = Dropout(config.dropout)(casing_embedding)
+
+        # length of sequence not used for the moment (but used for f1 communication)
+        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        # combine characters and word embeddings
+        x = Concatenate()([word_input, casing_embedding, chars])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
+                               return_sequences=True, 
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        x = Dense(ntags)(x)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
+        self.config = config
 

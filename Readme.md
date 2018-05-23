@@ -129,15 +129,16 @@ For evaluating against CoNLL 2003 testb set with the existing model:
 
 ```
     Evaluation on test set:
-        f1 (micro): 91.05
+        f1 (micro): 91.09
+
                  precision    recall  f1-score   support
 
-            ORG     0.8967    0.8784    0.8875      1661
-           MISC     0.8003    0.8162    0.8082       702
-            PER     0.9634    0.9604    0.9619      1617
-            LOC     0.9197    0.9341    0.9268      1668
+            ORG     0.8879    0.8868    0.8873      1661
+           MISC     0.8031    0.8248    0.8138       702
+            LOC     0.9212    0.9317    0.9264      1668
+            PER     0.9728    0.9518    0.9622      1617
 
-    avg / total     0.9104    0.9106    0.9105      5648
+    avg / total     0.9108    0.9109    0.9109      5648
 
 ```
 
@@ -213,6 +214,94 @@ This above work is licensed under a [Creative Commons Attribution-Noncommercial 
 #### GROBID models
 
 DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. 
+
+Train a model:
+
+> python3 grobidTagger.py *name-of-model* train
+
+where *name-of-model* is one of GROBID model (_date_, _affiliation-address_, _citation_, _header_, , _name-citation_, _name-header_, ...), for instance: 
+
+> python3 grobidTagger.py date train
+
+To segment the training data and eval on 10%:
+
+> python3 grobidTagger.py *name-of-model* train_eval
+
+For instance for the _date_ model:
+
+> python3 grobidTagger.py date train_eval
+
+```
+        Evaluation:
+        f1 (micro): 96.41
+                 precision    recall  f1-score   support
+
+        <month>     0.9667    0.9831    0.9748        59
+         <year>     1.0000    0.9844    0.9921        64
+          <day>     0.9091    0.9524    0.9302        42
+
+    avg / total     0.9641    0.9758    0.9699       165
+```
+
+For applying a model on some examples: 
+
+> python3 grobidTagger.py date tag
+
+```
+{
+    "runtime": 0.509,
+    "software": "DeLFT",
+    "model": "grobid-date",
+    "date": "2018-05-23T14:18:15.833959",
+    "texts": [
+        {
+            "entities": [
+                {
+                    "score": 1.0,
+                    "endOffset": 6,
+                    "class": "<month>",
+                    "beginOffset": 0,
+                    "text": "January"
+                },
+                {
+                    "score": 1.0,
+                    "endOffset": 11,
+                    "class": "<year>",
+                    "beginOffset": 8,
+                    "text": "2006"
+                }
+            ],
+            "text": "January 2006"
+        },
+        {
+            "entities": [
+                {
+                    "score": 1.0,
+                    "endOffset": 4,
+                    "class": "<month>",
+                    "beginOffset": 0,
+                    "text": "March"
+                },
+                {
+                    "score": 1.0,
+                    "endOffset": 13,
+                    "class": "<day>",
+                    "beginOffset": 10,
+                    "text": "27th"
+                },
+                {
+                    "score": 1.0,
+                    "endOffset": 19,
+                    "class": "<year>",
+                    "beginOffset": 16,
+                    "text": "2001"
+                }
+            ],
+            "text": "March the 27th, 2001"
+        }
+    ]
+}
+```
 
 (To be completed)
 

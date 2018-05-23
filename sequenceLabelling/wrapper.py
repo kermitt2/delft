@@ -30,6 +30,7 @@ class Sequence(object):
                  model_type="BidLSTM_CRF",
                  #model_type="BidLSTM_CNN",
                  #model_type="BidLSTM_CNN_CRF",
+                 #model_type="BidGRU_CRF",
                  embeddings_name=None,
                  char_emb_size=25, 
                  max_char_length=30,
@@ -87,7 +88,7 @@ class Sequence(object):
         # TBD if valid is None, segment train to get one
         x_all = np.concatenate((x_train, x_valid), axis=0)
         y_all = np.concatenate((y_train, y_valid), axis=0)
-        self.p = prepare_preprocessor(x_all, y_all)
+        self.p = prepare_preprocessor(x_all, y_all, self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         #self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
@@ -105,7 +106,7 @@ class Sequence(object):
 
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
-        self.p = prepare_preprocessor(x_train, y_train)
+        self.p = prepare_preprocessor(x_train, y_train, self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
