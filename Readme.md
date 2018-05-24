@@ -115,7 +115,7 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 #### NER
 
-DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, the current f1 score on CoNLL 2003 _testb_ set is __91.10__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, and optimization of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.28__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
 
 For re-training a model, assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
 
@@ -129,15 +129,15 @@ For evaluating against CoNLL 2003 testb set with the existing model:
 
 ```
     Evaluation on test set:
-        f1 (micro): 91.10
+        f1 (micro): 91.28
                  precision    recall  f1-score   support
 
-            PER     0.9728    0.9505    0.9615      1617
-            ORG     0.8890    0.8868    0.8879      1661
-            LOC     0.9228    0.9311    0.9269      1668
-           MISC     0.8014    0.8276    0.8143       702
+            LOC     0.9309    0.9371    0.9340      1668
+           MISC     0.8279    0.7949    0.8110       702
+            PER     0.9571    0.9647    0.9609      1617
+            ORG     0.8877    0.8856    0.8867      1661
 
-    avg / total     0.9112    0.9108    0.9110      5648
+    avg / total     0.9135    0.9122    0.9128      5648
 
 ```
 
