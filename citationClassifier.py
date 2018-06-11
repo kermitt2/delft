@@ -95,7 +95,7 @@ if __name__ == "__main__":
             'Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.', 
             'However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.']
         result = classify(someTexts, "json")
-        print(json.dumps(result, sort_keys=False, indent=4))
+        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

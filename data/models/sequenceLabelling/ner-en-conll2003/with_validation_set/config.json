@@ -1,0 +1,19 @@
+{
+    "use_crf": true,
+    "use_char_feature": true,
+    "recurrent_dropout": 0.15,
+    "batch_size": 20,
+    "case_embedding_size": 5,
+    "char_vocab_size": 86,
+    "word_embedding_size": 300,
+    "max_char_length": 30,
+    "model_type": "BidLSTM_CRF",
+    "fold_number": 10,
+    "dropout": 0.5,
+    "model_name": "ner-en-conll2003",
+    "case_vocab_size": 8,
+    "char_embedding_size": 25,
+    "num_word_lstm_units": 100,
+    "embeddings_name": "glove-840B",
+    "num_char_lstm_units": 25
+}

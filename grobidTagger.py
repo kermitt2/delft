@@ -129,7 +129,7 @@ if __name__ == "__main__":
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
 
         result = annotate_text(someTexts, model, "json")
-        print(json.dumps(result, sort_keys=False, indent=4))
+        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

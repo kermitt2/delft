@@ -76,7 +76,7 @@ if __name__ == "__main__":
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
                      'This is a fucking test.']
         result = annotate(someTexts, "json")
-        print(json.dumps(result, sort_keys=False, indent=4))
+        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

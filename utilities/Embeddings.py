@@ -11,6 +11,9 @@ import pickle
 from tqdm import tqdm
 import mmap
 
+# gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
+from gensim.models import FastText
+
 # this is the default init size of a lmdb database for embeddings
 # based on https://github.com/kermitt2/nerd/blob/master/src/main/java/com/scienceminer/nerd/kb/db/KBDatabase.java
 # and https://github.com/kermitt2/nerd/blob/0.0.3/src/main/java/com/scienceminer/nerd/kb/db/KBDatabaseFactory.java#L368
@@ -24,6 +27,7 @@ class Embeddings(object):
         self.vocab_size = 0
         self.model = {}
         self.registry = self._load_embedding_registry(path)
+        self.lang = None
         self.embedding_lmdb_path = None
         if self.registry is not None:
             self.embedding_lmdb_path = self.registry["embedding-lmdb-path"]
@@ -76,6 +80,17 @@ class Embeddings(object):
             if nbWords == 0:
                 nbWords = len(self.model)
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+
+    
+    def make_embeddings_fasttext_bin(self, name="wiki.en.bin"):
+        nbWords = 0
+        print('loading embeddings...')
+        description = self._get_description(name)
+        if description is not None:
+            embeddings_path = description["path"]
+            print("path:", embeddings_path)
+
+        self.model = load_fasttext_format(embeddings_path)
 
 
     def make_embeddings_lmdb(self, name="fasttext-crawl", hasHeader=True):
@@ -180,6 +195,9 @@ class Embeddings(object):
 
 
     def get_word_vector(self, word):
+        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+            # the pre-trained embeddings are not cased
+            word = word.lower()
         if self.env is None:
             # db not available, the embeddings should be available in memory (normally!)
             return self.get_word_vector_in_memory(word)
@@ -206,6 +224,9 @@ class Embeddings(object):
         return word_vector
 
     def get_word_vector_in_memory(self, word):
+        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+            # the pre-trained embeddings are not cased
+            word = word.lower()
         if word in self.model:
             return self.model[word]
         else:

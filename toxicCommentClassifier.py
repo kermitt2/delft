@@ -84,7 +84,7 @@ if __name__ == "__main__":
     if action == 'classify':
         someTexts = ['This is a gentle test.', 'This is a fucking test!', 'With all due respects, I think you\'re a moron.']
         result = classify(someTexts, "json")
-        print(json.dumps(result, sort_keys=False, indent=4))
+        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

@@ -48,9 +48,11 @@ You need then to download some pre-trained word embeddings and notify their path
 
 - _glove Common Crawl_ (2.2M vocab., cased, 300 dim. vectors): [glove-840B](http://nlp.stanford.edu/data/glove.840B.300d.zip) 
 
-- _fasttext Common Crawl_ (2M vocab., ?, 300 dim. vectors): [fasttext-crawl](https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip) 
+- _fasttext Common Crawl_ (2M vocab., cased, 300 dim. vectors): [fasttext-crawl](https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip) 
 
-- _word2vec GoogleNews_ (3M vocab., ?, 300 dim. vectors): [word2vec](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing)
+- _word2vec GoogleNews_ (3M vocab., cased, 300 dim. vectors): [word2vec](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing)
+
+- _fasttext_wiki_fr_ (1.1M, NOT case, 300 dim. vectors) for French: [wiki.fr](https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.fr.vec)
 
 Then edit the file `embedding-registry.json` and modifiy the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unzipped.
 
@@ -107,30 +109,36 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 [3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
 
 
-### Usage
-
-...
-
 ### Examples
 
 #### NER
 
-DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, and optimization of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.28__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1].
+Different datasets and languages are supported. They can be specified by the command line parameters. 
 
-For re-training a model, assuming that the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) is present under `data/sequenceLabelling/CoNLL-2003/`, for training and evaluating use:
+##### CONLL 2003
 
-> python3 nerTagger.py train_eval
+DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset. By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, and optimization of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.28__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1]. f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training, as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017 and 2018).  
 
-By default, the BidLSTM-CRF model is used. Documentation on selecting other models and setting hyperparameters to be included here !
+For re-training a model, the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/`. The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
+
+For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
+
+> python3 nerTagger.py --dataset-type conll2003 train_eval
+
+Some recent works like (Chiu & Nichols, 2016), (Yang and al., 2017). (Peters and al., 2017), (Peters and al., 2018) also train with the validation set, leading obviously to a better accuracy (still they compare their scores with scores previously reported trained differently, which is arguably a bit unfair - this aspect is mentioned in (Ma & Hovy, 2016)). To train with both train and validation sets, use the parameter `--train-with-validation-set`:
+
+> python3 nerTagger.py --dataset-type conll2003 --train-with-validation-set train_eval
+
+Note that, by default, the BidLSTM-CRF model is used. (Documentation on selecting other models and setting hyperparameters to be included here !)
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
-> python3 nerTagger.py eval
+> python3 nerTagger.py --dataset-type conll2003 eval
 
 ```
     Evaluation on test set:
         f1 (micro): 91.28
-                 precision    recall  f1-score   support
+                 precision    recall    f1-score    support
 
             LOC     0.9309    0.9371    0.9340      1668
            MISC     0.8279    0.7949    0.8110       702
@@ -141,17 +149,32 @@ For evaluating against CoNLL 2003 testb set with the existing model:
 
 ```
 
+If the model has been trained also with the validation set (`--train-with-validation-set`), similarly to (Chiu & Nichols, 2016) or (Peters and al., 2018), results are significantly better:
+
+```
+    Evaluation on test set: 
+        f1 (micro): 91.60
+                 precision    recall    f1-score    support
+
+            LOC     0.9219    0.9418    0.9318      1668
+           MISC     0.8277    0.8077    0.8176       702
+            PER     0.9594    0.9635    0.9614      1617
+            ORG     0.9029    0.8904    0.8966      1661
+
+    avg / total     0.9158    0.9163    0.9160      5648
+```
+
 For training with all the available data:
 
-> python3 nerTagger.py train
+> python3 nerTagger.py --dataset-type conll2003 train
 
-You can also train multiple times with the n-folds options: the model will be trained n times with different seed values but with the same sets if the evaluation set is provided. The evaluation will then give the average scores over these n models (against test set) and for the best model which will be saved. For 10 times training for instance, use:
+To take into account the strong impact of random seed, you can also train multiple times with the n-folds options. The model will be trained n times with different seed values but with the same sets if the evaluation set is provided. The evaluation will then give the average scores over these n models (against test set) and for the best model which will be saved. For 10 times training for instance, use:
 
-> python3 nerTagger.py train_eval --fold-count 10
+> python3 nerTagger.py --dataset-type conll2003 --fold-count 10 train_eval 
 
 After training a model, for tagging some text, use the command:
 
-> python3 nerTagger.py tag
+> python3 nerTagger.py --dataset-type conll2003 tag
 
 which produces a JSON output with entities, scores and character offsets like this:
 
@@ -204,6 +227,76 @@ which produces a JSON output with entities, scores and character offsets like th
 }
 
 ```
+
+##### French model (based Le Monde corpus)
+
+Note that Le Monde corpus is subject to copyrights and is limited to research usage only. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type lemonde`. 
+
+Similarly as before, for training and evaluating use:
+
+> python3 nerTagger.py --lang fr train_eval
+
+In practice, we need to repeat training and evaluation several times to neutralize random seed effects and to average scores, here ten times:
+
+> python3 nerTagger.py --lang fr --fold-count 10 train_eval
+
+The performance is as follow, with a f-score of __91.83__:
+
+```
+** Best ** model scores - 
+
+                   precision recall    f1-score     support
+
+      <person>     0.9421    0.9721    0.9569       251
+    <artifact>     1.0000    0.5000    0.6667         4
+    <business>     0.8647    0.9176    0.8903       376
+    <location>     0.9545    0.9701    0.9623       368
+<organisation>     0.9239    0.8089    0.8626       225
+ <institution>     0.7714    0.9000    0.8308        30
+
+   avg / total     0.9139    0.9226    0.9183      1254
+```
+
+For training with all the dataset without evaluation:
+
+> python3 nerTagger.py --lang fr train
+
+and for annotating some examples:
+
+> python3 nerTagger.py --lang fr tag
+
+
+```
+{
+    "date": "2018-06-11T21:25:03.321818",
+    "runtime": 0.511,
+    "software": "DeLFT",
+    "model": "ner-fr-lemonde",
+    "texts": [
+        {
+            "entities": [
+                {
+                    "beginOffset": 5,
+                    "endOffset": 13,
+                    "score": 1.0,
+                    "text": "Allemagne",
+                    "class": "<location>"
+                },
+                {
+                    "beginOffset": 57,
+                    "endOffset": 68,
+                    "score": 1.0,
+                    "text": "Donald Trump",
+                    "class": "<person>"
+                }
+            ],
+            "text": "Or l’Allemagne pourrait préférer la retenue, de peur que Donald Trump ne surtaxe prochainement les automobiles étrangères."
+        }
+    ]
+}
+
+```
+
 <p align="center">
     <img src="https://abstrusegoose.com/strips/muggle_problems.png">
 </p>
@@ -377,9 +470,6 @@ All the following models includes Dropout, Pooling and Dense layers with hyperpa
 
 Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB). 
 
-### Usage
-
-...
 
 ### Examples
 
@@ -564,6 +654,10 @@ __NER__:
 
 * benchmark with OntoNotes 5 (English and other languages) and French NER
 
+* Reimplement (Peters and al., 2018) with their BiLM embeddings
+
+* Align the CoNLL corpus tokenization (CoNLL corpusis "pre-tokenized", but we might not want to follow this tokenization logic)
+
 __Production stack__:
 
 * see how efficiently feed and execute those Keras/Tensorflow models with DL4J/Java
@@ -582,7 +676,7 @@ __Build more models and examples__...
 
 ## License and contact
 
-Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). 
+Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.
 
 Contact: Patrice Lopez (<patrice.lopez@science-miner.com>)
 

@@ -37,7 +37,7 @@ class Sequence(object):
                  char_lstm_units=25,
                  word_lstm_units=100, 
                  dropout=0.5, 
-                 recurrent_dropout=0.5,
+                 recurrent_dropout=0.25,
                  use_char_feature=True, 
                  use_crf=True,
                  batch_size=20, 
@@ -115,7 +115,6 @@ class Sequence(object):
         self.models = []
 
         for k in range(0, fold_number):
-            #model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
             model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
             self.models.append(model)
 

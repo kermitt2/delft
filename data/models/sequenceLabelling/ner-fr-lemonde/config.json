@@ -1,0 +1,19 @@
+{
+    "case_embedding_size": 5,
+    "model_type": "BidLSTM_CRF",
+    "recurrent_dropout": 0.5,
+    "use_crf": true,
+    "use_char_feature": true,
+    "embeddings_name": "wiki.fr",
+    "dropout": 0.5,
+    "num_char_lstm_units": 25,
+    "model_name": "ner-fr-lemonde",
+    "max_char_length": 30,
+    "num_word_lstm_units": 100,
+    "case_vocab_size": 8,
+    "char_embedding_size": 25,
+    "char_vocab_size": 107,
+    "fold_number": 10,
+    "batch_size": 20,
+    "word_embedding_size": 300
+}

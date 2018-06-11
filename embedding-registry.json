@@ -31,7 +31,24 @@
             "format": "vec", 
             "lang": "en",
             "item": "word"
+        },
+        {
+            "name": "wiki.fr",
+            "path": "/mnt/data/wikipedia/embeddings/wiki.fr.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "fr",
+            "item": "word"
+        },
+        {
+            "name": "wiki.fr.bin",
+            "path": "/mnt/data/wikipedia/embeddings/wiki.fr.bin",
+            "type": "fasttext",
+            "format": "bin", 
+            "lang": "fr",
+            "item": "word"
         }
+
     ],
     "embedding-lmdb-path": "data/db"
 }

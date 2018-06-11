@@ -6,7 +6,7 @@ import re
 
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
-    XML SAX handler for reading mixed content within xml text tags  
+    TEI XML SAX handler for reading mixed content within xml text tags  
     """
     
     # local sentence
@@ -64,6 +64,131 @@ class TEIContentHandler(xml.sax.ContentHandler):
             tokens = []
             labels = []
         if name == "rs":
+            # end of entity
+            localTokens = tokenizeAndFilterSimple(self.accumulated)
+            begin = True
+            if self.currentLabel is None:
+                self.currentLabel = 'O'
+            for token in localTokens:
+                self.tokens.append(token)
+                if begin:
+                    self.labels.append('B-'+self.currentLabel)
+                    begin = False
+                else:     
+                    self.labels.append('I-'+self.currentLabel)
+            self.currentLabel = None
+        self.accumulated = ''
+    
+    def characters(self, content):
+        self.accumulated += content
+     
+    def getSents(self):
+        return np.asarray(self.sents)
+
+    def getAllLabels(self):
+        return np.asarray(self.allLabels)
+
+    def clear(self): # clear the accumulator for re-use
+        self.accumulated = ""
+
+
+class ENAMEXContentHandler(xml.sax.ContentHandler):
+    """ 
+    ENAMEX-style XML SAX handler for reading mixed content within xml text tags  
+    """
+    
+    # local sentence
+    tokens = []
+    labels = []
+
+    # all sentences of the document
+    sents = []
+    allLabels = []
+
+    # working variables
+    accumulated = ''
+    currentLabel = None
+    corpus_type = ''
+
+    def __init__(self, corpus_type='lemonde'):
+        xml.sax.ContentHandler.__init__(self)
+        self.corpus_type = corpus_type
+
+    def translate_fr_labels(self, mainType, subType):
+        #default
+        labelOutput = "O"
+        senseOutput = ""
+
+        if mainType.lower() == "company":
+            labelOutput = 'business'
+        elif mainType.lower() == "fictioncharacter":
+            labelOutput = "person"
+        elif mainType.lower() == "organization": 
+            if subType.lower() == "institutionalorganization":
+                labelOutput = "institution"
+            elif subType.lower() == "company":
+                labelOutput = "business"
+            else: 
+                labelOutput = "organisation"
+        elif mainType.lower() ==  "person":
+            labelOutput = "person"
+        elif mainType.lower() ==  "location":
+            labelOutput = "location"
+        elif mainType.lower() ==  "poi":
+            labelOutput = "location"
+        elif mainType.lower() ==  "product":
+            labelOutput = "artifact"
+        
+        return labelOutput
+
+    def startElement(self, name, attrs):
+        if self.accumulated != '':
+            localTokens = tokenizeAndFilterSimple(self.accumulated)
+            for token in localTokens:
+                self.tokens.append(token)
+                self.labels.append('O')
+        if name == 'corpus':
+            # beginning of a document
+            self.tokens = []
+            self.labels = []
+            self.sents = []
+            self.allLabels = []
+        if name == "sentence":
+            # beginning of sentence
+            self.tokens = []
+            self.labels = []
+            self.currentLabel = 'O'
+        if name == "ENAMEX":
+            # beginning of entity
+            if attrs.getLength() != 0:
+                #if attrs.getValue("type") != 'insult' and attrs.getValue("type") != 'threat':
+                #    print("Invalid entity type:", attrs.getValue("type"))
+                mainType = attrs.getValue("type")
+                if "sub_type" in attrs:
+                    subType = attrs.getValue("sub_type")
+                else:
+                    subType = ''
+                if self.corpus_type == 'lemonde':
+                    self.currentLabel = '<'+self.translate_fr_labels(mainType, subType)+'>'
+                else:
+                    self.currentLabel = '<'+attrs.getValue("type")+'>'
+        self.accumulated = ''
+                
+    def endElement(self, name):
+        #print("endElement '" + name + "'")
+        if name == "sentence":
+            # end of sentence 
+            if self.accumulated != '':
+                localTokens = tokenizeAndFilterSimple(self.accumulated)
+                for token in localTokens:
+                    self.tokens.append(token)
+                    self.labels.append('O')
+
+            self.sents.append(self.tokens)
+            self.allLabels.append(self.labels)
+            tokens = []
+            labels = []
+        if name == "ENAMEX":
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
@@ -248,7 +373,6 @@ def load_data_crf_string(crfString):
 
     return sents, featureSets
 
-
 def _translate_tags_grobid_to_IOB(tag):
     """
     Convert labels as used by GROBID to the more standard IOB2 
@@ -314,6 +438,29 @@ def load_data_and_labels_conll(filename):
                 words.append(word)
                 tags.append(tag)
     return np.asarray(sents), np.asarray(labels)
+
+
+def load_data_and_labels_lemonde(filepathXml):
+    """
+    Load data and label from Le Monde XML corpus file
+    the format is ENAMEX-style, as follow:
+    <sentence id="E14">Les ventes de micro-ordinateurs en <ENAMEX type="Location" sub_type="Country" 
+        eid="2000000003017382" name="Republic of France">France</ENAMEX> se sont ralenties en 1991. </sentence>
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+
+    """
+    # as we have XML mixed content, we need a real XML parser...
+    parser = make_parser()
+    handler = ENAMEXContentHandler()
+    parser.setContentHandler(handler)
+    parser.parse(filepathXml)
+    tokens = handler.getSents()
+    labels = handler.getAllLabels()
+    
+    return tokens, labels
+
 
 if __name__ == "__main__":
     # some tests
