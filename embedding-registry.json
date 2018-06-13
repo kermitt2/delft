@@ -39,16 +39,16 @@
             "format": "vec", 
             "lang": "fr",
             "item": "word"
-        },
-        {
-            "name": "wiki.fr.bin",
-            "path": "/mnt/data/wikipedia/embeddings/wiki.fr.bin",
-            "type": "fasttext",
-            "format": "bin", 
-            "lang": "fr",
-            "item": "word"
         }
 
+    ],
+    "embeddings-contextualized": [
+        {
+            "name": "elmo-en",
+            "path-config": "/mnt/data/wikipedia/embeddings/elmo_2x4096_512_2048cnn_2xhighway_options.json",
+            "path_weights": "/mnt/data/wikipedia/embeddings/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
+            "lang": "en"
+        }
     ],
     "embedding-lmdb-path": "data/db"
 }

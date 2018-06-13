@@ -3,6 +3,7 @@
 from keras.preprocessing import text, sequence
 import numpy as np
 import sys
+import os
 import os.path
 import json
 import lmdb
@@ -10,9 +11,15 @@ import io
 import pickle
 from tqdm import tqdm
 import mmap
+import tensorflow as tf
+
+# for ELMo embeddings
+from utilities.bilm.data import Batcher
+from utilities.bilm.model import BidirectionalLanguageModel
+from utilities.bilm.elmo import weight_layers
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
-from gensim.models import FastText
+#from gensim.models import FastText
 
 # this is the default init size of a lmdb database for embeddings
 # based on https://github.com/kermitt2/nerd/blob/master/src/main/java/com/scienceminer/nerd/kb/db/KBDatabase.java
@@ -21,18 +28,22 @@ map_size = 100 * 1024 * 1024 * 1024
 
 class Embeddings(object):
 
-    def __init__(self, name, path='./embedding-registry.json'):
+    def __init__(self, name, path='./embedding-registry.json', lang='en', use_ELMo=False):
         self.name = name
         self.embed_size = 0
         self.vocab_size = 0
         self.model = {}
         self.registry = self._load_embedding_registry(path)
-        self.lang = None
+        self.lang = lang
         self.embedding_lmdb_path = None
         if self.registry is not None:
             self.embedding_lmdb_path = self.registry["embedding-lmdb-path"]
         self.env = None
         self.make_embeddings_simple(name)
+        self.bilm = None
+        self.use_ELMo = use_ELMo
+        if use_ELMo:
+            self.make_ELMo()
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -54,6 +65,7 @@ class Embeddings(object):
         if description is not None:
             embeddings_path = description["path"]
             embeddings_type = description["type"]
+            self.lang = description["lang"]
             print("path:", embeddings_path)
             if embeddings_type == "glove":
                 hasHeader = False
@@ -82,6 +94,7 @@ class Embeddings(object):
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
     
+    '''
     def make_embeddings_fasttext_bin(self, name="wiki.en.bin"):
         nbWords = 0
         print('loading embeddings...')
@@ -91,7 +104,7 @@ class Embeddings(object):
             print("path:", embeddings_path)
 
         self.model = load_fasttext_format(embeddings_path)
-
+    '''
 
     def make_embeddings_lmdb(self, name="fasttext-crawl", hasHeader=True):
         nbWords = 0
@@ -101,6 +114,7 @@ class Embeddings(object):
         if description is not None:
             embeddings_path = description["path"]
             embeddings_type = description["type"]
+            self.lang = description["lang"]
             print("path:", embeddings_path)
             if embeddings_type == "glove":
                 hasHeader = False
@@ -160,6 +174,10 @@ class Embeddings(object):
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
             if os.path.isdir(envFilePath):
+                description = self._get_description(name)
+                if description is not None:
+                    self.lang = description["lang"]
+
                 # open the database in read mode
                 self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
                 # we need to set self.embed_size and self.vocab_size
@@ -186,6 +204,46 @@ class Embeddings(object):
                 self.env = lmdb.open(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name, hasHeader)
 
+    def make_ELMo(self):
+        # Location of pretrained BiLM for the specified language
+        # TBD check if ELMo language resources are present
+        vocab_file = os.path.join('data', 'models', 'ELMo', self.lang, 'vocab_test.txt')
+        options_file = os.path.join('data', 'models', 'ELMo', self.lang, 'options.json')
+        weight_file = os.path.join('data', 'models', 'ELMo', self.lang, 'weights.hdf5')
+
+        print('init ELMo')
+
+        # Create a Batcher to map text to character ids.
+        self.batcher = Batcher(vocab_file, 50)
+
+        # Build the biLM graph.
+        self.bilm = BidirectionalLanguageModel(options_file, weight_file)
+        
+    def get_sentence_vector_ELMo(self, tokens):
+        if not self.use_ELMo:
+            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+            return
+
+        # Input placeholders to the biLM.
+        context_character_ids = tf.placeholder('int32', shape=(None, None, 50))
+        context_embeddings_op = self.bilm(context_character_ids)
+        elmo_context_input = weight_layers('input', context_embeddings_op, l2_coef=0.0)    
+        #elmo_context_output = weight_layers('output', context_embeddings_op, l2_coef=0.0)
+
+        print("tokens.length", len(tokens))
+        with tf.Session() as sess:
+            # It is necessary to initialize variables once before running inference.
+            sess.run(tf.global_variables_initializer())
+
+            # Create batches of data.
+            context_ids = batcher.batch_sentences(tokens)
+
+            # Compute ELMo representations (here for the input only, for simplicity).
+            elmo_context_input_ = sess.run(
+                [elmo_context_input['weighted_op']],
+                feed_dict={context_character_ids: context_ids}
+            )
+            return elmo_context_input_
 
     def _get_description(self, name):
         for emb in self.registry["embeddings"]:

@@ -2,10 +2,12 @@ import itertools
 import re
 import numpy as np
 np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
+#from tensorflow import set_random_seed
+#set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
+import tensorflow as tf
+tf.set_random_seed(7)
 
 # this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
 
@@ -228,6 +230,67 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
         if num_norm:
             word = _normalize_num(word)
         x[i,:] = embeddings.get_word_vector(word).astype('float32')
+
+    return x
+
+def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
+    """
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors based on ELMo contextualized embeddings, introducing <PAD> and <UNK> 
+    padding token vector when appropriate
+    """
+    #window = tokens[-maxlen:]
+    
+    # TBD: use better initializers (uniform, etc.) 
+    #x = np.zeros((maxlen, embeddings.embed_size), )
+
+    # TBD: padding should be left and which vector do we use for padding? 
+    # and what about masking padding later for RNN?
+    """
+    for i, word in enumerate(window):
+        if lowercase:
+            word = _lower(word)
+        if num_norm:
+            word = _normalize_num(word)
+        x[i,:] = embeddings.get_word_vector(word).astype('float32')
+
+    return x
+    """
+    subtokens = tokens[:maxlen]
+    if lowercase:
+        return embeddings.get_sentence_vector_ELMo(lower(subtokens))
+    else:
+        return embeddings.get_sentence_vector_ELMo(subtokens)
+
+
+def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
+    """
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors based on the concatenation of the provided static embeddings and 
+    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
+    padding token vector when appropriate
+    """
+    window = tokens[-maxlen:]
+    
+    # TBD: use better initializers (uniform, etc.) 
+    x = np.zeros((maxlen, embeddings.embed_size), )
+
+    if lowercase:
+        x_elmo = embeddings.get_sentence_wector_ELMo(lower(tokens))
+    else:
+        x_elmo = embeddings.get_sentence_wector_ELMo(tokens)
+
+    # TBD: padding should be left and which vector do we use for padding? 
+    # and what about masking padding later for RNN?
+    for i, word in enumerate(window):
+        if lowercase:
+            word = _lower(word)
+        if num_norm:
+            word = _normalize_num(word)
+        x[i,:] = np.concat(
+                embeddings.get_word_vector(word).astype('float32'),
+                x_elmo[i]
+                )
 
     return x
 

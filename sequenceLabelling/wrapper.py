@@ -50,6 +50,7 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
+                 use_ELMo=False,
                  fold_number=1):
 
         self.model = None
@@ -60,7 +61,7 @@ class Sequence(object):
 
         word_emb_size = 0
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name) 
+            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo) 
             word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(model_name=model_name, 

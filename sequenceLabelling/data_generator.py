@@ -4,8 +4,7 @@ np.random.seed(7)
 from tensorflow import set_random_seed
 set_random_seed(7)
 import keras
-from sequenceLabelling.preprocess import to_vector_single
-from sequenceLabelling.preprocess import to_casing_single
+from sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo
 from utilities.Tokenizer import tokenizeAndFilterSimple
 
 # generate batch of data to feed sequence labelling model, both for training and prediction
@@ -97,9 +96,15 @@ class DataGenerator(keras.utils.Sequence):
             batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
 
         # generate data
+        if self.embeddings.use_ELMo:
+            ELMo_emb = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
+            print(ELMo_emb)
         for i in range(0, max_iter):
-            # store sample embeddings 
-            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+            # store sample embeddings
+            if self.embeddings.use_ELMo: 
+                batch_x[i] = ELMo_emb[i]
+            else:    
+                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             if self.preprocessor.return_casing:
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
