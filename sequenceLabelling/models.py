@@ -8,8 +8,8 @@ from keras.models import clone_model
 from utilities.layers import ChainCRF
 import numpy as np
 np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
+import tensorflow as tf
+tf.set_random_seed(7)
 
 
 def get_model(config, preprocessor, ntags=None):

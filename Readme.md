@@ -496,10 +496,6 @@ To classify a set of comments:
 > python3 toxicCommentClassifier.py classify
 
 
-#### Twitter 
-
-TBD
-
 #### Citation classification
 
 We use the dataset developed and presented by A. Athar in the following article:
@@ -651,7 +647,7 @@ __Models__:
 
 __NER__:
 
-* benchmark with OntoNotes 5 (English and other languages) and French NER
+* benchmark with OntoNotes 5 (English and other languages)
 
 * Align the CoNLL corpus tokenization (CoNLL corpusis "pre-tokenized", but we might not want to follow this tokenization logic)
 

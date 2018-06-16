@@ -236,31 +236,16 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
 def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
     """
     Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on ELMo contextualized embeddings, introducing <PAD> and <UNK> 
-    padding token vector when appropriate
+    vectors based on ELMo contextualized embeddings
     """
-    #window = tokens[-maxlen:]
-    
-    # TBD: use better initializers (uniform, etc.) 
-    #x = np.zeros((maxlen, embeddings.embed_size), )
-
-    # TBD: padding should be left and which vector do we use for padding? 
-    # and what about masking padding later for RNN?
-    """
-    for i, word in enumerate(window):
-        if lowercase:
-            word = _lower(word)
-        if num_norm:
-            word = _normalize_num(word)
-        x[i,:] = embeddings.get_word_vector(word).astype('float32')
-
-    return x
     """
     subtokens = tokens[:maxlen]
     if lowercase:
         return embeddings.get_sentence_vector_ELMo(lower(subtokens))
     else:
         return embeddings.get_sentence_vector_ELMo(subtokens)
+    """
+    return embeddings.get_sentence_vector_ELMo(tokens)
 
 
 def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):

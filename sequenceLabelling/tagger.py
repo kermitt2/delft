@@ -35,10 +35,14 @@ class Tagger(object):
             char_embed_size=self.model_config.char_embedding_size,
             embeddings=self.embeddings, tokenize=True, shuffle=False)
 
+        nb_workers = 6
+        if self.embeddings.use_ELMo:
+            nb_workers = 0
         preds = self.model.predict_generator(
             generator=predict_generator,
             use_multiprocessing=True,
-            workers=6)
+            workers=nb_workers
+            )
         
         for i in range(0,len(preds)):
             pred = [preds[i]]

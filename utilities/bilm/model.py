@@ -482,11 +482,12 @@ class BidirectionalLanguageModelGraph(object):
         cell_clip = self.options['lstm'].get('cell_clip')
         proj_clip = self.options['lstm'].get('proj_clip')
         use_skip_connections = self.options['lstm']['use_skip_connections']
+        """
         if use_skip_connections:
             print("USING SKIP CONNECTIONS")
         else:
             print("NOT USING SKIP CONNECTIONS")
-
+        """
         # the sequence lengths from input mask
         if self.use_character_inputs:
             mask = tf.reduce_any(self.ids_placeholder > 0, axis=2)

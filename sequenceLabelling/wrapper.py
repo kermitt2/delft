@@ -3,8 +3,17 @@ import os
 import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
+
+# ask tensorflow to be quiet and not print hundred lines of logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+
+import tensorflow as tf
+tf.set_random_seed(7)
+
+import keras.backend as K
+# Initialize Keras session
+#sess = tf.Session()
+#K.set_session(sess)
 
 from sequenceLabelling.config import ModelConfig, TrainingConfig
 from sequenceLabelling.models import get_model

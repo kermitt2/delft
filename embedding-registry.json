@@ -2,7 +2,7 @@
     "embeddings": [
         {
             "name": "glove-840B",
-            "path": "/mnt/data/wikipedia/embeddings/glove.840B.300d.txt",
+            "path": "/home/lopez/embeddings/glove.840B.300d.txt",
             "type": "glove",
             "format": "vec", 
             "lang": "en",
@@ -10,7 +10,7 @@
         },
         {
             "name": "fasttext-crawl",
-            "path": "/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec",
+            "path": "/home/lopez/embeddings/crawl-300d-2M.vec",
             "type": "fasttext",
             "format": "vec", 
             "lang": "en",
@@ -18,7 +18,7 @@
         },
         {
             "name": "fasttext-wiki",
-            "path": "/mnt/data/wikipedia/embeddings/wiki.en.bin",
+            "path": "/home/lopez/embeddings/wiki.en.bin",
             "type": "fasttext",
             "format": "bin", 
             "lang": "en",
@@ -26,7 +26,7 @@
         },
         {
             "name": "word2vec",
-            "path": "/mnt/data/wikipedia/embeddings/GoogleNews-vectors-negative300.vec",
+            "path": "/home/lopez/embeddings/GoogleNews-vectors-negative300.vec",
             "type": "w2v",
             "format": "vec", 
             "lang": "en",
@@ -34,7 +34,7 @@
         },
         {
             "name": "wiki.fr",
-            "path": "/mnt/data/wikipedia/embeddings/wiki.fr.vec",
+            "path": "/home/lopez/embeddings/wiki.fr.vec",
             "type": "fasttext",
             "format": "vec", 
             "lang": "fr",
@@ -45,8 +45,8 @@
     "embeddings-contextualized": [
         {
             "name": "elmo-en",
-            "path-config": "/mnt/data/wikipedia/embeddings/elmo_2x4096_512_2048cnn_2xhighway_options.json",
-            "path_weights": "/mnt/data/wikipedia/embeddings/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
+            "path-config": "/home/lopez/embeddings/elmo_2x4096_512_2048cnn_2xhighway_options.json",
+            "path_weights": "/home/lopez/embeddings/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
             "lang": "en"
         }
     ],
