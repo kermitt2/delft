@@ -21,6 +21,5 @@ data/sequenceLabelling/leMonde/*
 data/sequenceLabelling/ontonotes/*
 data/resources
 data/clearNLP
-data/models/ELMo/en/*
 logs
 *__pycache__*

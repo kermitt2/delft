@@ -44,7 +44,6 @@ class Embeddings(object):
         self.bilm = None
         self.use_ELMo = use_ELMo
         if use_ELMo:
-            #self.elmo_model = hub.Module("https://tfhub.dev/google/elmo/2", trainable=True)
             self.make_ELMo()
             self.embed_size = 1024
 
@@ -210,34 +209,34 @@ class Embeddings(object):
     def make_ELMo(self):
         # Location of pretrained BiLM for the specified language
         # TBD check if ELMo language resources are present
-        vocab_file = os.path.join('data', 'models', 'ELMo', self.lang, 'vocab_test.txt')
-        options_file = os.path.join('data', 'models', 'ELMo', self.lang, 'options.json')
-        weight_file = os.path.join('data', 'models', 'ELMo', self.lang, 'weights.hdf5')
+        description = self._get_description('elmo-en')
+        if description is not None:
+            self.lang = description["lang"]
+            vocab_file = description["path-vocab"]
+            options_file = description["path-config"]
+            weight_file = description["path_weights"]
 
-        print('init ELMo')
+            print('init ELMo')
 
-        # Create a Batcher to map text to character ids.
-        self.batcher = Batcher(vocab_file, 50)
+            # Create a Batcher to map text to character ids
+            self.batcher = Batcher(vocab_file, 50)
 
-        # Build the biLM graph.
-        self.bilm = BidirectionalLanguageModel(options_file, weight_file)
+            # Build the biLM graph.
+            self.bilm = BidirectionalLanguageModel(options_file, weight_file)
 
-        # Input placeholders to the biLM.
-        self.character_ids = tf.placeholder('int32', shape=(None, None, 50))
-        self.embeddings_op = self.bilm(self.character_ids)
-        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-            # the reuse=True scope reuses weights from the whole context 
-            elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
+            # Input placeholders to the biLM.
+            self.character_ids = tf.placeholder('int32', shape=(None, None, 50))
+            self.embeddings_op = self.bilm(self.character_ids)
+            with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+                # the reuse=True scope reuses weights from the whole context 
+                elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
         
-        
+
     def get_sentence_vector_ELMo(self, tokens_list):
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
 
-        # Input placeholders to the biLM.
-        #character_ids = tf.placeholder('int32', shape=(None, None, 50))
-        #embeddings_op = self.bilm(character_ids)
         with tf.variable_scope('', reuse=tf.AUTO_REUSE):
             # the reuse=True scope reuses weights from the whole context 
             elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
@@ -246,24 +245,24 @@ class Embeddings(object):
         token_ids = self.batcher.batch_sentences(tokens_list)
 
         with tf.Session() as sess:
-            #with tf.device("/cpu:0"):
-            # It is necessary to initialize variables once before running inference
-            sess.run(tf.global_variables_initializer())
+            # weird, for this cpu is faster than gpu (1080Ti !)
+            with tf.device("/cpu:0"):
+                # It is necessary to initialize variables once before running inference
+                sess.run(tf.global_variables_initializer())
 
-            # Compute ELMo representations 
-            elmo_result = sess.run(
-                elmo_input['weighted_op'],
-                feed_dict={self.character_ids: token_ids}
-            )
-            #print("len(elmo_result)", len(elmo_result))
-            #print("elmo_result", elmo_result)
-            #print("elmo_result.shape", elmo_result.shape)
-            #print("elmo_result[0]", elmo_result[0])
+                # Compute ELMo representations 
+                elmo_result = sess.run(
+                    elmo_input['weighted_op'],
+                    feed_dict={self.character_ids: token_ids}
+                )
         return elmo_result
 
 
     def _get_description(self, name):
         for emb in self.registry["embeddings"]:
+            if emb["name"] == name:
+                return emb
+        for emb in self.registry["embeddings-contextualized"]:
             if emb["name"] == name:
                 return emb
         return None

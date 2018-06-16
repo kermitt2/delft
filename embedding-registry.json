@@ -45,8 +45,9 @@
     "embeddings-contextualized": [
         {
             "name": "elmo-en",
-            "path-config": "/home/lopez/embeddings/elmo_2x4096_512_2048cnn_2xhighway_options.json",
-            "path_weights": "/home/lopez/embeddings/elmo_2x4096_512_2048cnn_2xhighway_weights.hdf5",
+            "path-config": "/home/lopez/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
+            "path_weights": "/home/lopez/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5",
+            "path-vocab": "data/models/ELMo/en/vocab_test.txt",
             "lang": "en"
         }
     ],
