@@ -28,6 +28,7 @@ DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. 
 Get the github repo:
 
 > git clone https://github.com/kermitt2/delft
+
 > cd delft
 
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
@@ -98,22 +99,22 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 - _BidLSTM-CRF_ with words and characters input following: 
 
-[1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
+&nbsp;&nbsp;&nbsp;&nbsp; [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
 
 - _BidLSTM-CNN_ with words, characters and custom casing features input following: 
 
-[2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
+&nbsp;&nbsp;&nbsp;&nbsp; [2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
 
 
 - _BidLSTM-CNN-CRF_ with words, characters and custom casing features input following: 
 
-[3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
+&nbsp;&nbsp;&nbsp;&nbsp; [3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
 
 
 - the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualized embeddings: 
 
-[4] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
+&nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
 
 ### Examples
@@ -130,7 +131,7 @@ By default, the BidLSTM-CRF model is used. With this available model, glove-840B
 
 Using BidLSTM-CRF model with ELMo embeddings, following [4], make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __91.65__ (using _train_ set for training and _testa_ for validation), or __92.05__ when training with the validation set (as in the paper Peters and al., 2017).
 
-For re-training a model, the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` (here a look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
+For re-training a model, the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
 For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 

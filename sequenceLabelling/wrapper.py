@@ -59,7 +59,7 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
-                 use_ELMo=True,
+                 use_ELMo=False,
                  fold_number=1):
 
         self.model = None
