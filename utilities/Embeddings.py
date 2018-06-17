@@ -9,15 +9,18 @@ import json
 import lmdb
 import io
 import pickle
+import hashlib, struct
 from tqdm import tqdm
 import mmap
 import tensorflow as tf
 import keras.backend as K
 
 # for ELMo embeddings
-from utilities.bilm.data import Batcher
-from utilities.bilm.model import BidirectionalLanguageModel
+from utilities.bilm.data import Batcher, TokenBatcher
+from utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
 from utilities.bilm.elmo import weight_layers
+
+from utilities.Tokenizer import tokenizeAndFilterSimple
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
@@ -42,10 +45,20 @@ class Embeddings(object):
         self.env = None
         self.make_embeddings_simple(name)
         self.bilm = None
+
+        # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
         if use_ELMo:
             self.make_ELMo()
             self.embed_size = 1024
+            description = self._get_description('elmo-en')
+            self.env_ELMo = None
+            if description:
+                self.embedding_ELMo_cache = os.path.join(description["path-dump"], "cache")
+                # clean possible remaining cache
+                self.clean_ELMo_cache()
+                # create and load a cache in write mode, it will be used only for training
+                self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -149,7 +162,6 @@ class Embeddings(object):
                     if self.embed_size == 0:
                         self.embed_size = len(vector)
 
-                                   
                     if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():   
                         txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))  
                         #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
@@ -227,22 +239,76 @@ class Embeddings(object):
             # Input placeholders to the biLM.
             self.character_ids = tf.placeholder('int32', shape=(None, None, 50))
             self.embeddings_op = self.bilm(self.character_ids)
+            
             with tf.variable_scope('', reuse=tf.AUTO_REUSE):
                 # the reuse=True scope reuses weights from the whole context 
-                elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
-        
+                self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
+            
 
-    def get_sentence_vector_ELMo(self, tokens_list):
+    def dump_ELMo_token_embeddings(self, x_train):
+        if not self.use_ELMo:
+            print("Warning: ELMo embeddings dump requested but embeddings object wrongly initialised")
+            return
+
+        description = self._get_description('elmo-en')
+        if description is not None:
+            print("Building ELMo token dump")
+
+            self.lang = description["lang"]
+            options_file = description["path-config"]
+            weight_file = description["path_weights"]
+            working_path = description["path-dump"]
+
+            all_tokens = set(['<S>', '</S>'])
+            for i in range(0, len(x_train)):
+                # as it is training, it is already tokenized
+                tokens = x_train[i]
+                for token in tokens:
+                    if token not in all_tokens:
+                       all_tokens.add(token)
+
+            vocab_file = os.path.join(working_path, 'vocab_small.txt')
+            with open(vocab_file, 'w') as fout:
+                fout.write('\n'.join(all_tokens))
+
+            tf.reset_default_graph()
+            token_embedding_file = os.path.join(working_path, 'elmo_token_embeddings.hdf5')
+            dump_token_embeddings(
+                vocab_file, options_file, weight_file, token_embedding_file
+            )
+            tf.reset_default_graph()
+
+            self.batcher_token_dump = TokenBatcher(vocab_file)
+
+            self.bilm_token_dump = BidirectionalLanguageModel(
+                options_file,
+                weight_file,
+                use_character_inputs=False,
+                embedding_weight_file=token_embedding_file
+            )
+
+            self.token_ids = tf.placeholder('int32', shape=(None, None))
+            self.embeddings_op_token_dump = self.bilm_token_dump(self.token_ids)
+            """
+            with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+                # the reuse=True scope reuses weights from the whole context 
+                self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
+            """
+            print("ELMo token dump completed")
+
+
+    def get_sentence_vector_ELMo(self, token_list):
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
-
-        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-            # the reuse=True scope reuses weights from the whole context 
-            elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
-
+        
         # Create batches of data
-        token_ids = self.batcher.batch_sentences(tokens_list)
+        local_token_ids = self.batcher.batch_sentences(token_list)
+        max_size_sentence = local_token_ids[0].shape[0]
+        # check lmdb cache
+        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+        if elmo_result is not None:
+            return elmo_result
 
         with tf.Session() as sess:
             # weird, for this cpu is faster than gpu (1080Ti !)
@@ -252,8 +318,36 @@ class Embeddings(object):
 
                 # Compute ELMo representations 
                 elmo_result = sess.run(
-                    elmo_input['weighted_op'],
-                    feed_dict={self.character_ids: token_ids}
+                    self.elmo_input['weighted_op'],
+                    feed_dict={self.character_ids: local_token_ids}
+                )
+                #cache computation
+                self.cache_ELMo_lmdb_vector(token_list, elmo_result)
+        return elmo_result
+
+
+    def get_sentence_vector_ELMo_with_token_dump(self, token_list):
+        if not self.use_ELMo:
+            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+            return
+        
+        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+            # the reuse=True scope reuses weights from the whole context 
+            self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
+        
+        # Create batches of data
+        local_token_ids = self.batcher_token_dump.batch_sentences(token_list)
+
+        with tf.Session() as sess:
+            # weird, for this cpu is faster than gpu (1080Ti !)
+            with tf.device("/cpu:0"):
+                # It is necessary to initialize variables once before running inference
+                sess.run(tf.global_variables_initializer())
+
+                # Compute ELMo representations 
+                elmo_result = sess.run(
+                    self.elmo_input_token_dump['weighted_op'],
+                    feed_dict={self.token_ids: local_token_ids}
                 )
         return elmo_result
 
@@ -297,6 +391,66 @@ class Embeddings(object):
             return self.get_word_vector(word)
         return word_vector
 
+
+    def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
+        if self.env_ELMo is None:
+            # db cache not available, we don't cache ELMo stuff
+            return None
+        try:    
+            ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype='float32')
+            with self.env_ELMo.begin() as txn:
+                for i in range(0, len(token_list)):
+                    txn = self.env_ELMo.begin()
+                    # get a hash for the token_list
+                    the_hash = list_digest(token_list[i])
+                    vector = txn.get(the_hash.encode(encoding='UTF-8'))
+                    if vector:
+                        # adapt expected shape/padding
+                        local_embeddings = _deserialize_pickle(vector)
+                        if local_embeddings.shape[0] > max_size_sentence-2:
+                            # squeeze the extra padding space
+                            ELMo_vector[i] = local_embeddings[:max_size_sentence-2,]
+                        elif local_embeddings.shape[0] == max_size_sentence-2:
+                            # bingo~!
+                            ELMo_vector[i] = local_embeddings
+                        else:
+                            # fill the missing space with padding
+                            filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]+2), self.embed_size), dtype='float32')
+                            ELMo_vector[i] = np.concatenate((local_embeddings, filler))
+                        vector = None
+                    else:
+                        return None
+        except lmdb.Error:
+            # no idea why, but we need to close and reopen the environment to avoid
+            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+            # when opening new transaction !
+            self.env_ELMo.close()
+            self.env_ELMo = lmdb.open(embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            return self.get_ELMo_lmdb_vector(token_list)
+        return ELMo_vector
+
+    def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
+        if self.env_ELMo is None:
+            # db cache not available, we don't cache ELMo stuff
+            return None
+        txn = self.env_ELMo.begin(write=True)
+        for i in range(0, len(token_list)):
+            # get a hash for the token_list
+            the_hash = list_digest(token_list[i])
+            txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))  
+        txn.commit()
+
+    def clean_ELMo_cache(self):
+        if self.env_ELMo is None:
+            # db cache not available, nothing to clean
+            return
+        else: 
+            for file in os.listdir(self.embedding_ELMo_cache): 
+                file_path = os.path.join(self.embedding_ELMo_cache, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            os.rmdir(self.embedding_ELMo_cache)
+
     def get_word_vector_in_memory(self, word):
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
@@ -335,3 +489,19 @@ def _get_num_lines(file_path):
     while buf.readline():
         lines += 1
     return lines
+
+def list_digest(strings):
+    hash = hashlib.sha1()
+    for s in strings:
+        hash.update(struct.pack("I", len(s)))
+        hash.update(s.encode(encoding='UTF-8'))
+    return hash.hexdigest()
+
+def test():
+    embeddings = Embeddings("glove-840B", use_ELMo=True)
+    token_list = [['This', 'is', 'a', 'test', '.']]
+    vect = embeddings.get_sentence_vector_ELMo(token_list)
+    embeddings.cache_ELMo_lmdb_vector(token_list, vect)
+    vect = embeddings.get_sentence_vector_ELMo(token_list)
+
+    embeddings.clean_ELMo_cache()

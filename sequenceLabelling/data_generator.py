@@ -30,6 +30,8 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.on_epoch_end()
+        # in case of ELMo is used, indicate if the token dump exists and should be used
+        #self.use_token_dump = use_token_dump
         #if self.embeddings.use_ELMo:     
         #    self.sess = tf.Session()
         #    # It is necessary to initialize variables once before running inference.

@@ -93,11 +93,13 @@ class Trainer(object):
         nb_workers = 6
         if self.embeddings.use_ELMo:
             nb_workers = 0
+            # dump token context independent data for train set, done once for the training
+
         local_model.fit_generator(generator=training_generator,
-                                    epochs=max_epoch,
-                                    use_multiprocessing=True,
-                                    workers=nb_workers,
-                                    callbacks=callbacks)
+                                epochs=max_epoch,
+                                use_multiprocessing=True,
+                                workers=nb_workers,
+                                callbacks=callbacks)
 
         return local_model
 

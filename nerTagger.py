@@ -174,6 +174,7 @@ def annotate(texts, output_format, dataset_type='conll2003', lang='en'):
 
 
 if __name__ == "__main__":
+    #test()
     parser = argparse.ArgumentParser(
         description = "Named Entity Recognizer")
 

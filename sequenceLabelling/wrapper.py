@@ -101,9 +101,18 @@ class Sequence(object):
         self.p = prepare_preprocessor(x_all, y_all, self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
-        #self.model = BidLSTM_CRF(self.model_config, len(self.p.vocab_tag))
-        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
 
+        """
+        if self.embeddings.use_ELMo:
+            # dump token context independent data for the train set, done once for the training
+            x_train_local = x_train
+            if not self.training_config.early_stop:
+                # in case we want to train with the validation set too, we dump also
+                # the ELMo embeddings for the token of the valid set
+                x_train_local = np.concatenate((x_train, x_valid), axis=0)
+            self.embeddings.dump_ELMo_token_embeddings(x_train_local)
+        """
+        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         trainer = Trainer(self.model, 
                           self.models,
                           self.embeddings,
@@ -113,10 +122,16 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train(x_train, y_train, x_valid, y_valid)
-
+        if self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
-        self.p = prepare_preprocessor(x_train, y_train, self.model_config)
+        if x_valid is not None and y_valid is not None:
+            x_all = np.concatenate((x_train, x_valid), axis=0)
+            y_all = np.concatenate((y_train, y_valid), axis=0)
+            self.p = prepare_preprocessor(x_all, y_all, self.model_config)
+        else:
+            self.p = prepare_preprocessor(x_train, y_train, self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
@@ -137,7 +152,8 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
-
+        if self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test):
         if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:

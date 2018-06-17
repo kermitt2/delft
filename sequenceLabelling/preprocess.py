@@ -238,15 +238,20 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Tru
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on ELMo contextualized embeddings
     """
+    subtokens = []
+    for i in range(0, len(tokens)):
+        local_tokens = []
+        for j in range(0, min(len(tokens[i]), maxlen)):
+            if lowercase:
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
+        subtokens.append(local_tokens)
+    return embeddings.get_sentence_vector_ELMo(subtokens)
     """
-    subtokens = tokens[:maxlen]
-    if lowercase:
-        return embeddings.get_sentence_vector_ELMo(lower(subtokens))
-    else:
-        return embeddings.get_sentence_vector_ELMo(subtokens)
+    if use_token_dump:
+        return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
     """
-    return embeddings.get_sentence_vector_ELMo(tokens)
-
 
 def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
     """
