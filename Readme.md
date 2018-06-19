@@ -17,11 +17,11 @@ From the observation that most of the open source implementations using Keras ar
 
 * Use dynamic data generator so that the training data do not need to stand completely in memory.
 
-* Load and manage efficiently an unlimited volume of pre-trained embedding: instead of loading pre-trained embeddings in memory - which is horribly slow in Python and limit the number of embeddings to be used simultaneously - the pre-trained embeddings are compiled the first time they are accessed and stored efficiently in a LMDB database. This permits to have the pre-trained embeddings immediatly "warm" (no load time), to free memory and to use any number of embeddings with a very negligible impact on runtime when using SSD. 
+* Load and manage efficiently an unlimited volume of pre-trained embedding: instead of loading pre-trained embeddings in memory - which is horribly slow in Python and limits the number of embeddings to be used simultaneously - the pre-trained embeddings are compiled the first time they are accessed and stored efficiently in a LMDB database. This permits to have the pre-trained embeddings immediatly "warm" (no load time), to free memory and to use any number of embeddings with a very negligible impact on runtime when using SSD. 
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++. 
 
-DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7 as backend. At this stage, we do not garantee that DeLFT will run with other different versions of these library or other Keras backend versions. As always, GPU(s) are required for decent training time. 
+DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7+ as backend. At this stage, we do not garantee that DeLFT will run with other different versions of these libraries or other Keras backend versions. As always, GPU(s) are required for decent training time (GeForce GTX 1050Ti for instance is OK). 
 
 ## Install 
 
@@ -102,7 +102,7 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 &nbsp;&nbsp;&nbsp;&nbsp; [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
 
-- _BidLSTM-CNN_ with words, characters and custom casing features input following: 
+- _BidLSTM-CNN_ with words, characters and custom casing features input, see: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
 
@@ -112,7 +112,7 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 &nbsp;&nbsp;&nbsp;&nbsp; [3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
 
 
-- the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualized embeddings: 
+- the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualized embeddings, see: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
@@ -129,13 +129,17 @@ DeLFT comes with a pre-trained model for the CoNLL-2003 NER dataset.
 
 By default, the BidLSTM-CRF model is used. With this available model, glove-840B word embeddings, and optimization of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1]. f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training, as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
 
-Using BidLSTM-CRF model with ELMo embeddings, following [4], make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __91.65__ (using _train_ set for training and _testa_ for validation), or __92.05__ when training with the validation set (as in the paper Peters and al., 2017).
+Using BidLSTM-CRF model with ELMo embeddings, following [4], make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.30__ (best model, using _train_ set for training and _testa_ for validation, 91.82 averaged over 10 training), or __92.22__ (best model, 91.93 averaged over 10 training) when training with the validation set (as in the paper Peters and al., 2017).
 
 For re-training a model, the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
 For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
 > python3 nerTagger.py --dataset-type conll2003 train_eval
+
+To use ELMo contextual embeddings, use the parameter `--use-ELMo`. This will slow down considerably (30 times) the first epoch of the training, then the contextual embeddings will be cached and the rest of the training will be similar to usual embeddings in term of trainng time. 
+
+> python3 nerTagger.py --dataset-type conll2003 --use-ELMo train_eval
 
 Some recent works like (Chiu & Nichols, 2016), (Yang and al., 2017). (Peters and al., 2017), (Peters and al., 2018) also train with the validation set, leading obviously to a better accuracy (still they compare their scores with scores previously reported trained differently, which is arguably a bit unfair - this aspect is mentioned in (Ma & Hovy, 2016)). To train with both train and validation sets, use the parameter `--train-with-validation-set`:
 
@@ -239,6 +243,11 @@ which produces a JSON output with entities, scores and character offsets like th
 }
 
 ```
+
+If you have trained the model with ELMo, you need to indicate to use ELMo-based model when annotating with the paramter `--use-ELMo` (note that the runtime impact is important as compared to traditional embeddings): 
+
+> python3 nerTagger.py --dataset-type conll2003 --use-ELMo tag
+
 
 ##### French model (based on Le Monde corpus)
 
@@ -679,6 +688,8 @@ __Build more models and examples__...
 * The evaluations for sequence labelling are based on a modified version of https://github.com/chakki-works/seqeval
 
 * The preprocessor of the sequence labelling part is derived from https://github.com/Hironsan/anago/
+
+* [ELMo](https://allennlp.org/elmo) contextual embeddings are developed by the [AllenNLP](https://allennlp.org) team and we use the TensorFlow library [bilm-tf](https://github.com/allenai/bilm-tf) for integrating them into DeLFT.
 
 ## License and contact
 

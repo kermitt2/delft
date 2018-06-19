@@ -16,5 +16,5 @@
     "model_type": "BidLSTM_CRF",
     "char_vocab_size": 86,
     "use_char_feature": true,
-    "model_name": "ner-en-conll2003"
+    "model_name": "ner-en-conll2003-with_ELMo"
 }

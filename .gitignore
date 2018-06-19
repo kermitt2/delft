@@ -24,3 +24,4 @@ data/clearNLP
 data/models/ELMo/en/*.hdf5
 logs
 *__pycache__*
+data/models/ELMo/en/cache

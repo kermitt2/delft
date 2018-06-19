@@ -11,7 +11,7 @@ import argparse
 import time
 
 # train a model with all available CoNLL 2003 data 
-def train(embedding_name, dataset_type='conll2003', lang='en'): 
+def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False): 
     
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -28,7 +28,9 @@ def train(embedding_name, dataset_type='conll2003', lang='en'):
 
         model = sequenceLabelling.Sequence('ner-en-conll2003', 
                                         max_epoch=60, 
-                                        embeddings_name=embedding_name)
+                                        embeddings_name=embedding_name,
+                                        model_type=architecture,
+                                        use_ELMo=use_ELMo)
     elif (lang == 'fr'):
         print('Loading data...')
         dataset_type = 'lemonde'
@@ -38,7 +40,11 @@ def train(embedding_name, dataset_type='conll2003', lang='en'):
         print(len(x_train), 'train sequences')
         print(len(x_valid), 'validation sequences')
 
-        model = sequenceLabelling.Sequence('ner-fr-lemonde', max_epoch=60, embeddings_name=embedding_name)
+        model = sequenceLabelling.Sequence('ner-fr-lemonde', 
+                                        max_epoch=60, 
+                                        embeddings_name=embedding_name, 
+                                        model_type=architecture,
+                                        use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return
@@ -57,7 +63,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en'):
     model.save()
 
 # train and usual eval on CoNLL 2003 eng.testb 
-def train_eval(embedding_name, dataset_type='conll2003', lang='en', fold_count=1, train_with_validation_set=False): 
+def train_eval(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', fold_count=1, train_with_validation_set=False, use_ELMo=False): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
@@ -69,24 +75,32 @@ def train_eval(embedding_name, dataset_type='conll2003', lang='en', fold_count=1
         print(len(x_valid), 'validation sequences')
         print(len(x_eval), 'evaluation sequences')
 
+        model_name = 'ner-en-conll2003'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
-            model = sequenceLabelling.Sequence('ner-en-conll2003', 
+            model = sequenceLabelling.Sequence(model_name, 
                                             max_epoch=60, 
                                             recurrent_dropout=0.50,
                                             embeddings_name=embedding_name, 
                                             early_stop=True, 
-                                            fold_number=fold_count)
+                                            fold_number=fold_count,
+                                            model_type=architecture,
+                                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017, 2018)
             # this leads obviously to much higher results (~ +0.5 f1 score)
-            model = sequenceLabelling.Sequence('ner-en-conll2003', 
+            model = sequenceLabelling.Sequence(model_name, 
                                             max_epoch=25, 
-                                            recurrent_dropout=0.15,
+                                            recurrent_dropout=0.20,
                                             embeddings_name=embedding_name, 
                                             early_stop=False, 
-                                            fold_number=fold_count)
+                                            fold_number=fold_count,
+                                            model_type=architecture,
+                                            use_ELMo=use_ELMo)
     elif (lang == 'fr'):
         print('Loading data...')
         dataset_type = 'lemonde'
@@ -98,12 +112,18 @@ def train_eval(embedding_name, dataset_type='conll2003', lang='en', fold_count=1
         print(len(x_valid), 'validation sequences')
         print(len(x_eval), 'evaluation sequences')
 
-        model = sequenceLabelling.Sequence('ner-fr-lemonde', 
+        model_name = 'ner-fr-lemonde'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+
+        model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=60, 
                                         recurrent_dropout=0.50,
                                         embeddings_name=embedding_name, 
                                         early_stop=True, 
-                                        fold_number=fold_count)
+                                        fold_number=fold_count,
+                                        model_type=architecture,
+                                        use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
@@ -123,7 +143,7 @@ def train_eval(embedding_name, dataset_type='conll2003', lang='en', fold_count=1
     model.save()
 
 # usual eval on CoNLL 2003 eng.testb 
-def eval(dataset_type='conll2003', lang='en'): 
+def eval(dataset_type='conll2003', lang='en', use_ELMo=False): 
     root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
@@ -132,7 +152,10 @@ def eval(dataset_type='conll2003', lang='en'):
         print(len(x_test), 'evaluation sequences')
 
         # load model
-        model = sequenceLabelling.Sequence('ner-en-conll2003')
+        model_name = 'ner-en-conll2003'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+        model = sequenceLabelling.Sequence(model_name)
         model.load()
     else:
         print("dataset/language combination is not supported for eval:", dataset_type, lang)
@@ -147,15 +170,21 @@ def eval(dataset_type='conll2003', lang='en'):
     print("runtime: %s seconds " % (runtime))
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, output_format, dataset_type='conll2003', lang='en'):
+def annotate(texts, output_format, dataset_type='conll2003', lang='en', use_ELMo=False):
     annotations = []
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         # load model
-        model = sequenceLabelling.Sequence('ner-en-conll2003')
+        model_name = 'ner-en-conll2003'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+        model = sequenceLabelling.Sequence(model_name)
         model.load()
     elif (lang == 'fr'):
-        model = sequenceLabelling.Sequence('ner-fr-lemonde')
+        model_name = 'ner-fr-lemonde'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+        model = sequenceLabelling.Sequence(model_name)
         model.load()
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -183,7 +212,9 @@ if __name__ == "__main__":
     parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code")
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
-    
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF, BidLSTM_CNN_CRF or BidLSTM_CNN_CRF)")
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
+
     args = parser.parse_args()
     
     action = args.action    
@@ -192,6 +223,10 @@ if __name__ == "__main__":
     lang = args.lang
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
+    use_ELMo = args.use_ELMo
+    architecture = args.architecture
+    if (architecture != 'BidLSTM_CRF') and (architecture != 'BidLSTM_CNN_CRF') and (architecture != 'BidLSTM_CNN_CRF'):
+        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF,BidLSTM_CNN_CRF]')
 
     # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
     # embedding-registry.json
@@ -203,15 +238,25 @@ if __name__ == "__main__":
         embeddings_name = 'wiki.fr'
 
     if action == 'train':
-        train(embeddings_name, dataset_type, lang)
+        train(embeddings_name, 
+            dataset_type, 
+            lang, 
+            architecture=architecture, 
+            use_ELMo=use_ELMo)
     
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(embeddings_name, dataset_type, lang, fold_count=args.fold_count, train_with_validation_set=train_with_validation_set)
+        train_eval(embeddings_name, 
+            dataset_type, 
+            lang, 
+            architecture=architecture, 
+            fold_count=args.fold_count, 
+            train_with_validation_set=train_with_validation_set, 
+            use_ELMo=use_ELMo)
 
     if action == 'eval':
-        eval(dataset_type, lang)
+        eval(dataset_type, lang, use_ELMo=use_ELMo)
 
     if action == 'tag':
         if (lang == 'en'):
@@ -224,7 +269,7 @@ if __name__ == "__main__":
             print("Language not supported:", lang)
             someTexts = []
 
-        result = annotate(someTexts, "json", dataset_type, lang)
+        result = annotate(someTexts, "json", dataset_type, lang, use_ELMo=use_ELMo)
         if result is not None:
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 

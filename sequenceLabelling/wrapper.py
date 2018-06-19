@@ -37,9 +37,6 @@ class Sequence(object):
     def __init__(self, 
                  model_name,
                  model_type="BidLSTM_CRF",
-                 #model_type="BidLSTM_CNN",
-                 #model_type="BidLSTM_CNN_CRF",
-                 #model_type="BidGRU_CRF",
                  embeddings_name=None,
                  char_emb_size=25, 
                  max_char_length=30,
@@ -59,7 +56,7 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
-                 use_ELMo=False,
+                 use_ELMo=True,
                  fold_number=1):
 
         self.model = None
@@ -86,7 +83,8 @@ class Sequence(object):
                                         use_char_feature=use_char_feature, 
                                         use_crf=use_crf, 
                                         fold_number=fold_number, 
-                                        batch_size=batch_size)
+                                        batch_size=batch_size,
+                                        use_ELMo=use_ELMo)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -264,7 +262,7 @@ class Sequence(object):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
         # load embeddings
-        self.embeddings = Embeddings(self.model_config.embeddings_name) 
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo) 
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
