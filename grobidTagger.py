@@ -14,7 +14,7 @@ models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 
 
 
 # train a GROBID model with all available data 
-def train(model, embeddings_name): 
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False): 
     print('Loading data...')
     x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
@@ -22,8 +22,16 @@ def train(model, embeddings_name):
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
+    
+    model_name = 'grobid-'+model
+    if use_ELMo:
+        model_name += '-with_ELMo'
 
-    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings_name=embeddings_name)
+    model = sequenceLabelling.Sequence(model_name, 
+                                        max_epoch=100, 
+                                        embeddings_name=embeddings_name, 
+                                        model_type=architecture,
+                                        use_ELMo=use_ELMo)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -34,7 +42,7 @@ def train(model, embeddings_name):
     model.save()
 
 # split data, train a GROBID model and evaluate it 
-def train_eval(model, embeddings_name): 
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False): 
     print('Loading data...')
     x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
 
@@ -45,7 +53,15 @@ def train_eval(model, embeddings_name):
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    model = sequenceLabelling.Sequence('grobid-'+model, max_epoch=50, embeddings_name=embeddings_name)
+    model_name = 'grobid-'+model
+    if use_ELMo:
+        model_name += '-with_ELMo'
+
+    model = sequenceLabelling.Sequence(model_name, 
+                                        max_epoch=100, 
+                                        embeddings_name=embeddings_name, 
+                                        model_type=architecture,
+                                        use_ELMo=use_ELMo)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -61,11 +77,14 @@ def train_eval(model, embeddings_name):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format):
+def annotate_text(texts, model, output_format, use_ELMo=False):
     annotations = []
 
     # load model
-    model = sequenceLabelling.Sequence('grobid-'+model)
+    model_name = 'grobid-'+model
+    if use_ELMo:
+        model_name += '-with_ELMo'
+    model = sequenceLabelling.Sequence(model_name)
     model.load()
 
     start_time = time.time()
@@ -87,6 +106,8 @@ if __name__ == "__main__":
     parser.add_argument("model")
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF, BidLSTM_CNN_CRF or BidLSTM_CNN_CRF)")
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     args = parser.parse_args()
     
@@ -97,6 +118,11 @@ if __name__ == "__main__":
     action = args.action    
     if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
         print('action not specifed, must be one of [train,train_eval,tag]')
+    
+    use_ELMo = args.use_ELMo
+    architecture = args.architecture
+    if (architecture != 'BidLSTM_CRF') and (architecture != 'BidLSTM_CNN_CRF') and (architecture != 'BidLSTM_CNN_CRF'):
+        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF,BidLSTM_CNN_CRF]')
 
     # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
     # embedding-registry.json
@@ -105,12 +131,12 @@ if __name__ == "__main__":
     embeddings_name = "glove-840B"
 
     if action == 'train':
-        train(model, embeddings_name)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo)
     
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo)
 
     if action == 'tag':
         someTexts = []
@@ -128,7 +154,7 @@ if __name__ == "__main__":
             someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
 
-        result = annotate_text(someTexts, model, "json")
+        result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388

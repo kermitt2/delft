@@ -137,7 +137,7 @@ For training and evaluating following the traditional approach (training with th
 
 > python3 nerTagger.py --dataset-type conll2003 train_eval
 
-To use ELMo contextual embeddings, use the parameter `--use-ELMo`. This will slow down considerably (30 times) the first epoch of the training, then the contextual embeddings will be cached and the rest of the training will be similar to usual embeddings in term of trainng time. 
+To use ELMo contextual embeddings, add the parameter `--use-ELMo`. This will slow down considerably (30 times) the first epoch of the training, then the contextual embeddings will be cached and the rest of the training will be similar to usual embeddings in term of trainng time. 
 
 > python3 nerTagger.py --dataset-type conll2003 --use-ELMo train_eval
 
@@ -415,6 +415,10 @@ For applying a model on some examples:
     ]
 }
 ```
+
+Similarly to the NER models, to use ELMo contextual embeddings, add the parameter `--use-ELMo`, e.g.:
+
+> python3 grobidTagger.py citation --use-ELMo train_eval
 
 (To be completed)
 
