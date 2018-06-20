@@ -29,6 +29,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False):
 
     model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=100, 
+                                        recurrent_dropout=0.50,
                                         embeddings_name=embeddings_name, 
                                         model_type=architecture,
                                         use_ELMo=use_ELMo)
@@ -59,6 +60,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
     model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=100, 
+                                        recurrent_dropout=0.50,
                                         embeddings_name=embeddings_name, 
                                         model_type=architecture,
                                         use_ELMo=use_ELMo)

@@ -2,7 +2,7 @@ import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import keras
-from sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo
+from sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo
 from utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
@@ -102,7 +102,9 @@ class DataGenerator(keras.utils.Sequence):
             batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
 
         if self.embeddings.use_ELMo:     
-            batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
+            #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
+            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
+            
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings

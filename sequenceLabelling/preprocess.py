@@ -247,7 +247,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Tru
             else:
                 local_tokens.append(tokens[i][j])
         subtokens.append(local_tokens)
-    return embeddings.get_sentence_vector_ELMo(subtokens)
+    return embeddings.get_sentence_vector_only_ELMo(subtokens)
     """
     if use_token_dump:
         return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
@@ -260,29 +260,17 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
     the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
     padding token vector when appropriate
     """
-    window = tokens[-maxlen:]
-    
-    # TBD: use better initializers (uniform, etc.) 
-    x = np.zeros((maxlen, embeddings.embed_size), )
+    subtokens = []
+    for i in range(0, len(tokens)):
+        local_tokens = []
+        for j in range(0, min(len(tokens[i]), maxlen)):
+            if lowercase:
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
+        subtokens.append(local_tokens)
+    return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
-    if lowercase:
-        x_elmo = embeddings.get_sentence_wector_ELMo(lower(tokens))
-    else:
-        x_elmo = embeddings.get_sentence_wector_ELMo(tokens)
-
-    # TBD: padding should be left and which vector do we use for padding? 
-    # and what about masking padding later for RNN?
-    for i, word in enumerate(window):
-        if lowercase:
-            word = _lower(word)
-        if num_norm:
-            word = _normalize_num(word)
-        x[i,:] = np.concat(
-                embeddings.get_word_vector(word).astype('float32'),
-                x_elmo[i]
-                )
-
-    return x
 
 def to_casing_single(tokens, maxlen=300):
     """

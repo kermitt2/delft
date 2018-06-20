@@ -30,11 +30,15 @@ from utilities.Tokenizer import tokenizeAndFilterSimple
 # and https://github.com/kermitt2/nerd/blob/0.0.3/src/main/java/com/scienceminer/nerd/kb/db/KBDatabaseFactory.java#L368
 map_size = 100 * 1024 * 1024 * 1024 
 
+# dim of ELMo embeddings (2 times the dim of the LSTM for LM)
+ELMo_embed_size = 1024
+
 class Embeddings(object):
 
     def __init__(self, name, path='./embedding-registry.json', lang='en', use_ELMo=False):
         self.name = name
         self.embed_size = 0
+        self.static_embed_size = 0
         self.vocab_size = 0
         self.model = {}
         self.registry = self._load_embedding_registry(path)
@@ -44,13 +48,14 @@ class Embeddings(object):
             self.embedding_lmdb_path = self.registry["embedding-lmdb-path"]
         self.env = None
         self.make_embeddings_simple(name)
+        self.static_embed_size = self.embed_size
         self.bilm = None
 
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
         if use_ELMo:
             self.make_ELMo()
-            self.embed_size = 1024
+            self.embed_size = ELMo_embed_size + self.embed_size
             description = self._get_description('elmo-en')
             self.env_ELMo = None
             if description:
@@ -297,7 +302,11 @@ class Embeddings(object):
             print("ELMo token dump completed")
 
 
-    def get_sentence_vector_ELMo(self, token_list):
+    def get_sentence_vector_only_ELMo(self, token_list):
+        """
+            Return the ELMo embeddings only for a full sentence
+        """
+
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
@@ -324,6 +333,49 @@ class Embeddings(object):
                 #cache computation
                 self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         return elmo_result
+
+
+    def get_sentence_vector_with_ELMo(self, token_list):
+        """
+            Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
+            for a full sentence
+        """
+        if not self.use_ELMo:
+            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+            return
+        
+        # Create batches of data
+        local_token_ids = self.batcher.batch_sentences(token_list)
+        max_size_sentence = local_token_ids[0].shape[0]
+        # check lmdb cache
+        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+        if elmo_result is None:
+            with tf.Session() as sess:
+                # weird, for this cpu is faster than gpu (1080Ti !)
+                with tf.device("/cpu:0"):
+                    # It is necessary to initialize variables once before running inference
+                    sess.run(tf.global_variables_initializer())
+
+                    # Compute ELMo representations 
+                    elmo_result = sess.run(
+                        self.elmo_input['weighted_op'],
+                        feed_dict={self.character_ids: local_token_ids}
+                    )
+                    #cache computation
+                    self.cache_ELMo_lmdb_vector(token_list, elmo_result)
+        #print("len(token_list)", len(token_list))            
+        #print("elmo_result.shape", elmo_result.shape)
+        concatenated_result = np.zeros((elmo_result.shape[0], elmo_result.shape[1], self.embed_size), dtype=np.float32)
+        #print("concatenated_result.shape", concatenated_result.shape)
+        for i in range(0, elmo_result.shape[0]):
+            #print("len(token_list[i])", len(token_list[i]))           
+            for j in range(0, len(token_list[i])):
+                #print(token_list[i][j])
+                #print("elmo_result[i][j].shape", elmo_result[i][j].shape)
+                #print("self.get_word_vector(token_list[i][j]).shape", self.get_word_vector(token_list[i][j]).shape)
+                concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j])), )
+                #print("concatenated_result[i][j].shape", concatenated_result[i][j].shape)
+        return concatenated_result
 
 
     def get_sentence_vector_ELMo_with_token_dump(self, token_list):
@@ -377,7 +429,7 @@ class Embeddings(object):
                     word_vector = _deserialize_pickle(vector)
                     vector = None
                 else:
-                    word_vector = np.zeros((self.embed_size,), dtype=np.float32)
+                    word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
                     # alternatively, initialize with random negative values
                     #word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
                     # alternatively use fasttext OOV ngram possibilities (if ngram available)
@@ -391,13 +443,13 @@ class Embeddings(object):
             return self.get_word_vector(word)
         return word_vector
 
-
+    
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
             return None
         try:    
-            ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype='float32')
+            ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
             with self.env_ELMo.begin() as txn:
                 for i in range(0, len(token_list)):
                     txn = self.env_ELMo.begin()
@@ -415,7 +467,7 @@ class Embeddings(object):
                             ELMo_vector[i] = local_embeddings
                         else:
                             # fill the missing space with padding
-                            filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]+2), self.embed_size), dtype='float32')
+                            filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]+2), ELMo_embed_size), dtype='float32')
                             ELMo_vector[i] = np.concatenate((local_embeddings, filler))
                         vector = None
                     else:
@@ -428,6 +480,7 @@ class Embeddings(object):
             self.env_ELMo = lmdb.open(embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
             return self.get_ELMo_lmdb_vector(token_list)
         return ELMo_vector
+
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         if self.env_ELMo is None:
@@ -459,7 +512,7 @@ class Embeddings(object):
             return self.model[word]
         else:
             # for unknown word, we use a vector filled with 0.0
-            return np.zeros((self.embed_size,), dtype=np.float32)
+            return np.zeros((self.static_embed_size,), dtype=np.float32)
             # alternatively, initialize with random negative values
             #return np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
             # alternatively use fasttext OOV ngram possibilities (if ngram available)
