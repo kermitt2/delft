@@ -83,7 +83,7 @@ def train_eval(embedding_name, dataset_type='conll2003', lang='en', architecture
             # restrict training on train set, use validation set for early stop, as in most papers
             model = sequenceLabelling.Sequence(model_name, 
                                             max_epoch=60, 
-                                            recurrent_dropout=0.50,
+                                            recurrent_dropout=0.5,
                                             embeddings_name=embedding_name, 
                                             early_stop=True, 
                                             fold_number=fold_count,

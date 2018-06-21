@@ -343,7 +343,30 @@ class Embeddings(object):
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
+        """
+        # trick to extend the context for short sentences
+        token_list_extended = token_list.copy()
+        #print("token_list_extended before: ", token_list_extended)
+        for i in range(0, len(token_list_extended)):
+            local_list = token_list_extended[i]
+            j = i
+            while len(local_list) <= 5:
+                #print(j, local_list)
+                if j < len(token_list_extended)-1:
+                    local_list = local_list + token_list_extended[j+1]
+                else:
+                    break
+                j = j + 1
+            token_list_extended[i] = local_list
+        #print("token_list_extended after: ", token_list_extended)
         
+        max_size_sentence = 0
+        for i in range(0, len(token_list)):
+            local_length = len(token_list[i])
+            if local_length > max_size_sentence:
+                max_size_sentence = local_length
+        """
+
         # Create batches of data
         local_token_ids = self.batcher.batch_sentences(token_list)
         max_size_sentence = local_token_ids[0].shape[0]
@@ -361,20 +384,16 @@ class Embeddings(object):
                         self.elmo_input['weighted_op'],
                         feed_dict={self.character_ids: local_token_ids}
                     )
+                    elmo_result = sess.run(
+                        self.elmo_input['weighted_op'],
+                        feed_dict={self.character_ids: local_token_ids}
+                    )
                     #cache computation
                     self.cache_ELMo_lmdb_vector(token_list, elmo_result)
-        #print("len(token_list)", len(token_list))            
-        #print("elmo_result.shape", elmo_result.shape)
-        concatenated_result = np.zeros((elmo_result.shape[0], elmo_result.shape[1], self.embed_size), dtype=np.float32)
-        #print("concatenated_result.shape", concatenated_result.shape)
+        concatenated_result = np.zeros((elmo_result.shape[0], max_size_sentence-2, self.embed_size), dtype=np.float32)
         for i in range(0, elmo_result.shape[0]):
-            #print("len(token_list[i])", len(token_list[i]))           
             for j in range(0, len(token_list[i])):
-                #print(token_list[i][j])
-                #print("elmo_result[i][j].shape", elmo_result[i][j].shape)
-                #print("self.get_word_vector(token_list[i][j]).shape", self.get_word_vector(token_list[i][j]).shape)
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j])), )
-                #print("concatenated_result[i][j].shape", concatenated_result[i][j].shape)
         return concatenated_result
 
 
@@ -415,6 +434,9 @@ class Embeddings(object):
 
 
     def get_word_vector(self, word):
+        """
+            Get static embeddings (e.g. glove) for a given token
+        """
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
             word = word.lower()
@@ -445,6 +467,9 @@ class Embeddings(object):
 
     
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
+        """
+            Try to get the ELMo embeddings for a sequence cached in LMDB
+        """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
             return None
@@ -483,6 +508,9 @@ class Embeddings(object):
 
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
+        """
+            Cache in LMDB the ELMo embeddings for a given sequence 
+        """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
             return None
@@ -494,6 +522,9 @@ class Embeddings(object):
         txn.commit()
 
     def clean_ELMo_cache(self):
+        """
+            Delete ELMo embeddings cache, this takes place normally after the completion of a training
+        """
         if self.env_ELMo is None:
             # db cache not available, nothing to clean
             return
