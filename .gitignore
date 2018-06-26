@@ -25,3 +25,4 @@ data/models/ELMo/en/*.hdf5
 logs
 *__pycache__*
 data/models/ELMo/en/cache
+data/sequenceLabelling/CoNLL-2012-NER/eng.*
