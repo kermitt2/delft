@@ -127,7 +127,7 @@ By default, the BidLSTM-CRF architecture is used. With this available model, glo
 
 Using BidLSTM-CRF model with ELMo embeddings, following [4] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.61__ (best model, using _train_ set for training and _testa_ for validation, __92.47__ averaged over 10 training), or __93.09__ (best model, __92.69__ averaged over 10 training) when training with the validation set (as in the paper Peters and al., 2017).
 
-For re-training a model, the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
+For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` in IOB2 tagging sceheme (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;) and [here](https://github.com/kermitt2/delft/utilities). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
 For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
@@ -137,7 +137,7 @@ To use ELMo contextual embeddings, add the parameter `--use-ELMo`. This will slo
 
 > python3 nerTagger.py --dataset-type conll2003 --use-ELMo train_eval
 
-Some recent works like (Chiu & Nichols, 2016), (Yang and al., 2017). (Peters and al., 2017), (Peters and al., 2018) also train with the validation set, leading obviously to a better accuracy (still they compare their scores with scores previously reported trained differently, which is arguably a bit unfair - this aspect is mentioned in (Ma & Hovy, 2016)). To train with both train and validation sets, use the parameter `--train-with-validation-set`:
+Some recent works like (Chiu & Nichols, 2016), (Yang and al., 2017). (Peters and al., 2017) also train with the validation set, leading obviously to a better accuracy (still they compare their scores with scores previously reported trained differently, which is arguably a bit unfair - this aspect is mentioned in (Ma & Hovy, 2016)). To train with both train and validation sets, use the parameter `--train-with-validation-set`:
 
 > python3 nerTagger.py --dataset-type conll2003 --train-with-validation-set train_eval
 
@@ -250,7 +250,7 @@ DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER datas
 
 With the default BidLSTM-CRF architecture and without any parameter tuning, f1 score of the provided model is __85.85__ when trained with the train set strictly. When trained with validation set, f1 score of the provided model is __86.41__.
 
-For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
+For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/utilities) for more details. Then, use:
 
 > python3 nerTagger.py --dataset-type conll2012 train_eval
 
