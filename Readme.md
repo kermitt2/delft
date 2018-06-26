@@ -10,7 +10,7 @@ __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framewor
 
 From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment (with all the known limitations of Python of course for this purpose). The benefits of DELFT are:
 
-* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) contextualized embeddings, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems.
+* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) contextualised embeddings, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems.
 
 * Reduce model size, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB.
 
@@ -79,9 +79,9 @@ You're ready to use DeLFT.
 
 ## Management of embeddings
 
-The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialized and stored in a LMDB database, a very efficient embedded database using memory page (already used in the Machine Learning world by Caffe and Torch for managing large training data). The next time these embeddings will be accessed, they will be immediately available.
+The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialised and stored in a LMDB database, a very efficient embedded database using memory page (already used in the Machine Learning world by Caffe and Torch for managing large training data). The next time these embeddings will be accessed, they will be immediately available.
 
-Our approach solves the bottleneck problem pointed for instance [here](https://spenai.org/bravepineapple/faster_em/) in a much better way than quantizing+compression or pruning. After being compiled and stored at the first access, any volume of embeddings vectors can be used immediately without any loading, with a negligible usage of memory, without any accuracy loss and with a negligible impact on runtime when using SSD.
+Our approach solves the bottleneck problem pointed for instance [here](https://spenai.org/bravepineapple/faster_em/) in a much better way than quantising+compression or pruning. After being compiled and stored at the first access, any volume of embeddings vectors can be used immediately without any loading, with a negligible usage of memory, without any accuracy loss and with a negligible impact on runtime when using SSD.
 
 For instance, in a traditional approach `glove-840B` takes around 2 minutes to load and 4GB in memory. Managed with LMDB, after a first load time of around 4 minutes, `glove-840B` can be accessed immediately and takes only a couple MB in memory, for an impact on runtime negligible (around 1% slower) for any further command line calls.
 
@@ -107,7 +107,7 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 &nbsp;&nbsp;&nbsp;&nbsp; [3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labelling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
 
-* the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualized embeddings, see:
+* the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualised embeddings, see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
@@ -123,9 +123,9 @@ Different datasets and languages are supported. They can be specified by the com
 
 DeLFT comes with various pre-trained models with the CoNLL-2003 NER dataset.
 
-By default, the BidLSTM-CRF architecture is used. With this available model, glove-840B word embeddings, and optimization of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (best run over 10 training, using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1]. f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training (best run over 10 training), as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
+By default, the BidLSTM-CRF architecture is used. With this available model, glove-840B word embeddings, and optimisation of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (best run over 10 training, using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1]. f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training (best run over 10 training), as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
 
-Using BidLSTM-CRF model with ELMo embeddings, following [4] and some parameter optimizations and [warm-up](https://github.com/allenai/allennlp/blob/master/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.61__ (best model, using _train_ set for training and _testa_ for validation, __92.47__ averaged over 10 training), or __93.09__ (best model, __92.69__ averaged over 10 training) when training with the validation set (as in the paper Peters and al., 2017).
+Using BidLSTM-CRF model with ELMo embeddings, following [4] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.61__ (best model, using _train_ set for training and _testa_ for validation, __92.47__ averaged over 10 training), or __93.09__ (best model, __92.69__ averaged over 10 training) when training with the validation set (as in the paper Peters and al., 2017).
 
 For re-training a model, the usual CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
@@ -292,7 +292,7 @@ Similarly as before, for training and evaluating use:
 
 > python3 nerTagger.py --lang fr train_eval
 
-In practice, we need to repeat training and evaluation several times to neutralize random seed effects and to average scores, here ten times:
+In practice, we need to repeat training and evaluation several times to neutralise random seed effects and to average scores, here ten times:
 
 > python3 nerTagger.py --lang fr --fold-count 10 train_eval
 
@@ -458,7 +458,7 @@ Similarly to the NER models, to use ELMo contextual embeddings, add the paramete
 
 #### Insult recognition
 
-A small experimental model for recognizing insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually.
+A small experimental model for recognising insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually.
 
 For training:
 
@@ -703,7 +703,7 @@ __NER__:
 
 * benchmark with OntoNotes 5 - other languages
 
-* Align the CoNLL corpus tokenization (CoNLL corpusis "pre-tokenized", but we might not want to follow this tokenization logic)
+* Align the CoNLL corpus tokenisation (CoNLL corpusis "pre-tokenised", but we might not want to follow this tokenisation logic)
 
 __Production stack__:
 
