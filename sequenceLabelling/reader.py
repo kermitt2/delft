@@ -3,6 +3,8 @@ import xml
 from xml.sax import make_parser, handler
 from utilities.Tokenizer import tokenizeAndFilterSimple
 import re
+import os
+from tqdm import tqdm
 
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
@@ -61,8 +63,8 @@ class TEIContentHandler(xml.sax.ContentHandler):
 
             self.sents.append(self.tokens)
             self.allLabels.append(self.labels)
-            tokens = []
-            labels = []
+            self.tokens = []
+            self.labels = []
         if name == "rs":
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
@@ -147,7 +149,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             for token in localTokens:
                 self.tokens.append(token)
                 self.labels.append('O')
-        if name == 'corpus':
+        if name == 'corpus' or name == 'DOC':
             # beginning of a document
             self.tokens = []
             self.labels = []
@@ -163,7 +165,15 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             if attrs.getLength() != 0:
                 #if attrs.getValue("type") != 'insult' and attrs.getValue("type") != 'threat':
                 #    print("Invalid entity type:", attrs.getValue("type"))
-                mainType = attrs.getValue("type")
+                attribute_names = attrs.getNames()
+                mainType = None
+                if "type" in attrs:
+                    mainType = attrs.getValue("type")
+                if "TYPE" in attrs:
+                    mainType = attrs.getValue("TYPE")
+                if mainType is None:
+                    print('ENAMEX element without type attribute!')
+
                 if "sub_type" in attrs:
                     subType = attrs.getValue("sub_type")
                 else:
@@ -171,7 +181,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                 if self.corpus_type == 'lemonde':
                     self.currentLabel = '<'+self.translate_fr_labels(mainType, subType)+'>'
                 else:
-                    self.currentLabel = '<'+attrs.getValue("type")+'>'
+                    self.currentLabel = '<'+mainType+'>'
         self.accumulated = ''
                 
     def endElement(self, name):
@@ -186,8 +196,8 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
 
             self.sents.append(self.tokens)
             self.allLabels.append(self.labels)
-            tokens = []
-            labels = []
+            self.tokens = []
+            self.labels = []
         if name == "ENAMEX":
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
@@ -428,7 +438,7 @@ def load_data_and_labels_conll(filename):
         words, tags = [], []
         for line in f:
             line = line.rstrip()
-            if len(line) == 0 or line.startswith('-DOCSTART-'):
+            if len(line) == 0 or line.startswith('-DOCSTART-') or line.startswith('#begin document'):
                 if len(words) != 0:
                     sents.append(words)
                     labels.append(tags)
@@ -460,6 +470,85 @@ def load_data_and_labels_lemonde(filepathXml):
     labels = handler.getAllLabels()
     
     return tokens, labels
+
+
+def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
+    """
+    Load data and label from Ontonotes 5.0 pseudo-XML corpus files
+    the format is ENAMEX-style, as follow, with one sentence per line:
+    <doc>
+        <ENAMEX TYPE="DATE">Today</ENAMEX> , one newspaper headline warned of civil war .
+        ...
+    </doc>
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+
+    """
+    # assuming we have the root of ontonotes corpus, we iterate through the sub-directories
+    # and process all .name files
+    nb_files = 0
+    # map lang and subdir names
+    lang_name = 'english'
+    if lang is 'zh':
+        lang_name = '/chinese/'
+    elif lang is 'ar':
+        lang_name = '/arabic/'
+
+    tokens = []
+    labels =[]
+
+    # first pass to get number of files
+    for subdir, dirs, files in os.walk(ontonotesRoot):
+        for file in files:
+            if '/english/' in subdir and file.endswith('.name'):
+                # remove old/new testament
+                if '/pt/' in subdir:
+                    continue
+                #print(os.path.join(subdir, file))
+                nb_files += 1
+    nb_total_files = nb_files
+    #print(nb_total_files, 'total files')
+    
+    nb_files = 0
+    pbar = tqdm(total=nb_total_files)
+    for subdir, dirs, files in os.walk(ontonotesRoot):
+        for file in files:
+            if '/english/' in subdir and file.endswith('.name'):
+                # remove old/new testament
+                if '/pt/' in subdir:
+                    continue
+                handler = ENAMEXContentHandler(corpus_type="ontonotes")
+                # massage a bit the pseudo-XML so that it looks XML
+                with open(os.path.join(subdir, file)) as f:
+                    content = '<?xml version="1.0" encoding="utf-8"?>\n'
+                    for line in f:
+                        line = line.strip()
+                        if len(line) > 2 and line[-2] == '/':
+                            line = line[:len(line)-2] + line[-1]
+
+                        if len(line) != 0:
+                            if not '<DOC' in line and not '</DOC' in line:
+                                content += '<sentence>' + line + '</sentence>\n'
+                            else:
+                                content += line + "\n"
+                    #print(content)
+                    xml.sax.parseString(content, handler)
+                    tokens.extend(handler.sents)
+                    labels.extend(handler.allLabels)
+                    nb_files += 1
+                    pbar.update(1)
+    pbar.close()
+    print('nb total sentences:', len(tokens))
+    total_tokens = 0
+    for sentence in tokens:
+        total_tokens += len(sentence)
+    print('nb total tokens:', total_tokens)    
+
+    final_tokens = np.asarray(tokens)
+    final_label = np.asarray(labels)
+    
+    return final_tokens, final_label
 
 
 if __name__ == "__main__":

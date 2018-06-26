@@ -22,6 +22,7 @@ from textblob import TextBlob
 from textblob.translate import NotTranslated
 from xml.sax.saxutils import escape
 
+import argparse
 
 def dot_product(x, kernel):
     """
@@ -256,7 +257,184 @@ def generateOOVEmbeddings():
     oovFile.close()
 
 
-# tests...
-#if __name__ == "__main__":
+def convert_conll2012_to_iob2(pathin, pathout):
+    """
+    This method will post-process the assembled Ontonotes CoNLL-2012 data for NER. 
+    It will take an input like:
+      bc/cctv/00/cctv_0001   0    5         Japanese    JJ             *           -    -      -   Speaker#1    (NORP)           *        *            *        *     -
+    and transform it into a simple and readable:
+      Japanese  B-NORP
+    taking into account the sequence markers and an expected IOB2 scheme.
+    """
+    if pathin == pathout:
+        print("input and ouput path must be different:", pathin, pathout)
+        return
+
+    nb_files = 0
+     # first pass to get number of files
+    for subdir, dirs, files in os.walk(pathin):
+        for file in files:
+            if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir:
+                nb_files += 1
+    nb_total_files = nb_files
+    print(nb_total_files, 'total files to convert')
+
+    # load restricted set of ids for the CoNLL-2012 dataset
+    train_doc_ids = []
+    dev_doc_ids = []
+    test_doc_ids = []
+
+    with open(os.path.join("data", "sequenceLabelling", "CoNLL-2012-NER", "english-ontonotes-5.0-train-document-ids.txt"),'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+            train_doc_ids.append(line)
+    print("number of train documents:", len(train_doc_ids))
+
+    with open(os.path.join("data", "sequenceLabelling", "CoNLL-2012-NER", "english-ontonotes-5.0-development-document-ids.txt"),'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+            dev_doc_ids.append(line)
+    print("number of development documents:", len(dev_doc_ids))
+
+    with open(os.path.join("data", "sequenceLabelling", "CoNLL-2012-NER", "english-ontonotes-5.0-conll-2012-test-document-ids.txt"),'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+            test_doc_ids.append(line)
+    print("number of test documents:", len(test_doc_ids))
+
+    train_out = open(os.path.join(pathout, "eng.train"),'w+')
+    dev_out = open(os.path.join(pathout, "eng.dev"),'w+')
+    test_out = open(os.path.join(pathout, "eng.test"),'w+')
+
+    nb_files = 0
+    pbar = tqdm(total=nb_total_files)
+    for subdir, dirs, files in os.walk(pathin):
+        for file in files:
+            #if '/english/' in subdir and (file.endswith('gold_conll') or ('/test/' in subdir and file.endswith('gold_parse_conll'))) and not '/pt/' in subdir:
+            if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir:
+                pbar.update(1)
+
+                ind = subdir.find("data/english/")
+                if (ind == -1):
+                    print("path to ontonotes files appears invalid")
+                subsubdir = os.path.join(subdir[ind:], file.replace(".gold_conll", ""))
+
+                f2 = None
+                if '/train/' in subdir and subsubdir in train_doc_ids:
+                    f2 = train_out
+                elif '/development/' in subdir and subsubdir in dev_doc_ids:
+                    f2 = dev_out
+                elif '/test/' in subdir and subsubdir in test_doc_ids:
+                    f2 = test_out
+
+                if f2 is None:
+                    continue
+
+                with open(os.path.join(subdir, file),'r') as f1:
+                    previous_tag = None
+                    for line in f1:
+                        line_ = line.rstrip()
+                        line_ = ' '.join(line_.split())
+                        if len(line_) == 0 or line_.startswith('#begin document'):
+                            f2.write(line_+"\n")
+                            previous_tag = None
+                        elif line_.startswith('#end document'):
+                            f2.write("\n")
+                            previous_tag = None
+                        else:
+                            pieces = line_.split(' ')
+                            if len(pieces) < 11:
+                                print(os.path.join(subdir, file), "-> unexpected number of fiels for line (", len(pieces), "):", line_)
+                                previous_tag = None
+                            word = pieces[3]
+                            # some punctuation are prefixed by / (e.g. /. or /? for dialogue turn apparently)
+                            if word.startswith("/") and len(word) > 1:
+                                word = word[1:]
+                            tag = pieces[10]
+                            if tag.startswith('('):
+                                if tag.endswith(')'):
+                                    tag = tag[1:-1]
+                                    previous_tag = None
+                                else:
+                                    tag = tag[1:-1]
+                                    previous_tag = tag
+                                f2.write(word+"\tB-"+tag+"\n")
+                            elif tag == '*' and previous_tag is not None:
+                                f2.write(word+"\tI-"+previous_tag+"\n")
+                            elif tag == '*)':
+                                f2.write(word+"\tI-"+previous_tag+"\n")
+                                previous_tag = None
+                            else:
+                                f2.write(word+"\tO\n")
+                                previous_tag = None
+    pbar.close()
+
+    train_out.close()
+    dev_out.close()
+    test_out.close()
+    
+
+def convert_conll2003_to_iob2(filein, fileout):
+    """
+    This method will post-process the assembled CoNLL-2003 data for NER. 
+    It will take an input like:
+      
+    and transform it into a simple and readable:
+      Japanese  B-NORP
+    taking into account the sequence markers and an expected IOB2 scheme.
+    """
+    with open(filein,'r') as f1:
+        with open(fileout,'w') as f2:
+            previous_tag = 'O'
+            for line in f1:
+                line_ = line.rstrip()
+                if len(line_) == 0 or line_.startswith('-DOCSTART-'):
+                    f2.write(line_+"\n")
+                    previous_tag = 'O'
+                else:
+                    word, pos, phrase, tag = line_.split(' ')
+                    if tag == 'O' or tag.startswith('B-'):
+                        f2.write(word+"\t"+tag+"\n")
+                    else:
+                        subtag = tag[2:]
+                        if previous_tag.endswith(tag[2:]):
+                            f2.write(word+"\t"+tag+"\n")
+                        else:
+                            f2.write(word+"\tB-"+tag[2:]+"\n")
+                    previous_tag = tag
+
+
+if __name__ == "__main__":
+    # usage example - for CoNLL-2003, indicate the eng.* file to be converted:
+    # > python3 utilities/Utilities.py --dataset-type conll2003 --data-path /home/lopez/resources/CoNLL-2003/eng.train --output-path /home/lopez/resources/CoNLL-2003/iob2/eng.train 
+    # for CoNLL-2012, indicate the root directory of the ontonotes data (in CoNLL-2012 format) to be converted:
+    # > python3 utilities/Utilities.py --dataset-type conll2012 --data-path /home/lopez/resources/ontonotes/conll-2012/ --output-path /home/lopez/resources/ontonotes/conll-2012/iob2/
+
     # get the argument
+    parser = argparse.ArgumentParser(
+        description = "Named Entity Recognizer dataset converter to OIB2 tagging scheme")
+
+    #parser.add_argument("action")
+    parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model, one of ['conll2003','conll2012']")
+    parser.add_argument("--data-path", default=None, help="path to the corpus of documents to process") 
+    parser.add_argument("--output-path", default=None, help="path to write the converted dataset") 
+
+    args = parser.parse_args()
+    
+    #action = args.action 
+    dataset_type = args.dataset_type
+    data_path = args.data_path
+    output_path = args.output_path
+
+    if dataset_type == 'conll2003':
+        convert_conll2003_to_iob2(data_path, output_path)
+    elif dataset_type == 'conll2012':    
+        convert_conll2012_to_iob2(data_path, output_path)
+
 
