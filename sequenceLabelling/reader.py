@@ -442,11 +442,16 @@ def load_data_and_labels_conll(filename):
                 if len(words) != 0:
                     sents.append(words)
                     labels.append(tags)
+                    #print(words)
+                    #print(tags)
+                    #print("\n")
                     words, tags = [], []
+                    #print(line)
             else:
                 word, tag = line.split('\t')
                 words.append(word)
                 tags.append(tag)
+                #print(line)
     return np.asarray(sents), np.asarray(labels)
 
 

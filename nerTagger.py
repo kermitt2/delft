@@ -12,11 +12,16 @@ import time
 
 # produce some statistics
 def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None):
+    charset = []
     if x_train is not None:
         print(len(x_train), 'train sequences')
         nb_tokens = 0
         for sentence in x_train:
             nb_tokens += len(sentence)
+            for token in sentence:
+                for character in token:
+                    if not character in charset:
+                        charset.append(character)
         print("\t","nb. tokens", nb_tokens)
     if y_train is not None:
         nb_entities = 0
@@ -30,6 +35,10 @@ def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y
         nb_tokens = 0
         for sentence in x_valid:
             nb_tokens += len(sentence)
+            for token in sentence:
+                for character in token:
+                    if not character in charset:
+                        charset.append(character)
         print("\t","nb. tokens", nb_tokens)
     if y_valid is not None:
         nb_entities = 0
@@ -43,6 +52,10 @@ def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y
         nb_tokens = 0
         for sentence in x_eval:
             nb_tokens += len(sentence)
+            for token in sentence:
+                for character in token:
+                    if not character in charset:
+                        charset.append(character)
         print("\t","nb. tokens", nb_tokens)
     if y_eval is not None:
         nb_entities = 0
@@ -51,6 +64,8 @@ def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y
                 if label != 'O':
                     nb_entities += 1
         print("\t","with nb. entities", nb_entities)
+
+    print("total distinct characters:", len(charset), "\n")
 
 
 # train a model with all available CoNLL 2003 data 
@@ -290,7 +305,7 @@ def eval(dataset_type='conll2003', lang='en', use_ELMo=False, data_path=None):
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
 
-        x_eval, y_eval = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2012-NER/eng.test')
+        x_test, y_test = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2012-NER/eng.test')
         stats(x_eval=x_test, y_eval=y_test)
 
         # load model

@@ -257,6 +257,22 @@ def generateOOVEmbeddings():
     oovFile.close()
 
 
+def ontonotes_conll2012_names(pathin, pathout):
+    # generate the list of files having a .name extension in the complete ontonotes corpus
+    fileout = open(os.path.join(pathout, "names.list"),'w+')
+
+    for subdir, dirs, files in os.walk(pathin):
+        for file in files:
+            if file.endswith('.name'):
+                ind = subdir.find("data/english/")
+                if (ind == -1):
+                    print("path to ontonotes files appears invalid")
+                subsubdir = subdir[ind:]
+                fileout.write(os.path.join(subsubdir, file.replace(".name","")))
+                fileout.write("\n")
+    fileout.close()
+
+
 def convert_conll2012_to_iob2(pathin, pathout):
     """
     This method will post-process the assembled Ontonotes CoNLL-2012 data for NER. 
@@ -270,12 +286,27 @@ def convert_conll2012_to_iob2(pathin, pathout):
         print("input and ouput path must be different:", pathin, pathout)
         return
 
+    names_doc_ids = []
+    with open(os.path.join("data", "sequenceLabelling", "CoNLL-2012-NER", "names.list"),'r') as f:
+        for line in f:
+            line = line.rstrip()
+            if len(line) == 0:
+                continue
+            names_doc_ids.append(line)
+    print("number of documents with name notation:", len(names_doc_ids))
+
     nb_files = 0
-     # first pass to get number of files
+     # first pass to get number of files - test files for CoNLL-2012 are under conll-2012-test/, not test/
+     # we ignore files not having .names extension in the original ontonotes realease 
     for subdir, dirs, files in os.walk(pathin):
         for file in files:
-            if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir:
-                nb_files += 1
+            if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir and not '/test/' in subdir:
+                ind = subdir.find("data/english/")
+                if (ind == -1):
+                    print("path to ontonotes files appears invalid")
+                subsubdir = os.path.join(subdir[ind:], file.replace(".gold_conll", ""))
+                if subsubdir in names_doc_ids:
+                    nb_files += 1
     nb_total_files = nb_files
     print(nb_total_files, 'total files to convert')
 
@@ -317,20 +348,24 @@ def convert_conll2012_to_iob2(pathin, pathout):
     for subdir, dirs, files in os.walk(pathin):
         for file in files:
             #if '/english/' in subdir and (file.endswith('gold_conll') or ('/test/' in subdir and file.endswith('gold_parse_conll'))) and not '/pt/' in subdir:
-            if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir:
-                pbar.update(1)
-
+            if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir and not '/test/' in subdir:
+                
                 ind = subdir.find("data/english/")
                 if (ind == -1):
                     print("path to ontonotes files appears invalid")
                 subsubdir = os.path.join(subdir[ind:], file.replace(".gold_conll", ""))
+
+                if not subsubdir in names_doc_ids:
+                    continue
+
+                pbar.update(1)
 
                 f2 = None
                 if '/train/' in subdir and subsubdir in train_doc_ids:
                     f2 = train_out
                 elif '/development/' in subdir and subsubdir in dev_doc_ids:
                     f2 = dev_out
-                elif '/test/' in subdir and subsubdir in test_doc_ids:
+                elif '/conll-2012-test/' in subdir and subsubdir in test_doc_ids:
                     f2 = test_out
 
                 if f2 is None:
@@ -341,11 +376,14 @@ def convert_conll2012_to_iob2(pathin, pathout):
                     for line in f1:
                         line_ = line.rstrip()
                         line_ = ' '.join(line_.split())
-                        if len(line_) == 0 or line_.startswith('#begin document'):
-                            f2.write(line_+"\n")
+                        if len(line_) == 0:
+                            f2.write("\n")
+                            previous_tag = None
+                        elif line_.startswith('#begin document'):
+                            f2.write(line_+"\n\n")
                             previous_tag = None
                         elif line_.startswith('#end document'):
-                            f2.write("\n")
+                            #f2.write("\n")
                             previous_tag = None
                         else:
                             pieces = line_.split(' ')
@@ -355,6 +393,12 @@ def convert_conll2012_to_iob2(pathin, pathout):
                             word = pieces[3]
                             # some punctuation are prefixed by / (e.g. /. or /? for dialogue turn apparently)
                             if word.startswith("/") and len(word) > 1:
+                                word = word[1:]
+                            # in dialogue texts, interjections are maked with a prefix %, e.g. #um, #eh, we remove this prefix
+                            if word.startswith("%") and len(word) > 1:
+                                word = word[1:]
+                            # there are '='' prefixes to some words, although I don't know what it is used for, we remove it
+                            if word.startswith("=") and len(word) > 1:
                                 word = word[1:]
                             tag = pieces[10]
                             if tag.startswith('('):
@@ -436,5 +480,7 @@ if __name__ == "__main__":
         convert_conll2003_to_iob2(data_path, output_path)
     elif dataset_type == 'conll2012':    
         convert_conll2012_to_iob2(data_path, output_path)
+    elif dataset_type == 'ontonotes':    
+        ontonotes_conll2012_names(data_path, output_path)
 
 
