@@ -248,39 +248,39 @@ If you have trained the model with ELMo, you need to indicate to use ELMo-based 
 
 DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset.
 
-With the default BidLSTM-CRF architecture and without any parameter tuning, f1 score of the provided model is __85.85__ when trained with the train set strictly. When trained with validation set, f1 score of the provided model is __86.41__.
+With the default BidLSTM-CRF architecture and without any parameter tuning, f1 score of the provided model is __86.17__ when trained with the train set strictly. When trained with validation set, f1 score of the provided model is __86.55__.
 
 For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. Then, use:
 
 > python3 nerTagger.py --dataset-type conll2012 train_eval
 
 ```text
-    training runtime: 12804.685 seconds
+    training runtime: 7969.122 seconds 
 
     Evaluation on test set:
-        f1 (micro): 85.85
+        f1 (micro): 86.17
                  precision    recall  f1-score   support
 
-            ORG     0.8534    0.8563    0.8548      1795
-        ORDINAL     0.8111    0.9026    0.8544       195
-          EVENT     0.4571    0.5079    0.4812        63
-    WORK_OF_ART     0.6484    0.5000    0.5646       166
-          MONEY     0.8795    0.8599    0.8696       314
-           DATE     0.8087    0.8552    0.8313      1602
-       LANGUAGE     0.7273    0.3636    0.4848        22
-            LOC     0.7158    0.7318    0.7238       179
-            GPE     0.9528    0.9281    0.9403      2240
-       QUANTITY     0.6598    0.6095    0.6337       105
-         PERSON     0.9117    0.9145    0.9131      1988
-            FAC     0.5192    0.4000    0.4519       135
-           NORP     0.9240    0.9394    0.9316       841
+       QUANTITY     0.7321    0.7810    0.7558       105
+          EVENT     0.6275    0.5079    0.5614        63
+           NORP     0.9193    0.9215    0.9204       841
+       CARDINAL     0.8294    0.7487    0.7870       935
+        ORDINAL     0.7982    0.9128    0.8517       195
+            ORG     0.8451    0.8635    0.8542      1795
+       LANGUAGE     0.7059    0.5455    0.6154        22
+           TIME     0.6000    0.5943    0.5972       212
+        PRODUCT     0.7333    0.5789    0.6471        76
+            FAC     0.6630    0.4519    0.5374       135
+           DATE     0.8015    0.8571    0.8284      1602
+          MONEY     0.8714    0.8631    0.8672       314
             LAW     0.6786    0.4750    0.5588        40
-        PRODUCT     0.6866    0.6053    0.6434        76
-       CARDINAL     0.7958    0.8043    0.8000       935
-           TIME     0.5880    0.5991    0.5935       212
-        PERCENT     0.8827    0.8625    0.8725       349
+        PERCENT     0.8808    0.8682    0.8745       349
+    WORK_OF_ART     0.6480    0.4880    0.5567       166
+            LOC     0.7500    0.7709    0.7603       179
+            GPE     0.9494    0.9388    0.9441      2240
+         PERSON     0.9038    0.9306    0.9170      1988
 
-    avg / total     0.8592    0.8579    0.8585     11257
+    avg / total     0.8618    0.8615    0.8617     11257
 
 ```
 
