@@ -1,5 +1,9 @@
 {
+    "char_embedding_size": 25,
+    "recurrent_dropout": 0.25,
+    "use_char_feature": false,
     "dropout": 0.5,
+    "fold_number": 10,
     "list_classes": [
         "toxic",
         "severe_toxic",
@@ -8,14 +12,10 @@
         "insult",
         "identity_hate"
     ],
-    "use_char_feature": false,
-    "word_embedding_size": 300,
-    "recurrent_dropout": 0.25,
     "maxlen": 300,
+    "word_embedding_size": 300,
     "batch_size": 256,
-    "model_type": "gru",
-    "char_embedding_size": 25,
-    "model_name": "toxic",
     "embeddings_name": "fasttext-crawl",
-    "fold_number": 1
+    "model_name": "toxic",
+    "model_type": "gru"
 }

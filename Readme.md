@@ -250,7 +250,7 @@ DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER datas
 
 With the default BidLSTM-CRF architecture and without any parameter tuning, f1 score of the provided model is __86.17__ when trained with the train set strictly. When trained with validation set, f1 score of the provided model is __86.55__.
 
-For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. Then, use:
+For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set)Then, use:
 
 > python3 nerTagger.py --dataset-type conll2012 train_eval
 

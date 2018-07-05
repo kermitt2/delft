@@ -160,10 +160,10 @@ class Embeddings(object):
                         else:
                             begin = False
                     word = line[0]
-                    if embeddings_type == 'glove':
-                        vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
-                    else:
-                        vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                    #if embeddings_type == 'glove':
+                    vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    #else:
+                    #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
                     if self.embed_size == 0:
                         self.embed_size = len(vector)
 
@@ -393,6 +393,10 @@ class Embeddings(object):
         concatenated_result = np.zeros((elmo_result.shape[0], max_size_sentence-2, self.embed_size), dtype=np.float32)
         for i in range(0, elmo_result.shape[0]):
             for j in range(0, len(token_list[i])):
+                #if is_int(token_list[i][j]) or is_float(token_list[i][j]):
+                #    dummy_result = np.zeros((elmo_result.shape[2]), dtype=np.float32)
+                #    concatenated_result[i][j] = np.concatenate((dummy_result, self.get_word_vector(token_list[i][j])), )
+                #else:
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j])), )
         return concatenated_result
 
@@ -580,6 +584,20 @@ def list_digest(strings):
         hash.update(struct.pack("I", len(s)))
         hash.update(s.encode(encoding='UTF-8'))
     return hash.hexdigest()
+
+def is_int(s):
+    try: 
+        int(s)
+        return True
+    except ValueError:
+        return False
+
+def is_float(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
 
 def test():
     embeddings = Embeddings("glove-840B", use_ELMo=True)
