@@ -88,12 +88,14 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         print('Loading data...')
         x_train1, y_train1 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.train')
         x_train2, y_train2 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testa')
+        x_train3, y_train3 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testb')
 
-        # we concatenate train and valid sets
-        x_train = np.concatenate((x_train1, x_train2), axis=0)
-        y_train = np.concatenate((y_train1, y_train2), axis=0)
+        # we concatenate all sets
+        x_all = np.concatenate((x_train1, x_train2, x_train3), axis=0)
+        y_all = np.concatenate((y_train1, y_train2, y_train3), axis=0)
 
-        x_valid, y_valid = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.testb')
+        # split train and valid sets in a random way
+        x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = 'ner-en-conll2003'
@@ -111,12 +113,14 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
 
         x_train1, y_train1 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2012-NER/eng.train')
         x_train2, y_train2 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2012-NER/eng.dev')
+        x_train3, y_train3 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2012-NER/eng.test')
 
         # we concatenate train and valid sets
-        x_train = np.concatenate((x_train1, x_train2), axis=0)
-        y_train = np.concatenate((y_train1, y_train2), axis=0)
+        x_all = np.concatenate((x_train1, x_train2, x_train3), axis=0)
+        y_all = np.concatenate((y_train1, y_train2, t_train3), axis=0)
 
-        x_eval, y_eval = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2012-NER/eng.test')
+        # split train and valid sets in a random way
+        x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = 'ner-en-conll2012'
