@@ -1,7 +1,7 @@
 # From https://github.com/chakki-works/seqeval/blob/master/seqeval/metrics/sequence_labeling.py
 
 # from the seqeval version, we modify the classification_report() method so that
-# micro average are computed other actual total predictions and not weighted by 
+# micro average is computed over actual total predictions and not weighted by 
 # number of expected pred in each label - otherwise average micro f1 scores are 
 # not consistent with f1_score() 
 
@@ -262,7 +262,7 @@ def classification_report(y_true, y_pred, digits=2):
     for e in pred_entities:
         d2[e[0]].add((e[1], e[2]))
 
-    last_line_heading = 'avg / total'
+    last_line_heading = 'all (micro avg.)'
     width = max(name_width, len(last_line_heading), digits)
 
     headers = ["precision", "recall", "f1-score", "support"]
