@@ -203,18 +203,20 @@ class BidLSTM_CNN_CRF(BaseModel):
         # custom features input and embeddings
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
         
+        """
         casing_embedding = Embedding(input_dim=config.case_vocab_size, 
                            output_dim=config.case_embedding_size,
                            mask_zero=True,
                            trainable=False,
                            name='casing_embedding')(casing_input)
         casing_embedding = Dropout(config.dropout)(casing_embedding)
+        """
         
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32')
 
         # combine words, custom features and characters
-        x = Concatenate(axis=-1)([word_input, casing_embedding, chars])
+        x = Concatenate(axis=-1)([word_input, chars])
         x = Dropout(config.dropout)(x)
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units, 

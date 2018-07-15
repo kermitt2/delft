@@ -84,6 +84,15 @@ def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y
 # train a model with all available CoNLL 2003 data 
 def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, data_path=None): 
     
+    if (architecture == "BidLSTM_CNN_CRF"):
+        word_lstm_units = 200
+        batch_size = 20
+        recurrent_dropout=0.5
+    else:
+        word_lstm_units = 100
+        batch_size = 20
+        recurrent_dropout=0.5
+
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
         x_train1, y_train1 = load_data_and_labels_conll('data/sequenceLabelling/CoNLL-2003/eng.train')
@@ -101,12 +110,15 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
 
         model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=60, 
-                                        recurrent_dropout=0.5,
+                                        recurrent_dropout=recurrent_dropout,
                                         embeddings_name=embedding_name,
                                         model_type=architecture,
+                                        word_lstm_units=word_lstm_units,
+                                        batch_size=batch_size,
                                         use_ELMo=use_ELMo)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
@@ -126,6 +138,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
 
         model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=60, 
@@ -134,6 +147,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                                         early_stop=True, 
                                         fold_number=fold_count,
                                         model_type=architecture,
+                                        word_lstm_units=word_lstm_units,
+                                        batch_size=batch_size,
                                         use_ELMo=use_ELMo)
     elif (lang == 'fr'):
         print('Loading data...')
@@ -142,10 +157,18 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
-        model = sequenceLabelling.Sequence('ner-fr-lemonde', 
+        model_name = 'ner-fr-lemonde'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+        model_name += '-' + architecture
+
+        model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=60, 
+                                        recurrent_dropout=recurrent_dropout,
                                         embeddings_name=embedding_name, 
                                         model_type=architecture,
+                                        word_lstm_units=word_lstm_units,
+                                        batch_size=batch_size,
                                         use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -174,7 +197,17 @@ def train_eval(embedding_name,
                 train_with_validation_set=False, 
                 use_ELMo=False, 
                 data_path=None): 
-    root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
+    
+    if (architecture == "BidLSTM_CNN_CRF"):
+        word_lstm_units = 200
+        max_epoch = 30
+        batch_size = 20
+        recurrent_dropout=0.5
+    else:
+        word_lstm_units = 100
+        max_epoch = 25
+        batch_size = 20
+        recurrent_dropout=0.5
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
@@ -186,28 +219,33 @@ def train_eval(embedding_name,
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
 
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
             model = sequenceLabelling.Sequence(model_name, 
                                             max_epoch=60, 
-                                            recurrent_dropout=0.5,
+                                            recurrent_dropout=recurrent_dropout,
                                             embeddings_name=embedding_name, 
                                             early_stop=True, 
                                             fold_number=fold_count,
                                             model_type=architecture,
+                                            word_lstm_units=word_lstm_units,
+                                            batch_size=batch_size,
                                             use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
             # this leads obviously to much higher results (~ +0.5 f1 score with CoNLL-2003)
             model = sequenceLabelling.Sequence(model_name, 
-                                            max_epoch=25, 
-                                            recurrent_dropout=0.5,
+                                            max_epoch=max_epoch, 
+                                            recurrent_dropout=recurrent_dropout,
                                             embeddings_name=embedding_name, 
                                             early_stop=False, 
                                             fold_number=fold_count,
                                             model_type=architecture,
+                                            word_lstm_units=word_lstm_units,
+                                            batch_size=batch_size,
                                             use_ELMo=use_ELMo)
 
     elif (dataset_type == 'ontonotes-all') and (lang == 'en'):
@@ -220,14 +258,17 @@ def train_eval(embedding_name,
         model_name = 'ner-en-ontonotes'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
 
         model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=60, 
-                                        recurrent_dropout=0.20,
+                                        recurrent_dropout=recurrent_dropout,
                                         embeddings_name=embedding_name, 
                                         early_stop=True, 
                                         fold_number=fold_count,
                                         model_type=architecture,
+                                        word_lstm_units=word_lstm_units,
+                                        batch_size=batch_size,
                                         use_ELMo=use_ELMo)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -241,15 +282,18 @@ def train_eval(embedding_name,
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
 
         if not train_with_validation_set: 
             model = sequenceLabelling.Sequence(model_name, 
                                             max_epoch=60, 
-                                            recurrent_dropout=0.20,
+                                            recurrent_dropout=recurrent_dropout,
                                             embeddings_name=embedding_name, 
                                             early_stop=True, 
                                             fold_number=fold_count,
                                             model_type=architecture,
+                                            word_lstm_units=word_lstm_units,
+                                            batch_size=batch_size,
                                             use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
@@ -257,11 +301,13 @@ def train_eval(embedding_name,
             # this leads obviously to much higher results 
             model = sequenceLabelling.Sequence(model_name, 
                                             max_epoch=30, 
-                                            recurrent_dropout=0.20,
+                                            recurrent_dropout=recurrent_dropout,
                                             embeddings_name=embedding_name, 
                                             early_stop=False, 
                                             fold_number=fold_count,
                                             model_type=architecture,
+                                            word_lstm_units=word_lstm_units,
+                                            batch_size=batch_size,
                                             use_ELMo=use_ELMo)
 
     elif (lang == 'fr'):
@@ -275,14 +321,17 @@ def train_eval(embedding_name,
         model_name = 'ner-fr-lemonde'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
 
         model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=60, 
-                                        recurrent_dropout=0.50,
+                                        recurrent_dropout=recurrent_dropout,
                                         embeddings_name=embedding_name, 
                                         early_stop=True, 
                                         fold_number=fold_count,
                                         model_type=architecture,
+                                        word_lstm_units=word_lstm_units,
+                                        batch_size=batch_size,
                                         use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -304,8 +353,11 @@ def train_eval(embedding_name,
 
 
 # usual eval on CoNLL 2003 eng.testb 
-def eval(dataset_type='conll2003', lang='en', use_ELMo=False, data_path=None): 
-    root = os.path.join(os.path.dirname(__file__), '../data/sequence/')
+def eval(dataset_type='conll2003', 
+         lang='en', 
+         architecture='BidLSTM_CRF', 
+         use_ELMo=False, 
+         data_path=None): 
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL-2003 NER data...')
@@ -316,6 +368,7 @@ def eval(dataset_type='conll2003', lang='en', use_ELMo=False, data_path=None):
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
         model = sequenceLabelling.Sequence(model_name)
         model.load()
 
@@ -329,6 +382,7 @@ def eval(dataset_type='conll2003', lang='en', use_ELMo=False, data_path=None):
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
         model = sequenceLabelling.Sequence(model_name)
         model.load()
 
@@ -346,7 +400,13 @@ def eval(dataset_type='conll2003', lang='en', use_ELMo=False, data_path=None):
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, output_format, dataset_type='conll2003', lang='en', use_ELMo=False, data_path=None):
+def annotate(texts, 
+             output_format, 
+             dataset_type='conll2003', 
+             lang='en', 
+             architecture='BidLSTM_CRF', 
+             use_ELMo=False, 
+             data_path=None):
     annotations = []
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
@@ -354,6 +414,7 @@ def annotate(texts, output_format, dataset_type='conll2003', lang='en', use_ELMo
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
         model = sequenceLabelling.Sequence(model_name)
         model.load()
     
@@ -362,6 +423,7 @@ def annotate(texts, output_format, dataset_type='conll2003', lang='en', use_ELMo
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
         model = sequenceLabelling.Sequence(model_name)
         model.load()
 
@@ -369,6 +431,7 @@ def annotate(texts, output_format, dataset_type='conll2003', lang='en', use_ELMo
         model_name = 'ner-fr-lemonde'
         if use_ELMo:
             model_name += '-with_ELMo'
+        model_name += '-' + architecture
         model = sequenceLabelling.Sequence(model_name)
         model.load()
     else:
@@ -397,7 +460,7 @@ if __name__ == "__main__":
     parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code")
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF, BidLSTM_CNN_CRF or BidLSTM_CNN_CRF)")
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF, BidLSTM_CNN or BidLSTM_CNN_CRF)")
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents to process") 
 
@@ -445,7 +508,7 @@ if __name__ == "__main__":
             data_path=data_path)
 
     if action == 'eval':
-        eval(dataset_type, lang, use_ELMo=use_ELMo)
+        eval(dataset_type, lang, architecture=architecture, use_ELMo=use_ELMo)
 
     if action == 'tag':
         if (lang == 'en'):
@@ -458,7 +521,7 @@ if __name__ == "__main__":
             print("Language not supported:", lang)
             someTexts = []
 
-        result = annotate(someTexts, "json", dataset_type, lang, use_ELMo=use_ELMo, data_path=data_path)
+        result = annotate(someTexts, "json", dataset_type, lang, architecture=architecture, use_ELMo=use_ELMo, data_path=data_path)
         if result is not None:
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 

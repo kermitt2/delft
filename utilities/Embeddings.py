@@ -128,7 +128,7 @@ class Embeddings(object):
 
     def make_embeddings_lmdb(self, name="fasttext-crawl", hasHeader=True):
         nbWords = 0
-        print('\nCompiling embeddings... (this is done only one time per embeddings)')
+        print('\nCompiling embeddings... (this is done only one time per embeddings at first launch)')
         begin = True
         description = self._get_description(name)
         if description is not None:
@@ -325,7 +325,11 @@ class Embeddings(object):
                 # It is necessary to initialize variables once before running inference
                 sess.run(tf.global_variables_initializer())
 
-                # Compute ELMo representations 
+                # Compute ELMo representations (2 times as a heavy warm-up)
+                elmo_result = sess.run(
+                    self.elmo_input['weighted_op'],
+                    feed_dict={self.character_ids: local_token_ids}
+                )
                 elmo_result = sess.run(
                     self.elmo_input['weighted_op'],
                     feed_dict={self.character_ids: local_token_ids}
@@ -379,7 +383,7 @@ class Embeddings(object):
                     # It is necessary to initialize variables once before running inference
                     sess.run(tf.global_variables_initializer())
 
-                    # Compute ELMo representations 
+                    # Compute ELMo representations (2 times as a heavy warm-up)
                     elmo_result = sess.run(
                         self.elmo_input['weighted_op'],
                         feed_dict={self.character_ids: local_token_ids}
