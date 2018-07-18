@@ -245,7 +245,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Tru
             word = tokens[i][j]
             if lowercase:
                 word = _lower(word)
-            elif num_norm:
+            if num_norm:
                 word = _normalize_num(word)
             local_tokens.append(word)    
         subtokens.append(local_tokens)
@@ -269,7 +269,7 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
             word = tokens[i][j]
             if lowercase:
                 word = _lower(word)
-            elif num_norm:
+            if num_norm:
                 word = _normalize_num(word)
             local_tokens.append(word) 
         subtokens.append(local_tokens)

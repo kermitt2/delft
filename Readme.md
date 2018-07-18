@@ -125,7 +125,7 @@ DeLFT comes with various pre-trained models with the CoNLL-2003 NER dataset.
 
 By default, the BidLSTM-CRF architecture is used. With this available model, glove-840B word embeddings, and optimisation of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (best run over 10 training, using _train_ set for training and _testa_ for validation, __90.75__ averaged over these 10 training), as compared to the 90.94 reported in [1]. Best model f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training (best run over 10 training), as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
 
-Using BidLSTM-CRF model with ELMo embeddings, following [4] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.67__ (best model, using _train_ set for training and _testa_ for validation, __92.47__ averaged over 10 training), or __93.09__ (best model, __92.69__ averaged over 10 training) when training with the validation set (as in the paper Peters and al., 2017).
+Using BidLSTM-CRF model with ELMo embeddings, following [4] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.71__ (best model, using _train_ set for training and _testa_ for validation, __92.47__ averaged over 10 training), or __93.09__ (best model, __92.69__ averaged over 10 training) when training with the validation set (as in the paper Peters and al., 2017).
 
 For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` in IOB2 tagging sceheme (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for instance ;) and [here](https://github.com/kermitt2/delft/tree/master/utilities). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
@@ -175,6 +175,24 @@ If the model has been trained also with the validation set (`--train-with-valida
 
     avg / total     0.9158    0.9163    0.9160      5648
 ```
+
+Using ELMo with the best model obtained over 10 training (not using the validation set for training, only for early stop):
+
+```text
+    Evaluation on test set:
+        f1 (micro): 92.71
+                      precision    recall  f1-score   support
+
+                 PER     0.9787    0.9672    0.9729      1617
+                 LOC     0.9368    0.9418    0.9393      1668
+                MISC     0.8237    0.8319    0.8278       702
+                 ORG     0.9072    0.9181    0.9126      1661
+
+    all (micro avg.)     0.9257    0.9285    0.9271      5648
+
+```
+
+Using ELMo and training with the validation set gives a f-score of 93.09 (best model), 92.69 averaged over 10 runs (the best model is provided under `data/models/sequenceLabelling/ner-en-conll2003-BidLSTM_CRF/with_validation_set/`).
 
 For training with all the available data:
 

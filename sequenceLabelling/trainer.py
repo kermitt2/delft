@@ -49,10 +49,10 @@ class Trainer(object):
         
         if self.model_config.use_crf:
             self.model.compile(loss=self.model.crf.loss,
-                           optimizer='nadam')
+                           optimizer='adam')
         else:
             self.model.compile(loss='categorical_crossentropy',
-                           optimizer='nadam')
+                           optimizer='adam')
                            #optimizer=Adam(lr=self.training_config.learning_rate))
         # uncomment to plot graph
         #plot_model(self.model, 
