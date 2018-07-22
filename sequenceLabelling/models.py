@@ -284,6 +284,8 @@ class BidLSTM_CRF_CASING(BaseModel):
     Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
     "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
     https://arxiv.org/abs/1603.01360
+
+    In this architecture some casing features are added, just to see...
     """
 
     def __init__(self, config, ntags=None):

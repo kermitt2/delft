@@ -120,8 +120,8 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train(x_train, y_train, x_valid, y_valid)
-        if self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
+        #if self.embeddings.use_ELMo:
+        #    self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
         if x_valid is not None and y_valid is not None:
@@ -150,8 +150,8 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
-        if self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
+        #if self.embeddings.use_ELMo:
+        #    self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test):
         if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:

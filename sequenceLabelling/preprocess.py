@@ -242,12 +242,10 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Tru
     for i in range(0, len(tokens)):
         local_tokens = []
         for j in range(0, min(len(tokens[i]), maxlen)):
-            word = tokens[i][j]
             if lowercase:
-                word = _lower(word)
-            if num_norm:
-                word = _normalize_num(word)
-            local_tokens.append(word)    
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_only_ELMo(subtokens)
     """
@@ -266,12 +264,10 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
     for i in range(0, len(tokens)):
         local_tokens = []
         for j in range(0, min(len(tokens[i]), maxlen)):
-            word = tokens[i][j]
             if lowercase:
-                word = _lower(word)
-            if num_norm:
-                word = _normalize_num(word)
-            local_tokens.append(word) 
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
