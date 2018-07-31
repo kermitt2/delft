@@ -39,8 +39,15 @@
             "format": "vec", 
             "lang": "fr",
             "item": "word"
+        },
+        {
+            "name": "cc.fr",
+            "path": "/home/lopez/embeddings/cc.fr.300.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "fr",
+            "item": "word"
         }
-
     ],
     "embeddings-contextualized": [
         {

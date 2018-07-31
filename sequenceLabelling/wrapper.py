@@ -1,5 +1,10 @@
 import os
 
+from itertools import islice
+import time
+import json
+import re
+
 import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
@@ -33,6 +38,9 @@ class Sequence(object):
     config_file = 'config.json'
     weight_file = 'model_weights.hdf5'
     preprocessor_file = 'preprocessor.pkl'
+
+    # number of parallel worker for the data generator when not using ELMo
+    nb_workers = 6
 
     def __init__(self, 
                  model_name,
@@ -120,8 +128,8 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train(x_train, y_train, x_valid, y_valid)
-        #if self.embeddings.use_ELMo:
-        #    self.embeddings.clean_ELMo_cache()
+        if self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
         if x_valid is not None and y_valid is not None:
@@ -150,8 +158,8 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
-        #if self.embeddings.use_ELMo:
-        #    self.embeddings.clean_ELMo_cache()
+        if self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test):
         if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:
@@ -232,9 +240,106 @@ class Sequence(object):
         
 
     def tag(self, texts, output_format):
+        # annotate a list of sentences, return the list of annotations in the 
+        # specified output_format
         if self.model:
             tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
-            return tagger.tag(texts, output_format)
+            start_time = time.time()
+            annotations = tagger.tag(texts, output_format)
+            runtime = round(time.time() - start_time, 3)
+            if output_format is 'json':
+                annotations["runtime"] = runtime
+            else:
+                print("runtime: %s seconds " % (runtime))
+            return annotations
+        else:
+            raise (OSError('Could not find a model.'))
+
+
+    def tag_file(self, file_in, output_format, file_out):
+        # Annotate a text file containing one sentence per line, the annotations are
+        # written in the output file if not None, in the standard output otherwise.
+        # Processing is streamed by batches so that we can process huge files without
+        # memory issues
+        if self.model:
+            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
+            start_time = time.time()
+            if file_out is not None:
+                out = open(file_out,'w')
+            first = True
+            with open(file_in, 'r') as f:
+                texts = None
+                while texts is None or len(texts) == self.model_config.batch_size * self.nb_workers:
+
+                  texts = next_n_lines(f, self.model_config.batch_size * self.nb_workers)
+                  annotations = tagger.tag(texts, output_format)
+                  # if the following is true, we just output the JSON returned by the tagger without any modification
+                  directDump = False
+                  if annotations is not None:
+                      if first:
+                          first = False
+                          if len(texts) < self.model_config.batch_size * self.nb_workers:
+                              runtime = round(time.time() - start_time, 3)
+                              annotations['runtime'] = runtime
+                              jsonString = json.dumps(annotations, sort_keys=False, indent=4, ensure_ascii=False)
+                              if file_out is None:
+                                  print(jsonString)
+                              else:
+                                  out.write(jsonString)
+                              directDump = True
+                          else:
+                              # we need to modify a bit the JSON outputted by the tagger to glue the different batches
+                              # output the general information attributes
+                              jsonString = '{\n    "software": ' + json.dumps(annotations["software"], ensure_ascii=False) + ",\n"
+                              jsonString += '    "date": ' + json.dumps(annotations["date"], ensure_ascii=False) + ",\n"
+                              jsonString += '    "model": ' + json.dumps(annotations["model"], ensure_ascii=False) + ",\n"
+                              jsonString += '    "texts": ['
+                              if file_out is None:
+                                  print(jsonString, end='', flush=True)
+                              else:
+                                  out.write(jsonString)
+                              first = True
+                              for jsonStr in annotations["texts"]:
+                                  jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
+                                  #jsonString = jsonString.replace('\n', '\n\t\t')
+                                  jsonString = re.sub('\n', '\n        ', jsonString)
+                                  if file_out is None:
+                                      if not first:
+                                          print(',\n        '+jsonString, end='', flush=True)
+                                      else:
+                                          first = False
+                                          print('\n        '+jsonString, end='', flush=True)
+                                  else:
+                                      if not first:
+                                          out.write(',\n        ')
+                                          out.write(jsonString)
+                                      else:
+                                          first = False
+                                          out.write('\n        ')
+                                          out.write(jsonString)
+                      else:
+                          for jsonStr in annotations["texts"]:
+                              jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
+                              jsonString = re.sub('\n', '\n        ', jsonString)
+                              if file_out is None:
+                                  print(',\n        '+jsonString, end='', flush=True)
+                              else:
+                                  out.write(',\n        ')
+                                  out.write(jsonString)
+            runtime = round(time.time() - start_time, 3)
+            if not directDump: 
+                jsonString = "\n    ],\n"
+                jsonString += '    "runtime": ' + str(runtime)
+                jsonString += "\n}\n"
+                if file_out is None:
+                    print(jsonString)
+                else:
+                    out.write(jsonString) 
+
+            if file_out is not None:
+                out.close()              
+            
+            #print("runtime: %s seconds " % (runtime))
         else:
             raise (OSError('Could not find a model.'))
 
@@ -267,3 +372,6 @@ class Sequence(object):
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+
+def next_n_lines(file_opened, N):
+    return [x.strip() for x in islice(file_opened, N)]

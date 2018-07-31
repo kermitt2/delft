@@ -129,6 +129,76 @@ def translate(comment):
 
     return str(text)
 
+# produce some statistics
+def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None):
+    charset = []
+    nb_total_sequences = 0
+    nb_total_tokens = 0
+    if x_train is not None:
+        print(len(x_train), 'train sequences')
+        nb_total_sequences += len(x_train)
+        nb_tokens = 0
+        for sentence in x_train:
+            nb_tokens += len(sentence)
+            for token in sentence:
+                for character in token:
+                    if not character in charset:
+                        charset.append(character)
+        print("\t","nb. tokens", nb_tokens)
+        nb_total_tokens += nb_tokens
+    if y_train is not None:
+        nb_entities = 0
+        for labels in y_train:
+            for label in labels:
+                if label != 'O':
+                    nb_entities += 1
+        print("\t","with nb. entities", nb_entities)
+    if x_valid is not None:
+        print(len(x_valid), 'validation sequences')
+        nb_total_sequences += len(x_valid)
+        nb_tokens = 0
+        for sentence in x_valid:
+            nb_tokens += len(sentence)
+            for token in sentence:
+                for character in token:
+                    if not character in charset:
+                        charset.append(character)
+        print("\t","nb. tokens", nb_tokens)
+        nb_total_tokens += nb_tokens
+    if y_valid is not None:
+        nb_entities = 0
+        for labels in y_valid:
+            for label in labels:
+                if label != 'O':
+                    nb_entities += 1
+        print("\t","with nb. entities", nb_entities)
+    if x_eval is not None:
+        print(len(x_eval), 'evaluation sequences')
+        nb_total_sequences += len(x_eval)
+        nb_tokens = 0
+        for sentence in x_eval:
+            nb_tokens += len(sentence)
+            for token in sentence:
+                for character in token:
+                    if not character in charset:
+                        charset.append(character)
+        print("\t","nb. tokens", nb_tokens)
+        nb_total_tokens += nb_tokens
+    if y_eval is not None:
+        nb_entities = 0
+        for labels in y_eval:
+            for label in labels:
+                if label != 'O':
+                    nb_entities += 1
+        print("\t","with nb. entities", nb_entities)
+
+    print("\n")
+    print(nb_total_sequences, "total sequences")
+    print(nb_total_tokens, "total tokens\n")
+
+    print("total distinct characters:", len(charset), "\n")
+    #print(charset)
+
 
 # generate the list of out of vocabulary words present in the Toxic dataset 
 # with respect to 3 embeddings: fastText, Gloves and word2vec

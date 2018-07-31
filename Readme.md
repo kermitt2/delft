@@ -20,7 +20,7 @@ From the observation that most of the open source implementations using Keras ar
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models to a production stack such as Java/Scala and C++.
 
-DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7+ as backend. At this stage, we do not guarantee that DeLFT will run with other different versions of these libraries or other Keras backend versions. As always, GPU(s) are required for decent training time (GeForce GTX 1050Ti for instance is OK).
+DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7+ as backend. At this stage, we do not guarantee that DeLFT will run with other different versions of these libraries or other Keras backend versions. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely OK without ELMo contextual embeddings. Using ELMo was fine with a GeForce GTX 1080 Ti.
 
 ## Install
 
@@ -117,7 +117,43 @@ Note that all our annotation data for sequence labelling follows the [IOB2](http
 
 #### NER
 
-Different datasets and languages are supported. They can be specified by the command line parameters.
+Different datasets and languages are supported. They can be specified by the command line parameters. The general usage of the CLI is as follow: 
+
+```
+usage: nerTagger.py [-h] [--fold-count FOLD_COUNT] [--lang LANG]
+                    [--dataset-type DATASET_TYPE]
+                    [--train-with-validation-set]
+                    [--architecture ARCHITECTURE] [--use-ELMo]
+                    [--data-path DATA_PATH] [--file-in FILE_IN]
+                    [--file-out FILE_OUT]
+                    action
+
+Neural Named Entity Recognizers
+
+positional arguments:
+  action                one of [train, train_eval, eval, tag]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --fold-count FOLD_COUNT
+                        number of folds or re-runs to be used when training
+  --lang LANG           language of the model as ISO 639-1 code
+  --dataset-type DATASET_TYPE
+                        dataset to be used for training the model
+  --train-with-validation-set
+                        Use the validation set for training together with the
+                        training set
+  --architecture ARCHITECTURE
+                        type of model architecture to be used, one of
+                        [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-
+                        CRF]
+  --use-ELMo            Use ELMo contextual embeddings
+  --data-path DATA_PATH
+                        path to the corpus of documents for training (only use
+                        currently with Ontonotes corpus in orginal XML format)
+  --file-in FILE_IN     path to a text file to annotate
+  --file-out FILE_OUT   path for outputting the resulting JSON NER anotations
+```
 
 ##### CONLL 2003
 
@@ -202,11 +238,13 @@ To take into account the strong impact of random seed, you need to train multipl
 
 > python3 nerTagger.py --dataset-type conll2003 --fold-count 10 train_eval
 
-After training a model, for tagging some text, use the command:
+After training a model, for tagging some text, for instance in a file `data/test/test.ner.en.txt` (), use the command:
 
-> python3 nerTagger.py --dataset-type conll2003 tag
+> python3 nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt tag
 
-which produces a JSON output with entities, scores and character offsets like this:
+Note that, currently, the input text file must contain one sentence per line, so the text must be presegmented into sentences. To obtain the JSON annotations in a text file instead than in the standard output, use the parameter `--file-out`. Predictions work at around 7400 tokens per second for the BidLSTM_CRF architecture with a GeForce GTX 1080 Ti. 
+
+This produces a JSON output with entities, scores and character offsets like this:
 
 ```json
 {
@@ -260,7 +298,7 @@ which produces a JSON output with entities, scores and character offsets like th
 
 If you have trained the model with ELMo, you need to indicate to use ELMo-based model when annotating with the parameter `--use-ELMo` (note that the runtime impact is important as compared to traditional embeddings): 
 
-> python3 nerTagger.py --dataset-type conll2003 --use-ELMo tag
+> python3 nerTagger.py --dataset-type conll2003 --use-ELMo --file-in data/test/test.ner.en.txt tag
 
 ##### Ontonotes 5.0 CONLL 2012
 
@@ -342,7 +380,7 @@ For training with all the dataset without evaluation:
 
 and for annotating some examples:
 
-> python3 nerTagger.py --lang fr tag
+> python3 nerTagger.py --lang fr --file-in data/test/test.ner.fr.txt tag
 
 ```json
 {
@@ -549,7 +587,7 @@ All the following models includes Dropout, Pooling and Dense layers with hyperpa
 * `mix1`: one layer Bidirectional GRU followed by a Bidirectional LSTM
 * `dpcnn`: Deep Pyramid Convolutional Neural Networks (but not working as expected - to be reviewed)
 
-Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
+Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 Ti with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
 
 ### Examples
 
@@ -721,6 +759,10 @@ __Models__:
 * Test Theano as alternative backend (waiting for Apache MXNet...)
 
 * augment word vectors with features, in particular layout features generated by GROBID
+
+* Review/rewrite the current Linear Chain CRF layer that we are using, this Keras CRF implementation is: 
+- a runtime bottleneck, we could try to use Cython for improving runtime
+- the viterbi decoding is incomplete, it does not outputing final decoded label scores and it can't output n-best 
 
 __NER__:
 

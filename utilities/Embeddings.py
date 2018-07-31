@@ -61,7 +61,7 @@ class Embeddings(object):
             if description:
                 self.embedding_ELMo_cache = os.path.join(description["path-dump"], "cache")
                 # clean possible remaining cache
-                #self.clean_ELMo_cache()
+                self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
                 self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
@@ -91,6 +91,7 @@ class Embeddings(object):
                 hasHeader = False
             with open(embeddings_path) as f:
                 for line in f:
+                    line = line.strip()
                     line = line.split(' ')
                     if begin:
                         if hasHeader:
@@ -102,10 +103,10 @@ class Embeddings(object):
                         else:
                             begin = False
                     word = line[0]
-                    if embeddings_type == 'glove':
-                        vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
-                    else:
-                        vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                    #if embeddings_type == 'glove':
+                    vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    #else:
+                    #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
                     if self.embed_size == 0:
                         self.embed_size = len(vector)
                     self.model[word] = vector
