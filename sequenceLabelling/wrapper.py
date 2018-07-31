@@ -275,57 +275,57 @@ class Sequence(object):
                   annotations = tagger.tag(texts, output_format)
                   # if the following is true, we just output the JSON returned by the tagger without any modification
                   directDump = False
-                  if annotations is not None:
-                      if first:
-                          first = False
-                          if len(texts) < self.model_config.batch_size * self.nb_workers:
-                              runtime = round(time.time() - start_time, 3)
-                              annotations['runtime'] = runtime
-                              jsonString = json.dumps(annotations, sort_keys=False, indent=4, ensure_ascii=False)
-                              if file_out is None:
-                                  print(jsonString)
-                              else:
-                                  out.write(jsonString)
-                              directDump = True
+                  if first:
+                      first = False
+                      if len(texts) < self.model_config.batch_size * self.nb_workers:
+                          runtime = round(time.time() - start_time, 3)
+                          annotations['runtime'] = runtime
+                          jsonString = json.dumps(annotations, sort_keys=False, indent=4, ensure_ascii=False)
+                          if file_out is None:
+                              print(jsonString)
                           else:
-                              # we need to modify a bit the JSON outputted by the tagger to glue the different batches
-                              # output the general information attributes
-                              jsonString = '{\n    "software": ' + json.dumps(annotations["software"], ensure_ascii=False) + ",\n"
-                              jsonString += '    "date": ' + json.dumps(annotations["date"], ensure_ascii=False) + ",\n"
-                              jsonString += '    "model": ' + json.dumps(annotations["model"], ensure_ascii=False) + ",\n"
-                              jsonString += '    "texts": ['
-                              if file_out is None:
-                                  print(jsonString, end='', flush=True)
-                              else:
-                                  out.write(jsonString)
-                              first = True
-                              for jsonStr in annotations["texts"]:
-                                  jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
-                                  #jsonString = jsonString.replace('\n', '\n\t\t')
-                                  jsonString = re.sub('\n', '\n        ', jsonString)
-                                  if file_out is None:
-                                      if not first:
-                                          print(',\n        '+jsonString, end='', flush=True)
-                                      else:
-                                          first = False
-                                          print('\n        '+jsonString, end='', flush=True)
-                                  else:
-                                      if not first:
-                                          out.write(',\n        ')
-                                          out.write(jsonString)
-                                      else:
-                                          first = False
-                                          out.write('\n        ')
-                                          out.write(jsonString)
+                              out.write(jsonString)
+                          directDump = True
                       else:
+                          # we need to modify a bit the JSON outputted by the tagger to glue the different batches
+                          # output the general information attributes
+                          jsonString = '{\n    "software": ' + json.dumps(annotations["software"], ensure_ascii=False) + ",\n"
+                          jsonString += '    "date": ' + json.dumps(annotations["date"], ensure_ascii=False) + ",\n"
+                          jsonString += '    "model": ' + json.dumps(annotations["model"], ensure_ascii=False) + ",\n"
+                          jsonString += '    "texts": ['
+                          if file_out is None:
+                              print(jsonString, end='', flush=True)
+                          else:
+                              out.write(jsonString)
+                          first = True
                           for jsonStr in annotations["texts"]:
                               jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
+                              #jsonString = jsonString.replace('\n', '\n\t\t')
                               jsonString = re.sub('\n', '\n        ', jsonString)
                               if file_out is None:
-                                  print(',\n        '+jsonString, end='', flush=True)
+                                  if not first:
+                                      print(',\n        '+jsonString, end='', flush=True)
+                                  else:
+                                      first = False
+                                      print('\n        '+jsonString, end='', flush=True)
                               else:
-                                  out.write(',\n        ')
-                                  out.write(jsonString)
+                                  if not first:
+                                      out.write(',\n        ')
+                                      out.write(jsonString)
+                                  else:
+                                      first = False
+                                      out.write('\n        ')
+                                      out.write(jsonString)
+                  else:
+                      for jsonStr in annotations["texts"]:
+                          jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
+                          jsonString = re.sub('\n', '\n        ', jsonString)
+                          if file_out is None:
+                              print(',\n        '+jsonString, end='', flush=True)
+                          else:
+                              out.write(',\n        ')
+                              out.write(jsonString)
+
             runtime = round(time.time() - start_time, 3)
             if not directDump: 
                 jsonString = "\n    ],\n"
