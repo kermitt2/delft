@@ -12,3 +12,5 @@ h5py==2.7.1
 unidecode==1.0.22
 pydot==1.2.4
 lmdb==0.94
+Cython==0.28.5
+pyfasttext==0.4.5
