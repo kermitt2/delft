@@ -16,7 +16,7 @@ import tensorflow as tf
 import keras.backend as K
 
 # for fasttext binary embeddings
-from pyfasttext import FastText
+#from pyfasttext import FastText
 
 # for ELMo embeddings
 from utilities.bilm.data import Batcher, TokenBatcher
@@ -92,9 +92,12 @@ class Embeddings(object):
             self.lang = description["lang"]
             print("path:", embeddings_path)
             if self.extension == 'bin':
+                '''
                 self.model = FastText(embeddings_path)
                 nbWords = self.model.nwords
                 self.embed_size = 300
+                '''
+                print("FastText bin format not supported for the moment")
             else:
                 if embeddings_type == "glove":
                     hasHeader = False
@@ -204,8 +207,11 @@ class Embeddings(object):
             print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
             self.make_embeddings_simple_in_memory(name, hasHeader)
         elif self.extension == "bin":
+            print("FastText bin format not supported for the moment")
+            '''
             print("embedding is of format .bin, so it will be loaded in memory...")
             self.make_embeddings_simple_in_memory(name, hasHeader)
+            '''
         else:    
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
@@ -462,7 +468,7 @@ class Embeddings(object):
         """
             Get static embeddings (e.g. glove) for a given token
         """
-        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+        if (self.name == 'wiki.fr'): # or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
             word = word.lower()
         if self.env is None:
@@ -564,8 +570,10 @@ class Embeddings(object):
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
             word = word.lower()
+        '''
         if self.extension == 'bin':
             return self.model.get_numpy_vector(word)
+        '''    
         if word in self.model:
             return self.model[word]
         else:
