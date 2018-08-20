@@ -306,45 +306,42 @@ If you have trained the model with ELMo, you need to indicate to use ELMo-based 
 
 DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset.
 
-With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __86.51__ when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__.
+With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __87.01__ (best run over 10 trainings, 86.65 averaged over these 10 trainings) when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__.
 
 For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
 > python3 nerTagger.py --dataset-type conll2012 train_eval
 
 ```text
-  training runtime: 28102.269 seconds 
+Evaluation on test set:
+	f1 (micro): 87.01
+                  precision    recall  f1-score   support
 
-  Evaluation on test set:
-    f1 (micro): 86.51
-                    precision    recall  f1-score   support
+            DATE     0.8029    0.8695    0.8349      1602
+        CARDINAL     0.8130    0.8139    0.8135       935
+          PERSON     0.9061    0.9371    0.9214      1988
+             GPE     0.9617    0.9411    0.9513      2240
+             ORG     0.8799    0.8568    0.8682      1795
+           MONEY     0.8903    0.8790    0.8846       314
+            NORP     0.9226    0.9501    0.9361       841
+         ORDINAL     0.7873    0.8923    0.8365       195
+            TIME     0.5772    0.6698    0.6201       212
+     WORK_OF_ART     0.6000    0.5060    0.5490       166
+             LOC     0.7340    0.7709    0.7520       179
+           EVENT     0.5000    0.5556    0.5263        63
+         PRODUCT     0.6528    0.6184    0.6351        76
+         PERCENT     0.8717    0.8567    0.8642       349
+        QUANTITY     0.7155    0.7905    0.7511       105
+             FAC     0.7167    0.6370    0.6745       135
+        LANGUAGE     0.8462    0.5000    0.6286        22
+             LAW     0.7308    0.4750    0.5758        40
 
-          LANGUAGE     0.7500    0.5455    0.6316        22
-               LAW     0.5556    0.5000    0.5263        40
-               ORG     0.8515    0.8657    0.8586      1795
-       WORK_OF_ART     0.5714    0.5783    0.5749       166
-            PERSON     0.9060    0.9311    0.9184      1988
-              NORP     0.8875    0.9001    0.8937       841
-           ORDINAL     0.7763    0.9077    0.8369       195
-              DATE     0.8136    0.8608    0.8365      1602
-           PERCENT     0.8944    0.8739    0.8841       349
-             EVENT     0.5312    0.5397    0.5354        63
-               GPE     0.9601    0.9250    0.9422      2240
-               FAC     0.7634    0.5259    0.6228       135
-          QUANTITY     0.7456    0.8095    0.7763       105
-           PRODUCT     0.6447    0.6447    0.6447        76
-               LOC     0.7354    0.7765    0.7554       179
-             MONEY     0.9082    0.9140    0.9111       314
-              TIME     0.5893    0.6226    0.6055       212
-          CARDINAL     0.8339    0.8107    0.8221       935
-
-  all (micro avg.)     0.8616    0.8686    0.8651     11257
+all (micro avg.)     0.8647    0.8755    0.8701     11257
 ```
 
 For ten model training with average, worst and best model:
 
 > python3 nerTagger.py --dataset-type conll2012 --fold-count 10 train_eval
-
 
 ##### French model (based on Le Monde corpus)
 
