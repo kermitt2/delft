@@ -87,7 +87,13 @@ For instance, in a traditional approach `glove-840B` takes around 2 minutes to l
 
 By default, the LMDB databases are stored under the subdirectory `data/db`. The size of a database is roughly equivalent to the size of the original uncompressed embeddings file. To modify this path, edit the file `embedding-registry.json` and change the value of the attribute `embedding-lmdb-path`.
 
-While FastText .bin format are supported by DeLFT (including using ngrams for OOV words), this format will be loaded entirely in memory and does not take advantage of our memory-efficient management of embeddings. 
+To get FastText .bin format support please uncomment the package `fasttextmirror==0.8.22` in `requirements.txt` or `requirements-gpu.txt` according to your system's configuration. Please note that the **.bin format is not supported on Windows platforms**. Installing the FastText .bin format support introduces the following additional dependencies:
+
+* (gcc-4.8 or newer) or (clang-3.3 or newer)
+* [Python](https://www.python.org/) version 2.7 or >=3.4
+* [pybind11](https://github.com/pybind/pybind11)
+
+While FastText .bin format are supported by DeLFT (including using ngrams for OOV words), this format will be loaded entirely in memory and does not take advantage of our memory-efficient management of embeddings.
 
 > I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management !
 
