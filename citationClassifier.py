@@ -85,8 +85,8 @@ if __name__ == "__main__":
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        else:
-            y_test = train_and_eval(embeddings_name, args.fold_count)    
+        
+        y_test = train_and_eval(embeddings_name, args.fold_count)    
 
     if args.action == 'classify':
         someTexts = ['One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.', 
