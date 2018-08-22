@@ -16,7 +16,11 @@ import tensorflow as tf
 import keras.backend as K
 
 # for fasttext binary embeddings
-#from pyfasttext import FastText
+fasttext_support = True
+try:
+    import fastText
+except ImportError as e:
+    fasttext_support = False
 
 # for ELMo embeddings
 from utilities.bilm.data import Batcher, TokenBatcher
@@ -92,12 +96,9 @@ class Embeddings(object):
             self.lang = description["lang"]
             print("path:", embeddings_path)
             if self.extension == 'bin':
-                '''
-                self.model = FastText(embeddings_path)
-                nbWords = self.model.nwords
-                self.embed_size = 300
-                '''
-                print("FastText bin format not supported for the moment")
+                self.model = fastText.load_model(embeddings_path)
+                nbWords = len(self.model.get_words())
+                self.embed_size = self.model.get_dimension()
             else:
                 if embeddings_type == "glove":
                     hasHeader = False
@@ -203,15 +204,19 @@ class Embeddings(object):
         if description is not None:
             self.extension = description["format"]
 
-        if self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
+        if self.extension == "bin":
+            if fasttext_support == True:
+                print("embeddings are of .bin format, so they will be loaded in memory...")
+                self.make_embeddings_simple_in_memory(name, hasHeader)
+            else:
+                if not (sys.platform == 'linux' or sys.platform == 'darwin'):
+                    raise ValueError('FastText .bin format not supported for your platform')
+                else:
+                    raise ValueError('Go to the documentation to get more information on how to install FastText .bin support')
+
+        elif self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
             print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
             self.make_embeddings_simple_in_memory(name, hasHeader)
-        elif self.extension == "bin":
-            print("FastText bin format not supported for the moment")
-            '''
-            print("embedding is of format .bin, so it will be loaded in memory...")
-            self.make_embeddings_simple_in_memory(name, hasHeader)
-            '''
         else:    
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
@@ -468,11 +473,11 @@ class Embeddings(object):
         """
             Get static embeddings (e.g. glove) for a given token
         """
-        if (self.name == 'wiki.fr'): # or (self.name == 'wiki.fr.bin'):
+        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
             word = word.lower()
-        if self.env is None:
-            # db not available, the embeddings should be available in memory (normally!)
+        if self.env is None or self.extension == 'bin':
+            # db not available or embeddings in bin format, the embeddings should be available in memory (normally!)
             return self.get_word_vector_in_memory(word)
         try:    
             with self.env.begin() as txn:
@@ -570,10 +575,8 @@ class Embeddings(object):
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
             word = word.lower()
-        '''
         if self.extension == 'bin':
-            return self.model.get_numpy_vector(word)
-        '''    
+            return self.model.get_word_vector(word)
         if word in self.model:
             return self.model[word]
         else:
