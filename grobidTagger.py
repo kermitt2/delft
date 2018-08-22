@@ -107,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("model")
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF, BidLSTM_CNN_CRF)")
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF or BidLSTM_CNN_CRF)")
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     args = parser.parse_args()
