@@ -398,8 +398,8 @@ if __name__ == "__main__":
     train_with_validation_set = args.train_with_validation_set
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF]')
+    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU-CRF'):
+        print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU-CRF]')
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
