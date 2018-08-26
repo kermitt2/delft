@@ -400,8 +400,32 @@ class Embeddings(object):
         """
 
         # Create batches of data
+        
+
+        #print("\ntoken_list:", token_list)
         local_token_ids = self.batcher.batch_sentences(token_list)
+        #print("local_token_ids:", local_token_ids)
         max_size_sentence = local_token_ids[0].shape[0]
+
+        '''
+        i = 0
+        j = 1 # <s>
+        k = 1 # start of word
+        for sentence in token_list:
+            print('\nsentence:', sentence)
+            #print('local_token_ids[i]:', local_token_ids[i])
+            for token in sentence:
+                print('\ntoken:', token)
+                print('local_token_ids[i,j]:', local_token_ids[i,j])
+                for character in token:
+                    print(character, ":", local_token_ids[i][j][k])
+                    k += 1
+                k = 1
+                j += 1
+            j = 1 
+            i += 1
+        '''
+        
         # check lmdb cache
         elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
         if elmo_result is None:

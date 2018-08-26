@@ -417,6 +417,7 @@ def convert_conll2012_to_iob2(pathin, pathout):
     pbar = tqdm(total=nb_total_files)
     for subdir, dirs, files in os.walk(pathin):
         for file in files:
+            # pt subdirectory corresponds to the old and new testaments, it does not contain NER annotation, so it is traditionally ignored
             #if '/english/' in subdir and (file.endswith('gold_conll') or ('/test/' in subdir and file.endswith('gold_parse_conll'))) and not '/pt/' in subdir:
             if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir and not '/test/' in subdir:
                 
@@ -464,12 +465,21 @@ def convert_conll2012_to_iob2(pathin, pathout):
                             # some punctuation are prefixed by / (e.g. /. or /? for dialogue turn apparently)
                             if word.startswith("/") and len(word) > 1:
                                 word = word[1:]
-                            # in dialogue texts, interjections are maked with a prefix %, e.g. #um, #eh, we remove this prefix
+                            # in dialogue texts, interjections are maked with a prefix %, e.g. %uh, %eh, we remove this prefix
                             if word.startswith("%") and len(word) > 1:
                                 word = word[1:]
                             # there are '='' prefixes to some words, although I don't know what it is used for, we remove it
                             if word.startswith("=") and len(word) > 1:
                                 word = word[1:]
+                            # we have some markers like -LRB- left bracket, -RRB- right bracket
+                            if word == '-LRB-':
+                                word = '('
+                            if word == '-RRB-':
+                                word = ')'
+                            # some tokens are identifier in the form 165.00_177.54_B:, 114.86_118.28_A:, and so on, always _A or _B as suffix
+                            # it's very unclear why it is in the plain text but clearly noise
+                            #regex_str = "\d\d\d\.\d\d_\d\d\d\.\d\d_(A|B)"
+
                             tag = pieces[10]
                             if tag.startswith('('):
                                 if tag.endswith(')'):
