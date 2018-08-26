@@ -1,4 +1,3 @@
-import os
 import json
 from utilities.Embeddings import Embeddings
 from utilities.Utilities import split_data_and_labels
@@ -58,7 +57,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     action = args.action    
-    if (action != 'train') and (action != 'classify') and (action != 'test'):
+    if action not in ('train', 'classify', 'test'):
         print('action not specifed, must be one of [train,test,classify]')
 
     # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
@@ -70,8 +69,8 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        else:
-            train(embeddings_name, args.fold_count)
+
+        train(embeddings_name, args.fold_count)
 
     if action == 'test':
         y_test = test()    
@@ -86,5 +85,5 @@ if __name__ == "__main__":
         result = classify(someTexts, "json")
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
-    # see https://github.com/tensorflow/tensorflow/issues/3388
+    # See https://github.com/tensorflow/tensorflow/issues/3388
     K.clear_session()

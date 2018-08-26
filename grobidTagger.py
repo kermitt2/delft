@@ -1,4 +1,3 @@
-import os
 import json
 import numpy as np
 from utilities.Embeddings import Embeddings
@@ -108,7 +107,7 @@ if __name__ == "__main__":
     parser.add_argument("model")
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF, BidLSTM_CNN_CRF or BidLSTM_CNN_CRF)")
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used (BidLSTM_CRF or BidLSTM_CNN_CRF)")
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     args = parser.parse_args()
@@ -123,8 +122,8 @@ if __name__ == "__main__":
     
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if (architecture != 'BidLSTM_CRF') and (architecture != 'BidLSTM_CNN_CRF') and (architecture != 'BidLSTM_CNN_CRF'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF,BidLSTM_CNN_CRF]')
+    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF'):
+        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF]')
 
     # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
     # embedding-registry.json

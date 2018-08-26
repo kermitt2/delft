@@ -56,22 +56,21 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
 
     args = parser.parse_args()
-    
-    action = args.action    
-    if (action != 'train') and (action != 'tag'):
+     
+    if args.action not in ('train', 'tag'):
         print('action not specifed, must be one of [train,tag]')
 
-    # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
+    # Change below for the desired pre-trained word embeddings using their descriptions in the file 
     # embedding-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
     #embeddings_name = "glove-840B"
     embeddings_name = "fasttext-crawl"
 
-    if action == 'train':
+    if args.action == 'train':
         train(embeddings_name)
 
-    if action == 'tag':
+    if args.action == 'tag':
         someTexts = ['This is a gentle test.', 
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
                      'This is a fucking test.']

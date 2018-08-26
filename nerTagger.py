@@ -391,15 +391,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     action = args.action    
-    if (action != 'train') and (action != 'tag') and (action != 'eval') and (action != 'train_eval'):
+    if action not in ('train', 'tag', 'eval', 'train_eval'):
         print('action not specifed, must be one of [train, train_eval, eval, tag]')
     lang = args.lang
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if (architecture != 'BidLSTM_CRF') and (architecture != 'BidLSTM_CNN_CRF') and (architecture != 'BidLSTM_CNN_CRF'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF,BidLSTM_CNN_CRF]')
+    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF'):
+        print('unknown model architecture, must be one of [BidLSTM_CRF,BidLSTM_CNN_CRF]')
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
