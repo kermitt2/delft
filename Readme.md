@@ -144,7 +144,7 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 | BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
 
 
-* reported f-score using Senna word embeddings and not Glove.
+_*_ reported f-score using Senna word embeddings and not Glove.
 
 ** f-score is averaged over _5_ training runs. 
 
