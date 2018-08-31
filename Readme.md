@@ -131,19 +131,19 @@ We have reimplemented in DeLFT the main neural architectures for NER of the last
 
 All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We report first the f-score averaged over 10 training runs, and second the best f-score over these 10 training runs. All the DeLFT trained models are included in this repository. 
 
-| Architecture  | Implementation | Glove only | Glove + dev. set | ELMo + Glove | ELMo + Glove + dev. set |
+| Architecture  | Implementation | Glove only | Glove + valid. set | ELMo + Glove | ELMo + Glove + valid. set |
 | --- | --- | --- | --- | --- | --- |
-| BidLSTM-CRF   | DeLFT | 90.75 / 91.35  | 91.13 / 91.60 | 92.47 / 92.71| 92.69 / 93.09 | 
+| BidLSTM-CRF   | DeLFT | __90.75__ / __91.35__  | 91.13 / 91.60 | __92.47__ / __92.71__ | __92.69__ / __93.09__ | 
 |               | (Lample and al., 2016)| - / 90.94 |      |              |               | 
 | BidLSTM-CNN-CRF | DeLFT | 90.73 / 91.07| 91.01 / 91.26 | 92.30 / 92.57| 92.67 / 93.04 |
 |               | (Ma & Hovy, 2016) |  - / 91.21  | | | |
 |               | (Peters & al. 2017) |  | |  | 91.93 / - |
 |               | (Peters & al. 2018) |  | | 92.22 / - | |
 | BidLSTM-CNN   | DeLFT | 89.23 / 89.47  | 89.35 / 89.87 | 91.66 / 92.00 | 92.01 / 92.16 |
-|               | (Chiu & Nichols, 2016)|| 91.41* / - | | |
+|               | (Chiu & Nichols, 2016)|| __91.41*__ / - | | |
 | BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
 
-* f-score 91.62 with Collobert 50d embeddings (averaged over 10 runs)
+* f-score 91.62 with Collobert 50d embeddings (averaged over 10 runs), and include lexical features (DeLFT implementation of the same architecture includes only the casing features).
 
 ##### Command Line Interface
 
