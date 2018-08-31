@@ -131,7 +131,7 @@ We have reimplemented in DeLFT the main neural architectures for NER of the last
 
 All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We report first the f-score averaged over 10 training runs, and second the best f-score over these 10 training runs. All the DeLFT trained models are included in this repository. 
 
-| Architecture  | Implementation | Glove only | Glove + valid. set | ELMo + Glove | ELMo + Glove + valid. set |
+| Architecture  | Implementation | Glove only (avg/best)| Glove + valid. set (avg/best)| ELMo + Glove (avg/best)| ELMo + Glove + valid. set (avg/best)|
 | --- | --- | --- | --- | --- | --- |
 | BidLSTM-CRF   | DeLFT | __90.75__ / __91.35__  | 91.13 / 91.60 | __92.47__ / __92.71__ | __92.69__ / __93.09__ | 
 |               | [(Lample and al., 2016)](https://arxiv.org/abs/1603.01360) | - / 90.94 |      |              |               | 
