@@ -125,6 +125,28 @@ Note that all our annotation data for sequence labelling follows the [IOB2](http
 
 #### NER
 
+##### Overview
+
+We have reimplemented in DeLFT the main neural architectures for NER of the last two years and performed a reproducibility analysis of the these systems with comparable evaluation criterias. Unfortunaltely, in publications, systems are usually compared directly with reported results obtained in different settings, which can biase scores by more than 1.0 points and completely invalidate both comparison and interpretation of results.  
+
+All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We report first the f-score averaged over 10 training runs, and second the best f-score over these 10 training runs. All the DeLFT trained models are included in this repository. 
+
+| Architecture  | Implementation | Glove only | Glove + dev. set | ELMo + Glove | ELMo + Glove + dev. set |
+| --- | --- | --- | --- | --- | --- |
+| BidLSTM-CRF   | DeLFT | 90.75 / 91.35  | 91.13 / 91.60 | 92.47 / 92.71| 92.69 / 93.09 | 
+|               | (Lample and al., 2016)| - / 90.94 |      |              |               | 
+| BidLSTM-CNN-CRF | DeLFT | 90.73 / 91.07| 91.01 / 91.26 | 92.30 / 92.57| 92.67 / 93.04 |
+|               | (Ma & Hovy, 2016) |  - / 91.21  | | | |
+|               | (Peters & al. 2017) |  | |  | 91.93 / - |
+|               | (Peters & al. 2018) |  | | 92.22 / - | |
+| BidLSTM-CNN   | DeLFT | 89.23 / 89.47  | 89.35 / 89.87 | 91.66 / 92.00 | 92.01 / 92.16 |
+|               | (Chiu & Nichols, 2016)|| 91.41* / - | | |
+| BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
+
+* f-score 91.62 with Collobert 50d embeddings (averaged over 10 runs)
+
+##### Command Line Interface
+
 Different datasets and languages are supported. They can be specified by the command line parameters. The general usage of the CLI is as follow: 
 
 ```
@@ -162,6 +184,8 @@ optional arguments:
   --file-in FILE_IN     path to a text file to annotate
   --file-out FILE_OUT   path for outputting the resulting JSON NER anotations
 ```
+
+More explanations and examples are presented in the following sections. 
 
 ##### CONLL 2003
 
