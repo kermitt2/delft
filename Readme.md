@@ -127,7 +127,7 @@ Note that all our annotation data for sequence labelling follows the [IOB2](http
 
 ##### Overview
 
-We have reimplemented in DeLFT the main neural architectures for NER of the last two years and performed a reproducibility analysis of the these systems with comparable evaluation criterias. Unfortunaltely, in publications, systems are usually compared directly with reported results obtained in different settings, which can biase scores by more than 1.0 points and completely invalidate both comparison and interpretation of results.  
+We have reimplemented in DeLFT the main neural architectures for NER of the last two years and performed a reproducibility analysis of the these systems with comparable evaluation criterias. Unfortunaltely, in publications, systems are usually compared directly with reported results obtained in different settings, which can bias scores by more than 1.0 points and completely invalidate both comparison and interpretation of results.  
 
 All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We report first the f-score averaged over 10 training runs, and second the best f-score over these 10 training runs. All the DeLFT trained models are included in this repository. 
 
@@ -235,7 +235,7 @@ For evaluating against CoNLL 2003 testb set with the existing model:
 
 ```
 
-If the model has been trained also with the validation set (`--train-with-validation-set`), similarly to (Chiu & Nichols, 2016) or (Peters and al., 2018), results are significantly better:
+If the model has been trained also with the validation set (`--train-with-validation-set`), similarly to (Chiu & Nichols, 2016) or (Peters and al., 2017), results are significantly better:
 
 ```text
     Evaluation on test set:
