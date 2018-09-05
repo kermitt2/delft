@@ -370,8 +370,12 @@ def annotate(output_format,
         print("dataset/language combination is not supported:", dataset_type, lang)
         return 
 
-    model.tag_file(file_in=file_in, output_format=output_format, file_out=file_out)
+    start_time = time.time()
 
+    model.tag_file(file_in=file_in, output_format=output_format, file_out=file_out)
+    runtime = round(time.time() - start_time, 3)
+
+    print("runtime: %s seconds " % (runtime))
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -398,8 +402,8 @@ if __name__ == "__main__":
     train_with_validation_set = args.train_with_validation_set
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU-CRF'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU-CRF]')
+    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF'):
+        print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU_CRF]')
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
