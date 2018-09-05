@@ -143,7 +143,7 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 |               | [(Ma & Hovy, 2016)](https://arxiv.org/abs/1603.01354) |  - / 91.21  | | | |
 |               | [(Peters & al. 2018)](https://arxiv.org/abs/1802.05365) |  | | 92.22** / - | |
 | BidLSTM-CNN   | DeLFT | 89.23 / 89.47  | 89.35 / 89.87 | 91.66 / 92.00 | 92.01 / 92.16 |
-|               | [(Chiu & Nichols, 2016)](https://arxiv.org/abs/1511.08308) || __91.41***__ / - | | |
+|               | [(Chiu & Nichols, 2016)](https://arxiv.org/abs/1511.08308) || __90.91***__ / - | | |
 | BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
 |               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
 
@@ -153,7 +153,7 @@ _*_ reported f-score using Senna word embeddings and not Glove.
 
 ** f-score is averaged over _5_ training runs. 
 
-*** f-score is __91.62__ with Senna word embeddings (Collobert 50d) embeddings (averaged over 10 runs) and including lexical features (DeLFT implementation of the same architecture includes only the casing features).
+*** reported f-score with Senna word embeddings (Collobert 50d) averaged over 10 runs, including case features and not including lexical features. DeLFT implementation of the same architecture includes the capitalization features too, but uses the more efficient GloVe 300d embeddings.
 
 
 ##### Command Line Interface
