@@ -151,7 +151,7 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 
 _*_ reported f-score using Senna word embeddings and not Glove.
 
-** f-score is averaged over _5_ training runs. 
+** f-score is averaged over 5 training runs. 
 
 *** reported f-score with Senna word embeddings (Collobert 50d) averaged over 10 runs, including case features and not including lexical features. DeLFT implementation of the same architecture includes the capitalization features too, but uses the more efficient GloVe 300d embeddings.
 
