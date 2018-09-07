@@ -10,6 +10,7 @@ pattern = re.compile('('+regex+')')
 
 blanks = ' \t\n'
 
+
 def tokenizeAndFilter(text):
     """
     Tokenization following the above pattern with offset information
@@ -33,6 +34,7 @@ def tokenizeAndFilter(text):
         i += 1
     return finalTokens, finalOffsets
 
+
 def tokenizeAndFilterSimple(text):
     """
     Tokenization following the above pattern without offset information
@@ -47,8 +49,9 @@ def tokenizeAndFilterSimple(text):
         if token not in blanks:
             finalTokens.append(token)
         i += 1
-    
+
     return finalTokens
+
 
 def filterSpace(token):
     return (token not in blanks)
@@ -57,10 +60,10 @@ if __name__ == "__main__":
     # some tests
     test = 'this is a test, but a stupid test!!'
     print(test)
-    print(tokenize(test))
+    print(tokenizeAndFilterSimple(test))
     print(tokenizeAndFilter(test))
 
     test = '\nthis is yet \u2666 another, dummy... test,\na [stupid] test?!'
     print(test)
-    print(tokenize(test))
+    print(tokenizeAndFilterSimple(test))
     print(tokenizeAndFilter(test))

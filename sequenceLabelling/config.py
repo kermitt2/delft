@@ -1,5 +1,6 @@
 import json
 
+
 # Model parameters
 class ModelConfig(object):
 
@@ -33,7 +34,7 @@ class ModelConfig(object):
 
         self.word_embedding_size = word_embedding_size
         self.num_word_lstm_units = word_lstm_units
-        
+
         self.case_embedding_size = 5
         self.dropout = dropout
         self.recurrent_dropout = recurrent_dropout
@@ -82,4 +83,3 @@ class TrainingConfig(object):
         self.early_stop = early_stop
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
-        

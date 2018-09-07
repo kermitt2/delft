@@ -11,6 +11,7 @@ import time
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 
+
 def train(embeddings_name, fold_count): 
     model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=30, 
         fold_number=fold_count, embeddings_name=embeddings_name)
@@ -24,6 +25,7 @@ def train(embeddings_name, fold_count):
     # saving the model
     model.save()
 
+
 def test():
     # load model
     model = textClassification.Classifier('toxic', "gru", list_classes=list_classes)
@@ -36,6 +38,7 @@ def test():
     result = model.predict(xte, output_format="csv")
     print("runtime: %s seconds " % (round(time.time() - start_time, 3)))
     return result
+
 
 # classify a list of texts
 def classify(texts, output_format):

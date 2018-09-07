@@ -9,13 +9,14 @@ import time
 
 list_classes = ["negative", "neutral", "positive"]
 
+
 def train(embeddings_name, fold_count): 
     model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
-    
+
     if fold_count == 1:
         model.train(xtr, y)
     else:
@@ -79,13 +80,13 @@ if __name__ == "__main__":
     if args.action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        
+
         train(embeddings_name, args.fold_count)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        
+
         y_test = train_and_eval(embeddings_name, args.fold_count)    
 
     if args.action == 'classify':

@@ -24,6 +24,7 @@ from xml.sax.saxutils import escape
 
 import argparse
 
+
 def dot_product(x, kernel):
     """
     Wrapper for dot product operation used inthe attention layers, in order to be compatible with both
@@ -75,7 +76,7 @@ def glove_preprocess(text):
 
     return text
 
-#
+
 # split provided sequence data in two sets given the given ratio between 0 and 1
 # for instance ratio at 0.8 will split 80% of the sentence in the first set and 20%
 # of the remaining sentence in the second one 
@@ -100,6 +101,7 @@ def split_data_and_labels(x, y, ratio):
 
 url_regex = re.compile(r"https?:\/\/[a-zA-Z0-9_\-\.]+(?:com|org|fr|de|uk|se|net|edu|gov|int|mil|biz|info|br|ca|cn|in|jp|ru|au|us|ch|it|nl|no|es|pl|ir|cz|kr|co|gr|za|tw|hu|vn|be|mx|at|tr|dk|me|ar|fi|nz)\/?\b")
 
+
 # language detection with langdetect package
 def detect_lang(x):
     try:
@@ -107,6 +109,7 @@ def detect_lang(x):
     except:
         language = 'unk'
     return language
+
 
 # language detection with textblob package
 def detect_lang_textBlob(x):
@@ -116,6 +119,7 @@ def detect_lang_textBlob(x):
     #except:
     #    language = 'unk'
     return language
+
 
 def translate(comment):
     if hasattr(comment, "decode"):
@@ -128,6 +132,7 @@ def translate(comment):
         pass
 
     return str(text)
+
 
 # produce some statistics
 def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None):
@@ -289,7 +294,7 @@ def generateOOVEmbeddings():
     for tokenStr in word_index:
         if not tokenStr in voc:
             oov.append(tokenStr)
-    
+
     print('word2vec embeddings:', len(oov), 'out-of-vocabulary')
 
     with open("../data/training/oov-w2v.txt", "w") as oovFile:
@@ -297,7 +302,7 @@ def generateOOVEmbeddings():
             oovFile.write(w)
             oovFile.write('\n')
     oovFile.close()
-    
+
      # load numberbatch - only the words
     print('loading numberbatch embeddings...')
     voc = set()
@@ -317,7 +322,7 @@ def generateOOVEmbeddings():
     for tokenStr in word_index:
         if not tokenStr in voc:
             oov.append(tokenStr)
-    
+
     print('numberbatch embeddings:', len(oov), 'out-of-vocabulary')
 
     with open("../data/training/oov-numberbatch.txt", "w") as oovFile:
@@ -420,7 +425,7 @@ def convert_conll2012_to_iob2(pathin, pathout):
             # pt subdirectory corresponds to the old and new testaments, it does not contain NER annotation, so it is traditionally ignored
             #if '/english/' in subdir and (file.endswith('gold_conll') or ('/test/' in subdir and file.endswith('gold_parse_conll'))) and not '/pt/' in subdir:
             if '/english/' in subdir and (file.endswith('gold_conll')) and not '/pt/' in subdir and not '/test/' in subdir:
-                
+
                 ind = subdir.find("data/english/")
                 if (ind == -1):
                     print("path to ontonotes files appears invalid")
@@ -502,13 +507,13 @@ def convert_conll2012_to_iob2(pathin, pathout):
     train_out.close()
     dev_out.close()
     test_out.close()
-    
+
 
 def convert_conll2003_to_iob2(filein, fileout):
     """
     This method will post-process the assembled CoNLL-2003 data for NER. 
     It will take an input like:
-      
+
     and transform it into a simple and readable:
       Japanese  B-NORP
     taking into account the sequence markers and an expected IOB2 scheme.
@@ -550,7 +555,7 @@ if __name__ == "__main__":
     parser.add_argument("--output-path", default=None, help="path to write the converted dataset") 
 
     args = parser.parse_args()
-    
+
     #action = args.action 
     dataset_type = args.dataset_type
     data_path = args.data_path
@@ -562,5 +567,3 @@ if __name__ == "__main__":
         convert_conll2012_to_iob2(data_path, output_path)
     elif dataset_type == 'ontonotes':    
         ontonotes_conll2012_names(data_path, output_path)
-
-

@@ -15,6 +15,7 @@ np.random.seed(7)
 import tensorflow as tf
 tf.set_random_seed(7)
 
+
 class Trainer(object):
 
     def __init__(self,
@@ -40,13 +41,12 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-        
 
     """ train the instance self.model """
     def train(self, x_train, y_train, x_valid, y_valid):
         self.model.summary()
         #print("self.model_config.use_crf:", self.model_config.use_crf)
-        
+
         if self.model_config.use_crf:
             self.model.compile(loss=self.model.crf.loss,
                            optimizer='adam')
@@ -59,7 +59,6 @@ class Trainer(object):
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
                                                   self.training_config.max_epoch)
-        
 
     """ parameter model local_model must be compiled before calling this method 
         this model will be returned with trained weights """
@@ -109,7 +108,7 @@ class Trainer(object):
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
-        
+
         for fold_id in range(0, fold_count):
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
 
@@ -219,7 +218,7 @@ class Scorer(Callback):
 
             y_pred_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_pred_batch, sequence_lengths)]
             y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]
-            
+
             if i == 0:
                 y_pred = y_pred_batch
                 y_true = y_true_batch

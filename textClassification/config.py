@@ -1,5 +1,6 @@
 import json
 
+
 # Model parameter
 class ModelConfig(object):
 

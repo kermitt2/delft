@@ -16,6 +16,7 @@ PAD = '<PAD>'
 
 case_index = {'<PAD>': 0, 'numeric': 1, 'allLower':2, 'allUpper':3, 'initialUpper':4, 'other':5, 'mainly_numeric':6, 'contains_digit': 7}
 
+
 class WordPreprocessor(BaseEstimator, TransformerMixin):
 
     def __init__(self,
@@ -211,6 +212,7 @@ def prepare_preprocessor(X, y, model_config):
 
     return p
 
+
 def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
     """
     Given a list of tokens convert it to a sequence of word embedding 
@@ -218,7 +220,7 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
     vector when appropriate
     """
     window = tokens[-maxlen:]
-    
+
     # TBD: use better initializers (uniform, etc.) 
     x = np.zeros((maxlen, embeddings.embed_size), )
 
@@ -232,6 +234,7 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
         x[i,:] = embeddings.get_word_vector(word).astype('float32')
 
     return x
+
 
 def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
     """
@@ -252,6 +255,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Tru
     if use_token_dump:
         return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
     """
+
 
 def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
     """
@@ -278,7 +282,7 @@ def to_casing_single(tokens, maxlen=300):
     when appropriate
     """
     window = tokens[-maxlen:]
-    
+
     # TBD: use better initializers (uniform, etc.) 
     x = np.zeros((maxlen), )
 
@@ -287,17 +291,18 @@ def to_casing_single(tokens, maxlen=300):
     for i, word in enumerate(window):
         x[i] = float(_casing(word))
 
-    return x    
+    return x
+
 
 def _casing(word):   
         casing = 'other'
-        
+
         numDigits = 0
         for char in word:
             if char.isdigit():
                 numDigits += 1
         digitFraction = numDigits / float(len(word))
-        
+
         if word.isdigit():
             casing = 'numeric'
         elif digitFraction > 0.5:
@@ -313,10 +318,10 @@ def _casing(word):
 
         return case_index[casing]
 
+
 def _lower(word):
     return word.lower() 
 
+
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
-
-

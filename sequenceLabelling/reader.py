@@ -6,11 +6,12 @@ import re
 import os
 from tqdm import tqdm
 
+
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
     TEI XML SAX handler for reading mixed content within xml text tags  
     """
-    
+
     # local sentence
     tokens = []
     labels = []
@@ -25,7 +26,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
 
     def __init__(self):
         xml.sax.ContentHandler.__init__(self)
-     
+
     def startElement(self, name, attrs):
         if self.accumulated != '':
             localTokens = tokenizeAndFilterSimple(self.accumulated)
@@ -50,7 +51,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
                     print("Invalid entity type:", attrs.getValue("type"))
                 self.currentLabel = '<'+attrs.getValue("type")+'>'
         self.accumulated = ''
-                
+
     def endElement(self, name):
         # print("endElement '" + name + "'")
         if name == "p":
@@ -80,10 +81,10 @@ class TEIContentHandler(xml.sax.ContentHandler):
                     self.labels.append('I-'+self.currentLabel)
             self.currentLabel = None
         self.accumulated = ''
-    
+
     def characters(self, content):
         self.accumulated += content
-     
+
     def getSents(self):
         return np.asarray(self.sents)
 
@@ -98,7 +99,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
     """ 
     ENAMEX-style XML SAX handler for reading mixed content within xml text tags  
     """
-    
+
     # local sentence
     tokens = []
     labels = []
@@ -140,7 +141,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             labelOutput = "location"
         elif mainType.lower() ==  "product":
             labelOutput = "artifact"
-        
+
         return labelOutput
 
     def startElement(self, name, attrs):
@@ -183,7 +184,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                 else:
                     self.currentLabel = '<'+mainType+'>'
         self.accumulated = ''
-                
+
     def endElement(self, name):
         #print("endElement '" + name + "'")
         if name == "sentence":
@@ -213,10 +214,10 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                     self.labels.append('I-'+self.currentLabel)
             self.currentLabel = None
         self.accumulated = ''
-    
+
     def characters(self, content):
         self.accumulated += content
-     
+
     def getSents(self):
         return np.asarray(self.sents)
 
@@ -379,9 +380,10 @@ def load_data_crf_string(crfString):
     sents = []
     featureSets = []
 
-
+    # TBD
 
     return sents, featureSets
+
 
 def _translate_tags_grobid_to_IOB(tag):
     """
@@ -398,6 +400,7 @@ def _translate_tags_grobid_to_IOB(tag):
         return 'I-'+tag
     else:
         return tag
+
 
 def load_data_and_labels_conll(filename):
     """
@@ -473,7 +476,7 @@ def load_data_and_labels_lemonde(filepathXml):
     parser.parse(filepathXml)
     tokens = handler.getSents()
     labels = handler.getAllLabels()
-    
+
     return tokens, labels
 
 
@@ -514,7 +517,7 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
                 nb_files += 1
     nb_total_files = nb_files
     #print(nb_total_files, 'total files')
-    
+
     nb_files = 0
     pbar = tqdm(total=nb_total_files)
     for subdir, dirs, files in os.walk(ontonotesRoot):
@@ -552,7 +555,7 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
 
     final_tokens = np.asarray(tokens)
     final_label = np.asarray(labels)
-    
+
     return final_tokens, final_label
 
 

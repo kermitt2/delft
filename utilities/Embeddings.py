@@ -40,6 +40,7 @@ map_size = 100 * 1024 * 1024 * 1024
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
 
+
 class Embeddings(object):
 
     def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False):
@@ -127,7 +128,6 @@ class Embeddings(object):
                     nbWords = len(self.model)
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
-    
     '''
     def make_embeddings_fasttext_bin(self, name="wiki.en.bin"):
         nbWords = 0
@@ -197,7 +197,6 @@ class Embeddings(object):
                 nbWords = i
             self.vocab_size = nbWords
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
-
 
     def make_embeddings_simple(self, name="fasttext-crawl", hasHeader=True):
         description = self._get_description(name)
@@ -272,11 +271,10 @@ class Embeddings(object):
             # Input placeholders to the biLM.
             self.character_ids = tf.placeholder('int32', shape=(None, None, 50))
             self.embeddings_op = self.bilm(self.character_ids)
-            
+
             with tf.variable_scope('', reuse=tf.AUTO_REUSE):
                 # the reuse=True scope reuses weights from the whole context 
                 self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
-            
 
     def dump_ELMo_token_embeddings(self, x_train):
         if not self.use_ELMo:
@@ -329,7 +327,6 @@ class Embeddings(object):
             """
             print("ELMo token dump completed")
 
-
     def get_sentence_vector_only_ELMo(self, token_list):
         """
             Return the ELMo embeddings only for a full sentence
@@ -338,7 +335,7 @@ class Embeddings(object):
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
-        
+
         # Create batches of data
         local_token_ids = self.batcher.batch_sentences(token_list)
         max_size_sentence = local_token_ids[0].shape[0]
@@ -366,7 +363,6 @@ class Embeddings(object):
                 self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         return elmo_result
 
-
     def get_sentence_vector_with_ELMo(self, token_list):
         """
             Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
@@ -391,7 +387,7 @@ class Embeddings(object):
                 j = j + 1
             token_list_extended[i] = local_list
         #print("token_list_extended after: ", token_list_extended)
-        
+
         max_size_sentence = 0
         for i in range(0, len(token_list)):
             local_length = len(token_list[i])
@@ -400,7 +396,6 @@ class Embeddings(object):
         """
 
         # Create batches of data
-        
 
         #print("\ntoken_list:", token_list)
         local_token_ids = self.batcher.batch_sentences(token_list)
@@ -425,7 +420,7 @@ class Embeddings(object):
             j = 1 
             i += 1
         '''
-        
+
         # check lmdb cache
         elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
         if elmo_result is None:
@@ -456,16 +451,15 @@ class Embeddings(object):
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j])), )
         return concatenated_result
 
-
     def get_sentence_vector_ELMo_with_token_dump(self, token_list):
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
-        
+
         with tf.variable_scope('', reuse=tf.AUTO_REUSE):
             # the reuse=True scope reuses weights from the whole context 
             self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
-        
+
         # Create batches of data
         local_token_ids = self.batcher_token_dump.batch_sentences(token_list)
 
@@ -482,7 +476,6 @@ class Embeddings(object):
                 )
         return elmo_result
 
-
     def _get_description(self, name):
         for emb in self.registry["embeddings"]:
             if emb["name"] == name:
@@ -491,7 +484,6 @@ class Embeddings(object):
             if emb["name"] == name:
                 return emb
         return None
-
 
     def get_word_vector(self, word):
         """
@@ -525,7 +517,6 @@ class Embeddings(object):
             return self.get_word_vector(word)
         return word_vector
 
-    
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
         """
             Try to get the ELMo embeddings for a sequence cached in LMDB
@@ -562,10 +553,9 @@ class Embeddings(object):
             # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
             # when opening new transaction !
             self.env_ELMo.close()
-            self.env_ELMo = lmdb.open(embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
             return self.get_ELMo_lmdb_vector(token_list)
         return ELMo_vector
-
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
@@ -610,11 +600,13 @@ class Embeddings(object):
             #return np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
             # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
+
 def _serialize_byteio(array):
     memfile = io.BytesIO()
     np.save(memfile, array)
     memfile.seek(0)
     return memfile.getvalue()
+
 
 def _deserialize_byteio(serialized):
     memfile = io.BytesIO()
@@ -622,11 +614,14 @@ def _deserialize_byteio(serialized):
     memfile.seek(0)
     return np.load(memfile)
 
+
 def _serialize_pickle(a):
     return pickle.dumps(a)
 
+
 def _deserialize_pickle(serialized):
     return pickle.loads(serialized)
+
 
 def _get_num_lines(file_path):
     fp = open(file_path, "r+")
@@ -636,12 +631,14 @@ def _get_num_lines(file_path):
         lines += 1
     return lines
 
+
 def list_digest(strings):
     hash = hashlib.sha1()
     for s in strings:
         hash.update(struct.pack("I", len(s)))
         hash.update(s.encode(encoding='UTF-8'))
     return hash.hexdigest()
+
 
 def is_int(s):
     try: 
@@ -650,12 +647,14 @@ def is_int(s):
     except ValueError:
         return False
 
+
 def is_float(s):
     try:
         float(s)
         return True
     except ValueError:
         return False
+
 
 def test():
     embeddings = Embeddings("glove-840B", use_ELMo=True)

@@ -6,8 +6,8 @@ set_random_seed(7)
 import keras
 from textClassification.preprocess import to_vector_single
 
-# generate batch of data to feed text classification model, both for training and prediction
 
+# generate batch of data to feed text classification model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, x, y, batch_size=256, maxlen=300, list_classes=[], embeddings=(), shuffle=True):
@@ -59,10 +59,10 @@ class DataGenerator(keras.utils.Sequence):
         for i in range(0, max_iter):
             # Store sample
             batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen)
-            
+
             # Store class
             # classes are numerical, so nothing to vectorize for y
             if self.y is not None:
                 batch_y[i] = self.y[(index*self.batch_size)+i]
-     
+
         return batch_x, batch_y

@@ -126,7 +126,7 @@ class BidLSTM_CNN(BaseModel):
     """
 
     def __init__(self, config, ntags=None):
-        
+
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
 
@@ -140,7 +140,7 @@ class BidLSTM_CNN(BaseModel):
                                     ))(char_input)
 
         dropout = Dropout(config.dropout)(char_embeddings)
-        
+
         conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
         maxpool_out = TimeDistributed(GlobalMaxPooling1D())(conv1d_out)
         chars = Dropout(config.dropout)(maxpool_out)
@@ -168,7 +168,7 @@ class BidLSTM_CNN(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
         self.config = config
-        
+
 
 class BidLSTM_CNN_CRF(BaseModel):
     """
@@ -181,7 +181,7 @@ class BidLSTM_CNN_CRF(BaseModel):
     """
 
     def __init__(self, config, ntags=None):
-        
+
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
 
@@ -195,14 +195,14 @@ class BidLSTM_CNN_CRF(BaseModel):
                                     ))(char_input)
 
         dropout = Dropout(config.dropout)(char_embeddings)
-        
+
         conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
         maxpool_out = TimeDistributed(GlobalMaxPooling1D())(conv1d_out)
         chars = Dropout(config.dropout)(maxpool_out)
 
         # custom features input and embeddings
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
-        
+
         """
         casing_embedding = Embedding(input_dim=config.case_vocab_size, 
                            output_dim=config.case_embedding_size,
@@ -211,7 +211,7 @@ class BidLSTM_CNN_CRF(BaseModel):
                            name='casing_embedding')(casing_input)
         casing_embedding = Dropout(config.dropout)(casing_embedding)
         """
-        
+
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32')
 
@@ -306,7 +306,7 @@ class BidLSTM_CRF_CASING(BaseModel):
 
         # custom features input and embeddings
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
-        
+
         casing_embedding = Embedding(input_dim=config.case_vocab_size, 
                            output_dim=config.case_embedding_size,
                            mask_zero=True,
@@ -332,4 +332,3 @@ class BidLSTM_CRF_CASING(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
         self.config = config
-

@@ -308,7 +308,7 @@ def classification_report(y_true, y_pred, digits=2):
                              np.sum(s),
                              width=width, digits=digits)
     """
-    
+
     # micro average 
     micro_precision = total_nb_correct / total_nb_pred if total_nb_pred > 0 else 0
     micro_recall = total_nb_correct / total_nb_true if total_nb_true > 0 else 0

@@ -4,6 +4,7 @@ import datetime
 from sequenceLabelling.data_generator import DataGenerator
 from utilities.Tokenizer import tokenizeAndFilter
 
+
 class Tagger(object):
 
     def __init__(self, 
@@ -43,7 +44,7 @@ class Tagger(object):
             use_multiprocessing=True,
             workers=nb_workers
             )
-        
+
         for i in range(0,len(preds)):
             pred = [preds[i]]
             text = texts[i]
@@ -51,7 +52,7 @@ class Tagger(object):
 
             tags = self._get_tags(pred)
             prob = self._get_prob(pred)
-            
+
             if output_format is 'json':
                 piece = {}
                 piece["text"] = text
@@ -130,4 +131,3 @@ def get_entities_with_offsets(seq, offsets):
         else:
             i += 1
     return chunks
-

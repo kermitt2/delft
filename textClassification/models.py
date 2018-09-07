@@ -216,6 +216,7 @@ parametersMap = { 'lstm' : parameters_lstm, 'bidLstm_simple' : parameters_bidLst
                   'mix1': parameters_mix1, 'gru': parameters_gru, 'gru_simple': parameters_gru_simple, 
                   'dpcnn': parameters_dpcnn, 'conv': parameters_conv }
 
+
 # basic LSTM
 def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #inp = Input(shape=(maxlen, ))
@@ -235,12 +236,13 @@ def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', 
                 optimizer='adam', 
                 metrics=['accuracy'])
     return model
+
 
 # bidirectional LSTM 
 def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -259,12 +261,13 @@ def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', 
         optimizer='adam', 
         metrics=['accuracy'])
     return model
+
 
 # bidirectional LSTM with attention layer
 def bidLstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -281,7 +284,7 @@ def bidLstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
@@ -303,10 +306,11 @@ def cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rat
     x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
+
 
 def cnn2_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #inp = Input(shape=(maxlen, ))
@@ -324,10 +328,11 @@ def cnn2_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropo
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
+
 
 def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #inp = Input(shape=(maxlen, ))
@@ -345,10 +350,11 @@ def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
+
 
 def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #inp = Input(shape=(maxlen, ))
@@ -373,10 +379,11 @@ def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
+
 
 def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     filter_kernels = [7, 7, 5, 5, 3, 3]
@@ -396,10 +403,11 @@ def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     z = Dropout(0.5)(Dense(dense_size, activation='relu')(conv5))
     #x = GlobalMaxPool1D()(x)
     x = Dense(nb_classes, activation="sigmoid")(z)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
+
 
 # LSTM + conv
 def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -439,12 +447,13 @@ def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropou
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=inp, outputs=x)
+    model = Model(inputs=input_layer, outputs=x)
     model.summary()
     model.compile(loss='binary_crossentropy', 
                 optimizer='adam', 
                 metrics=['accuracy'])
     return model
+
 
 # 2 bid. GRU 
 def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -477,6 +486,7 @@ def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rat
                   metrics=['accuracy'])
     return model
 
+
 def gru_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #input_layer = Input(shape=(maxlen,))
     input_layer = Input(shape=(maxlen, embed_size), )
@@ -507,6 +517,7 @@ def gru_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropou
                   metrics=['accuracy'])
     return model
 
+
 # 1 layer bid GRU
 def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #input_layer = Input(shape=(maxlen,))
@@ -535,6 +546,7 @@ def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_drop
                   metrics=['accuracy'])
     return model
 
+
 # bid GRU + bid LSTM
 def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #input_layer = Input(shape=(maxlen,))
@@ -562,6 +574,7 @@ def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
                   metrics=['accuracy'])
     return model
 
+
 # DPCNN
 def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     #input_layer = Input(shape=(maxlen, ))
@@ -570,7 +583,7 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
     #              trainable=False)(input_layer)
     # first block
     X_shortcut1 = input_layer
-    X = Conv1D(filters=recurrent_units, kernel_size=2, strides=3)(X)
+    X = Conv1D(filters=recurrent_units, kernel_size=2, strides=3)(X_shortcut1)
     X = Activation('relu')(X)
     X = Conv1D(filters=recurrent_units, kernel_size=2, strides=3)(X)
     X = Activation('relu')(X)
@@ -728,6 +741,7 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, trainin
     else:
         return model, best_loss
 
+
 def train_folds(X, y, model_config, training_config, embeddings):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
@@ -762,7 +776,7 @@ def train_folds(X, y, model_config, training_config, embeddings):
         foldModel, best_score = train_model(getModel(model_config, training_config), 
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y)
         models.append(foldModel)
-        
+
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
         #foldModel.save_weights(model_path, foldModel.get_weights())
         #foldModel.save(model_path)
@@ -772,7 +786,7 @@ def train_folds(X, y, model_config, training_config, embeddings):
 
     all_scores = sum(scores)
     avg_score = all_scores/fold_count
-    
+
     if (use_roc_auc):
         print("Average best roc_auc scores over the", fold_count, "fold: ", avg_score)
     else:
@@ -780,12 +794,14 @@ def train_folds(X, y, model_config, training_config, embeddings):
 
     return models
 
+
 def predict(model, predict_generator):
     y = model.predict_generator(
             generator=predict_generator, 
             use_multiprocessing=True,
             workers=6)
     return y
+
 
 def predict_folds(models, predict_generator):
     fold_count = len(models)
@@ -806,4 +822,3 @@ def predict_folds(models, predict_generator):
     y_predicts **= (1. / len(y_predicts_list))
 
     return y_predicts    
-

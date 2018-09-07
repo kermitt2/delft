@@ -33,6 +33,7 @@ from utilities.Embeddings import Embeddings
 # initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
 # with various modifications
 
+
 class Sequence(object):
 
     config_file = 'config.json'
@@ -99,7 +100,6 @@ class Sequence(object):
                                               early_stop, patience, 
                                               max_checkpoints_to_keep)
 
-
     def train(self, x_train, y_train, x_valid=None, y_valid=None):
         # TBD if valid is None, segment train to get one
         x_all = np.concatenate((x_train, x_valid), axis=0)
@@ -141,7 +141,7 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
-        
+
         #self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         self.models = []
 
@@ -167,7 +167,6 @@ class Sequence(object):
         else:
             self.eval_single(x_test, y_test)
 
-
     def eval_single(self, x_test, y_test):   
         if self.model:
             # Prepare test data(steps, generator)
@@ -182,7 +181,6 @@ class Sequence(object):
             scorer.on_epoch_end(epoch=-1) 
         else:
             raise (OSError('Could not find a model.'))
-
 
     def eval_nfold(self, x_test, y_test):
         if self.models is not None:
@@ -211,7 +209,7 @@ class Sequence(object):
                 precision = scorer.precision
                 recall = scorer.recall
                 reports.append(scorer.report)
-                
+
                 if best_f1 < f1:
                     best_f1 = f1
                     best_index = i
@@ -237,7 +235,6 @@ class Sequence(object):
             self.model = self.models[best_index]
             print("\n** Best ** model scores - \n")
             print(reports[best_index])
-        
 
     def tag(self, texts, output_format):
         # annotate a list of sentences, return the list of annotations in the 
@@ -254,7 +251,6 @@ class Sequence(object):
             return annotations
         else:
             raise (OSError('Could not find a model.'))
-
 
     def tag_file(self, file_in, output_format, file_out):
         # Annotate a text file containing one sentence per line, the annotations are
@@ -337,15 +333,12 @@ class Sequence(object):
                     out.write(jsonString) 
 
             if file_out is not None:
-                out.close()              
-            
+                out.close() 
             #print("runtime: %s seconds " % (runtime))
         else:
             raise (OSError('Could not find a model.'))
 
-
     def save(self, dir_path='data/models/sequenceLabelling/'):
-        
         # create subfolder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
@@ -353,17 +346,16 @@ class Sequence(object):
 
         self.p.save(os.path.join(directory, self.preprocessor_file))
         print('preprocessor saved')
-        
+
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
-        
+
         self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
 
-
     def load(self, dir_path='data/models/sequenceLabelling/'):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
-        
+
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
         # load embeddings
@@ -372,6 +364,7 @@ class Sequence(object):
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]

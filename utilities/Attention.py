@@ -3,6 +3,7 @@ from keras.engine.topology import Layer
 from keras import initializers, regularizers, constraints
 from utilities.Utilities import dot_product
 
+
 class Attention(Layer):
     def __init__(self, step_dim,
                  W_regularizer=None, b_regularizer=None,
@@ -31,7 +32,7 @@ class Attention(Layer):
                                  regularizer=self.W_regularizer,
                                  constraint=self.W_constraint)
         self.features_dim = input_shape[-1]
-        
+
         if self.bias:
             self.b = self.add_weight((input_shape[1],),
                                      initializer='zero',

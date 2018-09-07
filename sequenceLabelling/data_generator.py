@@ -7,8 +7,8 @@ from utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
 
-# generate batch of data to feed sequence labelling model, both for training and prediction
 
+# generate batch of data to feed sequence labelling model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, x, y, 
@@ -104,7 +104,7 @@ class DataGenerator(keras.utils.Sequence):
         if self.embeddings.use_ELMo:     
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
-            
+
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
@@ -125,7 +125,7 @@ class DataGenerator(keras.utils.Sequence):
 
         batch_c = np.asarray(batches[0])
         batch_l = batches[1]
-        
+
         if self.preprocessor.return_casing:
             return batch_x, batch_c, batch_a, batch_l, batch_y
         else: 

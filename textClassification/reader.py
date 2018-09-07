@@ -3,6 +3,7 @@ import xml
 from xml.sax import make_parser, handler
 import pandas as pd
 
+
 def load_texts_and_classes(filepath):
     """
     Load texts and classes from a file in the following simple tab-separated format:
@@ -28,7 +29,7 @@ def load_texts_and_classes(filepath):
                 continue
             pieces = line.split('\t')
             if (len(pieces) < 3):
-                printf("Warning: number of fields in the data file too low for line:", line)
+                print("Warning: number of fields in the data file too low for line:", line)
             texts.append(pieces[1])
             classes.append(pieces[2:])
 
@@ -91,6 +92,7 @@ def load_texts_pandas(filepath):
 
     return np.asarray(texts_list)
 
+
 def load_citation_sentiment_corpus(filepath):
     """
     Load texts from the citation sentiment corpus:
@@ -117,7 +119,7 @@ def load_citation_sentiment_corpus(filepath):
 
             pieces = line.split('\t')
             if (len(pieces) != 4):
-                printf("Warning: incorrect number of fields in the data file for line:", line)
+                print("Warning: incorrect number of fields in the data file for line:", line)
                 continue
             text = pieces[3]
             # remove start/end quotes

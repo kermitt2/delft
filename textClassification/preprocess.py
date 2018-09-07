@@ -11,6 +11,7 @@ from utilities.Tokenizer import tokenizeAndFilterSimple
 
 special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]',re.IGNORECASE)
 
+
 def to_vector_single(text, embeddings, maxlen=300):
     """
     Given a string, tokenize it, then convert it to a sequence of word embedding 
@@ -19,7 +20,7 @@ def to_vector_single(text, embeddings, maxlen=300):
     """
     tokens = tokenizeAndFilterSimple(clean_text(text))
     window = tokens[-maxlen:]
-    
+
     # TBD: use better initializers (uniform, etc.) 
     x = np.zeros((maxlen, embeddings.embed_size), )
 
@@ -30,13 +31,16 @@ def to_vector_single(text, embeddings, maxlen=300):
 
     return x
 
+
 def clean_text(text):
     x_ascii = unidecode(text)
     x_clean = special_character_removal.sub('',x_ascii)
     return x_clean
 
+
 def lower(word):
     return word.lower() 
+
 
 def normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)

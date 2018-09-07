@@ -8,6 +8,7 @@ import argparse
 import keras.backend as K
 import time
 
+
 def train(embeddings_name): 
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
 
@@ -27,6 +28,7 @@ def train(embeddings_name):
     # saving the model
     model.save()
 
+
 # annotate a list of texts, provides results in a list of offset mentions 
 def annotate(texts, output_format):
     annotations = []
@@ -34,7 +36,7 @@ def annotate(texts, output_format):
     # load model
     model = sequenceLabelling.Sequence('insult')
     model.load()
-    
+
     start_time = time.time()
 
     annotations = model.tag(texts, output_format)
@@ -56,7 +58,7 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
 
     args = parser.parse_args()
-     
+
     if args.action not in ('train', 'tag'):
         print('action not specifed, must be one of [train,tag]')
 

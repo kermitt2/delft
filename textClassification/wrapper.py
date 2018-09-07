@@ -24,6 +24,7 @@ from sklearn.model_selection import train_test_split
 
 from keras.utils import plot_model
 
+
 class Classifier(object):
 
     config_file = 'config.json'
@@ -95,7 +96,6 @@ class Classifier(object):
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.training_config.use_roc_auc, training_generator, validation_generator, val_y)
-
 
     def train_nfold(self, x_train, y_train, vocab_init=None):
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings)
@@ -240,16 +240,15 @@ class Classifier(object):
         print("\taverage log-loss =", total_loss)
         print("\taverage roc auc =", total_roc_auc)
 
-
     def save(self, dir_path='data/models/textClassification/'):
         # create subfolder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
-        
+
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
-        
+
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 self.model.save(os.path.join(directory, self.model_config.model_type+"."+self.weight_file))
@@ -266,7 +265,7 @@ class Classifier(object):
 
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-        
+
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name) 
         self.model_config.word_embedding_size = self.embeddings.embed_size
@@ -280,5 +279,3 @@ class Classifier(object):
                 local_model = getModel(self.model_config, self.training_config)
                 local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+".model{0}_weights.hdf5".format(i)))
                 self.models.append(local_model)
-
-
