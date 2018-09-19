@@ -103,7 +103,7 @@ class Embeddings(object):
             else:
                 if embeddings_type == "glove":
                     hasHeader = False
-                with open(embeddings_path) as f:
+                with open(embeddings_path, encoding='utf8') as f:
                     for line in f:
                         line = line.strip()
                         line = line.split(' ')
@@ -156,12 +156,11 @@ class Embeddings(object):
             batch_size = 1024
             i = 0
             nb_lines = 0
-            with open(embeddings_path) as f:
+            with open(embeddings_path, encoding='utf8') as f:
                 for line in f:
                     nb_lines += 1
 
-            with open(embeddings_path) as f:
-                #for line in f:
+            with open(embeddings_path, encoding='utf8') as f:
                 for line in tqdm(f, total=nb_lines):
                     line = line.split(' ')
                     if begin:
