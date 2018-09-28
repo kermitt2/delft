@@ -18,7 +18,6 @@ def is_valid_str(in_str):
 # this creates larger "blotches" of noise which look
 # more realistic than just adding gaussian noise
 # assumes greyscale with pixels ranging from 0 to 1
-
 def speckle(img):
     severity = np.random.uniform(0, 0.6)
     blur = ndimage.gaussian_filter(np.random.randn(*img.shape) * severity, 1)
@@ -27,6 +26,7 @@ def speckle(img):
     img_speck[img_speck <= 0] = 0
     return img_speck
 
+#paints the text using cairo, applies random font and introduces some noise
 def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
     surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h)
     with cairo.Context(surface) as context:
