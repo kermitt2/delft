@@ -9,7 +9,6 @@ from scipy import ndimage
 import scipy.misc
 
 regex = r'^[a-z ]+$'
-alphabet = u'□◆⚬♡♢abcdefghijklmnopqrstuvwxyz '
 
 def is_valid_str(in_str):
     search = re.compile(regex, re.UNICODE).search
@@ -70,9 +69,6 @@ def paint_text(text, w, h, rotate=False, ud=False, multi_fonts=False):
 
     return a
 
-def get_output_size():
-        return len(alphabet) + 1
-
 if __name__ == '__main__':
 
     fdir = os.path.dirname(__file__);
@@ -81,9 +77,9 @@ if __name__ == '__main__':
 
     tmp_string_list = [];
 
-    num_words = 16000;
+    num_words = 32000;
     #part of the mono words
-    mono_fraction = 1;
+    mono_fraction = 0.5;
 
     max_string_len = 12;
 
@@ -121,6 +117,8 @@ if __name__ == '__main__':
     string_list[1::2] = tmp_string_list[num_words // 2:]
 
     output_dir = os.path.join('training_data')
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
 
     for i, word in enumerate(string_list):
         filename = 'e%02d' % (i)
