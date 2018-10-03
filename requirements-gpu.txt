@@ -13,3 +13,4 @@ unidecode==1.0.22
 pydot==1.2.4
 lmdb==0.94
 # fasttextmirror==0.8.22
+cairocffi==0.7.2
