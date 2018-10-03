@@ -106,10 +106,12 @@ class VizCallback(keras.callbacks.Callback):
               % (num, mean_ed, mean_norm_ed))
 
     def on_epoch_end(self, epoch, logs={}):
+        print("on_epoch_end")
         self.model.save_weights(os.path.join(self.weights_output_dir, 'weights%02d.h5' % (epoch)))
         self.show_edit_distance(256)
         word_batch = next(self.text_img_gen)[0]
         res = decode_batch(self.test_func, word_batch['the_input'][0:self.num_display_words])
+        print(res)
         if word_batch['the_input'][0].shape[0] < 256:
             cols = 2
         else:
@@ -298,6 +300,7 @@ class TraningDataLoader(keras.callbacks.Callback):
         return (inputs, outputs)
 
     def next_train(self):
+        print("next_train")
         while 1:
             ret = self.get_batch(self.cur_train_index, self.minibatch_size, train=True)
             self.cur_train_index += self.minibatch_size
@@ -308,6 +311,8 @@ class TraningDataLoader(keras.callbacks.Callback):
             yield ret
 
     def next_val(self):
+        print("next_val")
+
         while 1:
             ret = self.get_batch(self.cur_val_index, self.minibatch_size, train=False)
             self.cur_val_index += self.minibatch_size
@@ -316,9 +321,11 @@ class TraningDataLoader(keras.callbacks.Callback):
             yield ret
 
     def on_train_begin(self, logs={}):
+        print("on_train_begin")
         self.build_word_list(16000)
 
     def on_epoch_begin(self, epoch, logs={}):
+        print("on_epoch_begin")
         # rebind the paint function to implement curriculum learning
         # if 3 <= epoch < 6:
         #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
@@ -460,7 +467,7 @@ class UOCR:
         return decode_batch(self.test_func, Ximage[0:1])
 
     def test_batch(self, words = ["test", "eds", "azerty", "and", "sDzeq", "qpsqd"], rotate=True, ud=True, multi_fonts=True):
-        print "test_batch"
+        print("test_batch")
         num_words = len(words)
         if K.image_data_format() == 'channels_first':
             X_data = np.ones([num_words, 1, self.img_w, self.img_h])
@@ -471,7 +478,6 @@ class UOCR:
         for i in range(num_words):
             # Mix in some blank inputs.  This seems to be important for
             # achieving translational invariance
-            print i
             if K.image_data_format() == 'channels_first':
                 X_data[i, 0, 0:self.img_w, :] = datagenerator.paint_text(words[i], self.img_w, self.img_h,
                                                   rotate=rotate, ud=ud, multi_fonts=multi_fonts)[0, :, :].T
@@ -480,7 +486,7 @@ class UOCR:
                                                   rotate=rotate, ud=ud, multi_fonts=multi_fonts)[0, :, :].T
 
         res = decode_batch(self.test_func, X_data[0:num_words])
-        print res
+        print(res)
         if X_data[0].shape[0] < 256:
             cols = 2
         else:
