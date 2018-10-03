@@ -87,7 +87,7 @@ class TrainingDataGenerator:
         self.output_dir = output_dir
 
         tmp_string_list = [];
-        print "Reading monogram and bigram text files."
+        print("Reading monogram and bigram text files.")
         # monogram file is sorted by frequency in english speech
         with codecs.open(self.monogram_file, mode='r', encoding='utf-8') as f:
             for line in f:
@@ -121,7 +121,7 @@ class TrainingDataGenerator:
         output_dir = os.path.join('training_data')
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        print "Saving training data"
+        print("Saving training data")
         for i, word in enumerate(string_list):
             filename = 'e%02d' % (i)
             file = codecs.open(os.path.join(output_dir, filename + '.txt'), "w", "utf-8")
@@ -131,7 +131,7 @@ class TrainingDataGenerator:
             # here change the paint_text parameter
             scipy.misc.imsave(os.path.join(output_dir, filename + '.png'),
                               self.paint_text(word, img_w, img_h, rotate=False, ud=False, multi_fonts=False)[0, :, :])
-            print "."
+            print(".")
 
 if __name__ == '__main__':
     generator = TrainingDataGenerator()
