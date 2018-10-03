@@ -20,10 +20,11 @@ import pylab
 import itertools
 import editdistance
 import numpy as np
-
+import re
 
 from scipy import ndimage
 
+from traindatagen import TrainingDataGenerator
 
 alphabet = u'□◆⚬♡♢abcdefghijklmnopqrstuvwxyz '
 
@@ -347,7 +348,10 @@ class UOCR:
         self.rnn_size = 512
         self.absolute_max_string_len = 16
 
-        input_shape = (self.img_w, self.img_h, 1)
+        if K.image_data_format() == 'channels_first':
+            input_shape = (1, self.img_w, self.img_h)
+        else:
+            input_shape = (self.img_w, self.img_h, 1)
 
         act = 'relu'
         input_data = Input(name='the_input', shape=input_shape, dtype='float32')
@@ -406,7 +410,7 @@ class UOCR:
         if weightsfile:
             self.model.load_weights(weightsfile)
 
-    def train(self, run_name, start_epoch, stop_epoch, words_per_epoch=32000, val_split = 0.2, minibatch_size = 32, verbose=1):
+    def train(self, run_name, start_epoch, stop_epoch, words_per_epoch=16000, val_split = 0.2, minibatch_size = 32, verbose=1):
 
         fdir = os.path.dirname(__file__)
         training_data = os.path.join(fdir, TRAINING_DATA_DIR)
@@ -436,3 +440,62 @@ class UOCR:
                             validation_steps=val_words // minibatch_size,
                             callbacks=[viz_cb, train_gen],
                             initial_epoch=start_epoch)
+    #
+    def ocr_frompic(self, image, w = 128, h = 64):
+        if os.path.isfile(image):
+            image_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h).create_from_png(image)
+        buf = image_surface.get_data()
+        a = np.frombuffer(buf, np.uint8)
+        a.shape = (h, w, 4)
+        a = a[:, :, 0]  # grab single channel
+
+        a = a.astype(np.float32) / 255
+        a = np.expand_dims(a, 0)
+
+        Ximage = np.ones([1, w, h, 1])
+        Ximage[0, 0:w, :, 0] = a[0,:,:].T
+
+        # filename = 'e%02d' % (000)
+        # scipy.misc.imsave(os.path.join(VALIDATION_OUTPUT_DIR, filename + '.png'), Ximage[0, 0:w, :, 0])
+        return decode_batch(self.test_func, Ximage[0:1])
+
+    def test_batch(self, words = ["test", "eds", "azerty", "and", "sDzeq", "qpsqd"], rotate=True, ud=True, multi_fonts=True):
+        print "test_batch"
+        num_words = len(words)
+        if K.image_data_format() == 'channels_first':
+            X_data = np.ones([num_words, 1, self.img_w, self.img_h])
+        else:
+            X_data = np.ones([num_words, self.img_w, self.img_h, 1])
+
+        datagenerator = TrainingDataGenerator()
+        for i in range(num_words):
+            # Mix in some blank inputs.  This seems to be important for
+            # achieving translational invariance
+            print i
+            if K.image_data_format() == 'channels_first':
+                X_data[i, 0, 0:self.img_w, :] = datagenerator.paint_text(words[i], self.img_w, self.img_h,
+                                                  rotate=rotate, ud=ud, multi_fonts=multi_fonts)[0, :, :].T
+            else:
+                X_data[i, 0:self.img_w, :, 0] = datagenerator.paint_text(words[i], self.img_w, self.img_h,
+                                                  rotate=rotate, ud=ud, multi_fonts=multi_fonts)[0, :, :].T
+
+        res = decode_batch(self.test_func, X_data[0:num_words])
+        print res
+        if X_data[0].shape[0] < 256:
+            cols = 2
+        else:
+            cols = 1
+        for i in range(num_words):
+            pylab.subplot(num_words // cols, cols, i + 1)
+            if K.image_data_format() == 'channels_first':
+                the_input = X_data[i, 0, :, :]
+            else:
+                the_input = X_data[i, :, :, 0]
+            # filename = 'e%02d' % i
+            # scipy.misc.imsave(os.path.join(VALIDATION_OUTPUT_DIR, filename + '.png'), the_input)
+            pylab.imshow(the_input.T, cmap='Greys_r')
+            pylab.xlabel('Truth = \'%s\'\nDecoded = \'%s\'' % (words[i], res[i]))
+        fig = pylab.gcf()
+        fig.set_size_inches(10, 13)
+        pylab.savefig(os.path.join(VALIDATION_OUTPUT_DIR, 'batch_text.png'))
+        pylab.close()
