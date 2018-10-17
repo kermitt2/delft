@@ -174,7 +174,16 @@ class Embeddings(object):
                             begin = False
                     word = line[0]
                     #if embeddings_type == 'glove':
-                    vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    try:
+                        if line[len(line)-1] == '\n':
+                            vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                        else:
+                            vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    
+                        #vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    except:
+                        print(len(line))
+                        print(line[1:len(line)])
                     #else:
                     #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
                     if self.embed_size == 0:
