@@ -250,6 +250,7 @@ class TraningDataLoader(keras.callbacks.Callback):
             self.Y_data[i, 0:len(expected_text)] = text_to_labels(expected_text)
             self.X_text.append(expected_text)
             self.input_image[i, 0:self.img_w, :, 0] = self.get_image_input(i, self.img_h, self.img_w)[0, :, :].T
+        self.Y_len = np.expand_dims(np.array(self.Y_len), 1)
         self.cur_val_index = self.val_split
         self.cur_train_index = 0
 
