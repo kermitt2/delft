@@ -16,6 +16,10 @@ import keras.callbacks
 
 import cairocffi as cairo
 
+import matplotlib
+# Force matplotlib to not use any Xwindows backend.
+matplotlib.use('Agg')
+
 import pylab
 import itertools
 import editdistance
@@ -133,6 +137,7 @@ class VizCallback(keras.callbacks.Callback):
 
 
 def shuffle_mats_or_lists(matrix_list, stop_ind=None):
+    print("shuffle_mats_or_lists")
     ret = []
     assert all([len(i) == len(matrix_list[0]) for i in matrix_list])
     len_val = len(matrix_list[0])
