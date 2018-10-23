@@ -129,9 +129,33 @@ class TrainingDataGenerator:
             file.close()
 
             # here change the paint_text parameter
-            scipy.misc.imsave(os.path.join(output_dir, filename + '.png'),
+            scipy.misc.imsave(os.path.join(output_dir, "0_"+filename + '.png'),
                               self.paint_text(word, img_w, img_h, rotate=False, ud=False, multi_fonts=False)[0, :, :])
-            print(".")
+            print ".",
+
+        print ""
+        print "vertically transalted data."
+        for i, word in enumerate(string_list):
+            # here change the paint_text parameter
+            scipy.misc.imsave(os.path.join(output_dir, "1_" + filename + '.png'),
+                              self.paint_text(word, img_w, img_h, rotate=False, ud=True, multi_fonts=False)[0, :, :])
+            print ".",
+
+        print ""
+        print "vertically transalted and multi font data."
+        for i, word in enumerate(string_list):
+            # here change the paint_text parameter
+            scipy.misc.imsave(os.path.join(output_dir, "2_" + filename + '.png'),
+                              self.paint_text(word, img_w, img_h, rotate=False, ud=True, multi_fonts=True)[0, :, :])
+            print ".",
+
+        print ""
+        print "vertically transalted, multi font and rotated data."
+        for i, word in enumerate(string_list):
+            # here change the paint_text parameter
+            scipy.misc.imsave(os.path.join(output_dir, "3_" + filename + '.png'),
+                              self.paint_text(word, img_w, img_h, rotate=True, ud=True, multi_fonts=True)[0, :, :])
+            print ".",
 
 if __name__ == '__main__':
     generator = TrainingDataGenerator()

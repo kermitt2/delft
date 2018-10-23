@@ -197,7 +197,7 @@ class TraningDataLoader(keras.callbacks.Callback):
     def get_output_size():
         return len(alphabet) + 1
 
-    def get_expected_text(self, i):
+    def get_expected_text(self, i, id):
         filename = 'e%02d' % (i)
         path_monogram = os.path.join(self.monogram_file, filename + '.txt')
         path_bigram = os.path.join(self.bigram_file, filename + '.txt')
@@ -213,10 +213,10 @@ class TraningDataLoader(keras.callbacks.Callback):
         return word
 
 
-    def get_image_input(self, i, h, w):
+    def get_image_input(self, i, h, w, id):
         filename = 'e%02d' % (i)
-        path_monogram = os.path.join(self.monogram_file, filename + '.png')
-        path_bigram = os.path.join(self.bigram_file, filename + '.png')
+        path_monogram = os.path.join(self.monogram_file, str(id)+"_"+filename + '.png')
+        path_bigram = os.path.join(self.bigram_file, str(id)+"_"+filename + '.png')
         if os.path.isfile(path_monogram):
             image_surface = cairo.ImageSurface(cairo.FORMAT_RGB24, w, h).create_from_png(path_monogram)
         elif os.path.isfile(path_bigram):
@@ -238,7 +238,11 @@ class TraningDataLoader(keras.callbacks.Callback):
 
     # num_words can be independent of the epoch size due to the use of generators
     # as max_string_len grows, num_words can grow
-    def build_word_list(self, num_words):
+    # id = 0 , rotate=False, ud=False, multi_fonts=False
+    # id = 1 , rotate=False, ud=True, multi_fonts=False
+    # id = 2 , rotate=False, ud=True, multi_fonts=True
+    # id = 3 , rotate=True, ud=True, multi_fonts=True
+    def build_word_list(self, num_words, id = 0):
         assert num_words % self.minibatch_size == 0
         assert (self.val_split * num_words) % self.minibatch_size == 0
         self.num_words = num_words
@@ -250,11 +254,11 @@ class TraningDataLoader(keras.callbacks.Callback):
         self.input_image = np.ones([self.num_words, self.img_w, self.img_h, 1])
 
         for i in range(self.num_words):
-            expected_text = self.get_expected_text(i)
+            expected_text = self.get_expected_text(i, id)
             self.Y_len[i] = len(expected_text)
             self.Y_data[i, 0:len(expected_text)] = text_to_labels(expected_text)
             self.X_text.append(expected_text)
-            self.input_image[i, 0:self.img_w, :, 0] = self.get_image_input(i, self.img_h, self.img_w)[0, :, :].T
+            self.input_image[i, 0:self.img_w, :, 0] = self.get_image_input(i, self.img_h, self.img_w, id)[0, :, :].T
         self.Y_len = np.expand_dims(np.array(self.Y_len), 1)
         self.cur_val_index = self.val_split
         self.cur_train_index = 0
@@ -328,22 +332,19 @@ class TraningDataLoader(keras.callbacks.Callback):
 
     def on_train_begin(self, logs={}):
         print("on_train_begin")
-        self.build_word_list(16000)
+        self.build_word_list(16000, 0)
 
     def on_epoch_begin(self, epoch, logs={}):
         print("on_epoch_begin")
         # rebind the paint function to implement curriculum learning
-        # if 3 <= epoch < 6:
-        #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-        #                                               rotate=False, ud=True, multi_fonts=False)
-        # elif 6 <= epoch < 9:
-        #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-        #                                               rotate=False, ud=True, multi_fonts=True)
-        # elif epoch >= 9:
-        #     self.paint_func = lambda text: paint_text(text, self.img_w, self.img_h,
-        #                                               rotate=True, ud=True, multi_fonts=True)
+        if 3 <= epoch < 6:
+            self.build_word_list(16000, 1)
+        elif 6 <= epoch < 9:
+            self.build_word_list(16000, 2)
+        elif epoch >= 9:
+            self.build_word_list(16000, 3)
         if epoch >= 21:
-            self.build_word_list(32000)
+            self.build_word_list(32000, 3)
 
 
 # Optical Character Recognition Engine in Keras, Unicode OCR
