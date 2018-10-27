@@ -675,7 +675,7 @@ with n-folds:
 
 Training and evalation (ratio):
 
-> python3 citationClassifier.py train-eval
+> python3 citationClassifier.py train_eval
 
 which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
