@@ -40,7 +40,6 @@ map_size = 100 * 1024 * 1024 * 1024
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
 
-
 class Embeddings(object):
 
     def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False):
@@ -70,7 +69,7 @@ class Embeddings(object):
             if description:
                 self.embedding_ELMo_cache = os.path.join(description["path-dump"], "cache")
                 # clean possible remaining cache
-                self.clean_ELMo_cache()
+                #self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
                 self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
@@ -429,8 +428,12 @@ class Embeddings(object):
             i += 1
         '''
 
+        #elmo_result = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
+        #elmo_result = np.random.rand(len(token_list), max_size_sentence-2, ELMo_embed_size)
         # check lmdb cache
-        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+        
+        
+        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence) 
         if elmo_result is None:
             with tf.Session() as sess:
                 # weird, for this cpu is faster than gpu (1080Ti !)
@@ -449,14 +452,17 @@ class Embeddings(object):
                     )
                     #cache computation
                     self.cache_ELMo_lmdb_vector(token_list, elmo_result)
-        concatenated_result = np.zeros((elmo_result.shape[0], max_size_sentence-2, self.embed_size), dtype=np.float32)
-        for i in range(0, elmo_result.shape[0]):
+        
+        concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
+        #concatenated_result = np.random.rand(elmo_result.shape[0], max_size_sentence-2, self.embed_size)
+        for i in range(0, len(token_list)):
             for j in range(0, len(token_list[i])):
                 #if is_int(token_list[i][j]) or is_float(token_list[i][j]):
-                #    dummy_result = np.zeros((elmo_result.shape[2]), dtype=np.float32)
-                #    concatenated_result[i][j] = np.concatenate((dummy_result, self.get_word_vector(token_list[i][j])), )
+                #dummy_result = np.zeros((elmo_result.shape[2]), dtype=np.float32)
+                #concatenated_result[i][j] = np.concatenate((dummy_result, self.get_word_vector(token_list[i][j])), )
                 #else:
-                concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j])), )
+                concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
+                #concatenated_result[i][j] = np.concatenate((self.get_word_vector(token_list[i][j]), elmo_result[i][j]), )
         return concatenated_result
 
     def get_sentence_vector_ELMo_with_token_dump(self, token_list):

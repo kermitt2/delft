@@ -9,7 +9,7 @@ import keras.backend as K
 import argparse
 import time
 
-models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header']
+models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 
 # train a GROBID model with all available data 
@@ -156,6 +156,9 @@ if __name__ == "__main__":
         elif model == 'name-header':
             someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
+        elif model == 'software':
+            someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
+            someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

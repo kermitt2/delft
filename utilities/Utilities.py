@@ -414,9 +414,9 @@ def convert_conll2012_to_iob2(pathin, pathout):
             test_doc_ids.append(line)
     print("number of test documents:", len(test_doc_ids))
 
-    train_out = open(os.path.join(pathout, "eng.train"),'w+')
-    dev_out = open(os.path.join(pathout, "eng.dev"),'w+')
-    test_out = open(os.path.join(pathout, "eng.test"),'w+')
+    train_out = open(os.path.join(pathout, "eng.train"),'w+', encoding="UTF-8")
+    dev_out = open(os.path.join(pathout, "eng.dev"),'w+', encoding="UTF-8")
+    test_out = open(os.path.join(pathout, "eng.test"),'w+', encoding="UTF-8")
 
     nb_files = 0
     pbar = tqdm(total=nb_total_files)
@@ -447,7 +447,7 @@ def convert_conll2012_to_iob2(pathin, pathout):
                 if f2 is None:
                     continue
 
-                with open(os.path.join(subdir, file),'r') as f1:
+                with open(os.path.join(subdir, file),'r', encoding="UTF-8") as f1:
                     previous_tag = None
                     for line in f1:
                         line_ = line.rstrip()

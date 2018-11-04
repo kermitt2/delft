@@ -434,10 +434,10 @@ def load_data_and_labels_conll(filename):
 
     """
 
-    # TBD: for consistency the tokenization in the CoNLL files should not be considered, 
-    # only the standard DeLFT tokenization, in line with the word embeddings
+    # TBD: ideally, for consistency, the tokenization in the CoNLL files should not be enforced, 
+    # only the standard DeLFT tokenization should be used, in line with the word embeddings
     sents, labels = [], []
-    with open(filename) as f:
+    with open(filename, encoding="UTF-8") as f:
         words, tags = [], []
         for line in f:
             line = line.rstrip()
@@ -445,16 +445,12 @@ def load_data_and_labels_conll(filename):
                 if len(words) != 0:
                     sents.append(words)
                     labels.append(tags)
-                    #print(words)
-                    #print(tags)
-                    #print("\n")
                     words, tags = [], []
-                    #print(line)
             else:
                 word, tag = line.split('\t')
                 words.append(word)
                 tags.append(tag)
-                #print(line)
+
     return np.asarray(sents), np.asarray(labels)
 
 
@@ -528,7 +524,7 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
                     continue
                 handler = ENAMEXContentHandler(corpus_type="ontonotes")
                 # massage a bit the pseudo-XML so that it looks XML
-                with open(os.path.join(subdir, file)) as f:
+                with open(os.path.join(subdir, file), encoding="UTF-8") as f:
                     content = '<?xml version="1.0" encoding="utf-8"?>\n'
                     for line in f:
                         line = line.strip()

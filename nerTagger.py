@@ -16,12 +16,15 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
 
     if (architecture == "BidLSTM_CNN_CRF"):
         word_lstm_units = 200
-        batch_size = 20
         recurrent_dropout=0.5
     else:
         word_lstm_units = 100
-        batch_size = 20
         recurrent_dropout=0.5
+
+    if use_ELMo:
+        batch_size = 100
+    else:
+        batch_size = 20
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -130,13 +133,16 @@ def train_eval(embedding_name,
     if (architecture == "BidLSTM_CNN_CRF"):
         word_lstm_units = 200
         max_epoch = 30
-        batch_size = 20
         recurrent_dropout=0.5
-    else:
+    else:        
         word_lstm_units = 100
         max_epoch = 25
-        batch_size = 20
         recurrent_dropout=0.5
+
+    if use_ELMo:
+        batch_size = 100
+    else:
+        batch_size = 20
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')

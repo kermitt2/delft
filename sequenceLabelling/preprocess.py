@@ -236,7 +236,7 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
     return x
 
 
-def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
+def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on ELMo contextualized embeddings
@@ -257,7 +257,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Tru
     """
 
 
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
+def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -325,3 +325,5 @@ def _lower(word):
 
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
+
+

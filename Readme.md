@@ -352,7 +352,7 @@ If you have trained the model with ELMo, you need to indicate to use ELMo-based 
 
 DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset.
 
-With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __87.01__ (best run over 10 trainings, __86.65__ averaged over these 10 trainings) when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__.
+With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __87.01__ (best run over 10 trainings, __86.65__ averaged over these 10 trainings) when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__. With ELMo, the available model f1 score is __88.24__. 
 
 For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
@@ -383,6 +383,35 @@ Evaluation on test set:
              LAW     0.7308    0.4750    0.5758        40
 
 all (micro avg.)     0.8647    0.8755    0.8701     11257
+```
+
+With ELMo embeddings (using the default hyper-parameters for the moment, except the batch size which is increased to better learn the less frequent classes):
+
+```text
+Evaluation on test set:
+  f1 (micro): 88.24
+                  precision    recall  f1-score   support
+
+           EVENT     0.6000    0.6190    0.6094        63
+         PERCENT     0.8917    0.8968    0.8943       349
+           MONEY     0.8820    0.9045    0.8931       314
+        LANGUAGE     0.8750    0.6364    0.7368        22
+         ORDINAL     0.8221    0.8769    0.8486       195
+         PRODUCT     0.7042    0.6579    0.6803        76
+        QUANTITY     0.7143    0.8095    0.7589       105
+             LAW     0.7273    0.6000    0.6575        40
+             GPE     0.9696    0.9536    0.9615      2240
+     WORK_OF_ART     0.5749    0.7169    0.6381       166
+          PERSON     0.9443    0.9467    0.9455      1988
+            DATE     0.8740    0.8227    0.8476      1602
+             ORG     0.8937    0.8897    0.8917      1795
+            NORP     0.8953    0.9156    0.9053       841
+            TIME     0.6682    0.6745    0.6714       212
+             LOC     0.7092    0.7765    0.7413       179
+        CARDINAL     0.8723    0.7016    0.7777       935
+             FAC     0.7521    0.6741    0.7109       135
+
+all (micro avg.)     0.8916    0.8733    0.8824     11257
 ```
 
 For ten model training with average, worst and best model:

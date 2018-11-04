@@ -90,13 +90,17 @@ class Trainer(object):
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
         nb_workers = 6
+        multiprocessing = True
+        # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.embeddings.use_ELMo:
-            nb_workers = 0
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
             # dump token context independent data for train set, done once for the training
 
         local_model.fit_generator(generator=training_generator,
                                 epochs=max_epoch,
-                                use_multiprocessing=True,
+                                use_multiprocessing=multiprocessing,
                                 workers=nb_workers,
                                 callbacks=callbacks)
 
@@ -226,6 +230,10 @@ class Scorer(Callback):
                 y_pred = y_pred + y_pred_batch
                 y_true = y_true + y_true_batch 
 
+
+        #for i in range(0,len(y_pred)):
+        #    print("pred", y_pred[i])
+        #    print("true", y_true[i])
         f1 = f1_score(y_true, y_pred)
         print("\tf1 (micro): {:04.2f}".format(f1 * 100))
 

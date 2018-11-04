@@ -88,7 +88,7 @@ class BidLSTM_CRF(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)

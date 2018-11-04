@@ -37,11 +37,17 @@ class Tagger(object):
             embeddings=self.embeddings, tokenize=True, shuffle=False)
 
         nb_workers = 6
+        multiprocessing = True
+        # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.embeddings.use_ELMo:
+            # worker at 0 means the training will be executed in the main thread
             nb_workers = 0
+            multiprocessing = False
+            # dump token context independent data for train set, done once for the training
+
         preds = self.model.predict_generator(
             generator=predict_generator,
-            use_multiprocessing=True,
+            use_multiprocessing=multiprocessing,
             workers=nb_workers
             )
 
