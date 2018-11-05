@@ -15,7 +15,7 @@ From the observation that most of the open source implementations using Keras ar
 
 * Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) contextualised embeddings, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems, and even improve most of them.
 
-* Reduce model size, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB.
+* Reduce model size, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
 * Use dynamic data generator so that the training data do not need to stand completely in memory.
 
@@ -352,7 +352,7 @@ If you have trained the model with ELMo, you need to indicate to use ELMo-based 
 
 DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset.
 
-With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __87.01__ (best run over 10 trainings, __86.65__ averaged over these 10 trainings) when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__. With ELMo, the available model f1 score is __88.24__. 
+With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __87.01__ (best run over 10 trainings, __86.65__ averaged over these 10 trainings) when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__. With ELMo, the available model f1 score is __88.72__ (not done the average yet!). 
 
 For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
@@ -389,32 +389,33 @@ With ELMo embeddings (using the default hyper-parameters for the moment, except 
 
 ```text
 Evaluation on test set:
-  f1 (micro): 88.24
+  f1 (micro): 88.72
                   precision    recall  f1-score   support
 
-           EVENT     0.6000    0.6190    0.6094        63
-         PERCENT     0.8917    0.8968    0.8943       349
-           MONEY     0.8820    0.9045    0.8931       314
-        LANGUAGE     0.8750    0.6364    0.7368        22
-         ORDINAL     0.8221    0.8769    0.8486       195
-         PRODUCT     0.7042    0.6579    0.6803        76
-        QUANTITY     0.7143    0.8095    0.7589       105
-             LAW     0.7273    0.6000    0.6575        40
-             GPE     0.9696    0.9536    0.9615      2240
-     WORK_OF_ART     0.5749    0.7169    0.6381       166
-          PERSON     0.9443    0.9467    0.9455      1988
-            DATE     0.8740    0.8227    0.8476      1602
-             ORG     0.8937    0.8897    0.8917      1795
-            NORP     0.8953    0.9156    0.9053       841
-            TIME     0.6682    0.6745    0.6714       212
-             LOC     0.7092    0.7765    0.7413       179
-        CARDINAL     0.8723    0.7016    0.7777       935
-             FAC     0.7521    0.6741    0.7109       135
+        LANGUAGE     0.7000    0.6364    0.6667        22
+             FAC     0.8511    0.5926    0.6987       135
+           MONEY     0.8956    0.9013    0.8984       314
+             LAW     0.7931    0.5750    0.6667        40
+         PERCENT     0.8803    0.8854    0.8829       349
+             ORG     0.8873    0.8992    0.8932      1795
+         ORDINAL     0.8070    0.9436    0.8700       195
+             LOC     0.7143    0.7542    0.7337       179
+         PRODUCT     0.6712    0.6447    0.6577        76
+     WORK_OF_ART     0.5859    0.6988    0.6374       166
+            TIME     0.6489    0.6887    0.6682       212
+        CARDINAL     0.8681    0.7604    0.8107       935
+            NORP     0.9423    0.9512    0.9467       841
+           EVENT     0.6324    0.6825    0.6565        63
+            DATE     0.8626    0.8308    0.8464      1602
+          PERSON     0.9380    0.9507    0.9443      1988
+             GPE     0.9626    0.9527    0.9576      2240
+        QUANTITY     0.7500    0.8000    0.7742       105
 
-all (micro avg.)     0.8916    0.8733    0.8824     11257
+all (micro avg.)     0.8908    0.8835    0.8872     11257
+
 ```
 
-For ten model training with average, worst and best model:
+For ten model training with average, worst and best model, use:
 
 > python3 nerTagger.py --dataset-type conll2012 --fold-count 10 train_eval
 

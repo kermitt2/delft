@@ -140,7 +140,7 @@ def train_eval(embedding_name,
         recurrent_dropout=0.5
 
     if use_ELMo:
-        batch_size = 100
+        batch_size = 150
     else:
         batch_size = 20
 
