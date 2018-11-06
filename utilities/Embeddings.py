@@ -593,6 +593,7 @@ class Embeddings(object):
             # db cache not available, nothing to clean
             return
         else: 
+            self.env.close()
             for file in os.listdir(self.embedding_ELMo_cache): 
                 file_path = os.path.join(self.embedding_ELMo_cache, file)
                 if os.path.isfile(file_path):
