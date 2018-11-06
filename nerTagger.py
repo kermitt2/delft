@@ -22,7 +22,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         recurrent_dropout=0.5
 
     if use_ELMo:
-        batch_size = 100
+        batch_size = 120
     else:
         batch_size = 20
 
@@ -140,7 +140,7 @@ def train_eval(embedding_name,
         recurrent_dropout=0.5
 
     if use_ELMo:
-        batch_size = 150
+        batch_size = 120
     else:
         batch_size = 20
 
