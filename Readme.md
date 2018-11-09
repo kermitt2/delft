@@ -352,7 +352,9 @@ If you have trained the model with ELMo, you need to indicate to use ELMo-based 
 
 DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset.
 
-With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score of the provided model is __87.01__ (best run over 10 trainings, __86.65__ averaged over these 10 trainings) when trained with the train set strictly. When trained with validation set and Glove embeddings, f1 score of the provided model is __86.55__. With ELMo, the available model f1 score is __88.72__ (not done the average yet!). 
+With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score is __86.65__ averaged over these 10 trainings, with best run at  __87.01__ (provided model) when trained with the train set strictly. 
+
+With ELMo, f-score is __88.66__ averaged over these 10 trainings, and with best best run at __89.01__.
 
 For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
@@ -385,39 +387,38 @@ Evaluation on test set:
 all (micro avg.)     0.8647    0.8755    0.8701     11257
 ```
 
-With ELMo embeddings (using the default hyper-parameters for the moment, except the batch size which is increased to better learn the less frequent classes):
+With ELMo embeddings (using the default hyper-parameters, except the batch size which is increased to better learn the less frequent classes):
 
 ```text
 Evaluation on test set:
   f1 (micro): 88.72
                   precision    recall  f1-score   support
 
-        LANGUAGE     0.7000    0.6364    0.6667        22
-             FAC     0.8511    0.5926    0.6987       135
-           MONEY     0.8956    0.9013    0.8984       314
-             LAW     0.7931    0.5750    0.6667        40
-         PERCENT     0.8803    0.8854    0.8829       349
-             ORG     0.8873    0.8992    0.8932      1795
-         ORDINAL     0.8070    0.9436    0.8700       195
-             LOC     0.7143    0.7542    0.7337       179
-         PRODUCT     0.6712    0.6447    0.6577        76
-     WORK_OF_ART     0.5859    0.6988    0.6374       166
-            TIME     0.6489    0.6887    0.6682       212
-        CARDINAL     0.8681    0.7604    0.8107       935
-            NORP     0.9423    0.9512    0.9467       841
-           EVENT     0.6324    0.6825    0.6565        63
-            DATE     0.8626    0.8308    0.8464      1602
-          PERSON     0.9380    0.9507    0.9443      1988
-             GPE     0.9626    0.9527    0.9576      2240
-        QUANTITY     0.7500    0.8000    0.7742       105
+             LAW     0.7188    0.5750    0.6389        40
+         PERCENT     0.8946    0.8997    0.8971       349
+           EVENT     0.6212    0.6508    0.6357        63
+        CARDINAL     0.8616    0.7722    0.8144       935
+        QUANTITY     0.7838    0.8286    0.8056       105
+            NORP     0.9232    0.9572    0.9399       841
+             LOC     0.7459    0.7709    0.7582       179
+            DATE     0.8629    0.8252    0.8437      1602
+        LANGUAGE     0.8750    0.6364    0.7368        22
+             GPE     0.9637    0.9607    0.9622      2240
+         ORDINAL     0.8145    0.9231    0.8654       195
+             ORG     0.9033    0.8903    0.8967      1795
+           MONEY     0.8851    0.9076    0.8962       314
+             FAC     0.8257    0.6667    0.7377       135
+            TIME     0.6592    0.6934    0.6759       212
+          PERSON     0.9350    0.9477    0.9413      1988
+     WORK_OF_ART     0.6467    0.7169    0.6800       166
+         PRODUCT     0.6867    0.7500    0.7170        76
 
-all (micro avg.)     0.8908    0.8835    0.8872     11257
-
+all (micro avg.)     0.8939    0.8864    0.8901     11257
 ```
 
-For ten model training with average, worst and best model, use:
+For ten model training with average, worst and best model with ELMo embeddings, use:
 
-> python3 nerTagger.py --dataset-type conll2012 --fold-count 10 train_eval
+> python3 nerTagger.py --dataset-type conll2012 --use-ELMo --fold-count 10 train_eval
 
 ##### French model (based on Le Monde corpus)
 
