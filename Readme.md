@@ -29,23 +29,25 @@ DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7+ as backend.
 
 Get the github repo:
 
-> git clone https://github.com/kermitt2/delft
-
-> cd delft
-
+```sh
+git clone https://github.com/kermitt2/delft
+cd delft
+```
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
-> virtualenv --system-site-packages -p python3 env
-
-> source env/bin/activate
-
+```sh
+virtualenv --system-site-packages -p python3 env
+source env/bin/activate
+```
 Install the dependencies, if you have a GPU and CUDA (>=8.0) installed use:
 
-> pip3 install -r requirements-gpu.txt
-
+```sh
+pip3 install -r requirements-gpu.txt
+```
 otherwise if you can use only your CPU:
-
-> pip3 install -r requirements.txt
+```sh
+pip3 install -r requirements.txt
+```
 
 You need then to download some pre-trained word embeddings and notify their path into the embedding registry. We suggest for exploiting the provided models:
 
