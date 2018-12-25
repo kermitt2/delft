@@ -17,10 +17,13 @@ class DataGenerator(keras.utils.Sequence):
                 char_embed_size=25, 
                 embeddings=None, 
                 tokenize=False, 
-                shuffle=True):
+                shuffle=True,
+                features=None):
         'Initialization'
         self.x = x
         self.y = y
+        # features here are optional additional features provided in the case of GROBID input for instance
+        self.features = features
         self.preprocessor = preprocessor
         if preprocessor:
             self.labels = preprocessor.vocab_tag
@@ -91,6 +94,12 @@ class DataGenerator(keras.utils.Sequence):
                     max_length_x = len(tokens)
             x_tokenized = sub_x
 
+        # prevent sequence of length 1 alone in a batch (this causes an error in tf)
+        extend = False
+        if max_length_x == 1:
+            max_length_x += 1
+            extend = True
+
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
@@ -119,11 +128,12 @@ class DataGenerator(keras.utils.Sequence):
                 batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
         if self.y is not None:
-            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y)
+            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:
-            batches = self.preprocessor.transform(x_tokenized)
+            batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
         batch_c = np.asarray(batches[0])
+
         batch_l = batches[1]
 
         if self.preprocessor.return_casing:

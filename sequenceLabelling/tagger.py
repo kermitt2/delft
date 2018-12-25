@@ -17,7 +17,7 @@ class Tagger(object):
         self.model_config = model_config
         self.embeddings = embeddings
 
-    def tag(self, texts, output_format):
+    def tag(self, texts, output_format, features=None):
         assert isinstance(texts, list)
 
         if output_format is 'json':
@@ -30,11 +30,15 @@ class Tagger(object):
         else:
            list_of_tags = []
 
+        tokeniz = False
+        if (len(texts)>0 and isinstance(texts[0], str)):
+            tokeniz = True
+
         predict_generator = DataGenerator(texts, None, 
             batch_size=self.model_config.batch_size, 
             preprocessor=self.preprocessor, 
             char_embed_size=self.model_config.char_embedding_size,
-            embeddings=self.embeddings, tokenize=True, shuffle=False)
+            embeddings=self.embeddings, tokenize=tokeniz, shuffle=False, features=None)
 
         nb_workers = 6
         multiprocessing = True
@@ -54,7 +58,14 @@ class Tagger(object):
         for i in range(0,len(preds)):
             pred = [preds[i]]
             text = texts[i]
-            tokens, offsets = tokenizeAndFilter(text)
+
+            if (isinstance(text, str)):
+               tokens, offsets = tokenizeAndFilter(text)
+            else:
+                # it is a list of string, so a string already tokenized
+                # note that in this case, offset are not present and json output is impossible
+                tokens = text
+                offsets = []
 
             tags = self._get_tags(pred)
             prob = self._get_prob(pred)

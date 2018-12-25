@@ -147,6 +147,7 @@ if __name__ == "__main__":
         if model == 'date':
             someTexts.append("January 2006")
             someTexts.append("March the 27th, 2001")
+            someTexts.append('2018')
         elif model == 'citation':
             someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
             someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")

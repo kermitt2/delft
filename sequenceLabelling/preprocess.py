@@ -58,9 +58,11 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None):
+    def transform(self, X, y=None, extend=False):
         """
         transforms input into sequence
+        the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch 
+        (which would cause an error with tf)
 
         Args:
             X: list of list of word tokens
@@ -78,6 +80,8 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             for w in sent:
                 if self.use_char_feature:
                     char_ids.append(self.get_char_ids(w))
+                    if extend:
+                        char_ids.append([])
 
             if self.use_char_feature:
                 chars.append(char_ids)
