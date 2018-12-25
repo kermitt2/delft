@@ -600,7 +600,7 @@ if __name__ == "__main__":
     print('grobid date labels:', y_all)
     print('grobid date features:', f_all)
 
-    with open(crfPath, 'r') as thefile:
+    with open(crfPath, 'r') as theFile:
         string = theFile.read()
 
     x_all, f_all = load_data_and_labels_crf_string(string)
