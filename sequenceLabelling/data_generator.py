@@ -99,7 +99,7 @@ class DataGenerator(keras.utils.Sequence):
         if max_length_x == 1:
             max_length_x += 1
             extend = True
-
+        
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')

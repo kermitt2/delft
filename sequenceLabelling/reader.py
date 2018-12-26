@@ -341,7 +341,7 @@ def load_data_and_labels_crf_string(crfString):
     featureSets = []
     tokens, tags, features = [], [], []
     for line in crfString.splitlines():    
-        line = line.strip()
+        line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
                 sents.append(tokens)
@@ -360,8 +360,8 @@ def load_data_and_labels_crf_string(crfString):
     # last sequence
     if len(tokens) != 0:
         sents.append(tokens)
+        labels.append(tags)
         featureSets.append(features)
-        tokens, features = [], []
     return sents, labels, featureSets
 
 
@@ -384,9 +384,9 @@ def load_data_crf_string(crfString):
     sents = []
     featureSets = []
     tokens, features = [], []
-    #print("crfString:", crfString)
+    print("crfString:", crfString)
     for line in crfString.splitlines():
-        line = line.strip()
+        line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
                 sents.append(tokens)
@@ -402,10 +402,9 @@ def load_data_crf_string(crfString):
     if len(tokens) != 0:
         sents.append(tokens)
         featureSets.append(features)
-        tokens, features = [], []
 
-    #print('sents:', sents)
-    #print('featureSets:', featureSets)
+    #print('sents:', len(sents))
+    #print('featureSets:', len(featureSets))
     return sents, featureSets
 
 
