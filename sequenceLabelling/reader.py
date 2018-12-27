@@ -384,7 +384,7 @@ def load_data_crf_string(crfString):
     sents = []
     featureSets = []
     tokens, features = [], []
-    print("crfString:", crfString)
+    #print("crfString:", crfString)
     for line in crfString.splitlines():
         line = line.strip(' \t')
         if len(line) == 0:

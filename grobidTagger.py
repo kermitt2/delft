@@ -15,10 +15,12 @@ models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 
 
 
 # train a GROBID model with all available data 
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, output_path=None): 
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
     print('Loading data...')
-    x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
-
+    if input_path is None:
+        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+    else:
+        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
     x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -51,9 +53,12 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, ou
         model.save()
 
 # split data, train a GROBID model and evaluate it 
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, output_path=None): 
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
     print('Loading data...')
-    x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+    if input_path is None:
+        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+    else:
+        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
     x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
@@ -125,13 +130,14 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-CRF]")
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    parser.add_argument("--out", help="directory where to save a trained model")
+    parser.add_argument("--output", help="directory where to save a trained model")
+    parser.add_argument("--input", help="provided training file")
     
     args = parser.parse_args()
 
     model = args.model    
-    if not model in models:
-        print('invalid model, should be one of', models)
+    #if not model in models:
+    #    print('invalid model, should be one of', models)
 
     action = args.action    
     if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
@@ -142,7 +148,8 @@ if __name__ == "__main__":
     if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU-CRF'):
         print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU-CRF]')
 
-    output = args.out
+    output = args.output
+    input_path = args.input
 
     # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
     # embedding-registry.json
@@ -151,12 +158,12 @@ if __name__ == "__main__":
     embeddings_name = "glove-840B"
 
     if action == 'train':
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, output_path=output)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, output_path=output)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
     if action == 'tag':
         someTexts = []
