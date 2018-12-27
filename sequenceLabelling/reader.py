@@ -313,7 +313,7 @@ def load_data_and_labels_crf_file(filepath):
                 pieces = re.split(' |\t', line)
                 token = pieces[0]
                 tag = pieces[len(pieces)-1]
-                localFeatures = pieces[1:len(pieces)-2]
+                localFeatures = pieces[1:len(pieces)-1]
                 tokens.append(token)
                 tags.append(_translate_tags_grobid_to_IOB(tag))
                 features.append(localFeatures)
@@ -322,27 +322,26 @@ def load_data_and_labels_crf_file(filepath):
 
 def load_data_and_labels_crf_string(crfString):
     """
-    Load data, features and label from a CRF matrix file 
+    Load data, features (no label!) from a CRF matrix file 
     the format is as follow:
 
-    token_0 f0_0 f0_1 ... f0_n label_0
-    token_1 f1_0 f1_1 ... f1_n label_1
+    token_0 f0_0 f0_1 ... f0_n
+    token_1 f1_0 f1_1 ... f1_n
     ...
-    token_m fm_0 fm_1 ... fm_n label_m
+    token_m fm_0 fm_1 ... fm_n
 
     field separator can be either space or tab
 
     Returns:
-        tuple(numpy array, numpy array, numpy array): tokens, labels, features
+        tuple(numpy array, numpy array, numpy array): tokens, features
 
     """
     sents = []
     labels = []
     featureSets = []
-
-    for line in crfString.splitlines():
-        tokens, tags, features = [], [], []
-        line = line.strip()
+    tokens, tags, features = [], [], []
+    for line in crfString.splitlines():    
+        line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
                 sents.append(tokens)
@@ -354,10 +353,15 @@ def load_data_and_labels_crf_string(crfString):
             pieces = re.split(' |\t', line)
             token = pieces[0]
             tag = pieces[len(pieces)-1]
-            localFeatures = pieces[1:len(pieces)-2]
+            localFeatures = pieces[1:len(pieces)-1]
             tokens.append(token)
             tags.append(_translate_tags_grobid_to_IOB(tag))
             features.append(localFeatures)
+    # last sequence
+    if len(tokens) != 0:
+        sents.append(tokens)
+        labels.append(tags)
+        featureSets.append(features)
     return sents, labels, featureSets
 
 
@@ -379,9 +383,28 @@ def load_data_crf_string(crfString):
     """
     sents = []
     featureSets = []
+    tokens, features = [], []
+    #print("crfString:", crfString)
+    for line in crfString.splitlines():
+        line = line.strip(' \t')
+        if len(line) == 0:
+            if len(tokens) != 0:
+                sents.append(tokens)
+                featureSets.append(features)
+                tokens, features = [], []
+        else:
+            pieces = re.split(' |\t', line)
+            token = pieces[0]
+            localFeatures = pieces[1:len(pieces)]
+            tokens.append(token)
+            features.append(localFeatures)
+    # last sequence
+    if len(tokens) != 0:
+        sents.append(tokens)
+        featureSets.append(features)
 
-    # TBD
-
+    #print('sents:', len(sents))
+    #print('featureSets:', len(featureSets))
     return sents, featureSets
 
 
@@ -557,14 +580,28 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
 
 if __name__ == "__main__":
     # some tests
-    xmlPath = '../../data/sequence/train.xml'
+    xmlPath = '../../data/sequenceLabelling/toxic/train.xml'
     print(xmlPath)
     sents, allLabels = load_data_and_labels_xml_file(xmlPath)
     print('toxic tokens:', sents)
     print('toxic labels:', allLabels)
 
-    xmlPath = '../../data/sequence/test.xml'
+    xmlPath = '../../data/sequenceLabelling/toxic/test.xml'
     print(xmlPath)
     sents, allLabels = load_data_and_labels_xml_file(xmlPath)
     print('toxic tokens:', sents)
     print('toxic labels:', allLabels)
+
+    crfPath = '../../data/sequenceLabelling/grobid/date/date-060518.train'
+    print(crfPath)
+    x_all, y_all, f_all = load_data_and_labels_crf_file(input)
+    print('grobid date tokens:', x_all)
+    print('grobid date labels:', y_all)
+    print('grobid date features:', f_all)
+
+    with open(crfPath, 'r') as theFile:
+        string = theFile.read()
+
+    x_all, f_all = load_data_and_labels_crf_string(string)
+    print('grobid date tokens:', x_all)
+    print('grobid date features:', f_all)

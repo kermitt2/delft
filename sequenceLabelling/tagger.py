@@ -17,7 +17,7 @@ class Tagger(object):
         self.model_config = model_config
         self.embeddings = embeddings
 
-    def tag(self, texts, output_format):
+    def tag(self, texts, output_format, features=None):
         assert isinstance(texts, list)
 
         if output_format is 'json':
@@ -30,11 +30,15 @@ class Tagger(object):
         else:
            list_of_tags = []
 
+        tokeniz = False
+        if (len(texts)>0 and isinstance(texts[0], str)):
+            tokeniz = True
+
         predict_generator = DataGenerator(texts, None, 
             batch_size=self.model_config.batch_size, 
             preprocessor=self.preprocessor, 
             char_embed_size=self.model_config.char_embedding_size,
-            embeddings=self.embeddings, tokenize=True, shuffle=False)
+            embeddings=self.embeddings, tokenize=tokeniz, shuffle=False, features=None)
 
         nb_workers = 6
         multiprocessing = True
@@ -45,28 +49,45 @@ class Tagger(object):
             multiprocessing = False
             # dump token context independent data for train set, done once for the training
 
-        preds = self.model.predict_generator(
-            generator=predict_generator,
-            use_multiprocessing=multiprocessing,
-            workers=nb_workers
-            )
+        steps_done = 0
+        steps = len(predict_generator)
+        #while steps_done < steps:
+        for generator_output in predict_generator:
+            if steps_done == steps:
+                break
+            #generator_output = next(predict_generator)
+            preds = self.model.predict_on_batch(generator_output[0])
 
-        for i in range(0,len(preds)):
-            pred = [preds[i]]
-            text = texts[i]
-            tokens, offsets = tokenizeAndFilter(text)
+            '''preds = self.model.predict_generator(
+                generator=predict_generator,
+                use_multiprocessing=multiprocessing,
+                workers=nb_workers
+                )
+            '''
+            for i in range(0,len(preds)):
+                pred = [preds[i]]
+                text = texts[i+(steps_done*self.model_config.batch_size)]
 
-            tags = self._get_tags(pred)
-            prob = self._get_prob(pred)
+                if (isinstance(text, str)):
+                   tokens, offsets = tokenizeAndFilter(text)
+                else:
+                    # it is a list of string, so a string already tokenized
+                    # note that in this case, offset are not present and json output is impossible
+                    tokens = text
+                    offsets = []
 
-            if output_format is 'json':
-                piece = {}
-                piece["text"] = text
-                piece["entities"] = self._build_json_response(tokens, tags, prob, offsets)["entities"]
-                res["texts"].append(piece)
-            else:
-                the_tags = list(zip(tokens, tags))
-                list_of_tags.append(the_tags)
+                tags = self._get_tags(pred)
+                prob = self._get_prob(pred)
+
+                if output_format is 'json':
+                    piece = {}
+                    piece["text"] = text
+                    piece["entities"] = self._build_json_response(tokens, tags, prob, offsets)["entities"]
+                    res["texts"].append(piece)
+                else:
+                    the_tags = list(zip(tokens, tags))
+                    list_of_tags.append(the_tags)
+            steps_done += 1
 
         if output_format is 'json':
             return res
