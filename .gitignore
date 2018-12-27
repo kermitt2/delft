@@ -18,6 +18,7 @@ data/eval
 data/embeddings
 data/sequenceLabelling/CoNLL-2003/eng.*
 data/sequenceLabelling/leMonde/*
+data/sequenceLabelling/ftb6/*
 data/sequenceLabelling/ontonotes/*
 data/resources
 data/clearNLP
