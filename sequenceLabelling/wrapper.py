@@ -246,8 +246,8 @@ class Sequence(object):
             runtime = round(time.time() - start_time, 3)
             if output_format is 'json':
                 annotations["runtime"] = runtime
-            else:
-                print("runtime: %s seconds " % (runtime))
+            #else:
+            #    print("runtime: %s seconds " % (runtime))
             return annotations
         else:
             raise (OSError('Could not find a model.'))
