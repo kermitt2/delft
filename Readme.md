@@ -23,9 +23,11 @@ From the observation that most of the open source implementations using Keras ar
 
 The medium term goal is then to provide good performance (accuracy, runtime, compactness) models also to productions stack such as Java/Scala and C++.
 
-DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7+ as backend. At this stage, we do not guarantee that DeLFT will run with other different versions of these libraries or other Keras backend versions. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely OK without ELMo contextual embeddings. Using ELMo was fine with a GeForce GTX 1080 Ti.
+DeLFT requires python __3.6__, Keras 2.1 and Tensorflow 1.7+ as backend. At this stage, we do not guarantee that DeLFT will run with other different versions of these libraries or other Keras backend versions. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely OK without ELMo contextual embeddings. Using ELMo was fine with a GeForce GTX 1080 Ti.
 
 ## Install
+
+Be sure that Python __3.6+__ is installed on your machine. 
 
 Get the github repo:
 
@@ -39,6 +41,9 @@ It is advised to setup first a virtual environment to avoid falling into one of 
 virtualenv --system-site-packages -p python3 env
 source env/bin/activate
 ```
+
+If you are using Ubuntu 16.04, see the [following](https://vsupalov.com/developing-with-python3-6-on-ubuntu-16-04/).
+
 Install the dependencies, if you have a GPU and CUDA (>=8.0) installed use:
 
 ```sh
@@ -61,7 +66,9 @@ You need then to download some pre-trained word embeddings and notify their path
 
 * _ELMo_ trained on 5.5B word corpus (will produce 1024 dim. vectors) for English: [options](https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json) and [weights](https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5)
 
-* _Flair_
+* _Flair_ for English, [news-forward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-news-english-forward-v0.2rc.pt) and 
+[news-backward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-news-english-backward-v0.2rc.pt). 
+For French: [fr-forward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-fr-charlm-forward.pt') and [fr-backward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-fr-charlm-backward.pt')
 
 Then edit the file `embedding-registry.json` and modify the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unzipped.
 
