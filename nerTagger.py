@@ -267,7 +267,7 @@ def train_eval(embedding_name,
                                             model_type=architecture,
                                             word_lstm_units=word_lstm_units,
                                             batch_size=batch_size,
-                                            use_ELMo=use_ELM,
+                                            use_ELMo=use_ELMo,
                                             use_FLAIR=use_FLAIR)
 
     elif (lang == 'fr'):
