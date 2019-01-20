@@ -17,9 +17,11 @@ class ModelConfig(object):
                  recurrent_dropout=0.3,
                  use_char_feature=True, 
                  use_crf=True,
+                 max_sequence_length=500,
                  fold_number=1,
                  batch_size=64,
-                 use_ELMo=False):
+                 use_ELMo=False,
+                 use_FLAIR=False):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -41,10 +43,12 @@ class ModelConfig(object):
 
         self.use_char_feature = use_char_feature
         self.use_crf = use_crf
+        self.max_sequence_length = max_sequence_length
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for test and prediction
 
         self.use_ELMo = use_ELMo
+        self.use_FLAIR = use_FLAIR
 
     def save(self, file):
         with open(file, 'w') as f:

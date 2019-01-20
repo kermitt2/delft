@@ -2,7 +2,7 @@ import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import keras
-from sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo
+from sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo, to_vector_simple_with_flair
 from utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
@@ -99,7 +99,8 @@ class DataGenerator(keras.utils.Sequence):
         if max_length_x == 1:
             max_length_x += 1
             extend = True
-        
+        #print("max_length_x", max_length_x)
+
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
@@ -114,10 +115,13 @@ class DataGenerator(keras.utils.Sequence):
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
 
+        if self.embeddings.use_FLAIR:     
+            batch_x = to_vector_simple_with_flair(x_tokenized, self.embeddings, max_length_x)    
+
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
-            if not self.embeddings.use_ELMo:    
+            if not self.embeddings.use_ELMo and not self.embeddings.use_FLAIR:    
                 batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             if self.preprocessor.return_casing:

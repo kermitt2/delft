@@ -1,0 +1,21 @@
+{
+    "use_char_feature": true,
+    "fold_number": 10,
+    "case_vocab_size": 8,
+    "case_embedding_size": 5,
+    "num_char_lstm_units": 25,
+    "num_word_lstm_units": 100,
+    "char_vocab_size": 232,
+    "model_type": "BidLSTM_CRF",
+    "model_name": "grobid-software-with_ELMo",
+    "dropout": 0.5,
+    "char_embedding_size": 25,
+    "use_ELMo": true,
+    "recurrent_dropout": 0.5,
+    "word_embedding_size": 1324,
+    "use_crf": true,
+    "embeddings_name": "glove-840B",
+    "max_char_length": 30,
+    "batch_size": 5,
+    "max_sequence_length": 3000
+}

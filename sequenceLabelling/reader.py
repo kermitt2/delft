@@ -278,7 +278,7 @@ def load_data_and_labels_xml_file(filepathXml):
     return tokens, labels
 
 
-def load_data_and_labels_crf_file(filepath):
+def load_data_and_labels_crf_file(filepath, max_sequence_length=2000):
     """
     Load data, features and label from a CRF matrix string 
     the format is as follow:
@@ -290,6 +290,9 @@ def load_data_and_labels_crf_file(filepath):
 
     field separator can be either space or tab
 
+    max_sequence_length is the maximum length of a sequence in token count
+    for larger read input sequence, a segmentation will be performed 
+
     Returns:
         tuple(numpy array, numpy array, numpy array): tokens, labels, features
 
@@ -297,16 +300,24 @@ def load_data_and_labels_crf_file(filepath):
     sents = []
     labels = []
     featureSets = []
+    tokens, tags, features = [], [], []
 
-    with open(filepath) as f:
-        tokens, tags, features = [], [], []
+    with open(filepath) as f:    
         for line in f:
             line = line.strip()
             if len(line) == 0:
                 if len(tokens) != 0:
-                    sents.append(tokens)
-                    labels.append(tags)
-                    featureSets.append(features)
+                    # sequence will be segmented if too long
+                    the_tokens, the_tags, the_features = segment(tokens, tags, features, max_sequence_length)
+                    i = 0
+                    #print('len(the_tokens):', len(the_tokens))
+                    for the_token in the_tokens:
+                        the_tag = the_tags[i]
+                        the_feature = the_features[i]
+                        sents.append(the_token)
+                        labels.append(the_tag)
+                        featureSets.append(the_feature)
+                        i += 1
                     tokens, tags, features = [], [], []
             else:
                 #pieces = line.split('\t')
@@ -317,10 +328,22 @@ def load_data_and_labels_crf_file(filepath):
                 tokens.append(token)
                 tags.append(_translate_tags_grobid_to_IOB(tag))
                 features.append(localFeatures)
+    # last sequence
+    if len(tokens) != 0:
+        # sequence will be segmented if too long
+        the_tokens, the_tags, the_features = segment(tokens, tags, features, max_sequence_length)
+        i = 0
+        for the_token in the_tokens:
+            the_tag = the_tags[i]
+            the_feature = the_features[i]
+            sents.append(the_token)
+            labels.append(the_tag)
+            featureSets.append(the_feature)
+            i += 1
     return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
 
 
-def load_data_and_labels_crf_string(crfString):
+def load_data_and_labels_crf_string(crfString, max_sequence_length=2000):
     """
     Load data, features (no label!) from a CRF matrix file 
     the format is as follow:
@@ -331,6 +354,9 @@ def load_data_and_labels_crf_string(crfString):
     token_m fm_0 fm_1 ... fm_n
 
     field separator can be either space or tab
+
+    max_sequence_length is the maximum length of a sequence in token count
+    for larger read input sequence, a segmentation will be performed 
 
     Returns:
         tuple(numpy array, numpy array, numpy array): tokens, features
@@ -344,9 +370,16 @@ def load_data_and_labels_crf_string(crfString):
         line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
-                sents.append(tokens)
-                labels.append(tags)
-                featureSets.append(features)
+                # sequence will be segmented if too long
+                the_tokens, the_tags, the_features = segment(tokens, tags, features, max_sequence_length)
+                i = 0
+                for the_token in the_tokens:
+                    the_tag = the_tags[i]
+                    the_feature = the_features[i]
+                    sents.append(the_token)
+                    labels.append(the_tag)
+                    featureSets.append(the_feature)
+                    i += 1
                 tokens, tags, features = [], [], []
         else:
             #pieces = line.split('\t')
@@ -365,7 +398,7 @@ def load_data_and_labels_crf_string(crfString):
     return sents, labels, featureSets
 
 
-def load_data_crf_string(crfString):
+def load_data_crf_string(crfString, max_sequence_length=2000):
     """
     Load data and features from a CRF matrix file 
     the format is as follow:
@@ -376,6 +409,9 @@ def load_data_crf_string(crfString):
     token_m fm_0 fm_1 ... fm_n
 
     field separator can be either space or tab
+
+    max_sequence_length is the maximum length of a sequence in token count
+    for larger read input sequence, a segmentation will be performed 
 
     Returns:
         tuple(numpy array, numpy array): tokens, features
@@ -389,8 +425,14 @@ def load_data_crf_string(crfString):
         line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
-                sents.append(tokens)
-                featureSets.append(features)
+                # sequence will be segmented if too long
+                the_tokens, the_tags, the_features = segment(tokens, None, features, max_sequence_length)
+                i = 0
+                for the_token in the_tokens:
+                    the_feature = the_features[i]
+                    sents.append(the_token)
+                    featureSets.append(the_feature)
+                    i += 1
                 tokens, features = [], []
         else:
             pieces = re.split(' |\t', line)
@@ -406,6 +448,90 @@ def load_data_crf_string(crfString):
     #print('sents:', len(sents))
     #print('featureSets:', len(featureSets))
     return sents, featureSets
+
+def segment(tokens, tags=None, features=None, max_sequence_length=500):
+    """
+    Segment a sequence into several sequences below the max limit. 
+    The method uses heuristics to best segment the sequence following
+    sentence boundaries. 
+
+    """
+    tokens_new = []
+    tags_new = []
+    features_new = []
+
+    #print('\nlen(tokens)', len(tokens))
+
+    if len(tokens) < max_sequence_length:
+        tokens_new.append(tokens)
+        tags_new.append(tags)
+        features_new.append(features)
+    else: 
+        strong_delimiters = ".!?"
+        nb_segments = (len(tokens) // max_sequence_length) + 1
+        #print('nb_segments', nb_segments)
+
+        # maximum segmentation of the sequence
+        chunk = []
+        chunks = []
+        for token in tokens:
+            chunk.append(token)
+            if token in strong_delimiters:
+                chunks.append(chunk)
+                chunk = []
+        #print('total chunks:', len(chunks))
+
+        # based on the number of expected segments, regroup the chunks
+        target_size = (len(chunks) // nb_segments) + 1
+        #print('target_size:', target_size)
+
+        j = 0
+        while j < len(chunks):
+            piece = []
+            for i in range(0, target_size):
+                if j == len(chunks):
+                    break
+                chunk = chunks[j]
+                for token in chunk:
+                    piece.append(token)
+                j += 1
+            if len(piece) != 0:
+                tokens_new.append(piece)
+            #print('\tlen(piece):', len(piece))
+        #print('\tlen(tokens_new):', len(tokens_new))
+
+        # align tags and features is provided
+        if tags is not None:
+            pos = 0
+            for token_new in tokens_new:
+                tags_new.append(tags[pos:pos+len(token_new)])
+                pos = pos+len(token_new)
+
+        if features is not None:
+            pos = 0
+            for token_new in tokens_new:
+                features_new.append(features[pos:pos+len(token_new)])
+                pos = pos+len(token_new)
+
+        # optional: remove segments without tags
+        toRemove = []
+        for i in range(0, len(tags_new)):
+            tag_new = tags_new[i]
+            hasTag = False
+            for tag in tag_new:
+                if tag != 'O':
+                    hasTag = True
+                    break
+            if not hasTag:
+                toRemove.append(i)
+        i = len(toRemove)-1
+        while i>=0:
+            tokens_new.pop(toRemove[i])
+            tags_new.pop(toRemove[i])
+            features_new.pop(toRemove[i])
+            i = i-1
+
+    return tokens_new, tags_new, features_new
 
 
 def _translate_tags_grobid_to_IOB(tag):

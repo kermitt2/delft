@@ -27,6 +27,11 @@ from utilities.bilm.data import Batcher, TokenBatcher
 from utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
 from utilities.bilm.elmo import weight_layers
 
+# for FLAIR embeddings
+from utilities.flair.DeLFTFlairEmbeddings import DeLFTFlairEmbeddings
+#from flair.embeddings import FlairEmbeddings
+from flair.data import Sentence, Token
+
 from utilities.Tokenizer import tokenizeAndFilterSimple
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
@@ -40,9 +45,13 @@ map_size = 100 * 1024 * 1024 * 1024
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
 
+# for FLAIR, we distinguish direction of the models
+FORWARD = 0
+BACKWARD = 1
+
 class Embeddings(object):
 
-    def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False):
+    def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False, use_FLAIR=False):
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
@@ -61,17 +70,49 @@ class Embeddings(object):
 
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
+        self.use_ELMo_cache = False
+        self.embedding_ELMo_cache = None
+        self.env_ELMo = None
         if use_ELMo:
             self.make_ELMo()
             self.embed_size = ELMo_embed_size + self.embed_size
             description = self._get_description('elmo-en')
-            self.env_ELMo = None
+            # clean possible remaining cache
+            self.clean_ELMo_cache()
             if description:
-                self.embedding_ELMo_cache = os.path.join(description["path-dump"], "cache")
-                # clean possible remaining cache
-                self.clean_ELMo_cache()
-                # create and load a cache in write mode, it will be used only for training
-                self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+                if description['cache-training']:
+                    self.use_ELMo_cache = True
+                    self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")        
+                    # create and load a cache in write mode, it will be used only for training
+                    self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+
+        # below init for using FLAIR embeddings
+        self.use_FLAIR = use_FLAIR
+        self.use_FLAIR_cache_forward = False
+        self.use_FLAIR_cache_backward = False
+        self.embedding_FLAIR_cache_forward = None
+        self.embedding_FLAIR_cache_backward = None
+        self.env_FLAIR_forward = None
+        self.env_FLAIR_backward = None
+        if use_FLAIR:
+            self.make_FLAIR()
+            self.embed_size = self.flair_forward.embedding_length + self.flair_backward.embedding_length + self.embed_size
+            description_forward = self._get_description('flair-forward-en-news')
+            description_backward = self._get_description('flair-backward-en-news')
+            # clean possible remaining cache
+            self.clean_FLAIR_cache()
+            if description_forward:
+                if description_forward['cache-training']:
+                    self.use_FLAIR_cache_forward = True
+                    self.embedding_FLAIR_cache_forward = os.path.join(description_forward["path-cache"], "cache_forward")
+                    # create and load a cache in write mode, it will be used only for training
+                    self.env_FLAIR_forward = lmdb.open(self.embedding_FLAIR_cache_forward, map_size=map_size)
+            if description_backward:
+                if description_backward['cache-training']:
+                    self.use_FLAIR_cache_backward = True
+                    self.embedding_FLAIR_cache_backward = os.path.join(description_backward["path-cache"], "cache_backward")
+                    # create and load a cache in write mode, it will be used only for training
+                    self.env_FLAIR_backward = lmdb.open(self.embedding_FLAIR_cache_backward, map_size=map_size)
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -86,6 +127,10 @@ class Embeddings(object):
         return json.loads(registry_json)
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl", hasHeader=True):
+        """
+        Store simple word embbedings in memory, this approach should be avoided for performance
+        reasons
+        """
         nbWords = 0
         print('loading embeddings...')
         begin = True
@@ -127,19 +172,10 @@ class Embeddings(object):
                     nbWords = len(self.model)
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
-    '''
-    def make_embeddings_fasttext_bin(self, name="wiki.en.bin"):
-        nbWords = 0
-        print('loading embeddings...')
-        description = self._get_description(name)
-        if description is not None:
-            embeddings_path = description["path"]
-            print("path:", embeddings_path)
-
-        self.model = load_fasttext_format(embeddings_path)
-    '''
-
     def make_embeddings_lmdb(self, name="fasttext-crawl", hasHeader=True):
+        """
+        Store simple word embbedings in LMDB
+        """
         nbWords = 0
         print('\nCompiling embeddings... (this is done only one time per embeddings at first launch)')
         begin = True
@@ -206,6 +242,9 @@ class Embeddings(object):
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
     def make_embeddings_simple(self, name="fasttext-crawl", hasHeader=True):
+        """
+        Init simple word embeddings (e.g. Glove, FastText, w2v)
+        """
         description = self._get_description(name)
         if description is not None:
             self.extension = description["format"]
@@ -283,60 +322,26 @@ class Embeddings(object):
                 # the reuse=True scope reuses weights from the whole context 
                 self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
 
-    def dump_ELMo_token_embeddings(self, x_train):
-        if not self.use_ELMo:
-            print("Warning: ELMo embeddings dump requested but embeddings object wrongly initialised")
-            return
+    def make_FLAIR(self):
+        # Location of pretrained BiLM for the specified language
+        # TBD check if FLAIR language resources are present
+        description_forward = self._get_description('flair-forward-en-news')
+        description_backward = self._get_description('flair-backward-en-news')
 
-        description = self._get_description('elmo-en')
-        if description is not None:
-            print("Building ELMo token dump")
-
-            self.lang = description["lang"]
-            options_file = description["path-config"]
-            weight_file = description["path_weights"]
-            working_path = description["path-dump"]
-
-            all_tokens = set(['<S>', '</S>'])
-            for i in range(0, len(x_train)):
-                # as it is training, it is already tokenized
-                tokens = x_train[i]
-                for token in tokens:
-                    if token not in all_tokens:
-                       all_tokens.add(token)
-
-            vocab_file = os.path.join(working_path, 'vocab_small.txt')
-            with open(vocab_file, 'w') as fout:
-                fout.write('\n'.join(all_tokens))
-
-            tf.reset_default_graph()
-            token_embedding_file = os.path.join(working_path, 'elmo_token_embeddings.hdf5')
-            dump_token_embeddings(
-                vocab_file, options_file, weight_file, token_embedding_file
-            )
-            tf.reset_default_graph()
-
-            self.batcher_token_dump = TokenBatcher(vocab_file)
-
-            self.bilm_token_dump = BidirectionalLanguageModel(
-                options_file,
-                weight_file,
-                use_character_inputs=False,
-                embedding_weight_file=token_embedding_file
-            )
-
-            self.token_ids = tf.placeholder('int32', shape=(None, None))
-            self.embeddings_op_token_dump = self.bilm_token_dump(self.token_ids)
-            """
-            with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-                # the reuse=True scope reuses weights from the whole context 
-                self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
-            """
-            print("ELMo token dump completed")
+        if description_forward is not None:
+            self.lang = description_forward["lang"]
+            model_file = description_forward["path_weights"]
+            print('init FLAIR forward LM')
+            self.flair_backward = DeLFTFlairEmbeddings(model_file)
+        
+        if description_backward is not None:
+            model_file = description_backward["path_weights"]
+            print('init FLAIR backward LM')
+            self.flair_forward = DeLFTFlairEmbeddings(model_file)
 
     def get_sentence_vector_only_ELMo(self, token_list):
         """
-            Return the ELMo embeddings only for a full sentence
+            Return the ELMo embeddings only, for a full sentence
         """
 
         if not self.use_ELMo:
@@ -366,73 +371,25 @@ class Embeddings(object):
                     self.elmo_input['weighted_op'],
                     feed_dict={self.character_ids: local_token_ids}
                 )
-                #cache computation
-                self.cache_ELMo_lmdb_vector(token_list, elmo_result)
+                # if required, cache computation
+                if self.use_ELMo_cache:
+                    self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         return elmo_result
 
     def get_sentence_vector_with_ELMo(self, token_list):
         """
             Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
-            for a full sentence
+            for a full sentence, this is the usual usage
         """
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
-        """
-        # trick to extend the context for short sentences
-        token_list_extended = token_list.copy()
-        #print("token_list_extended before: ", token_list_extended)
-        for i in range(0, len(token_list_extended)):
-            local_list = token_list_extended[i]
-            j = i
-            while len(local_list) <= 5:
-                #print(j, local_list)
-                if j < len(token_list_extended)-1:
-                    local_list = local_list + token_list_extended[j+1]
-                else:
-                    break
-                j = j + 1
-            token_list_extended[i] = local_list
-        #print("token_list_extended after: ", token_list_extended)
-
-        max_size_sentence = 0
-        for i in range(0, len(token_list)):
-            local_length = len(token_list[i])
-            if local_length > max_size_sentence:
-                max_size_sentence = local_length
-        """
 
         # Create batches of data
-
-        #print("\ntoken_list:", token_list)
         local_token_ids = self.batcher.batch_sentences(token_list)
-        #print("local_token_ids:", local_token_ids)
         max_size_sentence = local_token_ids[0].shape[0]
-
-        '''
-        i = 0
-        j = 1 # <s>
-        k = 1 # start of word
-        for sentence in token_list:
-            print('\nsentence:', sentence)
-            #print('local_token_ids[i]:', local_token_ids[i])
-            for token in sentence:
-                print('\ntoken:', token)
-                print('local_token_ids[i,j]:', local_token_ids[i,j])
-                for character in token:
-                    print(character, ":", local_token_ids[i][j][k])
-                    k += 1
-                k = 1
-                j += 1
-            j = 1 
-            i += 1
-        '''
-
-        #elmo_result = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
-        #elmo_result = np.random.rand(len(token_list), max_size_sentence-2, ELMo_embed_size)
+        
         # check lmdb cache
-        
-        
         elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence) 
         if elmo_result is None:
             with tf.Session() as sess:
@@ -450,45 +407,80 @@ class Embeddings(object):
                         self.elmo_input['weighted_op'],
                         feed_dict={self.character_ids: local_token_ids}
                     )
-                    #cache computation
-                    self.cache_ELMo_lmdb_vector(token_list, elmo_result)
+                    # if required, cache computation
+                    if self.use_ELMo_cache:
+                        self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         
         concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
         #concatenated_result = np.random.rand(elmo_result.shape[0], max_size_sentence-2, self.embed_size)
         for i in range(0, len(token_list)):
             for j in range(0, len(token_list[i])):
-                #if is_int(token_list[i][j]) or is_float(token_list[i][j]):
-                #dummy_result = np.zeros((elmo_result.shape[2]), dtype=np.float32)
-                #concatenated_result[i][j] = np.concatenate((dummy_result, self.get_word_vector(token_list[i][j])), )
-                #else:
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
-                #concatenated_result[i][j] = np.concatenate((self.get_word_vector(token_list[i][j]), elmo_result[i][j]), )
         return concatenated_result
 
-    def get_sentence_vector_ELMo_with_token_dump(self, token_list):
-        if not self.use_ELMo:
-            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+    def get_sentence_vector_with_FLAIR(self, token_list):
+        """
+            Return a concatenation of standard embeddings (e.g. Glove) and FLAIR embeddings (forward and backward LM) 
+            for a full sentence (recommended usage from FLAIR developers)
+        """
+        if not self.use_FLAIR:
+            print("Warning: FLAIR embeddings requested but embeddings object wrongly initialised")
             return
 
-        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-            # the reuse=True scope reuses weights from the whole context 
-            self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
+        FLAIR_embed_size = self.flair_backward.embedding_length
 
-        # Create batches of data
-        local_token_ids = self.batcher_token_dump.batch_sentences(token_list)
+        max_size_sentence = 0
+        for tokens in token_list:
+            if len(tokens) > max_size_sentence:
+                max_size_sentence = len(tokens)
+        
+        sentences = []
+        for tokens in token_list:
+            sentence = Sentence()
+            for token in tokens:
+                sentence.add_token(Token(token))
+            sentences.append(sentence)
 
-        with tf.Session() as sess:
-            # weird, for this cpu is faster than gpu (1080Ti !)
-            with tf.device("/cpu:0"):
-                # It is necessary to initialize variables once before running inference
-                sess.run(tf.global_variables_initializer())
+        # check lmdb cache
+        flair_result_forward = self.get_FLAIR_lmdb_vector(token_list, max_size_sentence, FORWARD) 
+        if flair_result_forward is None:
+            flair_result_forward = np.zeros((len(token_list), max_size_sentence, FLAIR_embed_size), dtype='float32')
+            self.flair_forward.embed(sentences)
+            for i in range(len(sentences)):
+                j = 0
+                for token in sentences[i]:
+                    flair_result_forward[i,j] = token.embedding.numpy()
+                    token.clear_embeddings()
+                    j += 1
 
-                # Compute ELMo representations 
-                elmo_result = sess.run(
-                    self.elmo_input_token_dump['weighted_op'],
-                    feed_dict={self.token_ids: local_token_ids}
-                )
-        return elmo_result
+            # if required, cache computation
+            if self.use_FLAIR_cache_forward:
+                self.cache_FLAIR_lmdb_vector(token_list, flair_result_forward, FORWARD)
+
+        flair_result_backward = self.get_FLAIR_lmdb_vector(token_list, max_size_sentence, BACKWARD) 
+        if flair_result_backward is None:
+            flair_result_backward = np.zeros((len(token_list), max_size_sentence, FLAIR_embed_size), dtype='float32')
+            self.flair_backward.embed(sentences)
+            for i in range(len(sentences)):
+                j = 0
+                for token in sentences[i]:
+                    flair_result_backward[i,j] = token.embedding.numpy()
+                    token.clear_embeddings()
+                    j += 1
+
+            # if required, cache computation
+            if self.use_FLAIR_cache_backward:
+                self.cache_FLAIR_lmdb_vector(token_list, flair_result_backward, BACKWARD)
+
+        concatenated_result = np.zeros((len(token_list), max_size_sentence, self.embed_size), dtype=np.float32)
+        for i in range(0, len(token_list)):
+            for j in range(0, len(token_list[i])):
+                concatenated_result[i][j] = np.concatenate(
+                                (flair_result_forward[i][j], 
+                                 flair_result_backward[i][j], 
+                                 self.get_word_vector(token_list[i][j]).astype('float32')), )
+        return concatenated_result
+
 
     def _get_description(self, name):
         for emb in self.registry["embeddings"]:
@@ -501,7 +493,7 @@ class Embeddings(object):
 
     def get_word_vector(self, word):
         """
-            Get static embeddings (e.g. glove) for a given token
+            Get simple static embeddings (e.g. glove) for a given token
         """
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
             # the pre-trained embeddings are not cased
@@ -538,6 +530,8 @@ class Embeddings(object):
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
             return None
+        if not self.use_ELMo_cache:
+            return None
         try:    
             ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
             with self.env_ELMo.begin() as txn:
@@ -571,6 +565,64 @@ class Embeddings(object):
             return self.get_ELMo_lmdb_vector(token_list)
         return ELMo_vector
 
+    def get_FLAIR_lmdb_vector(self, token_list, max_size_sentence, direction):
+        """
+            Try to get the ELMo embeddings for a sequence cached in LMDB
+        """
+        if self.env_FLAIR_forward is None and direction == FORWARD:
+            # db cache not available, we don't cache FLAIR stuff
+            return None
+        if self.env_FLAIR_backward is None and direction == BACKWARD:
+            # db cache not available, we don't cache FLAIR stuff
+            return None    
+        if not self.use_FLAIR_cache_forward and direction == FORWARD:
+            return None
+        if not self.use_FLAIR_cache_backward and direction == BACKWARD:
+            return None
+
+        if direction == FORWARD:
+            env_FLAIR = self.env_FLAIR_forward
+            FLAIR_embed_size = self.flair_forward.embedding_length
+        else:
+            env_FLAIR = self.env_FLAIR_backward
+            FLAIR_embed_size = self.flair_backward.embedding_length
+
+        try:    
+            FLAIR_vector = np.zeros((len(token_list), max_size_sentence, FLAIR_embed_size), dtype='float32')
+            with env_FLAIR.begin() as txn:
+                for i in range(0, len(token_list)):
+                    txn = env_FLAIR.begin()
+                    # get a hash for the token_list
+                    the_hash = list_digest(token_list[i])
+                    vector = txn.get(the_hash.encode(encoding='UTF-8'))
+                    if vector:
+                        # adapt expected shape/padding
+                        local_embeddings = _deserialize_pickle(vector)
+                        if local_embeddings.shape[0] > max_size_sentence:
+                            # squeeze the extra padding space
+                            FLAIR_vector[i] = local_embeddings[:max_size_sentence,]
+                        elif local_embeddings.shape[0] == max_size_sentence:
+                            # bingo~!
+                            FLAIR_vector[i] = local_embeddings
+                        else:
+                            # fill the missing space with padding
+                            filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]), FLAIR_embed_size), dtype='float32')
+                            FLAIR_vector[i] = np.concatenate((local_embeddings, filler))
+                        vector = None
+                    else:
+                        return None
+        except lmdb.Error:
+            # no idea why, but we need to close and reopen the environment to avoid
+            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+            # when opening new transaction !
+            env_FLAIR.close()
+            if direction == FORWARD:
+                env_FLAIR = lmdb.open(self.embedding_FLAIR_cache_forward, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            else:
+                env_FLAIR = lmdb.open(self.embedding_FLAIR_cache_backward, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            return self.get_FLAIR_lmdb_vector(token_list)
+        return FLAIR_vector
+
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
             Cache in LMDB the ELMo embeddings for a given sequence 
@@ -578,6 +630,8 @@ class Embeddings(object):
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
             return None
+        if not self.use_ELMo_cache:
+            return None 
         txn = self.env_ELMo.begin(write=True)
         for i in range(0, len(token_list)):
             # get a hash for the token_list
@@ -585,20 +639,68 @@ class Embeddings(object):
             txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))  
         txn.commit()
 
+    def cache_FLAIR_lmdb_vector(self, token_list, FLAIR_vector, direction):
+        """
+            Cache in LMDB the FLAIR embeddings for a given sequence 
+        """
+        if direction == FORWARD:
+            env_FLAIR = self.env_FLAIR_forward
+        else:
+            env_FLAIR = self.env_FLAIR_backward
+        if env_FLAIR is None:
+            # db cache not available, we don't cache FLAIR stuff
+            return None
+        if not self.use_FLAIR_cache_forward and direction == FORWARD:
+            return None
+        if not self.use_FLAIR_cache_backward and direction == BACKWARD:
+            return None
+        txn = env_FLAIR.begin(write=True)
+        for i in range(0, len(token_list)):
+            # get a hash for the token_list
+            the_hash = list_digest(token_list[i])
+            txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(FLAIR_vector[i]))  
+        txn.commit()
+
     def clean_ELMo_cache(self):
         """
             Delete ELMo embeddings cache, this takes place normally after the completion of a training
         """
-        if self.env_ELMo is None:
-            # db cache not available, nothing to clean
-            return
-        else: 
-            self.env.close()
+        if self.env_ELMo is not None:
+            self.env_ELMo.close()
+            self.env_ELMo = None
+        if self.embedding_ELMo_cache is not None:
             for file in os.listdir(self.embedding_ELMo_cache): 
                 file_path = os.path.join(self.embedding_ELMo_cache, file)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             os.rmdir(self.embedding_ELMo_cache)
+            self.embedding_ELMo_cache = None
+
+    def clean_FLAIR_cache(self):
+        """
+            Delete FLAIR embeddings cache, this takes place normally after the completion of a training
+        """
+        if self.env_FLAIR_forward is not None:
+            self.env_FLAIR_forward.close()
+            self.env_FLAIR_forward = None
+        if self.embedding_FLAIR_cache_forward is not None:
+            for file in os.listdir(self.embedding_FLAIR_cache_forward): 
+                file_path = os.path.join(self.embedding_FLAIR_cache_forward, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            os.rmdir(self.embedding_FLAIR_cache_forward)
+            self.embedding_FLAIR_cache_forward = None
+
+        if self.env_FLAIR_backward is not None:
+            self.env_FLAIR_backward.close()
+            self.env_FLAIR_backward = None
+        if self.embedding_FLAIR_cache_backward is not None:
+            for file in os.listdir(self.embedding_FLAIR_cache_backward): 
+                file_path = os.path.join(self.embedding_FLAIR_cache_backward, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            os.rmdir(self.embedding_FLAIR_cache_backward)
+            self.embedding_FLAIR_cache_backward = None
 
     def get_word_vector_in_memory(self, word):
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
@@ -679,3 +781,4 @@ def test():
     vect = embeddings.get_sentence_vector_ELMo(token_list)
 
     embeddings.clean_ELMo_cache()
+

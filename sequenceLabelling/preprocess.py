@@ -279,6 +279,23 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
+def to_vector_simple_with_flair(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+    """
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors based on the concatenation of the provided static embeddings and 
+    the FLAIR contextualized embeddings, introducing <PAD> and <UNK> 
+    padding token vector when appropriate
+    """
+    subtokens = []
+    for i in range(0, len(tokens)):
+        local_tokens = []
+        for j in range(0, min(len(tokens[i]), maxlen)):
+            if lowercase:
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
+        subtokens.append(local_tokens)
+    return embeddings.get_sentence_vector_with_FLAIR(subtokens)
 
 def to_casing_single(tokens, maxlen=300):
     """

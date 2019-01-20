@@ -77,6 +77,46 @@ all (micro avg.)     0.9250    0.9285    0.9267      5648
 
 
 
+********************************
+with FLAIR *********************
+********************************
+default hyper-parameters
+
+
+average over 10 folds
+  macro f1 = 0.9195004430649834
+  macro precision = 0.9168160478680043
+  macro recall = 0.922202549575071 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             PER     0.9720    0.9647    0.9683      1617
+            MISC     0.8290    0.8148    0.8218       702
+             ORG     0.8868    0.8958    0.8913      1661
+             LOC     0.9161    0.9424    0.9291      1668
+
+all (micro avg.)     0.9126    0.9193    0.9159      5648
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             PER     0.9756    0.9654    0.9705      1617
+            MISC     0.8143    0.8433    0.8286       702
+             ORG     0.9126    0.9049    0.9087      1661
+             LOC     0.9278    0.9394    0.9336      1668
+
+all (micro avg.)     0.9223    0.9248    0.9235      5648
+
+
+
+average training runtime: 3749.201 seconds (~62.5 minutes)
+
+
 
 
 **** TRAINING WITH VALIDATION SET ***********************************

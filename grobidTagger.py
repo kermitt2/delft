@@ -15,12 +15,12 @@ models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 
 
 
 # train a GROBID model with all available data 
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, fold_count=1, max_sequence_length=1000, input_path=None, output_path=None): 
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train', max_sequence_length)
     else:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path, max_sequence_length)
     x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -37,12 +37,17 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=100, 
                                         recurrent_dropout=0.50,
+                                        fold_number=fold_count,
                                         embeddings_name=embeddings_name, 
                                         model_type=architecture,
+                                        max_sequence_length=max_sequence_length,
                                         use_ELMo=use_ELMo)
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid, y_valid)
+    if fold_count == 1:
+        model.train(x_train, y_train, x_valid, y_valid)
+    else:
+        model.train_nfold(x_train, y_train, x_valid, y_valid, fold_number=fold_count)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -53,12 +58,12 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         model.save()
 
 # split data, train a GROBID model and evaluate it 
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, fold_count=1, max_sequence_length=3000, input_path=None, output_path=None): 
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train', max_sequence_length)
     else:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path, max_sequence_length)
 
     x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
     x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
@@ -78,12 +83,18 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     model = sequenceLabelling.Sequence(model_name, 
                                         max_epoch=100, 
                                         recurrent_dropout=0.50,
+                                        fold_number=fold_count,
                                         embeddings_name=embeddings_name, 
                                         model_type=architecture,
+                                        max_sequence_length=max_sequence_length,
+                                        batch_size=5,
                                         use_ELMo=use_ELMo)
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid, y_valid)
+    if fold_count == 1:
+        model.train(x_train, y_train, x_valid, y_valid)
+    else:
+        model.train_nfold(x_train, y_train, x_valid, y_valid, fold_number=fold_count)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -158,12 +169,12 @@ if __name__ == "__main__":
     embeddings_name = "glove-840B"
 
     if action == 'train':
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, fold_count=args.fold_count, input_path=input_path, output_path=output)
 
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, fold_count=args.fold_count, input_path=input_path, output_path=output)
 
     if action == 'tag':
         someTexts = []
