@@ -15,8 +15,8 @@
     "use_char_feature": true,
     "use_crf": true,
     "max_sequence_length": 2000,
-    "fold_number": 1,
-    "batch_size": 20,
+    "fold_number": 10,
+    "batch_size": 15,
     "use_ELMo": false,
     "use_FLAIR": true
 }

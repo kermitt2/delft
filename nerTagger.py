@@ -154,7 +154,7 @@ def train_eval(embedding_name,
     if use_ELMo:
         batch_size = 80
     elif use_FLAIR:
-        batch_size = 20
+        batch_size = 32
     else:
         batch_size = 20
 

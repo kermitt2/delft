@@ -325,6 +325,9 @@ class Embeddings(object):
     def make_FLAIR(self):
         # Location of pretrained BiLM for the specified language
         # TBD check if FLAIR language resources are present
+        #description_forward = self._get_description('flair-forward-en-mix')
+        #description_backward = self._get_description('flair-backward-en-mix')
+
         description_forward = self._get_description('flair-forward-en-news')
         description_backward = self._get_description('flair-backward-en-news')
 

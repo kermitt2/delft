@@ -63,14 +63,35 @@
             "name": "flair-forward-en-news",
             "path_weights": "/media/lopez/T5/embeddings/flair-lm-news-english-forward-v0.2rc.pt",
             "path-cache": "data/models/FLAIR/",
-            "cache-training": true,
+            "cache-training": false,
             "lang": "en"
         },
         {
             "name": "flair-backward-en-news",
             "path_weights": "/media/lopez/T5/embeddings/flair-lm-news-english-backward-v0.2rc.pt",
             "path-cache": "data/models/FLAIR/",
-            "cache-training": true,
+            "cache-training": false,
+            "lang": "en"
+        },
+        {
+            "name": "flair-forward-en-mix",
+            "path_weights": "/media/lopez/T5/embeddings/flair-lm-mix-english-forward-v0.2rc.pt",
+            "path-cache": "data/models/FLAIR/",
+            "cache-training": false,
+            "lang": "en"
+        },
+        {
+            "name": "flair-backward-en-mix",
+            "path_weights": "/media/lopez/T5/embeddings/flair-lm-mix-english-backward-v0.2rc.pt",
+            "path-cache": "data/models/FLAIR/",
+            "cache-training": false,
+            "lang": "en"
+        },
+        {
+            "name": "bert-base-cased",
+            "path_weights": "bert_cased_L-12_H-768_A-12.zi",
+            "path-cache": "data/models/BERT/",
+            "cache-training": false,
             "lang": "en"
         }
     ],

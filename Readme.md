@@ -68,7 +68,7 @@ You need then to download some pre-trained word embeddings and notify their path
 
 * _Flair_ for English, [news-forward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-news-english-forward-v0.2rc.pt) and 
 [news-backward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-news-english-backward-v0.2rc.pt). 
-For French: [fr-forward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-fr-charlm-forward.pt') and [fr-backward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-fr-charlm-backward.pt')
+For French: [fr-forward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-fr-charlm-forward.pt) and [fr-backward](https://s3.eu-central-1.amazonaws.com/alan-nlp/resources/embeddings/lm-fr-charlm-backward.pt)
 
 Then edit the file `embedding-registry.json` and modify the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unzipped.
 
@@ -141,7 +141,7 @@ In addition to word embeddings (like Glove, FastText, word2vec), the following c
 
 * [_Flair_](https://github.com/zalandoresearch/flair) contextualised embeddings, see:
 
-&nbsp;&nbsp;&nbsp;&nbsp; [6] Alan Akbik, Duncan Blythe and Roland Vollgraf. "Contextual String Embeddings for Sequence Labeling". COLING 2018. [pdf](https://drive.google.com/file/d/17yVpFA7MmXaQFTe-HDpZuqw9fJlmzg56/view?usp=sharing)
+&nbsp;&nbsp;&nbsp;&nbsp; [6] Alan Akbik, Duncan Blythe and Roland Vollgraf. "Contextual String Embeddings for Sequence Labeling". COLING 2018. [pdf](http://aclweb.org/anthology/C18-1139)
 
 Integration of [BERT](https://github.com/google-research/bert) base model (fine-tunning and feature-based approach) will be also available and benchmarked soon. 
 

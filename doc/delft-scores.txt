@@ -81,7 +81,7 @@ all (micro avg.)     0.9250    0.9285    0.9267      5648
 with FLAIR *********************
 ********************************
 default hyper-parameters
-
+models English news forward+backward + Glove (as recommended)
 
 average over 10 folds
   macro f1 = 0.9195004430649834
@@ -115,6 +115,119 @@ all (micro avg.)     0.9223    0.9248    0.9235      5648
 
 
 average training runtime: 3749.201 seconds (~62.5 minutes)
+
+
+
+********************************
+with FLAIR *********************
+********************************
+default hyper-parameters
+models English mix forward+backward 
+
+average over 10 folds
+  macro f1 = 0.912004422049348
+  macro precision = 0.9093512221049252
+  macro recall = 0.9146777620396602 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             ORG     0.8668    0.8856    0.8761      1661
+             LOC     0.9137    0.9263    0.9199      1668
+            MISC     0.7888    0.8191    0.8036       702
+             PER     0.9788    0.9419    0.9600      1617
+
+all (micro avg.)     0.9015    0.9055    0.9035      5648
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             ORG     0.8869    0.9019    0.8943      1661
+             LOC     0.9211    0.9376    0.9293      1668
+            MISC     0.8260    0.8048    0.8153       702
+             PER     0.9694    0.9604    0.9649      1617
+
+all (micro avg.)     0.9131    0.9171    0.9151      5648
+
+
+
+********************************
+with FLAIR *********************
+********************************
+default hyper-parameters
+models English news forward+backward 
+batch-size=80 (instead of 20)
+
+average over 10 folds
+  macro f1 = 0.9177245816045415
+  macro precision = 0.9135005171262416
+  macro recall = 0.9219900849858359 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             PER     0.9702    0.9654    0.9678      1617
+             ORG     0.8720    0.9145    0.8927      1661
+             LOC     0.9243    0.9365    0.9303      1668
+            MISC     0.8284    0.7906    0.8090       702
+
+all (micro avg.)     0.9100    0.9201    0.9150      5648
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             PER     0.9733    0.9703    0.9718      1617
+             ORG     0.8729    0.9223    0.8970      1661
+             LOC     0.9341    0.9347    0.9344      1668
+            MISC     0.8392    0.8105    0.8246       702
+
+all (micro avg.)     0.9151    0.9258    0.9204      5648
+
+
+
+********************************
+with FLAIR *********************
+********************************
+default hyper-parameters
+models English news forward+backward 
+batch-size=15 (instead of 20)
+
+average over 10 folds
+  macro f1 = 0.9184981474756923
+  macro precision = 0.91577040091325
+  macro recall = 0.9212464589235129 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             PER     0.9790    0.9536    0.9662      1617
+             LOC     0.9238    0.9382    0.9310      1668
+            MISC     0.8053    0.8191    0.8121       702
+             ORG     0.8810    0.9181    0.8992      1661
+
+all (micro avg.)     0.9113    0.9219    0.9166      5648
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+             PER     0.9689    0.9647    0.9668      1617
+             LOC     0.9415    0.9353    0.9383      1668
+            MISC     0.8331    0.8319    0.8325       702
+             ORG     0.8810    0.9133    0.8968      1661
+
+all (micro avg.)     0.9176    0.9244    0.9210      5648
 
 
 
@@ -843,6 +956,7 @@ total distinct characters: 114
 
 ------ with ELMo ------------------------------------------
 (usual model 5.5B)
+batch-size=20
 
 Evaluation on test set:
 	f1 (micro): 79.62
@@ -873,6 +987,7 @@ avg / total     0.8423    0.7548    0.7962     11257
 
 ------ with ELMo ------------------------------------------
 ELMo first model (not the 5.5B)
+batch-size=20
 
 average over 10 folds
 	macro f1 = 0.7852888179838143
@@ -906,4 +1021,31 @@ average over 10 folds
 all (micro avg.)     0.8374    0.7578    0.7956     11257
 
 
+------ with FLAIR ------------------------------------------
+batch-size=30
+
+Evaluation on test set:
+  f1 (micro): 82.45
+                  precision    recall  f1-score   support
+
+            DATE     0.8837    0.6024    0.7164      1602
+             ORG     0.8882    0.8719    0.8800      1795
+          PERSON     0.9283    0.9442    0.9362      1988
+            NORP     0.9210    0.9287    0.9248       841
+             GPE     0.9632    0.9576    0.9604      2240
+         PERCENT     0.8329    0.8567    0.8446       349
+         ORDINAL     0.8675    0.3692    0.5180       195
+        CARDINAL     0.8102    0.2556    0.3886       935
+            TIME     0.6500    0.4906    0.5591       212
+             FAC     0.7217    0.6148    0.6640       135
+        QUANTITY     0.2155    0.8190    0.3413       105
+           MONEY     0.8359    0.8758    0.8554       314
+           EVENT     0.5250    0.6667    0.5874        63
+        LANGUAGE     0.8000    0.5455    0.6486        22
+     WORK_OF_ART     0.5922    0.7349    0.6559       166
+             LOC     0.7459    0.7709    0.7582       179
+         PRODUCT     0.7143    0.7237    0.7190        76
+             LAW     0.6562    0.5250    0.5833        40
+
+all (micro avg.)     0.8634    0.7889    0.8245     11257
 
