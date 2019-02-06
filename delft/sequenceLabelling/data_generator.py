@@ -2,8 +2,8 @@ import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import keras
-from sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo
-from utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
 

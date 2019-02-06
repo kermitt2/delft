@@ -39,15 +39,14 @@ It is advised to setup first a virtual environment to avoid falling into one of 
 virtualenv --system-site-packages -p python3 env
 source env/bin/activate
 ```
-Install the dependencies, if you have a GPU and CUDA (>=8.0) installed use:
 
-```sh
-pip3 install -r requirements-gpu.txt
-```
-otherwise if you can use only your CPU:
+Install the dependencies:
+
 ```sh
 pip3 install -r requirements.txt
 ```
+
+DeLFT uses tensorflow 1.7 as backend, and will exploit your available GPU with the condition that CUDA (>=8.0) is properly installed. 
 
 You need then to download some pre-trained word embeddings and notify their path into the embedding registry. We suggest for exploiting the provided models:
 

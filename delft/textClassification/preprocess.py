@@ -7,7 +7,7 @@ from tensorflow import set_random_seed
 set_random_seed(7)
 
 from unidecode import unidecode
-from utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]',re.IGNORECASE)
 

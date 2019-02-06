@@ -11,7 +11,7 @@ import sys, os
 import argparse
 import math
 
-from textClassification.data_generator import DataGenerator
+from delft.textClassification.data_generator import DataGenerator
 
 from keras import backend as K
 from keras.engine.topology import Layer
@@ -29,7 +29,7 @@ from sklearn.metrics import log_loss, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 #import utilities.Attention
-from utilities.Attention import Attention
+from delft.utilities.Attention import Attention
 #from ToxicAttentionAlternative import AttentionAlternative
 #from ToxicAttentionWeightedAverage import AttentionWeightedAverage
 

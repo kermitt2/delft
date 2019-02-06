@@ -8,16 +8,16 @@ set_random_seed(7)
 
 import datetime
 
-from textClassification.config import ModelConfig, TrainingConfig
-from textClassification.models import getModel
-from textClassification.models import train_model
-from textClassification.models import train_folds
-from textClassification.models import predict
-from textClassification.models import predict_folds
-from textClassification.data_generator import DataGenerator
-from textClassification.preprocess import to_vector_single
+from delft.textClassification.config import ModelConfig, TrainingConfig
+from delft.textClassification.models import getModel
+from delft.textClassification.models import train_model
+from delft.textClassification.models import train_folds
+from delft.textClassification.models import predict
+from delft.textClassification.models import predict_folds
+from delft.textClassification.data_generator import DataGenerator
+from delft.textClassification.preprocess import to_vector_single
 
-from utilities.Embeddings import Embeddings
+from delft.utilities.Embeddings import Embeddings
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
 from sklearn.model_selection import train_test_split

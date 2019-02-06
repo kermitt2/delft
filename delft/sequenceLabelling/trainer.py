@@ -1,13 +1,13 @@
 import os
-from sequenceLabelling.data_generator import DataGenerator
+from delft.sequenceLabelling.data_generator import DataGenerator
 from keras.optimizers import Adam
 from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
 from keras.utils import plot_model
 
 # seqeval
-from sequenceLabelling.evaluation import accuracy_score
-from sequenceLabelling.evaluation import classification_report
-from sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+from delft.sequenceLabelling.evaluation import accuracy_score
+from delft.sequenceLabelling.evaluation import classification_report
+from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
 import numpy as np
 # seed is fixed for reproducibility

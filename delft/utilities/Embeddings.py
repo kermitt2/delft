@@ -23,11 +23,11 @@ except ImportError as e:
     fasttext_support = False
 
 # for ELMo embeddings
-from utilities.bilm.data import Batcher, TokenBatcher
-from utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
-from utilities.bilm.elmo import weight_layers
+from delft.utilities.bilm.data import Batcher, TokenBatcher
+from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
+from delft.utilities.bilm.elmo import weight_layers
 
-from utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
