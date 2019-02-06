@@ -1,9 +1,10 @@
 import json
-from utilities.Embeddings import Embeddings
-from utilities.Utilities import split_data_and_labels
-from textClassification.reader import load_texts_and_classes_pandas
-from textClassification.reader import load_texts_pandas
-import textClassification
+from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Utilities import split_data_and_labels
+from delft.textClassification.reader import load_texts_and_classes_pandas
+from delft.textClassification.reader import load_texts_pandas
+import delft.textClassification
+from delft.textClassification import Classifier
 import argparse
 import keras.backend as K
 import pandas as pd
@@ -13,7 +14,7 @@ list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identit
 
 
 def train(embeddings_name, fold_count): 
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes, max_epoch=30, 
+    model = Classifier('toxic', "gru", list_classes=list_classes, max_epoch=30, 
         fold_number=fold_count, embeddings_name=embeddings_name)
 
     print('loading train dataset...')
@@ -28,7 +29,7 @@ def train(embeddings_name, fold_count):
 
 def test():
     # load model
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes)
+    model = Classifier('toxic', "gru", list_classes=list_classes)
     model.load()
 
     print('loading test dataset...')
@@ -43,7 +44,7 @@ def test():
 # classify a list of texts
 def classify(texts, output_format):
     # load model
-    model = textClassification.Classifier('toxic', "gru", list_classes=list_classes)
+    model = Classifier('toxic', "gru", list_classes=list_classes)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
