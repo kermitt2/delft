@@ -29,3 +29,5 @@ data/models/ELMo/en/cache
 data/sequenceLabelling/CoNLL-2012-NER/eng.*
 env
 dist
+delft.egg-info
+build
