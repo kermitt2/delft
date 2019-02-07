@@ -143,46 +143,5 @@ def load_citation_sentiment_corpus(filepath):
 
     return np.asarray(texts), np.asarray(polarities)
 
-def load_citation_sentiment_corpus_csv(filepath):
-    """
-    Load texts from the citation sentiment corpus in csv with Pandas
-
-    Returns:
-        tuple(numpy array, numpy array): texts and polarity
-
-    """
-
-    texts = []
-    polarities = []
-
-    data = pd.read_csv(filepath, encoding = "ISO-8859-1",
-         names = ["0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12", "13", "14"]) 
-    #print(data.head(10))
-    # shuffle
-    data = data.sample(frac=1)
-
-    for i in data.index:
-        # polarity
-        polarity = []
-        val = data.get_value(i,"5")
-        if val == 2:
-            polarity.append(1)
-        else:
-            polarity.append(0)
-        if val == 3:
-            polarity.append(1)
-        else:
-            polarity.append(0)
-        if val == 1:
-            polarity.append(1)
-        else:
-            polarity.append(0)
-        polarities.append(polarity)
-
-        # text
-        text = data.get_value(i,"7")
-        texts.append(text)
-
-    return np.asarray(texts), np.asarray(polarities)
 
 
