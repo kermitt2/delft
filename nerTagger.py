@@ -351,7 +351,7 @@ def annotate(output_format,
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -360,7 +360,7 @@ def annotate(output_format,
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
 
     elif (lang == 'fr'):
@@ -368,7 +368,7 @@ def annotate(output_format,
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
