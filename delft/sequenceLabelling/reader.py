@@ -1,7 +1,7 @@
 import numpy as np
 import xml
 from xml.sax import make_parser, handler
-from utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import re
 import os
 from tqdm import tqdm

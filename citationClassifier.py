@@ -1,8 +1,9 @@
 import json
-from utilities.Embeddings import Embeddings
-from utilities.Utilities import split_data_and_labels
-from textClassification.reader import load_citation_sentiment_corpus
-import textClassification
+from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Utilities import split_data_and_labels
+from delft.textClassification.reader import load_citation_sentiment_corpus
+import delft.textClassification
+from delft.textClassification import Classifier
 import argparse
 import keras.backend as K
 import time
@@ -11,7 +12,7 @@ list_classes = ["negative", "neutral", "positive"]
 
 
 def train(embeddings_name, fold_count): 
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
+    model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name)
 
     print('loading citation sentiment corpus...')
@@ -26,7 +27,7 @@ def train(embeddings_name, fold_count):
 
 
 def train_and_eval(embeddings_name, fold_count): 
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
+    model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name)
 
     print('loading citation sentiment corpus...')
@@ -48,7 +49,7 @@ def train_and_eval(embeddings_name, fold_count):
 # classify a list of texts
 def classify(texts, output_format):
     # load model
-    model = textClassification.Classifier('citations', "gru", list_classes=list_classes)
+    model = Classifier('citations', "gru", list_classes=list_classes)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -58,6 +59,7 @@ def classify(texts, output_format):
     else:
         print("runtime: %s seconds " % (runtime))
     return result
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

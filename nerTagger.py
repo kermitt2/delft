@@ -1,15 +1,14 @@
 import os
 import numpy as np
-import sequenceLabelling
-from utilities.Tokenizer import tokenizeAndFilter
-from utilities.Embeddings import Embeddings
-from utilities.Utilities import stats
-from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
+from delft.sequenceLabelling import Sequence
+from delft.utilities.Tokenizer import tokenizeAndFilter
+from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Utilities import stats
+from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
 import keras.backend as K
 import argparse
 import time
-
 
 # train a model with all available CoNLL 2003 data 
 def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, data_path=None): 
@@ -45,14 +44,14 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
             model_name += '-with_ELMo'
         model_name += '-' + architecture
 
-        model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=60, 
-                                        recurrent_dropout=recurrent_dropout,
-                                        embeddings_name=embedding_name,
-                                        model_type=architecture,
-                                        word_lstm_units=word_lstm_units,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo)
+        model = Sequence(model_name, 
+                        max_epoch=60, 
+                        recurrent_dropout=recurrent_dropout,
+                        embeddings_name=embedding_name,
+                        model_type=architecture,
+                        word_lstm_units=word_lstm_units,
+                        batch_size=batch_size,
+                        use_ELMo=use_ELMo)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
 
@@ -73,15 +72,15 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
             model_name += '-with_ELMo'
         model_name += '-' + architecture
 
-        model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=80, 
-                                        recurrent_dropout=0.20,
-                                        embeddings_name=embedding_name, 
-                                        early_stop=True, 
-                                        model_type=architecture,
-                                        word_lstm_units=word_lstm_units,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo)
+        model = Sequence(model_name, 
+                        max_epoch=80, 
+                        recurrent_dropout=0.20,
+                        embeddings_name=embedding_name, 
+                        early_stop=True, 
+                        model_type=architecture,
+                        word_lstm_units=word_lstm_units,
+                        batch_size=batch_size,
+                        use_ELMo=use_ELMo)
     elif (lang == 'fr'):
         print('Loading data...')
         dataset_type = 'lemonde'
@@ -94,14 +93,14 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
             model_name += '-with_ELMo'
         model_name += '-' + architecture
 
-        model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=60, 
-                                        recurrent_dropout=recurrent_dropout,
-                                        embeddings_name=embedding_name, 
-                                        model_type=architecture,
-                                        word_lstm_units=word_lstm_units,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo)
+        model = Sequence(model_name, 
+                        max_epoch=60, 
+                        recurrent_dropout=recurrent_dropout,
+                        embeddings_name=embedding_name, 
+                        model_type=architecture,
+                        word_lstm_units=word_lstm_units,
+                        batch_size=batch_size,
+                        use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return
@@ -158,30 +157,30 @@ def train_eval(embedding_name,
 
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
-            model = sequenceLabelling.Sequence(model_name, 
-                                            max_epoch=60, 
-                                            recurrent_dropout=recurrent_dropout,
-                                            embeddings_name=embedding_name, 
-                                            early_stop=True, 
-                                            fold_number=fold_count,
-                                            model_type=architecture,
-                                            word_lstm_units=word_lstm_units,
-                                            batch_size=batch_size,
-                                            use_ELMo=use_ELMo)
+            model = Sequence(model_name, 
+                            max_epoch=60, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=True, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
             # this leads obviously to much higher results (~ +0.5 f1 score with CoNLL-2003)
-            model = sequenceLabelling.Sequence(model_name, 
-                                            max_epoch=max_epoch, 
-                                            recurrent_dropout=recurrent_dropout,
-                                            embeddings_name=embedding_name, 
-                                            early_stop=False, 
-                                            fold_number=fold_count,
-                                            model_type=architecture,
-                                            word_lstm_units=word_lstm_units,
-                                            batch_size=batch_size,
-                                            use_ELMo=use_ELMo)
+            model = Sequence(model_name, 
+                            max_epoch=max_epoch, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=False, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            use_ELMo=use_ELMo)
 
     elif (dataset_type == 'ontonotes-all') and (lang == 'en'):
         print('Loading Ontonotes 5.0 XML data...')
@@ -195,16 +194,16 @@ def train_eval(embedding_name,
             model_name += '-with_ELMo'
         model_name += '-' + architecture
 
-        model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=60, 
-                                        recurrent_dropout=recurrent_dropout,
-                                        embeddings_name=embedding_name, 
-                                        early_stop=True, 
-                                        fold_number=fold_count,
-                                        model_type=architecture,
-                                        word_lstm_units=word_lstm_units,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo)
+        model = Sequence(model_name, 
+                        max_epoch=60, 
+                        recurrent_dropout=recurrent_dropout,
+                        embeddings_name=embedding_name, 
+                        early_stop=True, 
+                        fold_number=fold_count,
+                        model_type=architecture,
+                        word_lstm_units=word_lstm_units,
+                        batch_size=batch_size,
+                        use_ELMo=use_ELMo)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
@@ -220,30 +219,30 @@ def train_eval(embedding_name,
         model_name += '-' + architecture
 
         if not train_with_validation_set: 
-            model = sequenceLabelling.Sequence(model_name, 
-                                            max_epoch=80, 
-                                            recurrent_dropout=recurrent_dropout,
-                                            embeddings_name=embedding_name, 
-                                            early_stop=True, 
-                                            fold_number=fold_count,
-                                            model_type=architecture,
-                                            word_lstm_units=word_lstm_units,
-                                            batch_size=batch_size,
-                                            use_ELMo=use_ELMo)
+            model = Sequence(model_name, 
+                            max_epoch=80, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=True, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
             # this leads obviously to much higher results 
-            model = sequenceLabelling.Sequence(model_name, 
-                                            max_epoch=40, 
-                                            recurrent_dropout=recurrent_dropout,
-                                            embeddings_name=embedding_name, 
-                                            early_stop=False, 
-                                            fold_number=fold_count,
-                                            model_type=architecture,
-                                            word_lstm_units=word_lstm_units,
-                                            batch_size=batch_size,
-                                            use_ELMo=use_ELMo)
+            model = Sequence(model_name, 
+                            max_epoch=40, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=False, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            use_ELMo=use_ELMo)
 
     elif (lang == 'fr'):
         print('Loading data...')
@@ -258,16 +257,16 @@ def train_eval(embedding_name,
             model_name += '-with_ELMo'
         model_name += '-' + architecture
 
-        model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=60, 
-                                        recurrent_dropout=recurrent_dropout,
-                                        embeddings_name=embedding_name, 
-                                        early_stop=True, 
-                                        fold_number=fold_count,
-                                        model_type=architecture,
-                                        word_lstm_units=word_lstm_units,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo)
+        model = Sequence(model_name, 
+                        max_epoch=60, 
+                        recurrent_dropout=recurrent_dropout,
+                        embeddings_name=embedding_name, 
+                        early_stop=True, 
+                        fold_number=fold_count,
+                        model_type=architecture,
+                        word_lstm_units=word_lstm_units,
+                        batch_size=batch_size,
+                        use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
@@ -304,7 +303,7 @@ def eval(dataset_type='conll2003',
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -318,7 +317,7 @@ def eval(dataset_type='conll2003',
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
 
     else:
@@ -352,7 +351,7 @@ def annotate(output_format,
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -361,7 +360,7 @@ def annotate(output_format,
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
 
     elif (lang == 'fr'):
@@ -369,7 +368,7 @@ def annotate(output_format,
         if use_ELMo:
             model_name += '-with_ELMo'
         model_name += '-' + architecture
-        model = sequenceLabelling.Sequence(model_name)
+        model = Sequence(model_name)
         model.load()
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -381,6 +380,7 @@ def annotate(output_format,
     runtime = round(time.time() - start_time, 3)
 
     print("runtime: %s seconds " % (runtime))
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(

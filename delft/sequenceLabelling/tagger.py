@@ -1,8 +1,8 @@
 from collections import defaultdict
 import numpy as np
 import datetime
-from sequenceLabelling.data_generator import DataGenerator
-from utilities.Tokenizer import tokenizeAndFilter
+from delft.sequenceLabelling.data_generator import DataGenerator
+from delft.utilities.Tokenizer import tokenizeAndFilter
 
 
 class Tagger(object):

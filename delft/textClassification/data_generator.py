@@ -4,7 +4,7 @@ np.random.seed(7)
 from tensorflow import set_random_seed
 set_random_seed(7)
 import keras
-from textClassification.preprocess import to_vector_single
+from delft.textClassification.preprocess import to_vector_single
 
 
 # generate batch of data to feed text classification model, both for training and prediction

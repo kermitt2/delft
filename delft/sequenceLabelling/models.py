@@ -5,7 +5,7 @@ from keras.layers.merge import Concatenate
 from keras.initializers import RandomUniform
 from keras.models import Model
 from keras.models import clone_model
-from utilities.layers import ChainCRF
+from delft.utilities.layers import ChainCRF
 import numpy as np
 np.random.seed(7)
 import tensorflow as tf

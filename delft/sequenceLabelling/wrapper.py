@@ -20,15 +20,15 @@ import keras.backend as K
 #sess = tf.Session()
 #K.set_session(sess)
 
-from sequenceLabelling.config import ModelConfig, TrainingConfig
-from sequenceLabelling.models import get_model
-from sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
-from sequenceLabelling.tagger import Tagger
-from sequenceLabelling.trainer import Trainer
-from sequenceLabelling.data_generator import DataGenerator
-from sequenceLabelling.trainer import Scorer
+from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
+from delft.sequenceLabelling.models import get_model
+from delft.sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
+from delft.sequenceLabelling.tagger import Tagger
+from delft.sequenceLabelling.trainer import Trainer
+from delft.sequenceLabelling.data_generator import DataGenerator
+from delft.sequenceLabelling.trainer import Scorer
 
-from utilities.Embeddings import Embeddings
+from delft.utilities.Embeddings import Embeddings
 
 # initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
 # with various modifications

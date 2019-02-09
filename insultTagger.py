@@ -1,9 +1,10 @@
 import os
 import json
-from utilities.Embeddings import Embeddings
-import sequenceLabelling
-from utilities.Tokenizer import tokenizeAndFilter
-from sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
+from delft.utilities.Embeddings import Embeddings
+import delft.sequenceLabelling
+from delft.sequenceLabelling import Sequence
+from delft.utilities.Tokenizer import tokenizeAndFilter
+from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
 import argparse
 import keras.backend as K
 import time
@@ -21,7 +22,7 @@ def train(embeddings_name):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = sequenceLabelling.Sequence('insult', max_epoch=50, embeddings_name=embeddings_name)
+    model = Sequence('insult', max_epoch=50, embeddings_name=embeddings_name)
     model.train(x_train, y_train, x_valid, y_valid)
     print('training done')
 
@@ -34,7 +35,7 @@ def annotate(texts, output_format):
     annotations = []
 
     # load model
-    model = sequenceLabelling.Sequence('insult')
+    model = Sequence('insult')
     model.load()
 
     start_time = time.time()

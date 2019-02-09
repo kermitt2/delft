@@ -1,12 +1,13 @@
 import json
 import numpy as np
-from utilities.Embeddings import Embeddings
-import sequenceLabelling
-from utilities.Tokenizer import tokenizeAndFilter
+from delft.utilities.Embeddings import Embeddings
+import delft.sequenceLabelling
+from delft.sequenceLabelling import Sequence
+from delft.utilities.Tokenizer import tokenizeAndFilter
 from sklearn.model_selection import train_test_split
-from sequenceLabelling.reader import load_data_and_labels_crf_file
-from sequenceLabelling.reader import load_data_and_labels_crf_string
-from sequenceLabelling.reader import load_data_crf_string
+from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+from delft.sequenceLabelling.reader import load_data_and_labels_crf_string
+from delft.sequenceLabelling.reader import load_data_crf_string
 import keras.backend as K
 import argparse
 import time
@@ -34,12 +35,12 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     if use_ELMo:
         model_name += '-with_ELMo'
 
-    model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=100, 
-                                        recurrent_dropout=0.50,
-                                        embeddings_name=embeddings_name, 
-                                        model_type=architecture,
-                                        use_ELMo=use_ELMo)
+    model = Sequence(model_name, 
+                    max_epoch=100, 
+                    recurrent_dropout=0.50,
+                    embeddings_name=embeddings_name, 
+                    model_type=architecture,
+                    use_ELMo=use_ELMo)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -75,12 +76,12 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     if use_ELMo:
         model_name += '-with_ELMo'
 
-    model = sequenceLabelling.Sequence(model_name, 
-                                        max_epoch=100, 
-                                        recurrent_dropout=0.50,
-                                        embeddings_name=embeddings_name, 
-                                        model_type=architecture,
-                                        use_ELMo=use_ELMo)
+    model = Sequence(model_name, 
+                    max_epoch=100, 
+                    recurrent_dropout=0.50,
+                    embeddings_name=embeddings_name, 
+                    model_type=architecture,
+                    use_ELMo=use_ELMo)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid, y_valid)
@@ -107,7 +108,7 @@ def annotate_text(texts, model, output_format, use_ELMo=False):
     model_name = 'grobid-'+model
     if use_ELMo:
         model_name += '-with_ELMo'
-    model = sequenceLabelling.Sequence(model_name)
+    model = Sequence(model_name)
     model.load()
 
     start_time = time.time()
