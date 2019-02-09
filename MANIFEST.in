@@ -2,3 +2,4 @@ include LICENSE.txt Readme.md requirements.txt
 recursive-exclude * __pycache__
 exclude .travis.yml
 recursive-exclude data/db *
+recursive-include data/models
