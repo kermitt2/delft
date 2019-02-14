@@ -207,10 +207,10 @@ class Classifier(object):
         total_roc_auc /= len(self.model_config.list_classes)
 
         print("\nMacro-average:")
-        print("\taverage accuracy at 0.5 =", total_accuracy)
-        print("\taverage f-1 at 0.5 =", total_f1)
-        print("\taverage log-loss =", total_loss)
-        print("\taverage roc auc =", total_roc_auc)
+        print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
+        print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
+        print("\taverage log-loss =","{:10.4f}".format( total_loss))
+        print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
 
         total_accuracy = 0.0
         total_f1 = 0.0
@@ -235,10 +235,10 @@ class Classifier(object):
         total_roc_auc /= result.shape[0]
 
         print("\nMicro-average:")
-        print("\taverage accuracy at 0.5 =", total_accuracy)
-        print("\taverage f-1 at 0.5 =", total_f1)
-        print("\taverage log-loss =", total_loss)
-        print("\taverage roc auc =", total_roc_auc)
+        print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
+        print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
+        print("\taverage log-loss =", "{:10.4f}".format(total_loss))
+        print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
 
     def save(self, dir_path='data/models/textClassification/'):
         # create subfolder for the model if not already exists

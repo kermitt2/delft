@@ -67,7 +67,7 @@ class Embeddings(object):
             description = self._get_description('elmo-en')
             self.env_ELMo = None
             if description:
-                self.embedding_ELMo_cache = os.path.join(description["path-dump"], "cache")
+                self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
                 # clean possible remaining cache
                 self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
@@ -295,7 +295,7 @@ class Embeddings(object):
             self.lang = description["lang"]
             options_file = description["path-config"]
             weight_file = description["path_weights"]
-            working_path = description["path-dump"]
+            working_path = description["path-cache"]
 
             all_tokens = set(['<S>', '</S>'])
             for i in range(0, len(x_train)):
@@ -593,7 +593,8 @@ class Embeddings(object):
             # db cache not available, nothing to clean
             return
         else: 
-            self.env.close()
+            self.env_ELMo.close()
+            self.env_ELMo = None
             for file in os.listdir(self.embedding_ELMo_cache): 
                 file_path = os.path.join(self.embedding_ELMo_cache, file)
                 if os.path.isfile(file_path):

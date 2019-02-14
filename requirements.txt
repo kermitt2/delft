@@ -1,5 +1,5 @@
 keras==2.1.5
-numpy==1.14.0
+numpy==1.16.1
 pandas==0.22.0
 bleach>=2.1.0
 regex==2018.2.21

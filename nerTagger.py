@@ -21,7 +21,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         recurrent_dropout=0.5
 
     if use_ELMo:
-        batch_size = 120
+        batch_size = 100
     else:
         batch_size = 20
 
