@@ -206,39 +206,43 @@ class Classifier(object):
         total_loss /= len(self.model_config.list_classes)
         total_roc_auc /= len(self.model_config.list_classes)
 
-        print("\nMacro-average:")
+        if len(self.model_config.list_classes) is not 1:
+            print("\nMacro-average:")
         print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
         print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
         print("\taverage log-loss =","{:10.4f}".format( total_loss))
         print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
 
-        total_accuracy = 0.0
-        total_f1 = 0.0
-        total_loss = 0.0
-        total_roc_auc = 0.0
-
         # micro-average (average of scores for each instance)
-        for i in range(0, result.shape[0]):
-            #for j in range(0, len(self.model_config.list_classes)):
-            accuracy = accuracy_score(y_test[i,:], result_binary[i,:])
-            total_accuracy += accuracy
-            f1 = f1_score(y_test[i,:], result_binary[i,:], average='micro')
-            total_f1 += f1
-            loss = log_loss(y_test[i,:], result[i,:])
-            total_loss += loss
-            roc_auc = roc_auc_score(y_test[i,:], result[i,:])
-            total_roc_auc += roc_auc
+        # make sense only if we have more than 1 class, otherwise same as 
+        # macro-avergae
+        if len(self.model_config.list_classes) is not 1:
+            total_accuracy = 0.0
+            total_f1 = 0.0
+            total_loss = 0.0
+            total_roc_auc = 0.0
 
-        total_accuracy /= result.shape[0]
-        total_f1 /= result.shape[0]
-        total_loss /= result.shape[0]
-        total_roc_auc /= result.shape[0]
+            for i in range(0, result.shape[0]):
+                #for j in range(0, len(self.model_config.list_classes)):
+                accuracy = accuracy_score(y_test[i,:], result_binary[i,:])
+                total_accuracy += accuracy
+                f1 = f1_score(y_test[i,:], result_binary[i,:], average='micro')
+                total_f1 += f1
+                loss = log_loss(y_test[i,:], result[i,:])
+                total_loss += loss
+                roc_auc = roc_auc_score(y_test[i,:], result[i,:])
+                total_roc_auc += roc_auc
 
-        print("\nMicro-average:")
-        print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
-        print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
-        print("\taverage log-loss =", "{:10.4f}".format(total_loss))
-        print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
+            total_accuracy /= result.shape[0]
+            total_f1 /= result.shape[0]
+            total_loss /= result.shape[0]
+            total_roc_auc /= result.shape[0]
+
+            print("\nMicro-average:")
+            print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
+            print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
+            print("\taverage log-loss =", "{:10.4f}".format(total_loss))
+            print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
 
     def save(self, dir_path='data/models/textClassification/'):
         # create subfolder for the model if not already exists
