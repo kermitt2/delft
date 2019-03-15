@@ -4,8 +4,8 @@ np.random.seed(7)
 from tensorflow import set_random_seed
 set_random_seed(7)
 import keras
-from delft.textClassification.preprocess import to_vector_single
-
+from delft.textClassification.preprocess import to_vector_single, to_vector_simple_with_elmo
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 # generate batch of data to feed text classification model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):
@@ -50,15 +50,28 @@ class DataGenerator(keras.utils.Sequence):
         'Generates data containing batch_size samples' 
         max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
 
+         # restrict data to index window
+        sub_x = self.x[(index*self.batch_size):(index*self.batch_size)+max_iter]
+
         batch_x = np.zeros((max_iter, self.maxlen, self.embeddings.embed_size), dtype='float32')
         batch_y = None
         if self.y is not None:
             batch_y = np.zeros((max_iter, len(self.list_classes)), dtype='float32')
 
+        x_tokenized = []
+        for i in range(0, max_iter):
+            tokens = tokenizeAndFilterSimple(sub_x[i])
+            x_tokenized.append(tokens)
+
+        if self.embeddings.use_ELMo:     
+            #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
+            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, self.maxlen)
+
         # Generate data
         for i in range(0, max_iter):
             # Store sample
-            batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen)
+            if not self.embeddings.use_ELMo:    
+                batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen)
 
             # Store class
             # classes are numerical, so nothing to vectorize for y

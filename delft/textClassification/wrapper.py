@@ -50,6 +50,7 @@ class Classifier(object):
                  maxlen=300,
                  fold_number=1,
                  use_roc_auc=True,
+                 use_ELMo=False,
                  embeddings=()):
 
         self.model = None
@@ -59,7 +60,7 @@ class Classifier(object):
 
         word_emb_size = 0
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name) 
+            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo) 
             word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(model_name=model_name, 
@@ -73,7 +74,8 @@ class Classifier(object):
                                         use_char_feature=use_char_feature, 
                                         maxlen=maxlen, 
                                         fold_number=fold_number, 
-                                        batch_size=batch_size)
+                                        batch_size=batch_size, 
+                                        use_ELMo=use_ELMo)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -95,10 +97,15 @@ class Classifier(object):
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
-            self.training_config.max_epoch, self.training_config.use_roc_auc, training_generator, validation_generator, val_y)
+            self.training_config.max_epoch, self.training_config.use_roc_auc, training_generator, validation_generator, val_y, 
+            use_ELMo=self.embeddings.use_ELMo)
+        if self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, vocab_init=None):
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings)
+        if self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     # classification
     def predict(self, texts, output_format='json'):
@@ -108,7 +115,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False)
 
-                result = predict(self.model, predict_generator)
+                result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo)
             else:
                 raise (OSError('Could not find a model.'))
         else:
@@ -117,7 +124,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False)
 
-                result = predict_folds(self.models, predict_generator)
+                result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo)
             else:
                 raise (OSError('Could not find nfolds models.'))
         if output_format is 'json':
@@ -150,7 +157,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False)
 
-                result = predict(self.model, test_generator)
+                result = predict(self.model, test_generator, use_ELMo=self.embeddings.use_ELMo)
             else:
                 raise (OSError('Could not find a model.'))
         else:
@@ -159,7 +166,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False)
 
-                result = predict_folds(self.models, test_generator)
+                result = predict_folds(self.models, test_generator, use_ELMo=self.embeddings.use_ELMo)
             else:
                 raise (OSError('Could not find nfolds models.'))
         print("-----------------------------------------------")
@@ -271,7 +278,7 @@ class Classifier(object):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
         # load embeddings
-        self.embeddings = Embeddings(self.model_config.embeddings_name) 
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo) 
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = getModel(self.model_config, self.training_config)

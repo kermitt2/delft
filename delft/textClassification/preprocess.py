@@ -31,6 +31,48 @@ def to_vector_single(text, embeddings, maxlen=300):
 
     return x
 
+def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+    """
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors based on ELMo contextualized embeddings
+    """
+    subtokens = []
+    for i in range(0, len(tokens)):
+        local_tokens = []
+        for j in range(0, min(len(tokens[i]), maxlen)):
+            if lowercase:
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
+        subtokens.append(local_tokens)
+    return embeddings.get_sentence_vector_only_ELMo(subtokens)
+    """
+    if use_token_dump:
+        return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
+    """
+
+
+def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+    """
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors based on the concatenation of the provided static embeddings and 
+    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
+    padding token vector when appropriate
+    """
+    subtokens = []
+    for i in range(0, len(tokens)):
+        local_tokens = []
+        for j in range(0, min(len(tokens[i]), maxlen)):
+            if lowercase:
+                local_tokens.append(_lower(tokens[i][j]))
+            else:
+                local_tokens.append(tokens[i][j])
+        if len(tokens[i]) < maxlen:
+            for i in range(0, maxlen-len(tokens[i])):
+                local_tokens.append(" ")
+        subtokens.append(local_tokens)
+    return embeddings.get_sentence_vector_with_ELMo(subtokens)
+
 
 def clean_text(text):
     x_ascii = unidecode(text)

@@ -11,9 +11,12 @@ import time
 list_classes = ["negative", "neutral", "positive"]
 
 
-def train(embeddings_name, fold_count): 
+def train(embeddings_name, fold_count, use_ELMo=False): 
+    batch_size = 256
+    if use_ELMo:
+        batch_size = 20
     model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
-        use_roc_auc=True, embeddings_name=embeddings_name)
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, batch_size=batch_size)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -26,9 +29,12 @@ def train(embeddings_name, fold_count):
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count): 
+def train_and_eval(embeddings_name, fold_count, use_ELMo=False): 
+    batch_size = 256
+    if use_ELMo:
+        batch_size = 20
     model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
-        use_roc_auc=True, embeddings_name=embeddings_name)
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, batch_size=batch_size)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -67,6 +73,7 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     args = parser.parse_args()
 
@@ -78,18 +85,19 @@ if __name__ == "__main__":
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
     embeddings_name = "word2vec"
+    use_ELMo = args.use_ELMo
 
     if args.action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count)
+        train(embeddings_name, args.fold_count, use_ELMo=use_ELMo)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, use_ELMo=use_ELMo)    
 
     if args.action == 'classify':
         someTexts = ['One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.', 

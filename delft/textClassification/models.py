@@ -671,7 +671,7 @@ def getModel(model_config, training_config):
     return model
 
 
-def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y):
+def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y, use_ELMo=False):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
@@ -681,16 +681,22 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, trainin
     while current_epoch <= max_epoch:
 
         #model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
+        nb_workers = 6
+        multiprocessing = True
+        if use_ELMo:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
         model.fit_generator(
             generator=training_generator,
-            use_multiprocessing=True,
-            workers=6,
+            use_multiprocessing=multiprocessing,
+            workers=nb_workers,
             epochs=1)
 
         y_pred = model.predict_generator(
             generator=validation_generator, 
-            use_multiprocessing=True,
-            workers=6)
+            use_multiprocessing=multiprocessing,
+            workers=nb_workers)
 
         total_loss = 0.0
         total_roc_auc = 0.0
@@ -773,7 +779,7 @@ def train_folds(X, y, model_config, training_config, embeddings):
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
             embeddings=embeddings, shuffle=False)
 
-        foldModel, best_score = train_model(getModel(model_config, training_config), 
+        foldModel, best_score = train_model(getModel(model_config, training_config, use_ELMo=embeddings.use_ELMo), 
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y)
         models.append(foldModel)
 
@@ -795,24 +801,36 @@ def train_folds(X, y, model_config, training_config, embeddings):
     return models
 
 
-def predict(model, predict_generator):
+def predict(model, predict_generator, use_ELMo=False):
+    nb_workers = 6
+    multiprocessing = True
+    if use_ELMo:
+        # worker at 0 means the training will be executed in the main thread
+        nb_workers = 0 
+        multiprocessing = False
     y = model.predict_generator(
             generator=predict_generator, 
-            use_multiprocessing=True,
-            workers=6)
+            use_multiprocessing=multiprocessing,
+            workers=nb_workers)
     return y
 
 
-def predict_folds(models, predict_generator):
+def predict_folds(models, predict_generator, use_ELMo=False):
     fold_count = len(models)
     y_predicts_list = []
     for fold_id in range(0, fold_count):
         model = models[fold_id]
         #y_predicts = model.predict(xte)
+        nb_workers = 6
+        multiprocessing = True
+        if use_ELMo:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
         y_predicts = model.predict_generator(
             generator=predict_generator, 
-            use_multiprocessing=True,
-            workers=6)
+            use_multiprocessing=multiprocessing,
+            workers=nb_workers)
         y_predicts_list.append(y_predicts)
 
     y_predicts = np.ones(y_predicts_list[0].shape)
