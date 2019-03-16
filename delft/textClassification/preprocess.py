@@ -41,7 +41,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
         local_tokens = []
         for j in range(0, min(len(tokens[i]), maxlen)):
             if lowercase:
-                local_tokens.append(_lower(tokens[i][j]))
+                local_tokens.append(lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
         subtokens.append(local_tokens)
