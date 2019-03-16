@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="delft",
-    version="0.1.2",
+    version="0.1.3",
     author="Patrice Lopez",
     author_email="patrice.lopez@science-miner.com",
     description="a Deep Learning Framework for Text",

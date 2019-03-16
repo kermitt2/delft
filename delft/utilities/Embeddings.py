@@ -277,10 +277,10 @@ class Embeddings(object):
 
             # Input placeholders to the biLM.
             self.character_ids = tf.placeholder('int32', shape=(None, None, 50))
-            self.embeddings_op = self.bilm(self.character_ids)
 
             with tf.variable_scope('', reuse=tf.AUTO_REUSE):
                 # the reuse=True scope reuses weights from the whole context 
+                self.embeddings_op = self.bilm(self.character_ids)
                 self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
 
     def dump_ELMo_token_embeddings(self, x_train):
