@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="delft",
-    version="0.1.1",
+    version="0.1.2",
     author="Patrice Lopez",
     author_email="patrice.lopez@science-miner.com",
     description="a Deep Learning Framework for Text",
@@ -14,7 +14,7 @@ setuptools.setup(
     python_requires='>=3.5',
     install_requires=[
         'keras==2.1.5',
-        'numpy?=1.16.1',
+        'numpy>=1.16.1',
         'pandas>=0.22.0',
         'bleach>=2.1.0',
         'regex>=2018.2.21',
