@@ -226,6 +226,7 @@ class Embeddings(object):
         else:    
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
+            load_db = True
             if os.path.isdir(envFilePath):
                 description = self._get_description(name)
                 if description is not None:
@@ -233,26 +234,31 @@ class Embeddings(object):
 
                 # open the database in read mode
                 self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
-                # we need to set self.embed_size and self.vocab_size
-                with self.env.begin() as txn:
-                    stats = txn.stat()
-                    size = stats['entries']
-                    self.vocab_size = size
+                if self.env:
+                    # we need to set self.embed_size and self.vocab_size
+                    with self.env.begin() as txn:
+                        stats = txn.stat()
+                        size = stats['entries']
+                        self.vocab_size = size
 
-                with self.env.begin() as txn:
-                    cursor = txn.cursor()
-                    for key, value in cursor:
-                        vector = _deserialize_pickle(value)
-                        self.embed_size = vector.shape[0]
-                        break
-                    cursor.close()
+                    with self.env.begin() as txn:
+                        cursor = txn.cursor()
+                        for key, value in cursor:
+                            vector = _deserialize_pickle(value)
+                            self.embed_size = vector.shape[0]
+                            break
+                        cursor.close()
 
-                # no idea why, but we need to close and reopen the environment to avoid
-                # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-                # when opening new transaction !
-                self.env.close()
-                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
-            else: 
+                    if self.vocab_size != 0 and self.embed_size != 0:
+                        load_db = False
+
+                        # no idea why, but we need to close and reopen the environment to avoid
+                        # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+                        # when opening new transaction !
+                        self.env.close()
+                        self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
+
+            if load_db: 
                 # create and load the database in write mode
                 self.env = lmdb.open(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name, hasHeader)
