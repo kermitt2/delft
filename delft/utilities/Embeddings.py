@@ -64,7 +64,7 @@ class Embeddings(object):
         if use_ELMo:
             self.make_ELMo()
             self.embed_size = ELMo_embed_size + self.embed_size
-            description = self._get_description('elmo-en')
+            description = self._get_description('elmo-'+self.lang)
             self.env_ELMo = None
             if description:
                 self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
@@ -266,7 +266,7 @@ class Embeddings(object):
     def make_ELMo(self):
         # Location of pretrained BiLM for the specified language
         # TBD check if ELMo language resources are present
-        description = self._get_description('elmo-en')
+        description = self._get_description('elmo-'+self.lang)
         if description is not None:
             self.lang = description["lang"]
             vocab_file = description["path-vocab"]

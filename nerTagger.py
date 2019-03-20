@@ -255,6 +255,8 @@ def train_eval(embedding_name,
         model_name = 'ner-fr-lemonde'
         if use_ELMo:
             model_name += '-with_ELMo'
+            # custom batch size for French ELMo
+            batch_size = 20
         model_name += '-' + architecture
 
         model = Sequence(model_name, 

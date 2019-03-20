@@ -60,6 +60,15 @@
             "lang": "en"
         },
         {
+            "name": "elmo-fr",
+            "path-config": "/media/lopez/T5/embeddings/elmo_fr_020_options.json",
+            "path_weights": "/media/lopez/T5/embeddings/elmo_fr_020_weights.hdf5",
+            "path-vocab": "data/models/ELMo/fr/vocab_test.txt",
+            "path-cache": "data/models/ELMo/fr/",
+            "cache-training": true,
+            "lang": "fr"
+        },
+        {
             "name": "flair-forward-en-news",
             "path_weights": "/media/lopez/T5/embeddings/flair-lm-news-english-forward-v0.2rc.pt",
             "path-cache": "data/models/FLAIR/",
