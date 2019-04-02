@@ -303,7 +303,7 @@ def load_data_and_labels_crf_file(filepath):
         for line in f:
             line = line.strip()
             if len(line) == 0:
-                if len(tokens) != 0:
+                if len(tokens) != 0: 
                     sents.append(tokens)
                     labels.append(tags)
                     featureSets.append(features)

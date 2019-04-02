@@ -671,7 +671,7 @@ def getModel(model_config, training_config):
     return model
 
 
-def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y, use_ELMo=False):
+def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_weights, training_generator, validation_generator, val_y, use_ELMo=False):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
@@ -691,6 +691,7 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, trainin
             generator=training_generator,
             use_multiprocessing=multiprocessing,
             workers=nb_workers,
+            class_weights=class_weights
             epochs=1)
 
         y_pred = model.predict_generator(
@@ -753,6 +754,7 @@ def train_folds(X, y, model_config, training_config, embeddings):
     max_epoch = training_config.max_epoch
     model_type = model_config.model_type
     use_roc_auc = training_config.use_roc_auc
+    class_weights = training_config.class_weights
 
     fold_size = len(X) // fold_count
     models = []
@@ -779,8 +781,8 @@ def train_folds(X, y, model_config, training_config, embeddings):
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
             embeddings=embeddings, shuffle=False)
 
-        foldModel, best_score = train_model(getModel(model_config, training_config, use_ELMo=embeddings.use_ELMo), 
-                model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, training_generator, validation_generator, val_y)
+        foldModel, best_score = train_model(getModel(model_config, training_config), 
+                model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, class_weights, training_generator, validation_generator, val_y)
         models.append(foldModel)
 
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))

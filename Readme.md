@@ -392,7 +392,7 @@ With ELMo embeddings (using the default hyper-parameters, except the batch size 
 
 ```text
 Evaluation on test set:
-  f1 (micro): 88.72
+  f1 (micro): 89.01
                   precision    recall  f1-score   support
 
              LAW     0.7188    0.5750    0.6389        40
@@ -433,21 +433,76 @@ In practice, we need to repeat training and evaluation several times to neutrali
 
 > python3 nerTagger.py --lang fr --fold-count 10 train_eval
 
-The performance is as follow, with a f-score of __91.83__:
+The performance is as follow, with a f-score of __91.01__ averaged over 10 training:
 
 ```text
-** Best ** model scores -
+average over 10 folds
+  macro f1 = 0.9100881012386587
+  macro precision = 0.9048633201198737
+  macro recall = 0.9153907496012759 
 
-                   precision recall    f1-score     support
+** Worst ** model scores - 
 
-      <person>     0.9421    0.9721    0.9569       251
-    <artifact>     1.0000    0.5000    0.6667         4
-    <business>     0.8647    0.9176    0.8903       376
-    <location>     0.9545    0.9701    0.9623       368
-<organisation>     0.9239    0.8089    0.8626       225
- <institution>     0.7714    0.9000    0.8308        30
+                  precision    recall  f1-score   support
 
-   avg / total     0.9139    0.9226    0.9183      1254
+      <location>     0.9467    0.9647    0.9556       368
+   <institution>     0.8621    0.8333    0.8475        30
+      <artifact>     1.0000    0.5000    0.6667         4
+  <organisation>     0.9146    0.8089    0.8585       225
+        <person>     0.9264    0.9522    0.9391       251
+      <business>     0.8463    0.8936    0.8693       376
+
+all (micro avg.)     0.9040    0.9083    0.9061      1254
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <location>     0.9439    0.9592    0.9515       368
+   <institution>     0.8667    0.8667    0.8667        30
+      <artifact>     1.0000    0.5000    0.6667         4
+  <organisation>     0.8813    0.8578    0.8694       225
+        <person>     0.9453    0.9641    0.9546       251
+      <business>     0.8706    0.9122    0.8909       376
+
+all (micro avg.)     0.9090    0.9242    0.9166      1254
+```
+
+With frELMo:
+
+> python3 nerTagger.py --lang fr --fold-count 10 --use-ELMo train_eval
+
+```text
+average over 10 folds
+    macro f1 = 0.9209397554337976
+    macro precision = 0.91949107960079
+    macro recall = 0.9224082934609251 
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+  <organisation>     0.8704    0.8356    0.8526       225
+        <person>     0.9344    0.9641    0.9490       251
+      <artifact>     1.0000    0.5000    0.6667         4
+      <location>     0.9173    0.9647    0.9404       368
+   <institution>     0.8889    0.8000    0.8421        30
+      <business>     0.9130    0.8936    0.9032       376
+
+all (micro avg.)     0.9110    0.9147    0.9129      1254
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+  <organisation>     0.9061    0.8578    0.8813       225
+        <person>     0.9416    0.9641    0.9528       251
+      <artifact>     1.0000    0.5000    0.6667         4
+      <location>     0.9570    0.9674    0.9622       368
+   <institution>     0.8889    0.8000    0.8421        30
+      <business>     0.9016    0.9255    0.9134       376
+
+all (micro avg.)     0.9268    0.9290    0.9279      1254
 ```
 
 For training with all the dataset without evaluation:

@@ -13,6 +13,7 @@ class ModelConfig(object):
                  char_lstm_units=25,
                  max_char_length=30,
                  word_lstm_units=100, 
+                 max_sequence_length=None,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
                  use_char_feature=True, 
@@ -32,6 +33,7 @@ class ModelConfig(object):
         self.num_char_lstm_units = char_lstm_units
         self.max_char_length = max_char_length
 
+        self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size
         self.num_word_lstm_units = word_lstm_units
 

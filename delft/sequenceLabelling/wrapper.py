@@ -51,6 +51,7 @@ class Sequence(object):
                  max_char_length=30,
                  char_lstm_units=25,
                  word_lstm_units=100, 
+                 max_sequence_length=None,
                  dropout=0.5, 
                  recurrent_dropout=0.25,
                  use_char_feature=True, 
@@ -86,7 +87,8 @@ class Sequence(object):
                                         char_emb_size=char_emb_size, 
                                         char_lstm_units=char_lstm_units, 
                                         max_char_length=max_char_length,
-                                        word_lstm_units=word_lstm_units, 
+                                        word_lstm_units=word_lstm_units,
+                                        max_sequence_length=max_sequence_length, 
                                         dropout=dropout, 
                                         recurrent_dropout=recurrent_dropout, 
                                         use_char_feature=use_char_feature, 
@@ -173,6 +175,7 @@ class Sequence(object):
             test_generator = DataGenerator(x_test, y_test, 
               batch_size=self.training_config.batch_size, preprocessor=self.p, 
               char_embed_size=self.model_config.char_embedding_size, 
+              max_sequence_length=self.model_config.max_sequence_length,
               embeddings=self.embeddings, shuffle=False)
 
             # Build the evaluator and evaluate the model
@@ -193,12 +196,13 @@ class Sequence(object):
             total_precision = 0
             total_recall = 0
             for i in range(0, self.model_config.fold_number):
-                print('\n------------------------ fold ' + str(i) + '--------------------------------------')
+                print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
                 # Prepare test data(steps, generator)
                 test_generator = DataGenerator(x_test, y_test, 
                   batch_size=self.training_config.batch_size, preprocessor=self.p, 
                   char_embed_size=self.model_config.char_embedding_size, 
+                  max_sequence_length=self.model_config.max_sequence_length,
                   embeddings=self.embeddings, shuffle=False)
 
                 # Build the evaluator and evaluate the model

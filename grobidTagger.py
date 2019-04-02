@@ -54,7 +54,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         model.save()
 
 # split data, train a GROBID model and evaluate it 
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1): 
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -73,18 +73,31 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     else:
         model_name = 'grobid-'+model
 
+    batch_size = 20
+    max_sequence_length = 3000
+
     if use_ELMo:
         model_name += '-with_ELMo'
+        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+            batch_size = 3
 
     model = Sequence(model_name, 
                     max_epoch=100, 
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name, 
                     model_type=architecture,
-                    use_ELMo=use_ELMo)
+                    use_ELMo=use_ELMo,
+                    max_sequence_length=max_sequence_length,
+                    batch_size=batch_size,
+                    fold_number=fold_count)
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid, y_valid)
+
+    if fold_count == 1:
+        model.train(x_train, y_train, x_valid, y_valid)
+    else:
+        model.train_nfold(x_train, y_train, x_valid, y_valid, fold_number=fold_count)
+
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -156,7 +169,8 @@ if __name__ == "__main__":
     # embedding-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
-    embeddings_name = "glove-840B"
+    #embeddings_name = "glove-840B"
+    embeddings_name = "word2vec-pmc"
 
     if action == 'train':
         train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
@@ -164,7 +178,7 @@ if __name__ == "__main__":
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count)
 
     if action == 'tag':
         someTexts = []

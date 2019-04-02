@@ -33,6 +33,14 @@
             "item": "word"
         },
         {
+            "name": "word2vec-pmc",
+            "path": "/media/lopez/T5/embeddings/wikipedia-pubmed-and-PMC-w2v.vec",
+            "type": "w2v",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word"
+        },
+        {
             "name": "wiki.fr",
             "path": "/media/lopez/T5/embeddings/wiki.fr.vec",
             "type": "fasttext",

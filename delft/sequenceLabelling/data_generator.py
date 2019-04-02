@@ -16,6 +16,7 @@ class DataGenerator(keras.utils.Sequence):
                 preprocessor=None, 
                 char_embed_size=25, 
                 embeddings=None, 
+                max_sequence_length=None,
                 tokenize=False, 
                 shuffle=True,
                 features=None):

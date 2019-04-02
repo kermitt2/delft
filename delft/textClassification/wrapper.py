@@ -51,7 +51,8 @@ class Classifier(object):
                  fold_number=1,
                  use_roc_auc=True,
                  use_ELMo=False,
-                 embeddings=()):
+                 embeddings=(),
+                 class_weights=None):
 
         self.model = None
         self.models = None
@@ -79,7 +80,8 @@ class Classifier(object):
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
-                                              patience, use_roc_auc)
+                                              patience, use_roc_auc,
+                                              class_weights=class_weights)
 
     def train(self, x_train, y_train, vocab_init=None):
         # create validation set in case we don't use k-folds
@@ -97,7 +99,8 @@ class Classifier(object):
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
-            self.training_config.max_epoch, self.training_config.use_roc_auc, training_generator, validation_generator, val_y, 
+            self.training_config.max_epoch, self.training_config.use_roc_auc, self.training_config.class_weights, 
+            training_generator, validation_generator, val_y, 
             use_ELMo=self.embeddings.use_ELMo)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
