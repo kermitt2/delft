@@ -9,14 +9,17 @@ import keras.backend as K
 import time
 
 list_classes = ["negative", "neutral", "positive"]
-
+class_weights = {0: 25.,
+                 1: 1.,
+                 2: 9.}
 
 def train(embeddings_name, fold_count, use_ELMo=False): 
     batch_size = 256
     if use_ELMo:
         batch_size = 20
     model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, batch_size=batch_size)
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, batch_size=batch_size,
+        class_weights=class_weights)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -34,7 +37,8 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False):
     if use_ELMo:
         batch_size = 20
     model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, batch_size=batch_size)
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, batch_size=batch_size,
+        class_weights=class_weights)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")

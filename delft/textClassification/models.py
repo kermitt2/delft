@@ -691,7 +691,7 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_w
             generator=training_generator,
             use_multiprocessing=multiprocessing,
             workers=nb_workers,
-            class_weights=class_weights,
+            class_weight=class_weights,
             epochs=1)
 
         y_pred = model.predict_generator(
