@@ -11,7 +11,7 @@ import argparse
 import time
 
 # train a model with all available CoNLL 2003 data 
-def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, data_path=None): 
+def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, use_FLAIR=False, data_path=None): 
 
     if (architecture == "BidLSTM_CNN_CRF"):
         word_lstm_units = 200
@@ -22,6 +22,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
 
     if use_ELMo:
         batch_size = 100
+    elif use_FLAIR:
+        batch_size = 32
     else:
         batch_size = 20
 
@@ -42,6 +44,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
 
         model = Sequence(model_name, 
@@ -51,7 +55,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
-                        use_ELMo=use_ELMo)
+                        use_ELMo=use_ELMo,
+                        use_FLAIR=use_FLAIR)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
 
@@ -70,6 +75,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'    
         model_name += '-' + architecture
 
         model = Sequence(model_name, 
@@ -80,7 +87,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
-                        use_ELMo=use_ELMo)
+                        use_ELMo=use_ELMo,
+                        use_FLAIR=use_FLAIR)
     elif (lang == 'fr'):
         print('Loading data...')
         dataset_type = 'lemonde'
@@ -91,6 +99,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-fr-lemonde'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
 
         model = Sequence(model_name, 
@@ -100,7 +110,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
-                        use_ELMo=use_ELMo)
+                        use_ELMo=use_ELMo,
+                        use_FLAIR=use_FLAIR)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return
@@ -127,6 +138,7 @@ def train_eval(embedding_name,
                 fold_count=1, 
                 train_with_validation_set=False, 
                 use_ELMo=False, 
+                use_FLAIR=False,
                 data_path=None): 
 
     if (architecture == "BidLSTM_CNN_CRF"):
@@ -140,6 +152,8 @@ def train_eval(embedding_name,
 
     if use_ELMo:
         batch_size = 120
+    elif use_FLAIR:
+        batch_size = 32
     else:
         batch_size = 20
 
@@ -153,6 +167,8 @@ def train_eval(embedding_name,
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
 
         if not train_with_validation_set: 
@@ -166,7 +182,8 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
-                            use_ELMo=use_ELMo)
+                            use_ELMo=use_ELMo,
+                            use_FLAIR=use_FLAIR)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -180,7 +197,8 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
-                            use_ELMo=use_ELMo)
+                            use_ELMo=use_ELMo,
+                            use_FLAIR=use_FLAIR)
 
     elif (dataset_type == 'ontonotes-all') and (lang == 'en'):
         print('Loading Ontonotes 5.0 XML data...')
@@ -192,6 +210,8 @@ def train_eval(embedding_name,
         model_name = 'ner-en-ontonotes'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
 
         model = Sequence(model_name, 
@@ -203,7 +223,8 @@ def train_eval(embedding_name,
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
-                        use_ELMo=use_ELMo)
+                        use_ELMo=use_ELMo,
+                        use_FLAIR=use_FLAIR)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
@@ -216,6 +237,8 @@ def train_eval(embedding_name,
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
 
         if not train_with_validation_set: 
@@ -228,7 +251,8 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
-                            use_ELMo=use_ELMo)
+                            use_ELMo=use_ELMo,
+                            use_FLAIR=use_FLAIR)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -242,7 +266,8 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
-                            use_ELMo=use_ELMo)
+                            use_ELMo=use_ELMo,
+                            use_FLAIR=use_FLAIR)
 
     elif (lang == 'fr'):
         print('Loading data...')
@@ -257,6 +282,8 @@ def train_eval(embedding_name,
             model_name += '-with_ELMo'
             # custom batch size for French ELMo
             batch_size = 20
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
 
         model = Sequence(model_name, 
@@ -268,7 +295,8 @@ def train_eval(embedding_name,
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
-                        use_ELMo=use_ELMo)
+                        use_ELMo=use_ELMo,
+                        use_FLAIR=use_FLAIR)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
@@ -293,6 +321,7 @@ def eval(dataset_type='conll2003',
          lang='en', 
          architecture='BidLSTM_CRF', 
          use_ELMo=False, 
+         use_FLAIR=False,
          data_path=None): 
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
@@ -304,6 +333,8 @@ def eval(dataset_type='conll2003',
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
         model = Sequence(model_name)
         model.load()
@@ -318,6 +349,8 @@ def eval(dataset_type='conll2003',
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
         model = Sequence(model_name)
         model.load()
@@ -341,6 +374,7 @@ def annotate(output_format,
              lang='en', 
              architecture='BidLSTM_CRF', 
              use_ELMo=False, 
+             use_FLAIR=False, 
              file_in=None, 
              file_out=None):
     if file_in is None or not os.path.isfile(file_in):
@@ -352,6 +386,8 @@ def annotate(output_format,
         model_name = 'ner-en-conll2003'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
         model = Sequence(model_name)
         model.load()
@@ -361,6 +397,8 @@ def annotate(output_format,
         model_name = 'ner-en-conll2012'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
         model = Sequence(model_name)
         model.load()
@@ -369,6 +407,8 @@ def annotate(output_format,
         model_name = 'ner-fr-lemonde'
         if use_ELMo:
             model_name += '-with_ELMo'
+        if use_FLAIR:
+            model_name += '-with_FLAIR'
         model_name += '-' + architecture
         model = Sequence(model_name)
         model.load()
@@ -394,7 +434,8 @@ if __name__ == "__main__":
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
     parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-CRF]")
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
+    parser.add_argument("--use-FLAIR", action="store_true", help="Use FLAIR contextual embeddings") 
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
     parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
@@ -408,6 +449,7 @@ if __name__ == "__main__":
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
     use_ELMo = args.use_ELMo
+    use_FLAIR = args.use_FLAIR
     architecture = args.architecture
     if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF'):
         print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU_CRF]')
@@ -433,6 +475,7 @@ if __name__ == "__main__":
             lang, 
             architecture=architecture, 
             use_ELMo=use_ELMo,
+            use_FLAIR=use_FLAIR,
             data_path=data_path)
 
     if action == 'train_eval':
@@ -445,6 +488,7 @@ if __name__ == "__main__":
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             use_ELMo=use_ELMo,
+            use_FLAIR=use_FLAIR,
             data_path=data_path)
 
     if action == 'eval':
@@ -460,6 +504,7 @@ if __name__ == "__main__":
                             lang, 
                             architecture=architecture, 
                             use_ELMo=use_ELMo, 
+                            use_FLAIR=use_FLAIR,
                             file_in=file_in, 
                             file_out=file_out)
             """if result is not None:

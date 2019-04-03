@@ -66,7 +66,8 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
-                 use_ELMo=True,
+                 use_ELMo=False,
+                 use_FLAIR=False,
                  fold_number=1):
 
         self.model = None
@@ -77,7 +78,7 @@ class Sequence(object):
 
         word_emb_size = 0
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo) 
+            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_FLAIR=use_FLAIR)  
             word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(model_name=model_name, 
@@ -95,7 +96,8 @@ class Sequence(object):
                                         use_crf=use_crf, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
-                                        use_ELMo=use_ELMo)
+                                        use_ELMo=use_ELMo,
+                                        use_FLAIR=use_FLAIR)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -110,16 +112,6 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-        """
-        if self.embeddings.use_ELMo:
-            # dump token context independent data for the train set, done once for the training
-            x_train_local = x_train
-            if not self.training_config.early_stop:
-                # in case we want to train with the validation set too, we dump also
-                # the ELMo embeddings for the token of the valid set
-                x_train_local = np.concatenate((x_train, x_valid), axis=0)
-            self.embeddings.dump_ELMo_token_embeddings(x_train_local)
-        """
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         trainer = Trainer(self.model, 
                           self.models,
@@ -132,6 +124,8 @@ class Sequence(object):
         trainer.train(x_train, y_train, x_valid, y_valid)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
+        if self.embeddings.use_FLAIR:
+            self.embeddings.clean_FLAIR_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
         if x_valid is not None and y_valid is not None:
@@ -144,7 +138,6 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
 
-        #self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         self.models = []
 
         for k in range(0, fold_number):
@@ -162,6 +155,8 @@ class Sequence(object):
         trainer.train_nfold(x_train, y_train, x_valid, y_valid)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
+        if self.embeddings.use_FLAIR:
+            self.embeddings.clean_FLAIR_cache()
 
     def eval(self, x_test, y_test):
         if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:
@@ -363,7 +358,7 @@ class Sequence(object):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
         # load embeddings
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo) 
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_FLAIR=self.model_config.use_FLAIR) 
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))

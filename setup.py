@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="delft",
-    version="0.1.5",
+    version="0.1.6",
     author="Patrice Lopez",
     author_email="patrice.lopez@science-miner.com",
     description="a Deep Learning Framework for Text",
@@ -19,7 +19,7 @@ setuptools.setup(
         'bleach>=2.1.0',
         'regex>=2018.2.21',
         'scikit-learn>=0.19.1',
-        'tqdm>=4.21',
+        'tqdm>=4.26',
         'tensorflow_gpu==1.8.0',
         'gensim>=3.4.0',
         'langdetect>=1.0.7',
@@ -27,7 +27,8 @@ setuptools.setup(
         'h5py>=2.7.1',
         'unidecode>=1.0.22',
         'pydot>=1.2.4',
-        'lmdb>=0.94'
+        'lmdb>=0.94',
+        'flair>=0.4.1'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.5",

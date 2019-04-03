@@ -2,7 +2,7 @@ import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import keras
-from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo
+from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo, to_vector_simple_with_flair
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
@@ -115,10 +115,13 @@ class DataGenerator(keras.utils.Sequence):
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
 
+        if self.embeddings.use_FLAIR:     
+            batch_x = to_vector_simple_with_flair(x_tokenized, self.embeddings, max_length_x)  
+
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
-            if not self.embeddings.use_ELMo:    
+            if not self.embeddings.use_ELMo and not self.embeddings.use_FLAIR:
                 batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             if self.preprocessor.return_casing:
