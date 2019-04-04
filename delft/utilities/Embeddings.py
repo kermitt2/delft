@@ -30,7 +30,7 @@ from delft.utilities.bilm.elmo import weight_layers
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 # for FLAIR embeddings
-from utilities.flair.DeLFTFlairEmbeddings import DeLFTFlairEmbeddings
+from delft.utilities.flair.DeLFTFlairEmbeddings import DeLFTFlairEmbeddings
 #from flair.embeddings import FlairEmbeddings
 from flair.data import Sentence, Token
 

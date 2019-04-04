@@ -671,7 +671,8 @@ def getModel(model_config, training_config):
     return model
 
 
-def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_weights, training_generator, validation_generator, val_y, use_ELMo=False):
+def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_weights, training_generator, validation_generator, val_y, 
+    use_ELMo=False, use_FLAIR=False):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
@@ -683,7 +684,7 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_w
         #model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
         nb_workers = 6
         multiprocessing = True
-        if use_ELMo:
+        if use_ELMo or use_FLAIR:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
@@ -803,10 +804,10 @@ def train_folds(X, y, model_config, training_config, embeddings):
     return models
 
 
-def predict(model, predict_generator, use_ELMo=False):
+def predict(model, predict_generator, use_ELMo=False, use_FLAIR=False):
     nb_workers = 6
     multiprocessing = True
-    if use_ELMo:
+    if use_ELMo or use_FLAIR:
         # worker at 0 means the training will be executed in the main thread
         nb_workers = 0 
         multiprocessing = False
@@ -817,7 +818,7 @@ def predict(model, predict_generator, use_ELMo=False):
     return y
 
 
-def predict_folds(models, predict_generator, use_ELMo=False):
+def predict_folds(models, predict_generator, use_ELMo=False, use_FLAIR=False):
     fold_count = len(models)
     y_predicts_list = []
     for fold_id in range(0, fold_count):
@@ -825,7 +826,7 @@ def predict_folds(models, predict_generator, use_ELMo=False):
         #y_predicts = model.predict(xte)
         nb_workers = 6
         multiprocessing = True
-        if use_ELMo:
+        if use_ELMo or use_FLAIR:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False

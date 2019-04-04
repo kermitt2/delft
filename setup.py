@@ -2,7 +2,7 @@ import setuptools
 
 setuptools.setup(
     name="delft",
-    version="0.1.6",
+    version="0.2.0",
     author="Patrice Lopez",
     author_email="patrice.lopez@science-miner.com",
     description="a Deep Learning Framework for Text",
@@ -11,7 +11,7 @@ setuptools.setup(
     url="https://github.com/kermitt2/delft",
     packages=setuptools.find_packages(exclude=['test', '*.test', '*.test.*']),  
     include_package_data=True,
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     install_requires=[
         'keras==2.1.5',
         'numpy>=1.16.1',
