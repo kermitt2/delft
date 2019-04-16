@@ -797,9 +797,9 @@ def train_folds(X, y, model_config, training_config, embeddings):
     avg_score = all_scores/fold_count
 
     if (use_roc_auc):
-        print("Average best roc_auc scores over the", fold_count, "fold: ", avg_score)
+        print("Average best roc_auc scores over the", fold_count, "folds: ", avg_score)
     else:
-        print("Average best log loss scores over the", fold_count, "fold: ", avg_score)
+        print("Average best log loss scores over the", fold_count, "folds: ", avg_score)
 
     return models
 

@@ -1,6 +1,6 @@
 keras==2.1.5
 numpy==1.16.1
-pandas==0.22.0
+pandas==0.24.2
 bleach>=2.1.0
 regex==2018.2.21
 scikit-learn==0.19.1
