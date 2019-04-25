@@ -224,6 +224,12 @@ class Embeddings(object):
             print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
             self.make_embeddings_simple_in_memory(name, hasHeader)
         else:    
+            # if the path to the lmdb database files does not exist, we create it
+            if not os.path.isdir(self.embedding_lmdb_path):
+                # conservative check (likely very useless)
+                if not os.path.exists(self.embedding_lmdb_path):
+                    os.makedirs(self.embedding_lmdb_path)
+
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
             load_db = True
