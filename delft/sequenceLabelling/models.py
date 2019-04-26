@@ -135,7 +135,7 @@ class BidLSTM_CNN(BaseModel):
         char_embeddings = TimeDistributed(
                                 Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     name='char_embeddings'
                                     ))(char_input)
 
@@ -149,7 +149,7 @@ class BidLSTM_CNN(BaseModel):
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
         casing_embedding = Embedding(input_dim=config.case_vocab_size, 
                            output_dim=config.case_embedding_size,
-                           mask_zero=True,
+                           #mask_zero=True,
                            trainable=False,
                            name='casing_embedding')(casing_input)
         casing_embedding = Dropout(config.dropout)(casing_embedding)
@@ -164,7 +164,8 @@ class BidLSTM_CNN(BaseModel):
                                return_sequences=True, 
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
-        pred = TimeDistributed(Dense(ntags, activation='softmax'))(x)
+        #pred = TimeDistributed(Dense(ntags, activation='softmax'))(x)
+        pred = Dense(ntags, activation='softmax')(x)
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
         self.config = config

@@ -146,12 +146,16 @@ def get_entities_with_offsets(seq, offsets):
     chunks = []
     seq = seq + ['O']  # add sentinel
     types = [tag.split('-')[-1] for tag in seq]
-    while i < len(seq):
+    max_length = min(len(seq)-1, len(offsets))
+    while i < max_length:
         if seq[i].startswith('B'):
-            for j in range(i+1, len(seq)):
-                if seq[j].startswith('I') and types[j] == types[i]:
-                    continue
-                break
+            # if we are at the end of the offsets, we can stop immediatly
+            j = max_length
+            if i+2 != max_length:
+                for j in range(i+1, max_length):
+                    if seq[j].startswith('I') and types[j] == types[i]:
+                        continue
+                    break
             start_pos = offsets[i][0]
             end_pos = offsets[j-1][1]-1
             chunks.append((types[i], i, j, start_pos, end_pos))
