@@ -12,6 +12,7 @@ import pickle
 import hashlib, struct
 from tqdm import tqdm
 import mmap
+import codecs
 import tensorflow as tf
 import keras.backend as K
 
@@ -29,6 +30,10 @@ from delft.utilities.bilm.elmo import weight_layers
 
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
+# for BERT extraction of word embeddings (not the fine tuning, this realized by a specific model)
+from keras_bert import load_trained_model_from_checkpoint, Tokenizer
+
+
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
 
@@ -39,10 +44,12 @@ map_size = 100 * 1024 * 1024 * 1024
 
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
+BERT_embed_size = 768
+BERT_sentence_size = 512
 
 class Embeddings(object):
 
-    def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False):
+    def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False, use_BERT=False):
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
@@ -72,6 +79,25 @@ class Embeddings(object):
                 self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
                 self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+
+        # below init for using BERT embeddings (extracted features only, not fine tuning), 
+        # similar to ELMo for this usage
+        self.use_BERT = use_BERT
+        if use_BERT:
+            # to avoid issue with tf graph and thread, we maintain in the class its own graph and session
+            #self.session = tf.Session()
+            self.graph = tf.get_default_graph()
+            #self.session.run(tf.global_variables_initializer())
+            self.make_BERT()
+            self.embed_size = BERT_embed_size + self.embed_size
+            description = self._get_description('bert-'+self.lang)
+            self.env_BERT = None
+            if description and description["cache-training"]:
+                self.embedding_BERT_cache = os.path.join(description["path-cache"], "cache")
+                # clean possible remaining cache
+                self.clean_BERT_cache()
+                # create and load a cache in write mode, it will be used only for training
+                self.env_BERT = lmdb.open(self.embedding_BERT_cache, map_size=map_size)
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -295,56 +321,34 @@ class Embeddings(object):
                 self.embeddings_op = self.bilm(self.character_ids)
                 self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
 
-    def dump_ELMo_token_embeddings(self, x_train):
-        if not self.use_ELMo:
-            print("Warning: ELMo embeddings dump requested but embeddings object wrongly initialised")
-            return
-
-        description = self._get_description('elmo-en')
+    def make_BERT(self):
+        # Location of BERT model
+        description = self._get_description('bert-'+self.lang)
         if description is not None:
-            print("Building ELMo token dump")
-
             self.lang = description["lang"]
-            options_file = description["path-config"]
-            weight_file = description["path_weights"]
-            working_path = description["path-cache"]
+            config_file = description["path-config"]
+            weight_file = description["path-weights"]
+            vocab_file = description["path-vocab"]
 
-            all_tokens = set(['<S>', '</S>'])
-            for i in range(0, len(x_train)):
-                # as it is training, it is already tokenized
-                tokens = x_train[i]
-                for token in tokens:
-                    if token not in all_tokens:
-                       all_tokens.add(token)
+            print('init BERT')
 
-            vocab_file = os.path.join(working_path, 'vocab_small.txt')
-            with open(vocab_file, 'w') as fout:
-                fout.write('\n'.join(all_tokens))
+            # load the pretrained model
+            with self.graph.as_default():
+            #    with self.session.as_default():
+            #with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+                self.bert_model = load_trained_model_from_checkpoint(config_file, weight_file)
+                self.bert_model.summary(line_length=120)
+                self.bert_model._make_predict_function()
 
-            tf.reset_default_graph()
-            token_embedding_file = os.path.join(working_path, 'elmo_token_embeddings.hdf5')
-            dump_token_embeddings(
-                vocab_file, options_file, weight_file, token_embedding_file
-            )
-            tf.reset_default_graph()
+            # init the tokenizer
+            token_dict = {}
+            with codecs.open(vocab_file, 'r', 'utf8') as reader:
+                for line in reader:
+                    token = line.strip()
+                    token_dict[token] = len(token_dict)
+            print('token_dict size:', len(token_dict))
+            self.bert_tokenizer = Tokenizer(token_dict, cased=True)
 
-            self.batcher_token_dump = TokenBatcher(vocab_file)
-
-            self.bilm_token_dump = BidirectionalLanguageModel(
-                options_file,
-                weight_file,
-                use_character_inputs=False,
-                embedding_weight_file=token_embedding_file
-            )
-
-            self.token_ids = tf.placeholder('int32', shape=(None, None))
-            self.embeddings_op_token_dump = self.bilm_token_dump(self.token_ids)
-            """
-            with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-                # the reuse=True scope reuses weights from the whole context 
-                self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
-            """
-            print("ELMo token dump completed")
 
     def get_sentence_vector_only_ELMo(self, token_list):
         """
@@ -390,61 +394,12 @@ class Embeddings(object):
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
-        """
-        # trick to extend the context for short sentences
-        token_list_extended = token_list.copy()
-        #print("token_list_extended before: ", token_list_extended)
-        for i in range(0, len(token_list_extended)):
-            local_list = token_list_extended[i]
-            j = i
-            while len(local_list) <= 5:
-                #print(j, local_list)
-                if j < len(token_list_extended)-1:
-                    local_list = local_list + token_list_extended[j+1]
-                else:
-                    break
-                j = j + 1
-            token_list_extended[i] = local_list
-        #print("token_list_extended after: ", token_list_extended)
-
-        max_size_sentence = 0
-        for i in range(0, len(token_list)):
-            local_length = len(token_list[i])
-            if local_length > max_size_sentence:
-                max_size_sentence = local_length
-        """
-
-        # Create batches of data
 
         #print("\ntoken_list:", token_list)
         local_token_ids = self.batcher.batch_sentences(token_list)
         #print("local_token_ids:", local_token_ids)
         max_size_sentence = local_token_ids[0].shape[0]
 
-        '''
-        i = 0
-        j = 1 # <s>
-        k = 1 # start of word
-        for sentence in token_list:
-            print('\nsentence:', sentence)
-            #print('local_token_ids[i]:', local_token_ids[i])
-            for token in sentence:
-                print('\ntoken:', token)
-                print('local_token_ids[i,j]:', local_token_ids[i,j])
-                for character in token:
-                    print(character, ":", local_token_ids[i][j][k])
-                    k += 1
-                k = 1
-                j += 1
-            j = 1 
-            i += 1
-        '''
-
-        #elmo_result = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
-        #elmo_result = np.random.rand(len(token_list), max_size_sentence-2, ELMo_embed_size)
-        # check lmdb cache
-        
-        
         elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence) 
         if elmo_result is None:
             with tf.Session() as sess:
@@ -477,30 +432,105 @@ class Embeddings(object):
                 #concatenated_result[i][j] = np.concatenate((self.get_word_vector(token_list[i][j]), elmo_result[i][j]), )
         return concatenated_result
 
-    def get_sentence_vector_ELMo_with_token_dump(self, token_list):
-        if not self.use_ELMo:
-            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+
+    def get_sentence_vector_only_BERT(self, token_list):
+        """
+            Return the BERT extracted embeddings only for a full sentence
+        """
+        if not self.use_BERT:
+            print("Warning: BERT embeddings requested but embeddings object wrongly initialised")
             return
 
-        with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-            # the reuse=True scope reuses weights from the whole context 
-            self.elmo_input_token_dump = weight_layers('input', self.embeddings_op_token_dump, l2_coef=0.0)
+        #print("local_token_ids:", local_token_ids)
+        max_size_token_list = 0
+        for i, sentence in enumerate(token_list):
+            if len(sentence) > max_size_token_list:
+                max_size_token_list = len(sentence)
 
-        # Create batches of data
-        local_token_ids = self.batcher_token_dump.batch_sentences(token_list)
+        # retokenize with BERT tokenizer
+        max_size = BERT_sentence_size
+        max_size_sentence = 0
+        new_token_list = []
+        bert_results = np.zeros((len(token_list), max_size, BERT_embed_size), dtype=np.float32)
+        for i, sentence in enumerate(token_list):                        
+            local_text = " ".join(sentence)
+            local_tokens = self.bert_tokenizer.tokenize(local_text)
 
-        with tf.Session() as sess:
-            # weird, for this cpu is faster than gpu (1080Ti !)
-            with tf.device("/cpu:0"):
-                # It is necessary to initialize variables once before running inference
-                sess.run(tf.global_variables_initializer())
+            bert_result = self.get_BERT_lmdb_vector(sentence) 
+            if bert_result is None:
+                indices, segments = self.bert_tokenizer.encode(local_text, max_len=max_size)
+                with self.graph.as_default():
+                    bert_result = self.bert_model.predict([np.array([indices]), np.array([segments])])[0]
+                    #cache computation
+                    if bert_result is not None:
+                        self.cache_BERT_lmdb_vector(sentence, bert_result)
+            
+            # Realign BERT tokenization with the provided tokenization. Normally BERT segmenter always
+            # over-segment as compared to DeLFT segmenter. 
+            # There are two obvious possibilities to combine subtoken embeddings into token embeddings,
+            # either take the embeddings of the last subtoken, of use the average vector of the subtokens.
+            new_bert_result = np.zeros((max_size, BERT_embed_size), dtype=np.float32)
+            token_tensor = []
+            tid = 0
+            buffer = ''
+            #print(sentence)
+            #print(local_tokens)
+            for j, t in enumerate(local_tokens):
+                if j>=max_size:
+                    break
+                if t == '[CLS]' or t == '[SEP]':
+                    continue
+                else:
+                    if t.startswith('##'):
+                        t = t[2:]
+                    buffer += t
+                    #print(buffer)
+                    token_tensor.append(bert_result[j])
+                    if buffer == sentence[tid]:
+                        # average vector of the subtokens
+                        new_bert_result[tid] = np.stack(token_tensor).mean(axis=0)
+                        # or last subtoken vector
+                        #new_bert_result[tid] = token_tensor[-1]
+                        token_tensor = []
+                        buffer = ''
+                        tid += 1    
+            bert_result = new_bert_result
 
-                # Compute ELMo representations 
-                elmo_result = sess.run(
-                    self.elmo_input_token_dump['weighted_op'],
-                    feed_dict={self.token_ids: local_token_ids}
-                )
-        return elmo_result
+            if bert_result is not None:
+                bert_results[i] = bert_result
+            
+        # we need to squeze the vector to max_size_token_list
+        squeezed_bert_results = np.zeros((len(token_list), max_size_token_list, BERT_embed_size), dtype=np.float32)
+        for i, sentence in enumerate(token_list):
+            squeezed_bert_results[i] = bert_results[i][:max_size_token_list]
+
+        return squeezed_bert_results
+
+
+    def get_sentence_vector_with_BERT(self, token_list):
+        """
+            Return a concatenation of standard embeddings (e.g. Glove) and BERT extracted embeddings  
+            for a full sentence
+        """
+        if not self.use_BERT:
+            print("Warning: BERT embeddings requested but embeddings object wrongly initialised")
+            return
+
+        max_size_token_list = 0
+        for i, sentence in enumerate(token_list):
+            if len(sentence) > max_size_token_list:
+                max_size_token_list = len(sentence)
+           
+        squeezed_bert_results = self.get_sentence_vector_only_BERT(token_list)
+
+        concatenated_squeezed_result = np.zeros((len(token_list), max_size_token_list, self.embed_size), dtype=np.float32)
+        for i, sentence in enumerate(token_list):
+            for j in range(0, len(token_list[i])):
+                concatenated_squeezed_result[i][j] = np.concatenate((squeezed_bert_results[i][j], 
+                    self.get_word_vector(token_list[i][j]).astype('float32')), )
+
+        return concatenated_squeezed_result
+
 
     def _get_description(self, name):
         for emb in self.registry["embeddings"]:
@@ -583,6 +613,50 @@ class Embeddings(object):
             return self.get_ELMo_lmdb_vector(token_list)
         return ELMo_vector
 
+    def get_BERT_lmdb_vector(self, sentence):
+        """
+            Try to get the BERT extracted embeddings for a sequence cached in LMDB
+        """
+        if self.env_BERT is None:
+            # db cache not available, we don't cache ELMo stuff
+            return None
+        try:    
+            BERT_vector = np.zeros((BERT_sentence_size, BERT_embed_size), dtype='float32')
+            with self.env_BERT.begin() as txn:
+                txn = self.env_BERT.begin()
+                # get a hash for the token_list
+                the_hash = list_digest(sentence)
+                vector = txn.get(the_hash.encode(encoding='UTF-8'))
+                
+                if vector:
+                    # adapt expected shape/padding
+                    BERT_vector = _deserialize_pickle(vector)
+                    '''
+                    if local_embeddings.shape[0] > max_size_sentence:
+                        # squeeze the extra padding space
+                        BERT_vector = local_embeddings[:max_size_sentence,]
+                    elif local_embeddings.shape[0] == max_size_sentence:
+                        # bingo~!
+                        BERT_vector = local_embeddings
+                    else:
+                        # fill the missing space with padding
+                        filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]), BERT_embed_size), dtype='float32')
+                        BERT_vector = np.concatenate((local_embeddings, filler))
+                    '''
+                    vector = None
+                else:
+                    return None
+                
+        except lmdb.Error:
+            # no idea why, but we need to close and reopen the environment to avoid
+            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+            # when opening new transaction !
+            self.env_BERT.close()
+            self.env_BERT = lmdb.open(self.embedding_BERT_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            return self.get_BERT_lmdb_vector(sentence)
+        return BERT_vector
+
+
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
             Cache in LMDB the ELMo embeddings for a given sequence 
@@ -595,6 +669,20 @@ class Embeddings(object):
             # get a hash for the token_list
             the_hash = list_digest(token_list[i])
             txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))  
+        txn.commit()
+
+    def cache_BERT_lmdb_vector(self, sentence, BERT_vector):
+        """
+            Cache in LMDB the BERT embeddings for a given sequence 
+        """
+        if self.env_BERT is None:
+            # db cache not available, we don't cache BERT stuff
+            return None
+        txn = self.env_BERT.begin(write=True)
+        #for i in range(0, len(sentence)):
+        # get a hash for the token_list
+        the_hash = list_digest(sentence)
+        txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(BERT_vector))  
         txn.commit()
 
     def clean_ELMo_cache(self):
@@ -612,6 +700,27 @@ class Embeddings(object):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             os.rmdir(self.embedding_ELMo_cache)
+
+    def clean_BERT_cache(self):
+        """
+            Delete BERT embeddings cache, this takes place normally after the completion of a training
+        """
+        # if cache subdirectory does not exist, we create it 
+        if not os.path.exists(self.embedding_BERT_cache):
+            os.makedirs(self.embedding_BERT_cache)
+            return
+
+        if self.env_BERT is None:
+            # db cache not available, nothing to clean
+            return
+        else: 
+            self.env_BERT.close()
+            self.env_BERT = None
+            for file in os.listdir(self.embedding_BERT_cache): 
+                file_path = os.path.join(self.embedding_BERT_cache, file)
+                if os.path.isfile(file_path):
+                    os.remove(file_path)
+            os.rmdir(self.embedding_BERT_cache)
 
     def get_word_vector_in_memory(self, word):
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
@@ -685,6 +794,7 @@ def is_float(s):
 
 
 def test():
+    '''
     embeddings = Embeddings("glove-840B", use_ELMo=True)
     token_list = [['This', 'is', 'a', 'test', '.']]
     vect = embeddings.get_sentence_vector_ELMo(token_list)
@@ -692,3 +802,13 @@ def test():
     vect = embeddings.get_sentence_vector_ELMo(token_list)
 
     embeddings.clean_ELMo_cache()
+    '''
+
+    embeddings = Embeddings("glove-840B", use_BERT=True)
+    token_list = [['This', 'is', 'a', 'test', '.']]
+    vect = embeddings.get_sentence_vector_only_BERT(token_list)
+    print(vect)
+    embeddings.cache_BERT_lmdb_vector(token_list, vect)
+    vect = embeddings.get_sentence_vector_only_BERT(token_list)
+
+    embeddings.clean_BERT_cache()

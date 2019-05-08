@@ -4,7 +4,7 @@ np.random.seed(7)
 from tensorflow import set_random_seed
 set_random_seed(7)
 import keras
-from delft.textClassification.preprocess import to_vector_single, to_vector_simple_with_elmo
+from delft.textClassification.preprocess import to_vector_single, to_vector_simple_with_elmo, to_vector_simple_with_bert
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 # generate batch of data to feed text classification model, both for training and prediction
@@ -67,10 +67,13 @@ class DataGenerator(keras.utils.Sequence):
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, self.maxlen)
 
+        if self.embeddings.use_BERT:     
+            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, self.maxlen)
+
         # Generate data
         for i in range(0, max_iter):
             # Store sample
-            if not self.embeddings.use_ELMo:    
+            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:    
                 batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen)
 
             # Store class

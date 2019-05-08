@@ -95,7 +95,7 @@ class Trainer(object):
         nb_workers = 6
         multiprocessing = True
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-        if self.embeddings.use_ELMo:
+        if self.embeddings.use_ELMo or self.embeddings.use_BERT:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False

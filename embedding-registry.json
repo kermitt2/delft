@@ -105,10 +105,12 @@
             "lang": "en"
         },
         {
-            "name": "bert-base-cased",
-            "path_weights": "bert_cased_L-12_H-768_A-12.zi",
-            "path-cache": "data/models/BERT/",
-            "cache-training": false,
+            "name": "bert-en",
+            "path-config": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/vocab.txt",
+            "path-cache": "/media/lopez/T5/cache/bert/",
+            "cache-training": true,
             "lang": "en"
         }
     ],

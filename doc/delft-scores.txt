@@ -742,6 +742,49 @@ all (micro avg.)     0.9137    0.9297    0.9216      5648
 
 
 
+
+---------------------------------------------------------
+BiLSTM-CRF (with BERT cased model only, train without validation set)
+---------------------------------------------------------
+
+training runtime: 18353.987 seconds 
+
+Evaluation on test set:
+  f1 (micro): 90.23
+                  precision    recall  f1-score   support
+
+             PER     0.9639    0.9573    0.9606      1617
+             ORG     0.8572    0.8964    0.8764      1661
+             LOC     0.9309    0.9041    0.9173      1668
+            MISC     0.8233    0.7635    0.7923       702
+
+all (micro avg.)     0.9051    0.8996    0.9023      5648
+
+
+---------------------------------------------------------
+BiLSTM-CRF (with BERT cased model + GLOVE, train without validation set)
+---------------------------------------------------------
+
+training runtime: 27595.533 seconds 
+
+Evaluation on test set:
+  f1 (micro): 92.02
+                  precision    recall  f1-score   support
+
+             LOC     0.9344    0.9400    0.9372      1668
+             ORG     0.8854    0.9115    0.8982      1661
+             PER     0.9715    0.9709    0.9712      1617
+            MISC     0.8196    0.8091    0.8143       702
+
+all (micro avg.)     0.9163    0.9242    0.9202      5648
+
+
+
+
+
+
+
+
 ********************************************************
 ****** Ontonotes 5.0 ***********************************
 ********************************************************
