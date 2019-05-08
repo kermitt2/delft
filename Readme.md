@@ -1,6 +1,7 @@
 <img align="right" width="150" height="150" src="doc/cat-delft-small.jpg">
 
 [![Build Status](https://travis-ci.org/kermitt2/delft.svg?branch=master)](https://travis-ci.org/kermitt2/delft)
+[![PyPI version](https://badge.fury.io/py/delft.svg)](https://badge.fury.io/py/delft)
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
 
