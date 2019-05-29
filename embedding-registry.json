@@ -105,7 +105,7 @@
             "lang": "en"
         },
         {
-            "name": "bert-en",
+            "name": "bert-base-en",
             "path-config": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_config.json",
             "path-weights": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_model.ckpt",
             "path-vocab": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/vocab.txt",

@@ -19,7 +19,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False):
         batch_size = 20
     elif use_BERT:
         batch_size = 50
-    model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
+    model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size,
         class_weights=class_weights)
 
@@ -40,7 +40,7 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False):
         batch_size = 20
     elif use_BERT:
         batch_size = 50
-    model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=70, fold_number=fold_count, 
+    model = Classifier('citations', "gru", list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size,
         class_weights=class_weights)
 

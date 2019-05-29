@@ -90,7 +90,7 @@ class Embeddings(object):
             #self.session.run(tf.global_variables_initializer())
             self.make_BERT()
             self.embed_size = BERT_embed_size + self.embed_size
-            description = self._get_description('bert-'+self.lang)
+            description = self._get_description('bert-base-'+self.lang)
             self.env_BERT = None
             if description and description["cache-training"]:
                 self.embedding_BERT_cache = os.path.join(description["path-cache"], "cache")

@@ -64,7 +64,7 @@ class TrainingConfig(object):
                  learning_rate=0.001, 
                  lr_decay=0.9,
                  clip_gradients=5.0, 
-                 max_epoch=30, 
+                 max_epoch=50, 
                  patience=5,
                  use_roc_auc=True,
                  class_weights=None):

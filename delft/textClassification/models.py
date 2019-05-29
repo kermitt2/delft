@@ -39,7 +39,7 @@ seed(7)
 from tensorflow import set_random_seed
 set_random_seed(8)
 
-modelTypes = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', "gru", "gru_simple", 'lstm_cnn', 'han']
+modelTypes = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', "gru", "gru_simple", 'lstm_cnn', 'han', 'bert']
 
 # default parameters of the different DL models
 parameters_lstm = {
@@ -512,8 +512,8 @@ def gru_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropou
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
     model.compile(loss='binary_crossentropy',
-                  optimizer=RMSprop(clipvalue=1, clipnorm=1),
-                  #optimizer='adam',
+                  #optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                  optimizer='adam',
                   metrics=['accuracy'])
     return model
 
@@ -618,6 +618,9 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
 def getModel(model_config, training_config):
 
     model_type = model_config.model_type
+
+    if model_type == 'bert':
+
 
     # default model parameters
     parameters = parametersMap[model_type]
