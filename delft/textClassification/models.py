@@ -619,9 +619,6 @@ def getModel(model_config, training_config):
 
     model_type = model_config.model_type
 
-    if model_type == 'bert':
-
-
     # default model parameters
     parameters = parametersMap[model_type]
     embed_size = parameters['embed_size']
