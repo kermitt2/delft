@@ -1,0 +1,9 @@
+Evaluation:
+	f1 (micro): 96.59
+                  precision    recall  f1-score   support
+
+        <prefix>     0.9516    1.0000    0.9752        59
+           <pow>     0.9630    0.9630    0.9630        27
+          <base>     0.9612    0.9659    0.9635       205
+
+all (micro avg.)     0.9593    0.9725    0.9659       291

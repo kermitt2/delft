@@ -1,0 +1,14 @@
+Evaluation:
+	f1 (micro): 88.68
+                  precision    recall  f1-score   support
+
+   <valueAtomic>     0.9084    0.8815    0.8947       270
+      <unitLeft>     0.9391    0.9730    0.9558       222
+     <valueMost>     0.8421    0.8000    0.8205        60
+    <valueLeast>     0.7647    0.7647    0.7647        51
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <valueList>     0.6364    0.3182    0.4242        22
+     <valueBase>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.4000    0.6667    0.5000         3
+
+all (micro avg.)     0.8952    0.8785    0.8868       642
