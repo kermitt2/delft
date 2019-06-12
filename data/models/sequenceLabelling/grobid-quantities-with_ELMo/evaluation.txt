@@ -1,14 +1,196 @@
-Evaluation:
-	f1 (micro): 90.32
+------------------------ fold 0 --------------------------------------
+        f1 (micro): 90.60
                   precision    recall  f1-score   support
 
-    <valueRange>     1.0000    1.0000    1.0000         7
-      <unitLeft>     0.9435    0.9775    0.9602       222
-     <valueList>     0.6667    0.3636    0.4706        22
-   <valueAtomic>     0.8945    0.9111    0.9028       270
-     <valueMost>     0.9245    0.8167    0.8673        60
-    <valueLeast>     0.7581    0.9216    0.8319        51
+      <unitLeft>     0.9690    0.9865    0.9777       222
+    <valueLeast>     0.7541    0.9020    0.8214        51
+     <valueList>     0.9000    0.4091    0.5625        22
+   <valueAtomic>     0.8813    0.9074    0.8942       270
+     <valueMost>     0.9057    0.8000    0.8496        60
      <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
      <unitRight>     0.6667    0.6667    0.6667         3
 
-all (micro avg.)     0.8983    0.9081    0.9032       642
+all (micro avg.)     0.9039    0.9081    0.9060       642
+
+
+------------------------ fold 1 --------------------------------------
+        f1 (micro): 89.32
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9515    0.9730    0.9621       222
+    <valueLeast>     0.7059    0.9412    0.8067        51
+     <valueList>     0.7273    0.3636    0.4848        22
+   <valueAtomic>     0.9042    0.8741    0.8889       270
+     <valueMost>     0.8596    0.8167    0.8376        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8939    0.8925    0.8932       642
+
+
+------------------------ fold 2 --------------------------------------
+        f1 (micro): 91.04
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9559    0.9775    0.9666       222
+    <valueLeast>     0.7313    0.9608    0.8305        51
+     <valueList>     0.6429    0.4091    0.5000        22
+   <valueAtomic>     0.9272    0.8963    0.9115       270
+     <valueMost>     0.9273    0.8500    0.8870        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.9111    0.9097    0.9104       642
+
+
+------------------------ fold 3 --------------------------------------
+        f1 (micro): 89.93
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9515    0.9730    0.9621       222
+    <valueLeast>     0.7833    0.9216    0.8468        51
+     <valueList>     0.8889    0.3636    0.5161        22
+   <valueAtomic>     0.8959    0.8926    0.8942       270
+     <valueMost>     0.8421    0.8000    0.8205        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.9014    0.8972    0.8993       642
+
+
+------------------------ fold 4 --------------------------------------
+        f1 (micro): 90.50
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9471    0.9685    0.9577       222
+    <valueLeast>     0.7460    0.9216    0.8246        51
+     <valueList>     0.7857    0.5000    0.6111        22
+   <valueAtomic>     0.9108    0.9074    0.9091       270
+     <valueMost>     0.9038    0.7833    0.8393        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.9050    0.9050    0.9050       642
+
+
+------------------------ fold 5 --------------------------------------
+        f1 (micro): 89.31
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9605    0.9865    0.9733       222
+    <valueLeast>     0.7258    0.8824    0.7965        51
+     <valueList>     0.5625    0.4091    0.4737        22
+   <valueAtomic>     0.9070    0.8667    0.8864       270
+     <valueMost>     0.8448    0.8167    0.8305        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8951    0.8910    0.8931       642
+
+------------------------ fold 6 --------------------------------------
+        f1 (micro): 89.10
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9513    0.9685    0.9598       222
+    <valueLeast>     0.6970    0.9020    0.7863        51
+     <valueList>     0.6667    0.3636    0.4706        22
+   <valueAtomic>     0.8955    0.8889    0.8922       270
+     <valueMost>     0.8868    0.7833    0.8319        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8910    0.8910    0.8910       642
+
+
+------------------------ fold 7 --------------------------------------
+        f1 (micro): 87.50
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9430    0.9685    0.9556       222
+    <valueLeast>     0.7077    0.9020    0.7931        51
+     <valueList>     0.4211    0.3636    0.3902        22
+   <valueAtomic>     0.8769    0.8704    0.8736       270
+     <valueMost>     0.8246    0.7833    0.8034        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8670    0.8832    0.8750       642
+
+
+------------------------ fold 8 --------------------------------------
+        f1 (micro): 88.94
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9515    0.9730    0.9621       222
+    <valueLeast>     0.7460    0.9216    0.8246        51
+     <valueList>     0.6364    0.3182    0.4242        22
+   <valueAtomic>     0.8872    0.8741    0.8806       270
+     <valueMost>     0.8448    0.8167    0.8305        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8894    0.8894    0.8894       642
+
+
+
+------------------------ fold 9 --------------------------------------
+        f1 (micro): 90.06
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9561    0.9820    0.9689       222
+    <valueLeast>     0.7705    0.9216    0.8393        51
+     <valueList>     0.7273    0.3636    0.4848        22
+   <valueAtomic>     0.8741    0.9000    0.8869       270
+     <valueMost>     0.9412    0.8000    0.8649        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8978    0.9034    0.9006       642
+
+
+average over 10 folds
+        macro f1 = 0.8962897353066335
+        macro precision = 0.8955588839034414
+        macro recall = 0.8970404984423677
+
+
+** Worst ** model scores -
+
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9430    0.9685    0.9556       222
+    <valueLeast>     0.7077    0.9020    0.7931        51
+     <valueList>     0.4211    0.3636    0.3902        22
+   <valueAtomic>     0.8769    0.8704    0.8736       270
+     <valueMost>     0.8246    0.7833    0.8034        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.8670    0.8832    0.8750       642
+
+
+** Best ** model scores -
+
+                  precision    recall  f1-score   support
+
+      <unitLeft>     0.9559    0.9775    0.9666       222
+    <valueLeast>     0.7313    0.9608    0.8305        51
+     <valueList>     0.6429    0.4091    0.5000        22
+   <valueAtomic>     0.9272    0.8963    0.9115       270
+     <valueMost>     0.9273    0.8500    0.8870        60
+     <valueBase>     1.0000    1.0000    1.0000         7
+    <valueRange>     1.0000    1.0000    1.0000         7
+     <unitRight>     0.6667    0.6667    0.6667         3
+
+all (micro avg.)     0.9111    0.9097    0.9104       642
