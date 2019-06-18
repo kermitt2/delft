@@ -32,12 +32,12 @@ dev-venv: venv-create dev-install
 
 
 flake8-syntax:
-  # stop the build if there are Python syntax errors or undefined names
+	# stop the build if there are Python syntax errors or undefined names
 	$(PYTHON) -m flake8 delft *.py --count --select=E901,E999,F821,F822,F823 --show-source --statistics
 
 
 flake8-warning-only:
-  # exit-zero treats all errors as warnings.
+	# exit-zero treats all errors as warnings.
 	$(PYTHON) -m flake8 delft *.py --count --exit-zero --statistics
 
 
