@@ -83,17 +83,22 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings") 
+    parser.add_argument(
+        "--embedding", default='word2vec',
+        help=(
+            "The desired pre-trained word embeddings using their descriptions in the file"
+            " embedding-registry.json."
+            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+            " and that the path in the registry to the embedding file is correct on your system."
+        )
+    )
 
     args = parser.parse_args()
 
     if args.action not in ('train', 'train_eval', 'classify'):
         print('action not specifed, must be one of [train,train_eval,classify]')
 
-    # Change below for the desired pre-trained word embeddings using their descriptions in the file 
-    # embedding-registry.json
-    # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
-    # and that the path in the registry to the embedding file is correct on your system
-    embeddings_name = "word2vec"
+    embeddings_name = args.embedding
     use_ELMo = args.use_ELMo
     use_BERT = args.use_BERT
 

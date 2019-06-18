@@ -147,6 +147,15 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture", default='BidLSTM_CRF',
                         help="type of model architecture to be used, one of " + str(architectures))
+    parser.add_argument(
+        "--embedding", default='glove-840B',
+        help=(
+            "The desired pre-trained word embeddings using their descriptions in the file"
+            " embedding-registry.json."
+            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+            " and that the path in the registry to the embedding file is correct on your system."
+        )
+    )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--output", help="directory where to save a trained model")
     parser.add_argument("--input", help="provided training file")
@@ -168,13 +177,7 @@ if __name__ == "__main__":
 
     output = args.output
     input_path = args.input
-
-    # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
-    # embedding-registry.json
-    # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
-    # and that the path in the registry to the embedding file is correct on your system
-    embeddings_name = "glove-840B"
-    #embeddings_name = "word2vec-pmc"
+    embeddings_name = args.embedding
 
     if action == 'train':
         train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
