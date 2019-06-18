@@ -21,7 +21,7 @@ venv-create:
 dev-install:
 	$(PIP) install -r requirements.txt
 	$(PIP) install -r requirements.dev.txt
-	@if [ "$(USE_GPU)" == "1" ]; then \
+	@if [ "$(USE_GPU)" -eq "1" ]; then \
 		$(PIP) install -r requirements.gpu.txt; \
 	else \
 		$(PIP) install -r requirements.cpu.txt; \
