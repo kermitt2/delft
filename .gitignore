@@ -30,6 +30,7 @@ data/models/ELMo/en/cache
 data/models/ELMo/fr/cache
 data/sequenceLabelling/CoNLL-2012-NER/eng.*
 env
+venv
 dist
 delft.egg-info
 build
