@@ -143,11 +143,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description = "Trainer for GROBID models")
 
+    actions = ['train', 'tag', 'train_eval', 'eval']
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN', 'BidLSTM_CNN_CRF', 'BidGRU-CRF']
+
     parser.add_argument("model")
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-CRF]")
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
+    parser.add_argument("--architecture", default='BidLSTM_CRF',
+                        help="type of model architecture to be used, one of " + str(architectures))
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--output", help="directory where to save a trained model")
     parser.add_argument("--input", help="provided training file")
     
@@ -157,14 +161,14 @@ if __name__ == "__main__":
     #if not model in models:
     #    print('invalid model, should be one of', models)
 
-    action = args.action    
-    if (action != 'train') and (action != 'tag') and (action != 'train_eval'):
-        print('action not specifed, must be one of [train,train_eval,tag]')
+    action = args.action
+    if action not in actions:
+        print('action not specified, must be one of ' + str(actions))
 
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU-CRF'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU-CRF]')
+    if architecture not in architectures:
+        print('unknown model architecture, must be one of ' + str(architectures))
 
     output = args.output
     input_path = args.input
