@@ -33,3 +33,4 @@ env
 dist
 delft.egg-info
 build
+delft/utilities/bert

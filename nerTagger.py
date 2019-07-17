@@ -436,6 +436,15 @@ if __name__ == "__main__":
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
     parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
+    parser.add_argument(
+        "--embedding", default=None,
+        help=(
+            "The desired pre-trained word embeddings using their descriptions in the file"
+            " embedding-registry.json."
+            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+            " and that the path in the registry to the embedding file is correct on your system."
+        )
+    )
 
     args = parser.parse_args()
 
@@ -454,17 +463,19 @@ if __name__ == "__main__":
     file_in = args.file_in
     file_out = args.file_out
 
-    # change bellow for the desired pre-trained word embeddings using their descriptions in the file 
-    # embedding-registry.json
+    # name of embeddings refers to the file embedding-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
-    if lang == 'en':
-        if dataset_type == 'conll2012':
-            embeddings_name = 'fasttext-crawl'
-        else:
-            embeddings_name = "glove-840B"
-    elif lang == 'fr':
-        embeddings_name = 'wiki.fr'
+    # below we set the default embeddings value
+    if args.embedding is None:
+        embeddings_name = 'glove-840B'
+        if lang == 'en':
+            if dataset_type == 'conll2012':
+                embeddings_name = 'fasttext-crawl'
+        elif lang == 'fr':
+            embeddings_name = 'wiki.fr'
+    else:
+        embeddings_name = args.embedding
 
     if action == 'train':
         train(embeddings_name, 

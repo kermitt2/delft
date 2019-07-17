@@ -112,6 +112,33 @@
             "path-cache": "/media/lopez/T5/cache/bert/",
             "cache-training": true,
             "lang": "en"
+        },
+        {
+            "name": "scibert-base-en",
+            "path-config": "/media/lopez/T5/embeddings/scibert_basevocab_cased/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/scibert_basevocab_cased/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/scibert_basevocab_cased/vocab.txt",
+            "path-cache": "/media/lopez/T5/cache/bert/",
+            "cache-training": true,
+            "lang": "en"
+        },
+        {
+            "name": "scibert-large-en",
+            "path-config": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/scibert_scivocab_cased/vocab.txt",
+            "path-cache": "/media/lopez/T5/cache/bert/",
+            "cache-training": true,
+            "lang": "en"
+        },
+        {
+            "name": "biobert-1.1",
+            "path-config": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/model.ckpt-1000000",
+            "path-vocab": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/vocab.txt",
+            "path-cache": "/media/lopez/T5/cache/bert/",
+            "cache-training": true,
+            "lang": "en"
         }
     ],
     "embedding-lmdb-path": "data/db"

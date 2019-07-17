@@ -63,6 +63,7 @@ You need then to download some pre-trained word embeddings and notify their path
 
 * _BERT_ for English, we are using BERT-Base, Cased, 12-layer, 768-hidden, 12-heads , 110M parameters: available [here](https://storage.googleapis.com/bert_models/2018_10_18/cased_L-12_H-768_A-12.zip)
 
+* _SciBERT_ for English and scientific content: [SciBERT-cased](https://s3-us-west-2.amazonaws.com/ai2-s2-research/scibert/tensorflow_models/scibert_scivocab_cased.tar.gz)
 
 Then edit the file `embedding-registry.json` and modify the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unzipped.
 
@@ -211,6 +212,13 @@ optional arguments:
                         currently with Ontonotes corpus in orginal XML format)
   --file-in FILE_IN     path to a text file to annotate
   --file-out FILE_OUT   path for outputting the resulting JSON NER anotations
+  --embedding EMBEDDING
+                        The desired pre-trained word embeddings using their
+                        descriptions in the file embedding-registry.json. Be
+                        sure to use here the same name as in the registry
+                        ('glove-840B', 'fasttext-crawl', 'word2vec'), and that
+                        the path in the registry to the embedding file is
+                        correct on your system.
 ```
 
 More explanations and examples are presented in the following sections. 
@@ -360,9 +368,14 @@ If you have trained the model with ELMo, you need to indicate to use ELMo-based 
 
 > python3 nerTagger.py --dataset-type conll2003 --use-ELMo --file-in data/test/test.ner.en.txt tag
 
+For English NER tagging, the default static embeddings is Glove (`glove-840B`). Other static embeddings can be specified with the parameter `--embedding`, for instance:
+
+> python3 nerTagger.py --dataset-type conll2003 --embedding word2vec train_eval
+
+
 ##### Ontonotes 5.0 CONLL 2012
 
-DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset.
+DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Default static embeddings for Ontonotes are `fasttext-crawl`, which can be changed with parameter `--embedding`.
 
 With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score is __86.65__ averaged over these 10 trainings, with best run at  __87.01__ (provided model) when trained with the train set strictly. 
 
@@ -434,7 +447,7 @@ For ten model training with average, worst and best model with ELMo embeddings, 
 
 ##### French model (based on Le Monde corpus)
 
-Note that Le Monde corpus is subject to copyrights and is limited to research usage only. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type lemonde`.
+Note that Le Monde corpus is subject to copyrights and is limited to research usage only. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type lemonde`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
 
 Similarly as before, for training and evaluating use:
 
@@ -563,7 +576,7 @@ This above work is licensed under a [Creative Commons Attribution-Noncommercial 
 
 #### GROBID models
 
-DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled.
+DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. Default static embeddings for GROBID models are `glove-840B`, which can be changed with parameter `--embedding`. 
 
 Train a model:
 
