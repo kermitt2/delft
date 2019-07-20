@@ -9,6 +9,7 @@ import argparse
 import keras.backend as K
 import pandas as pd
 import time
+import sys
 from delft.textClassification.models import modelTypes
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
@@ -22,10 +23,7 @@ class_weights = {0: 1.,
 def train(embeddings_name="fasttext-crawl", fold_count=1, use_ELMo=False, use_BERT=False, architecture="gru"): 
     batch_size = 256
     maxlen = 300
-    if architecture:
-        batch_size = 32
-        maxlen = 150
-    model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=30, fold_number=fold_count, 
+    model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=30, fold_number=fold_count, class_weights=class_weights,
         embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen)
 
     print('loading train dataset...')
@@ -95,10 +93,14 @@ if __name__ == "__main__":
     if architecture not in modelTypes:
         print('unknown model architecture, must be one of '+str(modelTypes))
 
+    if architecture.find("bert") != -1:
+        print('BERT models are not supported for multi-label labelling, at least for the moment. Please choose a RNN architecture.')
+        sys.exit(0)
+
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, use_ELMO=use_ELMo, use_BERT=use_BERT)
+        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, use_ELMo=use_ELMo, use_BERT=use_BERT)
 
     if action == 'test':
         y_test = test()    

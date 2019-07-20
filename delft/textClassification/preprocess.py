@@ -138,21 +138,14 @@ class BERT_classifier_processor(DataProcessor):
         self.y_train = y_train
         self.x_test = x_test
         self.y_test = y_test
-        print("len(x_train): ", len(x_train))
-        print("len(y_train): ", len(y_train))
 
     def get_train_examples(self, x_train=None, y_train=None):
         """See base class."""
-        print("x_train: ", x_train)
-        print("y_train: ", y_train)
         if x_train is not None:
             self.x_train = x_train
         if y_train is not None:
             self.y_train = y_train
-        print("len(x_train): ", len(self.x_train))
-        print("len(y_train): ", len(self.y_train))
         examples, _ = self.create_examples(self.x_train, self.y_train)
-        print("len(examples): ", len(examples))
         return examples
 
     def get_labels(self):
