@@ -65,8 +65,6 @@ class Classifier(object):
             self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
             word_emb_size = self.embeddings.embed_size
 
-        print("maxlen: ", maxlen)
-
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
                                         embeddings_name=embeddings_name, 
@@ -82,22 +80,16 @@ class Classifier(object):
                                         use_ELMo=use_ELMo, 
                                         use_BERT=use_BERT)
 
-        print("self.model_config.maxlen: ", self.model_config.maxlen)
-
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               patience, use_roc_auc,
                                               class_weights=class_weights)
 
     def train(self, x_train, y_train, vocab_init=None):
-        print("self.model_config.maxlen: ", self.model_config.maxlen)
         self.model = getModel(self.model_config, self.training_config)
 
         # bert models
-        if self.model_config.model_type.find("bert") != -1:
-            print("train BERT-type model")
-            print("len(x_train): ", len(x_train))
-            print("len(y_train): ", len(y_train))            
+        if self.model_config.model_type.find("bert") != -1:     
             self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes, x_train=x_train, y_train=y_train)
             self.model.train()
             return
