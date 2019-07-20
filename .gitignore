@@ -33,4 +33,4 @@ env
 dist
 delft.egg-info
 build
-delft/utilities/bert
+data/models/textClassification/citations/citations0/
