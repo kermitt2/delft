@@ -1,0 +1,146 @@
+2262 train sequences
+252 validation sequences
+280 evaluation sequences
+
+Evaluation:
+
+------------------------ fold 0 --------------------------------------
+	f1 (micro): 98.07
+                  precision    recall  f1-score   support
+
+          <base>     0.9867    0.9900    0.9883       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8889    0.8889    0.8889        27
+
+all (micro avg.)     0.9769    0.9845    0.9807       387
+
+
+------------------------ fold 1 --------------------------------------
+	f1 (micro): 98.33
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9933    0.9917       299
+        <prefix>     0.9531    1.0000    0.9760        61
+           <pow>     0.8929    0.9259    0.9091        27
+
+all (micro avg.)     0.9770    0.9897    0.9833       387
+
+
+------------------------ fold 2 --------------------------------------
+	f1 (micro): 98.59
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9967    0.9933       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8929    0.9259    0.9091        27
+
+all (micro avg.)     0.9796    0.9922    0.9859       387
+
+
+------------------------ fold 3 --------------------------------------
+	f1 (micro): 98.59
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9967    0.9933       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8929    0.9259    0.9091        27
+
+all (micro avg.)     0.9796    0.9922    0.9859       387
+
+
+------------------------ fold 4 --------------------------------------
+	f1 (micro): 98.59
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9967    0.9933       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8929    0.9259    0.9091        27
+
+all (micro avg.)     0.9796    0.9922    0.9859       387
+
+
+------------------------ fold 5 --------------------------------------
+	f1 (micro): 98.33
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9933    0.9917       299
+        <prefix>     0.9531    1.0000    0.9760        61
+           <pow>     0.8929    0.9259    0.9091        27
+
+all (micro avg.)     0.9770    0.9897    0.9833       387
+
+
+------------------------ fold 6 --------------------------------------
+	f1 (micro): 98.20
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9900    0.9900       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8889    0.8889    0.8889        27
+
+all (micro avg.)     0.9794    0.9845    0.9820       387
+
+
+------------------------ fold 7 --------------------------------------
+	f1 (micro): 97.69
+                  precision    recall  f1-score   support
+
+          <base>     0.9769    0.9900    0.9834       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8889    0.8889    0.8889        27
+
+all (micro avg.)     0.9695    0.9845    0.9769       387
+
+
+------------------------ fold 8 --------------------------------------
+	f1 (micro): 98.71
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9967    0.9933       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.9259    0.9259    0.9259        27
+
+all (micro avg.)     0.9821    0.9922    0.9871       387
+
+
+------------------------ fold 9 --------------------------------------
+	f1 (micro): 98.07
+                  precision    recall  f1-score   support
+
+          <base>     0.9867    0.9900    0.9883       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8889    0.8889    0.8889        27
+
+all (micro avg.)     0.9769    0.9845    0.9807       387
+
+
+average over 10 folds
+	macro f1 = 0.9831680204960309
+	macro precision = 0.9777700579559797
+	macro recall = 0.9886304909560725 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+          <base>     0.9769    0.9900    0.9834       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.8889    0.8889    0.8889        27
+
+all (micro avg.)     0.9695    0.9845    0.9769       387
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+          <base>     0.9900    0.9967    0.9933       299
+        <prefix>     0.9683    1.0000    0.9839        61
+           <pow>     0.9259    0.9259    0.9259        27
+
+all (micro avg.)     0.9821    0.9922    0.9871       387
+
+preprocessor saved
+model config file saved
+model saved
