@@ -2,7 +2,7 @@
     "model_name": "units-with_ELMo",
     "model_type": "BidLSTM_CRF",
     "embeddings_name": "glove-840B",
-    "char_vocab_size": 69,
+    "char_vocab_size": 73,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
     "num_char_lstm_units": 25,
