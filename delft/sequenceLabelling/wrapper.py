@@ -250,7 +250,7 @@ class Sequence(object):
             #    print("runtime: %s seconds " % (runtime))
             return annotations
         else:
-            raise (OSError('Could not find a model.'))
+                raise (OSError('Could not find a model.' + str(self.model)))
 
     def tag_file(self, file_in, output_format, file_out):
         # Annotate a text file containing one sentence per line, the annotations are
