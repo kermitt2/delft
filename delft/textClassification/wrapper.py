@@ -14,8 +14,9 @@ from delft.textClassification.models import train_model
 from delft.textClassification.models import train_folds
 from delft.textClassification.models import predict
 from delft.textClassification.models import predict_folds
+from delft.textClassification.models import BERT_classifier
 from delft.textClassification.data_generator import DataGenerator
-from delft.textClassification.preprocess import to_vector_single
+from delft.textClassification.preprocess import to_vector_single, BERT_classifier_processor
 
 from delft.utilities.Embeddings import Embeddings
 
@@ -54,7 +55,6 @@ class Classifier(object):
                  use_BERT=False,
                  embeddings=(),
                  class_weights=None):
-
         self.model = None
         self.models = None
         self.log_dir = log_dir
@@ -86,6 +86,14 @@ class Classifier(object):
                                               class_weights=class_weights)
 
     def train(self, x_train, y_train, vocab_init=None):
+        self.model = getModel(self.model_config, self.training_config)
+
+        # bert models
+        if self.model_config.model_type.find("bert") != -1:     
+            self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes, x_train=x_train, y_train=y_train)
+            self.model.train()
+            return
+
         # create validation set in case we don't use k-folds
         xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
 
@@ -95,8 +103,7 @@ class Classifier(object):
         validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
             maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
             embeddings=self.embeddings, shuffle=False)
-
-        self.model = getModel(self.model_config, self.training_config)
+        
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
@@ -120,20 +127,33 @@ class Classifier(object):
     def predict(self, texts, output_format='json'):
         if self.model_config.fold_number is 1:
             if self.model is not None:
-                predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False)
+                # bert model?
+                if self.model_config.model_type.find("bert") != -1:
+                    # be sure the input processor is instanciated
+                    self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
+                    result = self.model.predict(texts)
+                else:
+                    predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                        embeddings=self.embeddings, shuffle=False)
 
-                result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                    result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
             else:
                 raise (OSError('Could not find a model.'))
         else:
             if self.models is not None:
-                predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False)
+                # bert model?
+                if self.model_config.model_type.find("bert") != -1:
+                    # we don't support n classifiers for BERT (would be too large)
+                    # be sure the input processor is instanciated
+                    self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
+                    result = self.models[0].predict(texts)
+                else:    
+                    predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                        embeddings=self.embeddings, shuffle=False)
 
-                result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                    result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
             else:
                 raise (OSError('Could not find nfolds models.'))
         if output_format is 'json':
@@ -162,15 +182,24 @@ class Classifier(object):
     def eval(self, x_test, y_test):
         if self.model_config.fold_number is 1:
             if self.model is not None:
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False)
+                # bert model?
+                if self.model_config.model_type.find("bert") != -1:
+                    self.model.eval(x_test, y_test)
+                    result = self.model.predict(x_test)
+                else:
+                    test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                        embeddings=self.embeddings, shuffle=False)
 
-                result = predict(self.model, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                    result = predict(self.model, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
             else:
                 raise (OSError('Could not find a model.'))
         else:
             if self.models is not None:
+                # bert model?
+                if self.model_config.model_type.find("bert") != -1:
+                    result = self.models[0].eval(x_test, y_test)
+
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False)
@@ -269,6 +298,11 @@ class Classifier(object):
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
 
+        # bert model are always saved via training process steps
+        if self.model_config.model_type.find("bert") != -1:
+            print('model saved')
+            return
+
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 self.model.save(os.path.join(directory, self.model_config.model_type+"."+self.weight_file))
@@ -285,6 +319,10 @@ class Classifier(object):
 
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+
+        if self.model_config.model_type.find("bert") != -1:
+             self.model = getModel(self.model_config, self.training_config)
+             self.model.load()
 
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT) 
