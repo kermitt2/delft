@@ -28,7 +28,7 @@ from keras.optimizers import RMSprop, Adam, Nadam
 from keras.preprocessing import text, sequence
 from keras.callbacks import EarlyStopping, ModelCheckpoint
 
-from sklearn.metrics import log_loss, roc_auc_score
+from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
 
@@ -727,13 +727,31 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_w
 
         # we distinguish 1-class and multiclass problems 
         if len(list_classes) is 1:
-            total_loss = log_loss(val_y, y_pred)
-            total_roc_auc = roc_auc_score(val_y, y_pred)
+            total_loss = log_loss(val_y, y_pred, labels=[0,1])
+            if len(np.unique(val_y)) == 1:
+                # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
+                # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
+                roc_auc = r2_score(val_y, y_pred)
+                if roc_auc < 0:
+                    roc_auc = 0 
+            else:
+                total_roc_auc = roc_auc_score(val_y, y_pred)
         else:
             for j in range(0, len(list_classes)):
-                loss = log_loss(val_y[:, j], y_pred[:, j])
+                #for n in range(0, len(val_y[:, j])):
+                #    print(val_y[n, j])
+                #print(val_y[:, j])
+                #print(y_pred[:, j])
+                loss = log_loss(val_y[:, j], y_pred[:, j], labels=[0,1])
                 total_loss += loss
-                roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
+                if len(np.unique(val_y[:, j])) == 1:
+                    # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
+                    # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
+                    roc_auc = r2_score(val_y[:, j], y_pred[:, j])
+                    if roc_auc < 0:
+                        roc_auc = 0 
+                else:
+                    roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
                 total_roc_auc += roc_auc
 
         total_loss /= len(list_classes)
