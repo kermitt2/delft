@@ -145,3 +145,71 @@ def load_citation_sentiment_corpus(filepath):
 
 
 
+def load_dataseer_corpus_csv(filepath):
+    """
+    Load texts from the Dataseer dataset type corpus in csv format:
+
+        doi,text,datatype,dataSubtype,leafDatatype
+
+    Classification of the datatype follows a 3-level hierarchy, so the possible 3 classes are returned.
+
+    Returns:
+        tuple(numpy array, numpy array, numpy array, numpy array): 
+            texts, datatype, datasubtype, leaf datatype
+
+    """
+    df = pd.read_csv(filepath)
+    
+    df = df[pd.notnull(df['text'])]
+    df = df[pd.notnull(df['datatype'])]
+
+    df.iloc[:,1].fillna('NA', inplace=True)
+
+    texts_list = []
+    for j in range(0, df.shape[0]):
+        texts_list.append(df.iloc[j,1])
+
+    datatypes = df.iloc[:,2]
+    datatypes_list = datatypes.values.tolist()
+
+    datasubtypes = df.iloc[:,3]
+    datasubtypes_list = datasubtypes.values.tolist()
+
+    leafdatatypes = df.iloc[:,4]
+    leafdatatypes_list = leafdatatypes.values.tolist()
+
+    datatypes_list = np.asarray(datatypes_list)
+    datasubtypes_list = np.asarray(datasubtypes_list)
+    leafdatatypes_list = np.asarray(leafdatatypes_list)
+
+    list_classes_datatypes = np.unique(datatypes_list)
+    list_classes_datasubtypes = np.unique(datasubtypes_list)
+    list_classes_leafdatatypes = np.unique(leafdatatypes_list)
+
+    datatypes_final = normalize_classes(datatypes_list, list_classes_datatypes)
+    datasubtypes_final = normalize_classes(datasubtypes_list, list_classes_datasubtypes)
+    leafdatatypes_final = normalize_classes(leafdatatypes_list, list_classes_leafdatatypes)
+
+    return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
+
+
+def normalize_classes(y, list_classes):
+    '''
+        Replace string values of classes by their index in the list of classes
+    '''
+    def f(x):
+        return np.where(list_classes == x)
+
+    intermediate = np.array([f(xi)[0] for xi in y])
+    return np.array([vectorize(xi, len(list_classes)) for xi in intermediate])
+
+def vectorize(index, size):
+    '''
+    Create a numpy array of the provided size, where value at indicated index is 1, 0 otherwise 
+    '''
+    result = np.zeros(size)
+    if index < size:
+        result[index] = 1
+    else:
+        print("warning: index larger than vector size: ", index, size)
+    return result

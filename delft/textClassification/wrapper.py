@@ -20,7 +20,7 @@ from delft.textClassification.preprocess import to_vector_single, BERT_classifie
 
 from delft.utilities.Embeddings import Embeddings
 
-from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score
+from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score
 from sklearn.model_selection import train_test_split
 
 from keras.utils import plot_model
@@ -228,17 +228,31 @@ class Classifier(object):
         if len(self.model_config.list_classes) is 1:
             total_accuracy = accuracy_score(y_test, result_binary)
             total_f1 = f1_score(y_test, result_binary)
-            total_loss = log_loss(y_test, result)
-            total_roc_auc = roc_auc_score(y_test, result)
+            total_loss = log_loss(y_test, result, labels=[0,1])
+            if len(np.unique(y_test)) == 1:
+                # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
+                # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
+                total_roc_auc = r2_score(y_test, result)
+                if total_roc_auc < 0:
+                    total_roc_auc = 0 
+            else:
+                total_roc_auc = roc_auc_score(y_test, result)
         else:
             for j in range(0, len(self.model_config.list_classes)):
                 accuracy = accuracy_score(y_test[:, j], result_binary[:, j])
                 total_accuracy += accuracy
                 f1 = f1_score(y_test[:, j], result_binary[:, j], average='micro')
                 total_f1 += f1
-                loss = log_loss(y_test[:, j], result[:, j])
+                loss = log_loss(y_test[:, j], result[:, j], labels=[0,1])
                 total_loss += loss
-                roc_auc = roc_auc_score(y_test[:, j], result[:, j])
+                if len(np.unique(y_test[:, j])) == 1:
+                    # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
+                    # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
+                    roc_auc = r2_score(y_test[:, j], result[:, j])
+                    if roc_auc < 0:
+                        roc_auc = 0 
+                else:
+                    roc_auc = roc_auc_score(y_test[:, j], result[:, j])
                 total_roc_auc += roc_auc
                 print("\nClass:", self.model_config.list_classes[j])
                 print("\taccuracy at 0.5 =", accuracy)

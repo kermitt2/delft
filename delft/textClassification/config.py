@@ -1,5 +1,4 @@
-import json
-
+import codecs, json 
 
 # Model parameter
 class ModelConfig(object):
