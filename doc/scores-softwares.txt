@@ -1,0 +1,844 @@
+Glove embeddings
+no max sequence length, batch size 20
+
+average over 10 folds
+	macro f1 = 0.7276417623820862
+	macro precision = 0.7506176271717047
+	macro recall = 0.7070381231671554 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           <url>     0.3571    0.3846    0.3704        13
+       <creator>     0.7867    0.5268    0.6310       112
+         number>     0.7049    0.7544    0.7288       114
+      <software>     0.8163    0.6557    0.7273       427
+           date>     0.5000    0.1250    0.2000        16
+
+all (micro avg.)     0.7742    0.6334    0.6968       682
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           <url>     0.6000    0.4615    0.5217        13
+       <creator>     0.7475    0.6607    0.7014       112
+         number>     0.7339    0.7982    0.7647       114
+      <software>     0.7540    0.7822    0.7678       427
+           date>     0.3333    0.1250    0.1818        16
+
+all (micro avg.)     0.7434    0.7434    0.7434       682
+
+
+------------------------------------------------------------------------
+Glove embeddings
+max sequence length 500, batch size 20
+
+average over 10 folds
+	macro f1 = 0.7150252205012938
+	macro precision = 0.7108188353936724
+	macro recall = 0.71994342291372 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           <url>     0.2105    0.2857    0.2424        14
+         number>     0.7016    0.7500    0.7250       116
+           date>     1.0000    0.0833    0.1538        12
+      <software>     0.7810    0.6978    0.7371       460
+       <creator>     0.6484    0.5619    0.6020       105
+
+all (micro avg.)     0.7307    0.6676    0.6977       707
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           <url>     0.4375    0.5000    0.4667        14
+         number>     0.7200    0.7759    0.7469       116
+           date>     1.0000    0.5000    0.6667        12
+      <software>     0.7403    0.7870    0.7629       460
+       <creator>     0.6556    0.5619    0.6051       105
+
+all (micro avg.)     0.7218    0.7412    0.7313       707
+
+
+------------------------------------------------------------------------
+Glove embeddings, default, 22.07.2019
+
+	f1 (micro): 75.91
+                  precision    recall  f1-score   support
+
+      <software>     0.7137    0.7796    0.7452       422
+       <version>     0.7746    0.8800    0.8240       125
+       <creator>     0.7236    0.7236    0.7236       123
+           <url>     0.8500    0.8500    0.8500        20
+
+all (micro avg.)     0.7306    0.7899    0.7591       690
+
+---
+
+average over 10 folds
+	macro f1 = 0.7426156767712333
+	macro precision = 0.7274734473959523
+	macro recall = 0.7589855072463768 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.6806    0.6967    0.6885       422
+       <version>     0.8000    0.8320    0.8157       125
+       <creator>     0.7436    0.7073    0.7250       123
+           <url>     0.6000    0.6000    0.6000        20
+
+all (micro avg.)     0.7110    0.7203    0.7156       690
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7137    0.7796    0.7452       422
+       <version>     0.7746    0.8800    0.8240       125
+       <creator>     0.7236    0.7236    0.7236       123
+           <url>     0.8500    0.8500    0.8500        20
+
+all (micro avg.)     0.7306    0.7899    0.7591       690
+
+
+
+
+
+
+
+
+------------------------------------------------------------------------
+Gloves with ELMO
+max sequence length 500, batch size 20
+
+average over 10 folds
+	macro f1 = 0.7194401758824197
+	macro precision = 0.7448070654152057
+	macro recall = 0.6961810466760963 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7877    0.6696    0.7239       460
+           date>     0.8571    0.5000    0.6316        12
+         number>     0.7455    0.7069    0.7257       116
+       <creator>     0.6489    0.5810    0.6131       105
+           <url>     0.5714    0.2857    0.3810        14
+
+all (micro avg.)     0.7570    0.6521    0.7006       707
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.8113    0.7196    0.7627       460
+           date>     0.8750    0.5833    0.7000        12
+         number>     0.7521    0.7845    0.7679       116
+       <creator>     0.6531    0.6095    0.6305       105
+           <url>     0.7778    0.5000    0.6087        14
+
+all (micro avg.)     0.7764    0.7072    0.7402       707
+
+
+------------------------------------------------------------------------
+Gloves with ELMo
+max sequence length 1000, batch size 10
+
+average over 10 folds
+	macro f1 = 0.7418730091428716
+	macro precision = 0.7500589929050274
+	macro recall = 0.7343891402714933 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           <url>     0.5000    0.3077    0.3810        13
+         number>     0.7982    0.7778    0.7879       117
+      <software>     0.7649    0.7291    0.7465       406
+           date>     0.7143    0.3333    0.4545        15
+       <creator>     0.6364    0.6875    0.6609       112
+
+all (micro avg.)     0.7425    0.7134    0.7277       663
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           <url>     0.6250    0.7692    0.6897        13
+         number>     0.8158    0.7949    0.8052       117
+      <software>     0.7576    0.7389    0.7481       406
+           date>     0.7333    0.7333    0.7333        15
+       <creator>     0.7477    0.7411    0.7444       112
+
+all (micro avg.)     0.7623    0.7496    0.7559       663
+
+
+----------------------------------------------------------------------
+Gloves with ELMo
+max sequence length 1500, batch size 5
+
+average over 10 folds
+	macro f1 = 0.7449552853142123
+	macro precision = 0.7357331404266955
+	macro recall = 0.7545454545454544 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7401    0.7869    0.7628       427
+           <url>     0.5385    0.5385    0.5385        13
+           date>     0.4545    0.3125    0.3704        16
+       <creator>     0.7826    0.6429    0.7059       112
+         number>     0.7016    0.7632    0.7311       114
+
+all (micro avg.)     0.7305    0.7434    0.7369       682
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7744    0.7799    0.7771       427
+           <url>     0.4375    0.5385    0.4828        13
+           date>     0.5455    0.3750    0.4444        16
+       <creator>     0.7864    0.7232    0.7535       112
+         number>     0.7031    0.7895    0.7438       114
+
+all (micro avg.)     0.7515    0.7581    0.7547       682
+
+
+----------------------------------------------------------------------
+Gloves with ELMo
+max sequence length 3000, batch size 2
+
+average over 10 folds
+	macro f1 = 0.7493199184338478
+	macro precision = 0.731595754812579
+	macro recall = 0.7681818181818181 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+      <software>     0.7381    0.7986    0.7672       427
+
+           <url>     0.4348    0.7692    0.5556        13
+           date>     0.3636    0.2500    0.2963        16
+       <creator>     0.7374    0.6518    0.6919       112
+         number>     0.6794    0.7807    0.7265       114
+
+all (micro avg.)     0.7121    0.7581    0.7344       682
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7835    0.8220    0.8023       427
+           <url>     0.4667    0.5385    0.5000        13
+           date>     0.5714    0.2500    0.3478        16
+       <creator>     0.7778    0.6875    0.7299       112
+         number>     0.7302    0.8070    0.7667       114
+
+all (micro avg.)     0.7640    0.7786    0.7712       682
+
+
+
+----------------------------------------------------------------------
+Gloves with ELMo
+max sequence length 3000, batch size 3
+
+average over 10 folds
+	macro f1 = 0.7529150918720532
+	macro precision = 0.7427923520879355
+	macro recall = 0.763782991202346 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           date>     0.5263    0.6250    0.5714        16
+      <software>     0.7363    0.7845    0.7596       427
+       <creator>     0.7379    0.6786    0.7070       112
+         number>     0.7109    0.7982    0.7521       114
+           <url>     0.4118    0.5385    0.4667        13
+
+all (micro avg.)     0.7188    0.7610    0.7393       682
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+           date>     0.5789    0.6875    0.6286        16
+      <software>     0.7813    0.8033    0.7921       427
+       <creator>     0.7830    0.7411    0.7615       112
+         number>     0.7045    0.8158    0.7561       114
+           <url>     0.5294    0.6923    0.6000        13
+
+all (micro avg.)     0.7560    0.7903    0.7728       682
+
+
+----------------------------------------------------------------------
+Gloves with ELMo
+max sequence length 3000, batch size 4
+
+average over 10 folds
+	macro f1 = 0.7534172430446162
+	macro precision = 0.7477102776831879
+	macro recall = 0.7593841642228739 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+         number>     0.7200    0.7895    0.7531       114
+           date>     0.6429    0.5625    0.6000        16
+       <creator>     0.7857    0.6875    0.7333       112
+           <url>     0.3333    0.3077    0.3200        13
+      <software>     0.7581    0.7635    0.7608       427
+
+all (micro avg.)     0.7452    0.7419    0.7436       682
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+         number>     0.7177    0.7807    0.7479       114
+           date>     0.6923    0.5625    0.6207        16
+       <creator>     0.7959    0.6964    0.7429       112
+           <url>     0.5455    0.4615    0.5000        13
+      <software>     0.7722    0.7939    0.7829       427
+
+all (micro avg.)     0.7606    0.7639    0.7623       682
+
+
+
+
+May, 2nd
+
+training runtime: 11494.866 seconds 
+
+Evaluation:
+	f1 (micro): 73.15
+                  precision    recall  f1-score   support
+
+       <creator>     0.7890    0.6370    0.7049       135
+      <software>     0.7686    0.6916    0.7280       509
+         number>     0.8504    0.8182    0.8340       132
+           <url>     0.7778    0.3333    0.4667        21
+           date>     0.5000    0.2667    0.3478        15
+
+all (micro avg.)     0.7834    0.6860    0.7315       812
+
+
+
+June 5th
+training runtime: 11182.405 seconds 
+
+Evaluation:
+	f1 (micro): 75.42
+                  precision    recall  f1-score   support
+
+         number>     0.8750    0.7778    0.8235       126
+       <creator>     0.7447    0.6667    0.7035       105
+      <software>     0.7174    0.8049    0.7586       451
+           <url>     0.8000    0.2105    0.3333        19
+           date>     0.8333    0.6250    0.7143         8
+
+all (micro avg.)     0.7469    0.7616    0.7542       709
+
+
+
+
+
+average over 10 folds
+	macro f1 = 0.7494479108128191
+	macro precision = 0.7127726708376695
+	macro recall = 0.7902679830747533 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+         number>     0.8145    0.8016    0.8080       126
+      <software>     0.6963    0.7982    0.7438       451
+       <creator>     0.5965    0.6476    0.6210       105
+           <url>     0.4400    0.5789    0.5000        19
+           date>     0.7500    0.7500    0.7500         8
+
+all (micro avg.)     0.6929    0.7701    0.7295       709
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+         number>     0.8189    0.8254    0.8221       126
+      <software>     0.7333    0.8293    0.7784       451
+       <creator>     0.6410    0.7143    0.6757       105
+           <url>     0.6667    0.4211    0.5161        19
+           date>     0.7143    0.6250    0.6667         8
+
+all (micro avg.)     0.7322    0.7983    0.7638       709
+
+
+
+
+--- July 10th
+
+Loading data...
+2270 train sequences
+253 validation sequences
+281 evaluation sequences
+
+Epoch 25/100
+757/757 [==============================] - 477s 630ms/step - loss: 1.7094
+	f1 (micro): 76.97
+training runtime: 15419.481 seconds 
+
+Evaluation:
+	f1 (micro): 78.91
+                  precision    recall  f1-score   support
+
+       <creator>     0.7339    0.8273    0.7778       110
+      <software>     0.7479    0.7919    0.7692       442
+<version-number>     0.8712    0.9274    0.8984       124
+  <version-date>     0.2500    0.2000    0.2222         5
+           <url>     0.5882    0.9091    0.7143        11
+
+all (micro avg.)     0.7611    0.8194    0.7891       692
+
+
+
+Epoch 27/100
+757/757 [==============================] - 480s 634ms/step - loss: 1.6427
+	f1 (micro): 76.74
+training runtime: 16486.81 seconds 
+
+Evaluation:
+	f1 (micro): 77.67
+                  precision    recall  f1-score   support
+
+       <version>     0.8394    0.8915    0.8647       129
+      <software>     0.7457    0.7760    0.7605       442
+       <creator>     0.7850    0.7636    0.7742       110
+           <url>     0.3929    1.0000    0.5641        11
+
+all (micro avg.)     0.7555    0.7991    0.7767       692
+
+-----
+
+
+average over 10 folds
+	macro f1 = 0.7590153259277898
+	macro precision = 0.7382553898902968
+	macro recall = 0.7815942028985507 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.7762    0.8880    0.8284       125
+           <url>     0.3929    0.5500    0.4583        20
+      <software>     0.7512    0.7299    0.7404       422
+       <creator>     0.7377    0.7317    0.7347       123
+
+all (micro avg.)     0.7397    0.7536    0.7466       690
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.7887    0.8960    0.8390       125
+           <url>     0.6786    0.9500    0.7917        20
+      <software>     0.7402    0.7630    0.7515       422
+       <creator>     0.8056    0.7073    0.7532       123
+
+all (micro avg.)     0.7574    0.7826    0.7698       690
+
+
+
+-----
+
+average over 10 folds
+	macro f1 = 0.7601927647101279
+	macro precision = 0.7418577402983322
+	macro recall = 0.78 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.7943    0.8960    0.8421       125
+       <creator>     0.7355    0.7236    0.7295       123
+      <software>     0.6764    0.7678    0.7192       422
+           <url>     0.7619    0.8000    0.7805        20
+
+all (micro avg.)     0.7100    0.7841    0.7452       690
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.8450    0.8720    0.8583       125
+       <creator>     0.7287    0.7642    0.7460       123
+      <software>     0.7167    0.8152    0.7627       422
+           <url>     0.8000    0.8000    0.8000        20
+
+all (micro avg.)     0.7427    0.8159    0.7776       690
+
+
+-----
+
+------------------------ fold 9 --------------------------------------
+	f1 (micro): 77.84
+                  precision    recall  f1-score   support
+
+       <creator>     0.7607    0.7236    0.7417       123
+      <software>     0.7410    0.7796    0.7598       422
+           <url>     0.8095    0.8500    0.8293        20
+       <version>     0.8309    0.9040    0.8659       125
+
+all (micro avg.)     0.7632    0.7942    0.7784       690
+
+
+average over 10 folds
+	macro f1 = 0.7616073400332024
+	macro precision = 0.7335447184784541
+	macro recall = 0.7927536231884058 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <creator>     0.7377    0.7317    0.7347       123
+      <software>     0.6544    0.7986    0.7193       422
+           <url>     0.6250    0.7500    0.6818        20
+       <version>     0.8088    0.8800    0.8429       125
+
+all (micro avg.)     0.6926    0.8000    0.7424       690
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <creator>     0.7607    0.7236    0.7417       123
+      <software>     0.7410    0.7796    0.7598       422
+           <url>     0.8095    0.8500    0.8293        20
+       <version>     0.8309    0.9040    0.8659       125
+
+all (micro avg.)     0.7632    0.7942    0.7784       690
+
+
+
+
+
+
+--- August 6th
+(without ELMo)
+
+average over 10 folds
+	macro f1 = 0.7773790131377091
+	macro precision = 0.8012116274946683
+	macro recall = 0.7553353658536585 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.8583    0.8074    0.8321       135
+       <creator>     0.8571    0.7879    0.8211        99
+      <software>     0.7762    0.6921    0.7318       406
+           <url>     0.3125    0.3125    0.3125        16
+
+all (micro avg.)     0.7936    0.7210    0.7556       656
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.8960    0.8296    0.8615       135
+       <creator>     0.8632    0.8283    0.8454        99
+      <software>     0.8119    0.7759    0.7935       406
+           <url>     0.5000    0.5000    0.5000        16
+
+all (micro avg.)     0.8285    0.7881    0.8078       656
+
+
+
+--- August 8th
+(without ELMo)
+
+average over 10 folds
+	macro f1 = 0.7921970393618223
+	macro precision = 0.7970637223817609
+	macro recall = 0.7875183553597651 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <creator>     0.7168    0.7714    0.7431       105
+      <software>     0.7922    0.7227    0.7559       422
+       <version>     0.8913    0.8849    0.8881       139
+           <url>     0.2105    0.2667    0.2353        15
+
+all (micro avg.)     0.7832    0.7533    0.7680       681
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <creator>     0.8036    0.8571    0.8295       105
+      <software>     0.7890    0.7796    0.7843       422
+       <version>     0.8881    0.9137    0.9007       139
+           <url>     0.5625    0.6000    0.5806        15
+
+all (micro avg.)     0.8067    0.8150    0.8108       681
+
+
+
+with ELMo
+
+
+training runtime: 9581.571 seconds 
+
+Evaluation:
+	f1 (micro): 83.51
+                  precision    recall  f1-score   support
+
+       <creator>     0.8378    0.8857    0.8611       105
+      <software>     0.8422    0.7844    0.8123       422
+       <version>     0.8951    0.9209    0.9078       139
+           <url>     0.5556    0.6667    0.6061        15
+
+all (micro avg.)     0.8451    0.8253    0.8351       681
+
+
+Evaluation:
+
+------------------------ fold 0 --------------------------------------
+	f1 (micro): 84.13
+                  precision    recall  f1-score   support
+
+       <version>     0.8581    0.9137    0.8850       139
+      <software>     0.8623    0.7867    0.8228       422
+           <url>     0.6875    0.7333    0.7097        15
+       <creator>     0.8679    0.8762    0.8720       105
+
+all (micro avg.)     0.8580    0.8253    0.8413       681
+
+
+------------------------ fold 1 --------------------------------------
+	f1 (micro): 83.93
+                  precision    recall  f1-score   support
+
+       <version>     0.8803    0.8993    0.8897       139
+      <software>     0.8514    0.8009    0.8254       422
+           <url>     0.5882    0.6667    0.6250        15
+       <creator>     0.8505    0.8667    0.8585       105
+
+all (micro avg.)     0.8507    0.8282    0.8393       681
+
+
+------------------------ fold 2 --------------------------------------
+	f1 (micro): 82.96
+                  precision    recall  f1-score   support
+
+       <version>     0.8456    0.9065    0.8750       139
+      <software>     0.8099    0.8175    0.8137       422
+           <url>     0.5625    0.6000    0.5806        15
+       <creator>     0.8598    0.8762    0.8679       105
+
+all (micro avg.)     0.8195    0.8399    0.8296       681
+
+
+------------------------ fold 3 --------------------------------------
+	f1 (micro): 84.06
+                  precision    recall  f1-score   support
+
+       <version>     0.9191    0.8993    0.9091       139
+      <software>     0.8820    0.7796    0.8277       422
+           <url>     0.6154    0.5333    0.5714        15
+       <creator>     0.8241    0.8476    0.8357       105
+
+all (micro avg.)     0.8746    0.8091    0.8406       681
+
+
+------------------------ fold 4 --------------------------------------
+	f1 (micro): 84.15
+                  precision    recall  f1-score   support
+
+       <version>     0.8777    0.8777    0.8777       139
+      <software>     0.8649    0.7891    0.8253       422
+           <url>     0.6000    0.8000    0.6857        15
+       <creator>     0.8774    0.8857    0.8815       105
+
+all (micro avg.)     0.8615    0.8223    0.8415       681
+
+
+------------------------ fold 5 --------------------------------------
+	f1 (micro): 83.71
+                  precision    recall  f1-score   support
+
+       <version>     0.8811    0.9065    0.8936       139
+      <software>     0.8188    0.8246    0.8217       422
+           <url>     0.4762    0.6667    0.5556        15
+       <creator>     0.8468    0.8952    0.8704       105
+
+all (micro avg.)     0.8257    0.8488    0.8371       681
+
+
+------------------------ fold 6 --------------------------------------
+	f1 (micro): 83.81
+                  precision    recall  f1-score   support
+
+       <version>     0.8581    0.9137    0.8850       139
+      <software>     0.8403    0.8104    0.8251       422
+           <url>     0.6000    0.8000    0.6857        15
+       <creator>     0.8349    0.8667    0.8505       105
+
+all (micro avg.)     0.8363    0.8399    0.8381       681
+
+
+------------------------ fold 7 --------------------------------------
+	f1 (micro): 84.93
+                  precision    recall  f1-score   support
+
+       <version>     0.8865    0.8993    0.8929       139
+      <software>     0.8658    0.8104    0.8372       422
+           <url>     0.6471    0.7333    0.6875        15
+       <creator>     0.8585    0.8667    0.8626       105
+
+all (micro avg.)     0.8634    0.8355    0.8493       681
+
+
+------------------------ fold 8 --------------------------------------
+	f1 (micro): 83.32
+                  precision    recall  f1-score   support
+
+       <version>     0.8921    0.8921    0.8921       139
+      <software>     0.8713    0.7701    0.8176       422
+           <url>     0.7143    0.6667    0.6897        15
+       <creator>     0.8302    0.8381    0.8341       105
+
+all (micro avg.)     0.8655    0.8032    0.8332       681
+
+
+------------------------ fold 9 --------------------------------------
+	f1 (micro): 82.94
+                  precision    recall  f1-score   support
+
+       <version>     0.8176    0.9353    0.8725       139
+      <software>     0.8129    0.8341    0.8234       422
+           <url>     0.4762    0.6667    0.5556        15
+       <creator>     0.8318    0.8476    0.8396       105
+
+all (micro avg.)     0.8069    0.8532    0.8294       681
+
+
+average over 10 folds
+	macro f1 = 0.8379279540368364
+	macro precision = 0.8462171684793983
+	macro recall = 0.8305433186490456 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.8176    0.9353    0.8725       139
+      <software>     0.8129    0.8341    0.8234       422
+           <url>     0.4762    0.6667    0.5556        15
+       <creator>     0.8318    0.8476    0.8396       105
+
+all (micro avg.)     0.8069    0.8532    0.8294       681
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+       <version>     0.8865    0.8993    0.8929       139
+      <software>     0.8658    0.8104    0.8372       422
+           <url>     0.6471    0.7333    0.6875        15
+       <creator>     0.8585    0.8667    0.8626       105
+
+all (micro avg.)     0.8634    0.8355    0.8493       681
+
+
+
+
+
+
+
+
+----
+old one with ELMo:
+
+average over 10 folds
+	macro f1 = 0.7754418463939954
+	macro precision = 0.7820748986167139
+	macro recall = 0.7690548780487805 
+
+
+** Worst ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7433    0.7562    0.7497       406
+           <url>     0.3636    0.5000    0.4211        16
+       <version>     0.8560    0.7926    0.8231       135
+       <creator>     0.8646    0.8384    0.8513        99
+
+all (micro avg.)     0.7698    0.7698    0.7698       656
+
+
+** Best ** model scores - 
+
+                  precision    recall  f1-score   support
+
+      <software>     0.7761    0.7685    0.7723       406
+           <url>     0.4375    0.4375    0.4375        16
+       <version>     0.8710    0.8000    0.8340       135
+       <creator>     0.8163    0.8081    0.8122        99
+
+all (micro avg.)     0.7922    0.7729    0.7824       656
+
+
