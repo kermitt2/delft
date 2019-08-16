@@ -1,9 +1,15 @@
 {
     "model_name": "dataseer",
-    "recurrent_dropout": 0.25,
+    "model_type": "scibert",
     "embeddings_name": "word2vec",
+    "use_ELMo": false,
+    "use_BERT": false,
     "char_embedding_size": 25,
-    "batch_size": 256,
+    "word_embedding_size": 300,
+    "dropout": 0.5,
+    "recurrent_dropout": 0.25,
+    "maxlen": 100,
+    "use_char_feature": false,
     "list_classes": [
         "Angiography",
         "Calorimetry",
@@ -35,12 +41,6 @@
         "X-Ray Diffraction data",
         "X-Ray fluorescence data"
     ],
-    "use_char_feature": false,
-    "model_type": "gru",
-    "use_ELMo": false,
     "fold_number": 1,
-    "dropout": 0.5,
-    "use_BERT": false,
-    "word_embedding_size": 300,
-    "maxlen": 300
+    "batch_size": 32
 }
