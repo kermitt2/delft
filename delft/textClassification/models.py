@@ -1067,16 +1067,24 @@ class BERT_classifier():
         '''
         start = time.time()
         predict_examples, y_test = self.processor.get_test_examples(x_test=x_test, y_test=y_test)
-        y_test_gold = np.asarray([np.argmax(line) for line in y_test])
+        #y_test_gold = np.asarray([np.argmax(line) for line in y_test])
 
         y_predicts = self.eval_fold(predict_examples)
-        y_pred = np.asarray([np.argmax(line) for line in y_predicts])
+        result_intermediate = np.asarray([np.argmax(line) for line in y_predicts])
 
-        precision, recall, fscore, support = precision_recall_fscore_support(y_test_gold, y_pred, average=None)
+        def vectorize(index, size):
+            result = np.zeros(size)
+            if index < size:
+                result[index] = 1
+            return result
+        result_binary = np.array([vectorize(xi, len(self.labels)) for xi in result_intermediate])
+
+        precision, recall, fscore, support = precision_recall_fscore_support(y_test, result_binary, average=None)
         print('\n')
         print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(" ", "precision", "recall", "f-score", "support"))
         p = 0
         for the_class in self.labels:
+            the_class = the_class[:14]
             print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(the_class, "{:10.4f}"
                 .format(precision[p]), "{:10.4f}".format(recall[p]), "{:10.4f}".format(fscore[p]), support[p]))
             p += 1
@@ -1200,7 +1208,10 @@ class BERT_classifier():
                 probabilities = prediction["probabilities"]
                 q = 0
                 for class_probability in probabilities:
-                    y_pred[y_pos+p,q] = class_probability * self.class_weights[q]
+                    if self.class_weights and len(self.class_weights) == len(probabilities):    
+                        y_pred[y_pos+p,q] = class_probability * self.class_weights[q]
+                    else:
+                        y_pred[y_pos+p,q] = class_probability 
                     q += 1
                 p += 1
             y_pos += num_current_batch
