@@ -20,7 +20,7 @@ from delft.textClassification.preprocess import to_vector_single, BERT_classifie
 
 from delft.utilities.Embeddings import Embeddings
 
-from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score
+from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
 from keras.utils import plot_model
@@ -221,7 +221,24 @@ class Classifier(object):
             else: 
                 return 1
         vfunc = np.vectorize(normer)
-        result_binary = vfunc(result)
+        #result_binary = vfunc(result)
+        result_intermediate = np.asarray([np.argmax(line) for line in result])
+        
+        def vectorize(index, size):
+            result = np.zeros(size)
+            if index < size:
+                result[index] = 1
+            return result
+        result_binary = np.array([vectorize(xi, len(self.model_config.list_classes)) for xi in result_intermediate])
+
+        precision, recall, fscore, support = precision_recall_fscore_support(y_test, result_binary, average=None)
+        print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(" ", "precision", "recall", "f-score", "support"))
+        p = 0
+        for the_class in self.model_config.list_classes:
+            the_class = the_class[:14]
+            print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(the_class, "{:10.4f}"
+                .format(precision[p]), "{:10.4f}".format(recall[p]), "{:10.4f}".format(fscore[p]), support[p]))
+            p += 1
 
         # macro-average (average of class scores)
         # we distinguish 1-class and multiclass problems 
@@ -254,24 +271,28 @@ class Classifier(object):
                 else:
                     roc_auc = roc_auc_score(y_test[:, j], result[:, j])
                 total_roc_auc += roc_auc
+                '''
                 print("\nClass:", self.model_config.list_classes[j])
                 print("\taccuracy at 0.5 =", accuracy)
                 print("\tf-1 at 0.5 =", f1)
                 print("\tlog-loss =", loss)
                 print("\troc auc =", roc_auc)
+                '''
 
         total_accuracy /= len(self.model_config.list_classes)
         total_f1 /= len(self.model_config.list_classes)
         total_loss /= len(self.model_config.list_classes)
         total_roc_auc /= len(self.model_config.list_classes)
 
+        '''
         if len(self.model_config.list_classes) is not 1:
             print("\nMacro-average:")
         print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
         print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
         print("\taverage log-loss =","{:10.4f}".format( total_loss))
         print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
-
+        '''
+        
         # micro-average (average of scores for each instance)
         # make sense only if we have more than 1 class, otherwise same as 
         # macro-avergae
@@ -282,7 +303,6 @@ class Classifier(object):
             total_roc_auc = 0.0
 
             for i in range(0, result.shape[0]):
-                #for j in range(0, len(self.model_config.list_classes)):
                 accuracy = accuracy_score(y_test[i,:], result_binary[i,:])
                 total_accuracy += accuracy
                 f1 = f1_score(y_test[i,:], result_binary[i,:], average='micro')
@@ -297,12 +317,14 @@ class Classifier(object):
             total_loss /= result.shape[0]
             total_roc_auc /= result.shape[0]
 
+            '''
             print("\nMicro-average:")
             print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
             print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
             print("\taverage log-loss =", "{:10.4f}".format(total_loss))
             print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
-
+            '''
+            
     def save(self, dir_path='data/models/textClassification/'):
         # create subfolder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
