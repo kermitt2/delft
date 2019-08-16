@@ -792,9 +792,9 @@ Training and evalation (ratio):
 
 > python3 citationClassifier.py train_eval
 
-which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
+<!-- which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
-<!-- eval before data generator
+eval before data generator
 ```
 Evaluation on 896 instances:
 
@@ -828,7 +828,7 @@ Micro-average:
     average log-loss = 0.18922222475016712
     average roc auc = 0.9319196428571429
 ```    
--->
+
 
 ```text
 Evaluation on 896 instances:
@@ -867,6 +867,7 @@ Micro-average:
 ```
 
 In [7], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
+-->
 
 To classify a set of citation contexts:
 
@@ -901,7 +902,6 @@ which will produce some JSON output like this:
     ],
     "runtime": 1.202
 }
-
 
 ```
 
