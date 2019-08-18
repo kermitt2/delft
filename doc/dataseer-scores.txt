@@ -96,3 +96,46 @@ Voltammetry da        0.0000        0.0000        0.0000             0
 X-Ray Diffract        0.0000        0.0000        0.0000             5
 X-Ray fluoresc        0.0000        0.0000        0.0000             0
 
+
+
+Evaluation on 1962 instances:
+                   precision        recall       f-score       support
+   Angiography        0.0000        0.0000        0.0000             1
+   Calorimetry        0.0000        0.0000        0.0000             1
+Chromatography        0.6429        0.8182        0.7200            11
+Coulombimetry         0.0000        0.0000        0.0000             0
+       Dataset        0.5833        0.6222        0.6022            45
+  Densitometry        0.0000        0.0000        0.0000             0
+Digital Drople        0.0000        0.0000        0.0000             0
+Electrocardiog        0.0000        0.0000        0.0000             3
+Electroencepha        0.0000        0.0000        0.0000             2
+Electromyograp        0.0000        0.0000        0.0000             3
+Electrooculogr        0.0000        0.0000        0.0000             1
+Electrophysiol        0.0000        0.0000        0.0000             0
+Electroretinog        0.0000        0.0000        0.0000             0
+Emission flame        0.0000        0.0000        0.0000             1
+Flow cytometry        0.8000        0.9524        0.8696            21
+  Genetic Data        0.4921        0.7561        0.5962            41
+         Image        0.7889        0.9342        0.8554           152
+Mass Spectrome        0.0000        0.0000        0.0000             4
+  Protein Data        0.0000        0.0000        0.0000             1
+Real-Time Poly        0.7750        0.9394        0.8493            33
+    Sound data        0.0000        0.0000        0.0000             1
+  Spectrometry        0.6286        0.9167        0.7458            48
+Spectrum Analy        0.0000        0.0000        0.0000             0
+Spirometry dat        0.0000        0.0000        0.0000             0
+  Tabular data        0.7967        0.8898        0.8407           753
+Video Recordin        0.0000        0.0000        0.0000             2
+Voltammetry da        0.0000        0.0000        0.0000             1
+X-Ray Diffract        0.0000        0.0000        0.0000             7
+X-Ray fluoresc        0.0000        0.0000        0.0000             0
+    no_dataset        0.9589        0.7867        0.8643           830
+
+
+
+Evaluation on 1979 instances:
+                   precision        recall       f-score       support
+       dataset        0.8594        0.9813        0.9163          1121
+    no_dataset        0.9700        0.7902        0.8709           858
+
+

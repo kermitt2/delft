@@ -34,4 +34,4 @@ dist
 delft.egg-info
 build
 data/models/textClassification/citations/citations0/
-data/textClassification/dataseer/all.csv
+data/textClassification/dataseer
