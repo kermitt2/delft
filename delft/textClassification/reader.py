@@ -152,6 +152,7 @@ def load_dataseer_corpus_csv(filepath):
         doi,text,datatype,dataSubtype,leafDatatype
 
     Classification of the datatype follows a 3-level hierarchy, so the possible 3 classes are returned.
+    dataSubtype and leafDatatype are optional
 
     Returns:
         tuple(numpy array, numpy array, numpy array, numpy array): 
@@ -159,10 +160,8 @@ def load_dataseer_corpus_csv(filepath):
 
     """
     df = pd.read_csv(filepath)
-    
     df = df[pd.notnull(df['text'])]
     df = df[pd.notnull(df['datatype'])]
-
     df.iloc[:,1].fillna('NA', inplace=True)
 
     texts_list = []
@@ -171,26 +170,32 @@ def load_dataseer_corpus_csv(filepath):
 
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
-
-    datasubtypes = df.iloc[:,3]
-    datasubtypes_list = datasubtypes.values.tolist()
-
-    leafdatatypes = df.iloc[:,4]
-    leafdatatypes_list = leafdatatypes.values.tolist()
-
     datatypes_list = np.asarray(datatypes_list)
-    datasubtypes_list = np.asarray(datasubtypes_list)
-    leafdatatypes_list = np.asarray(leafdatatypes_list)
-
     list_classes_datatypes = np.unique(datatypes_list)
-    list_classes_datasubtypes = np.unique(datasubtypes_list)
-    list_classes_leafdatatypes = np.unique(leafdatatypes_list)
-
     datatypes_final = normalize_classes(datatypes_list, list_classes_datatypes)
-    datasubtypes_final = normalize_classes(datasubtypes_list, list_classes_datasubtypes)
-    leafdatatypes_final = normalize_classes(leafdatatypes_list, list_classes_leafdatatypes)
 
-    return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
+    print(df.shape, df.shape[0], df.shape[1])
+
+    if df.shape[1] > 3:
+        datasubtypes = df.iloc[:,3]
+        datasubtypes_list = datasubtypes.values.tolist()
+        datasubtypes_list = np.asarray(datasubtypes_list)
+        list_classes_datasubtypes = np.unique(datasubtypes_list)
+        datasubtypes_final = normalize_classes(datasubtypes_list, list_classes_datasubtypes)
+
+    if df.shape[1] > 4:
+        leafdatatypes = df.iloc[:,4]
+        leafdatatypes_list = leafdatatypes.values.tolist()
+        leafdatatypes_list = np.asarray(leafdatatypes_list)
+        list_classes_leafdatatypes = np.unique(leafdatatypes_list)
+        leafdatatypes_final = normalize_classes(leafdatatypes_list, list_classes_leafdatatypes)
+
+    if df.shape[1] == 3:
+        return np.asarray(texts_list), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
+    elif df.shape[1] == 4:
+        return np.asarray(texts_list), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
+    else:
+        return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
 
 
 def normalize_classes(y, list_classes):
