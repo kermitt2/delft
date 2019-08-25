@@ -215,13 +215,15 @@ class Classifier(object):
         total_loss = 0.0
         total_roc_auc = 0.0
 
+        '''
         def normer(t):
             if t < 0.5: 
                 return 0 
             else: 
                 return 1
         vfunc = np.vectorize(normer)
-        #result_binary = vfunc(result)
+        result_binary = vfunc(result)
+        '''
         result_intermediate = np.asarray([np.argmax(line) for line in result])
         
         def vectorize(index, size):
