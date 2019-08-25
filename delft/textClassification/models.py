@@ -944,7 +944,7 @@ class BERT_classifier():
         #self.processor = BERT_classifier_processor(labels=labels)
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
-        self.model_dir = 'data/models/textClassification/citations/' + self.model_name
+        self.model_dir = 'data/models/textClassification/' + self.model_name
         
     def train(self, x_train=None, y_train=None):
         '''
