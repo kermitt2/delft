@@ -1,6 +1,6 @@
 {
     "model_name": "dataseer",
-    "model_type": "scibert",
+    "model_type": "gru",
     "embeddings_name": "word2vec",
     "use_ELMo": false,
     "use_BERT": false,
@@ -8,7 +8,7 @@
     "word_embedding_size": 300,
     "dropout": 0.5,
     "recurrent_dropout": 0.25,
-    "maxlen": 100,
+    "maxlen": 300,
     "use_char_feature": false,
     "list_classes": [
         "Angiography",
@@ -43,5 +43,5 @@
         "no_dataset"
     ],
     "fold_number": 1,
-    "batch_size": 32
+    "batch_size": 256
 }

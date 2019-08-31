@@ -15,8 +15,8 @@
     "recurrent_dropout": 0.5,
     "use_char_feature": true,
     "use_crf": true,
-    "fold_number": 1,
-    "batch_size": 3,
+    "fold_number": 10,
+    "batch_size": 5,
     "use_ELMo": true,
     "use_BERT": false
 }
