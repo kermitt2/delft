@@ -124,7 +124,8 @@ class Classifier(object):
             self.embeddings.clean_BERT_cache()
 
     # classification
-    def predict(self, texts, output_format='json'):
+    def predict(self, texts, output_format='json', use_main_thread_only=False):
+        print(texts)
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 # bert model?
@@ -137,7 +138,7 @@ class Classifier(object):
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
-                    result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                    result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:
@@ -153,7 +154,7 @@ class Classifier(object):
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
-                    result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                    result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         if output_format is 'json':
@@ -179,7 +180,7 @@ class Classifier(object):
         else:
             return result
 
-    def eval(self, x_test, y_test):
+    def eval(self, x_test, y_test, use_main_thread_only=False):
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 # bert model?
@@ -191,7 +192,7 @@ class Classifier(object):
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
-                    result = predict(self.model, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                    result = predict(self.model, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:
@@ -204,7 +205,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False)
 
-                result = predict_folds(self.models, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT)
+                result = predict_folds(self.models, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         print("-----------------------------------------------")
