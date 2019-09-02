@@ -10,7 +10,6 @@ import keras.backend as K
 import time
 from delft.textClassification.models import modelTypes
 import numpy as np
-from collections import OrderedDict
 
 """
     Classifier for deciding if a sentence introduce a dataset or not, and prediction of the 

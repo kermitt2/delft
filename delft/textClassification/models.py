@@ -844,10 +844,10 @@ def train_folds(X, y, model_config, training_config, embeddings):
     return models
 
 
-def predict(model, predict_generator, use_ELMo=False, use_BERT=False):
+def predict(model, predict_generator, use_ELMo=False, use_BERT=False, use_main_thread_only=False):
     nb_workers = 6
     multiprocessing = True
-    if use_ELMo or use_BERT:
+    if use_ELMo or use_BERT or use_main_thread_only:
         # worker at 0 means the training will be executed in the main thread
         nb_workers = 0 
         multiprocessing = False
@@ -858,7 +858,7 @@ def predict(model, predict_generator, use_ELMo=False, use_BERT=False):
     return y
 
 
-def predict_folds(models, predict_generator, use_ELMo=False, use_BERT=False):
+def predict_folds(models, predict_generator, use_ELMo=False, use_BERT=False, use_main_thread_only=False):
     fold_count = len(models)
     y_predicts_list = []
     for fold_id in range(0, fold_count):
@@ -866,7 +866,7 @@ def predict_folds(models, predict_generator, use_ELMo=False, use_BERT=False):
         #y_predicts = model.predict(xte)
         nb_workers = 6
         multiprocessing = True
-        if use_ELMo or use_BERT:
+        if use_ELMo or use_BERT or use_main_thread_only:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
