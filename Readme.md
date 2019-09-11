@@ -689,6 +689,11 @@ The evaluation of a model with a specific Grobid data file can be performed usin
 > python3 grobidTagger.py citation eval --input *path-to-the-grobid-data-file-to-be-used-for-evaluation*
 
 
+The evaluation of a model can be performed calling 
+
+> python3 grobidTagger.py citation eval --input evaluation_data
+
+
 #### Insult recognition
 
 A small experimental model for recognising insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually.

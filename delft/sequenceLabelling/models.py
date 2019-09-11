@@ -1,7 +1,6 @@
 from keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout
 from keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from keras.layers.merge import Concatenate
-from keras.initializers import RandomUniform
 from keras.models import Model
 from keras.models import clone_model
 from delft.utilities.layers import ChainCRF
