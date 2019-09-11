@@ -1,5 +1,7 @@
 import json
 import numpy as np
+
+from delft.sequenceLabelling.preprocess import prepare_preprocessor
 from delft.utilities.Embeddings import Embeddings
 import delft.sequenceLabelling
 from delft.sequenceLabelling import Sequence
@@ -117,6 +119,52 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model.save()
 
 
+# split data, train a GROBID model and evaluate it
+def eval_(model, use_ELMo=False, input_path=None, output_path=None):
+    print('Loading data...')
+    if input_path is None:
+        x_all, y_all, f_all = load_data_and_labels_crf_file(
+            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
+    else:
+        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+
+    print(len(x_all), 'evaluation sequences')
+
+    batch_size = 20
+    max_sequence_length = 3000
+
+    if output_path:
+        model_name = model
+    else:
+        model_name = 'grobid-' + model
+
+    if model == "software":
+        # class are more unbalanced, so we need to extend the batch size
+        batch_size = 50
+        max_sequence_length = 1500
+
+    if use_ELMo:
+        model_name += '-with_ELMo'
+        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+            batch_size = 3
+
+    start_time = time.time()
+
+    # load the model
+    model = Sequence(model_name)
+    model.load()
+    # model.p.fit(x_all, y_all)
+    # model.model_config.char_vocab_size = len(model.p.vocab_char)
+    # model.model_config.case_vocab_size = len(model.p.vocab_case)
+
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_all, y_all)
+
+    runtime = round(time.time() - start_time, 3)
+    print("evaluation runtime: %s seconds " % (runtime))
+
+
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
 def annotate_text(texts, model, output_format, use_ELMo=False):
@@ -186,6 +234,9 @@ if __name__ == "__main__":
 
     if action == 'train':
         train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+
+    if action == 'eval':
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
     if action == 'train_eval':
         if args.fold_count < 1:
