@@ -500,7 +500,7 @@ if __name__ == "__main__":
             data_path=data_path)
 
     if action == 'eval':
-        eval(dataset_type, lang, architecture=architecture, use_ELMo=use_ELMo)
+        eval(dataset_type, lang, architecture=architecture, use_ELMo=use_ELMo, use_BERT=use_BERT)
 
     if action == 'tag':
         if lang is not 'en' and lang is not 'fr':
