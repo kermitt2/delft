@@ -323,7 +323,7 @@ class Embeddings(object):
 
     def make_BERT(self):
         # Location of BERT model
-        description = self._get_description('bert-'+self.lang)
+        description = self._get_description('bert-base-'+self.lang)
         if description is not None:
             self.lang = description["lang"]
             config_file = description["path-config"]
