@@ -178,7 +178,7 @@ class Embeddings(object):
             if embeddings_type == "glove":
                 hasHeader = False
             txn = self.env.begin(write=True)
-            batch_size = 1024
+            # batch_size = 1024
             i = 0
             nb_lines = 0
             with open(embeddings_path, encoding='utf8') as f:
@@ -220,9 +220,9 @@ class Embeddings(object):
                         i += 1
 
                     # commit batch
-                    if i % batch_size == 0:
-                        txn.commit()
-                        txn = self.env.begin(write=True)
+                    # if i % batch_size == 0:
+                    #     txn.commit()
+                    #     txn = self.env.begin(write=True)
 
             #if i % batch_size != 0:
             txn.commit()   
