@@ -80,6 +80,7 @@ class Trainer(object):
 
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
+                                      patience=self.training_config.patience,
                                       valid=(validation_generator, self.preprocessor))
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
@@ -158,7 +159,7 @@ class Trainer(object):
             self.models[fold_id] = foldModel
 
 
-def get_callbacks(log_dir=None, valid=(), eary_stopping=True):
+def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):
     """
     Get callbacks.
 
@@ -187,7 +188,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True):
         callbacks.append(save_callback)
 
     if eary_stopping:
-        callbacks.append(EarlyStopping(monitor='f1', patience=5, mode='max'))
+        callbacks.append(EarlyStopping(monitor='f1', patience=patience, mode='max'))
 
     return callbacks
 
