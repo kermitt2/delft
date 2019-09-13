@@ -181,7 +181,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):
             print('Successfully made a directory: {}'.format(log_dir))
             os.mkdir(log_dir)
 
-        file_name = '_'.join(['model_weights', '{epoch:02d}', '{f1:2.2f}']) + '.h5'
+        file_name = '_'.join(['model_weights', '{epoch:02d}']) + '.h5'
         save_callback = ModelCheckpoint(os.path.join(log_dir, file_name),
                                         monitor='f1',
                                         save_weights_only=True)
