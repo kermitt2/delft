@@ -136,7 +136,7 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
-The addition of BERT transformer architecture, as alternative to the above RNN architectures, is currently work in progress. 
+The addition of BERT transformer architecture (with fine-tuning), as alternative to the above RNN architectures for sequence labeling, is currently work in progress. 
 
 Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme.
 
@@ -744,9 +744,13 @@ All the following models includes Dropout, Pooling and Dense layers with hyperpa
 * `mix1`: one layer Bidirectional GRU followed by a Bidirectional LSTM
 * `dpcnn`: Deep Pyramid Convolutional Neural Networks (but not working as expected - to be reviewed)
 
+also available (via TensorFlow): 
+
+* `bert` or `scibert`: BERT (Bidirectional Encoder Representations from Transformers) architecture (classification corresponds to a fine tuning)
+
 Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 Ti with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
 
-For all these RNN architectures, it is possible to use ELMo contextual embeddings (`--use-ELMo`) or BERT extracted features as embeddings (`--use-BERT`). Integration of BERT as additional non-RNN architecture is work-in-progress. 
+For all these RNN architectures, it is possible to use ELMo contextual embeddings (`--use-ELMo`) or BERT extracted features as embeddings (`--use-BERT`). The integration of BERT as an additional non-RNN architecture is done via TensorFlow, we do not mix Keras and TensorFlow layers. 
 
 ### Examples
 
@@ -792,9 +796,9 @@ Training and evalation (ratio):
 
 > python3 citationClassifier.py train_eval
 
-which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
+<!-- which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
-<!-- eval before data generator
+eval before data generator
 ```
 Evaluation on 896 instances:
 
@@ -828,7 +832,7 @@ Micro-average:
     average log-loss = 0.18922222475016712
     average roc auc = 0.9319196428571429
 ```    
--->
+
 
 ```text
 Evaluation on 896 instances:
@@ -867,6 +871,7 @@ Micro-average:
 ```
 
 In [7], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
+-->
 
 To classify a set of citation contexts:
 
@@ -901,7 +906,6 @@ which will produce some JSON output like this:
     ],
     "runtime": 1.202
 }
-
 
 ```
 

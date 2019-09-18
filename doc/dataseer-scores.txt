@@ -1,0 +1,141 @@
+BidGRU Glove
+                   precision        recall       f-score       support
+   Angiography        0.0000        0.0000        0.0000             2
+   Calorimetry        0.0000        0.0000        0.0000             2
+Chromatography        0.5833        0.7778        0.6667             9
+Coulombimetry         0.0000        0.0000        0.0000             0
+       Dataset        0.4444        0.5556        0.4938            36
+  Densitometry        0.0000        0.0000        0.0000             0
+Digital Drople        0.0000        0.0000        0.0000             0
+Electrocardiog        1.0000        0.1667        0.2857             6
+Electroencepha        1.0000        0.5000        0.6667             2
+Electromyograp        0.0000        0.0000        0.0000             1
+Electrooculogr        0.0000        0.0000        0.0000             0
+Electrophysiol        0.0000        0.0000        0.0000             1
+Electroretinog        0.0000        0.0000        0.0000             0
+Emission flame        0.0000        0.0000        0.0000             0
+Flow cytometry        0.8947        0.9444        0.9189            18
+  Genetic Data        0.8519        0.8214        0.8364            56
+         Image        0.7895        0.8759        0.8304           137
+Mass Spectrome        0.0000        0.0000        0.0000             7
+  Protein Data        0.0000        0.0000        0.0000             1
+Real-Time Poly        0.8286        0.8286        0.8286            35
+    Sound data        0.0000        0.0000        0.0000             3
+  Spectrometry        0.6889        0.7561        0.7209            41
+Spectrum Analy        0.0000        0.0000        0.0000             1
+Spirometry dat        0.0000        0.0000        0.0000             0
+  Tabular data        0.9205        0.9170        0.9187           795
+Video Recordin        0.0000        0.0000        0.0000             1
+Voltammetry da        0.0000        0.0000        0.0000             0
+X-Ray Diffract        0.5000        0.2000        0.2857             5
+X-Ray fluoresc        0.0000        0.0000        0.0000             0
+
+
+BidGRU with ELMo
+                   precision        recall       f-score       support
+   Angiography        0.0000        0.0000        0.0000             2
+   Calorimetry        0.0000        0.0000        0.0000             2
+Chromatography        0.5333        0.8889        0.6667             9
+Coulombimetry         0.0000        0.0000        0.0000             0
+       Dataset        0.5000        0.6389        0.5610            36
+  Densitometry        0.0000        0.0000        0.0000             0
+Digital Drople        0.0000        0.0000        0.0000             0
+Electrocardiog        0.0000        0.0000        0.0000             6
+Electroencepha        0.0000        0.0000        0.0000             2
+Electromyograp        0.0000        0.0000        0.0000             1
+Electrooculogr        0.0000        0.0000        0.0000             0
+Electrophysiol        0.0000        0.0000        0.0000             1
+Electroretinog        0.0000        0.0000        0.0000             0
+Emission flame        0.0000        0.0000        0.0000             0
+Flow cytometry        1.0000        0.8889        0.9412            18
+  Genetic Data        0.8913        0.7321        0.8039            56
+         Image        0.8790        0.7956        0.8352           137
+Mass Spectrome        0.0000        0.0000        0.0000             7
+  Protein Data        0.0000        0.0000        0.0000             1
+Real-Time Poly        0.8235        0.8000        0.8116            35
+    Sound data        0.0000        0.0000        0.0000             3
+  Spectrometry        0.6981        0.9024        0.7872            41
+Spectrum Analy        0.0000        0.0000        0.0000             1
+Spirometry dat        0.0000        0.0000        0.0000             0
+  Tabular data        0.9006        0.9346        0.9173           795
+Video Recordin        0.0000        0.0000        0.0000             1
+Voltammetry da        0.0000        0.0000        0.0000             0
+X-Ray Diffract        0.0000        0.0000        0.0000             5
+X-Ray fluoresc        0.0000        0.0000        0.0000             0
+
+
+SciBERT
+                   precision        recall       f-score       support
+   Angiography        0.0000        0.0000        0.0000             2
+   Calorimetry        0.0000        0.0000        0.0000             2
+Chromatography        0.6154        0.8889        0.7273             9
+Coulombimetry         0.0000        0.0000        0.0000             0
+       Dataset        0.6176        0.5833        0.6000            36
+  Densitometry        0.0000        0.0000        0.0000             0
+Digital Drople        0.0000        0.0000        0.0000             0
+Electrocardiog        1.0000        0.1667        0.2857             6
+Electroencepha        0.0000        0.0000        0.0000             2
+Electromyograp        0.0000        0.0000        0.0000             1
+Electrooculogr        0.0000        0.0000        0.0000             0
+Electrophysiol        0.0000        0.0000        0.0000             1
+Electroretinog        0.0000        0.0000        0.0000             0
+Emission flame        0.0000        0.0000        0.0000             0
+Flow cytometry        0.8947        0.9444        0.9189            18
+  Genetic Data        0.7846        0.9107        0.8430            56
+         Image        0.8170        0.9124        0.8621           137
+Mass Spectrome        0.5000        0.4286        0.4615             7
+  Protein Data        0.0000        0.0000        0.0000             1
+Real-Time Poly        0.8421        0.9143        0.8767            35
+    Sound data        0.0000        0.0000        0.0000             3
+  Spectrometry        0.7091        0.9512        0.8125            41
+Spectrum Analy        0.0000        0.0000        0.0000             1
+Spirometry dat        0.0000        0.0000        0.0000             0
+  Tabular data        0.9480        0.9170        0.9322           795
+Video Recordin        0.1667        1.0000        0.2857             1
+Voltammetry da        0.0000        0.0000        0.0000             0
+X-Ray Diffract        0.0000        0.0000        0.0000             5
+X-Ray fluoresc        0.0000        0.0000        0.0000             0
+
+
+
+Evaluation on 1962 instances:
+                   precision        recall       f-score       support
+   Angiography        0.0000        0.0000        0.0000             1
+   Calorimetry        0.0000        0.0000        0.0000             1
+Chromatography        0.6429        0.8182        0.7200            11
+Coulombimetry         0.0000        0.0000        0.0000             0
+       Dataset        0.5833        0.6222        0.6022            45
+  Densitometry        0.0000        0.0000        0.0000             0
+Digital Drople        0.0000        0.0000        0.0000             0
+Electrocardiog        0.0000        0.0000        0.0000             3
+Electroencepha        0.0000        0.0000        0.0000             2
+Electromyograp        0.0000        0.0000        0.0000             3
+Electrooculogr        0.0000        0.0000        0.0000             1
+Electrophysiol        0.0000        0.0000        0.0000             0
+Electroretinog        0.0000        0.0000        0.0000             0
+Emission flame        0.0000        0.0000        0.0000             1
+Flow cytometry        0.8000        0.9524        0.8696            21
+  Genetic Data        0.4921        0.7561        0.5962            41
+         Image        0.7889        0.9342        0.8554           152
+Mass Spectrome        0.0000        0.0000        0.0000             4
+  Protein Data        0.0000        0.0000        0.0000             1
+Real-Time Poly        0.7750        0.9394        0.8493            33
+    Sound data        0.0000        0.0000        0.0000             1
+  Spectrometry        0.6286        0.9167        0.7458            48
+Spectrum Analy        0.0000        0.0000        0.0000             0
+Spirometry dat        0.0000        0.0000        0.0000             0
+  Tabular data        0.7967        0.8898        0.8407           753
+Video Recordin        0.0000        0.0000        0.0000             2
+Voltammetry da        0.0000        0.0000        0.0000             1
+X-Ray Diffract        0.0000        0.0000        0.0000             7
+X-Ray fluoresc        0.0000        0.0000        0.0000             0
+    no_dataset        0.9589        0.7867        0.8643           830
+
+
+
+Evaluation on 1979 instances:
+                   precision        recall       f-score       support
+       dataset        0.8594        0.9813        0.9163          1121
+    no_dataset        0.9700        0.7902        0.8709           858
+
+
