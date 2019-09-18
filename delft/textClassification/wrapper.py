@@ -125,7 +125,6 @@ class Classifier(object):
 
     # classification
     def predict(self, texts, output_format='json', use_main_thread_only=False):
-        print(texts)
         if self.model_config.fold_number is 1:
             if self.model is not None:
                 # bert model?
