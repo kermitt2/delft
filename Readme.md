@@ -672,6 +672,10 @@ Similarly to the NER models, to use ELMo contextual embeddings, add the paramete
 
 Add the parameter `--use-BERT` to use BERT extracted features as contextual embeddings for the RNN architecture. 
 
+Similarly to the NER models, for n-fold training (action `train_eval` only), specify the value of `n` with the parameter `--fold-count`, e.g.:
+
+> python3 grobidTagger.py citation --fold-count=10 train_eval
+
 (To be completed)
 
 #### Insult recognition
