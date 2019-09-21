@@ -4,6 +4,7 @@ from itertools import islice
 import time
 import json
 import re
+import math
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -189,6 +190,7 @@ class Sequence(object):
             worst_f1 = 1
             worst_index = 0
             reports = []
+            reports_as_map = []
             total_precision = 0
             total_recall = 0
             for i in range(0, self.model_config.fold_number):
@@ -209,6 +211,7 @@ class Sequence(object):
                 precision = scorer.precision
                 recall = scorer.recall
                 reports.append(scorer.report)
+                reports_as_map.append(scorer.report_as_map)
 
                 if best_f1 < f1:
                     best_f1 = f1
@@ -224,16 +227,64 @@ class Sequence(object):
             macro_precision = total_precision / self.model_config.fold_number
             macro_recall = total_recall / self.model_config.fold_number
 
+            print("----------------------------------------------------------------------")
             print("\naverage over", self.model_config.fold_number, "folds")
-            print("\tmacro f1 =", macro_f1)
-            print("\tmacro precision =", macro_precision)
-            print("\tmacro recall =", macro_recall, "\n")
 
-            print("\n** Worst ** model scores - \n")
+            name_width = 0
+            for label in self.p.vocab_tag:
+              name_width = max(name_width, len(label))
+
+            width = max(name_width, 10)
+            digits = 4
+            headers = ["precision", "recall", "f1-score", "support"]
+            head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers) + "\n"
+            print(head_fmt.format(u'', *headers, width=width))
+            #print(u'\n')
+
+            row_fmt = u'{:>{width}s} ' + u' {:>9.{digits}f}' * 3 + u' {:>9}'
+
+            # field-level average over th n folds
+            labels = []
+            for label in self.p.vocab_tag:
+              if label == 'O' or label == '<PAD>':
+                continue
+              if label.startswith("B-") or label.startswith("S-") or label.startswith("I-") or label.startswith("E-"):
+                label = label[2:]
+
+              if label in labels:
+                continue
+              labels.append(label)
+
+              sum_p = 0
+              sum_r = 0
+              sum_f1 = 0
+              sum_support = 0
+              for j in range(0, self.model_config.fold_number):
+                if not label in reports_as_map[j]:
+                  continue
+                report_as_map = reports_as_map[j][label]
+                sum_p += report_as_map["precision"]
+                sum_r += report_as_map["recall"]
+                sum_f1 += report_as_map["f1"]
+                sum_support += report_as_map["support"]
+              avg_p = sum_p / self.model_config.fold_number
+              avg_r = sum_r / self.model_config.fold_number
+              avg_f1 = sum_f1 / self.model_config.fold_number
+              avg_support = sum_support / self.model_config.fold_number
+              avg_support_dec = str(avg_support-int(avg_support))[1:]
+              if avg_support_dec != '0':
+                avg_support = math.floor(avg_support)
+              print(row_fmt.format(*[label, avg_p, avg_r, avg_f1, avg_support], width=width, digits=digits))
+
+            print("\n\tmacro f1 =", '{0:.4f}'.format(macro_f1))
+            print("\tmacro precision =", '{0:.4f}'.format(macro_precision))
+            print("\tmacro recall =", '{0:.4f}'.format(macro_recall), "\n")
+
+            print("\n** Worst ** model scores -")
             print(reports[worst_index])
 
             self.model = self.models[best_index]
-            print("\n** Best ** model scores - \n")
+            print("\n** Best ** model scores -")
             print(reports[best_index])
 
     def tag(self, texts, output_format):
