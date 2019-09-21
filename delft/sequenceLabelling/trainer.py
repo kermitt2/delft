@@ -210,6 +210,7 @@ class Scorer(Callback):
         self.precision = -1.0
         self.recall = -1.0
         self.report = None
+        self.report_as_map = None
         self.evaluation = evaluation
 
     def on_epoch_end(self, epoch, logs={}):
@@ -245,7 +246,7 @@ class Scorer(Callback):
             self.accuracy = accuracy_score(y_true, y_pred)
             self.precision = precision_score(y_true, y_pred)
             self.recall = recall_score(y_true, y_pred)
-            self.report = classification_report(y_true, y_pred, digits=4)
+            self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4)
             print(self.report)
 
         # save eval
