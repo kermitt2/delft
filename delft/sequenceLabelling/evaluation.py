@@ -1,13 +1,17 @@
-# From https://github.com/chakki-works/seqeval/blob/master/seqeval/metrics/sequence_labeling.py
+"""
+Derived from https://github.com/chakki-works/seqeval/blob/master/seqeval/metrics/sequence_labeling.py
 
-# from the seqeval version, we modify the classification_report() method so that
-# micro average is computed over actual total predictions and not weighted by 
-# number of expected pred in each label - otherwise average micro f1 scores are 
-# not consistent with f1_score() 
+Produce standard evaluation metrics for sequence labeling tasks (precision, recall, f-score at field level). 
 
-"""Metrics to assess performance on sequence labeling task given prediction
-Functions named as ``*_score`` return a scalar value to maximize: the higher
-the better
+From the seqeval version, we modify: 
+
+* the classification_report() method so that micro average is computed over 
+actual total predictions and not weighted by number of expected pred in each 
+label - otherwise average micro f1 scores are not consistent with f1_score() 
+
+* an evaluation report is provided both as a string for simple console output
+and as a map for further processing (e.g. n-fold average)
+
 """
 
 from __future__ import absolute_import
@@ -237,12 +241,15 @@ def classification_report(y_true, y_pred, digits=2):
         y_pred : 2d array. Estimated targets as returned by a classifier.
         digits : int. Number of digits for formatting output floating point values.
     Returns:
-        report : string. Text summary of the precision, recall, F1 score for each class.
+        report : string. Text summary of the precision, recall, F1 score and support number for each class.
+        evaluation: map. Map giving for all class precision, recall, F1 score and support number, in
+                    addition micro average values with key "micro" are provided in the map. 
     Examples:
         >>> from seqeval.metrics import classification_report
         >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
         >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
-        >>> print(classification_report(y_true, y_pred))
+        >>> eval, _ = classification_report(y_true, y_pred)
+        >>> print(eval)
                      precision    recall  f1-score   support
         <BLANKLINE>
                MISC       0.00      0.00      0.00         1
@@ -266,6 +273,8 @@ def classification_report(y_true, y_pred, digits=2):
     last_line_heading = 'all (micro avg.)'
     width = max(name_width, len(last_line_heading), digits)
 
+    evaluation = {}
+
     headers = ["precision", "recall", "f1-score", "support"]
     head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers)
     report = head_fmt.format(u'', *headers, width=width)
@@ -288,6 +297,14 @@ def classification_report(y_true, y_pred, digits=2):
         f1 = 2 * p * r / (p + r) if p + r > 0 else 0
 
         report += row_fmt.format(*[type_name, p, r, f1, nb_true], width=width, digits=digits)
+        
+        eval_block = {}
+        eval_block["precision"] = p
+        eval_block["recall"] = r
+        eval_block["f1"] = f1
+        eval_block["support"] = nb_true
+
+        evaluation[type_name] = eval_block
 
         ps.append(p)
         rs.append(r)
@@ -320,5 +337,11 @@ def classification_report(y_true, y_pred, digits=2):
                              micro_f1,
                              np.sum(s),
                              width=width, digits=digits)
+    eval_block = {}
+    eval_block["precision"] = micro_precision
+    eval_block["recall"] = micro_recall
+    eval_block["f1"] = micro_f1
+    eval_block["support"] = np.sum(s)
+    evaluation["micro"] = eval_block
 
-    return report
+    return report, evaluation
