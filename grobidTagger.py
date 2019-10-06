@@ -32,14 +32,26 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model_name = 'grobid-'+model
 
+    batch_size = 20
+    max_sequence_length = 3000
+
+    if model == "software":
+        # class are more unbalanced, so we need to extend the batch size  
+        batch_size = 50
+        max_sequence_length = 1500
+    
     if use_ELMo:
         model_name += '-with_ELMo'
+        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+            batch_size = 7
 
     model = Sequence(model_name, 
                     max_epoch=100, 
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name, 
                     model_type=architecture,
+                    max_sequence_length=max_sequence_length,
+                    batch_size=batch_size,
                     use_ELMo=use_ELMo)
 
     start_time = time.time()
@@ -84,7 +96,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 5
+            batch_size = 7
 
     model = Sequence(model_name, 
                     max_epoch=100, 

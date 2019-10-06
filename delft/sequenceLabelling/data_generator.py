@@ -33,6 +33,7 @@ class DataGenerator(keras.utils.Sequence):
         self.char_embed_size = char_embed_size
         self.shuffle = shuffle
         self.tokenize = tokenize
+        self.max_sequence_length = max_sequence_length
         self.on_epoch_end()
 
     def __len__(self):
@@ -90,15 +91,12 @@ class DataGenerator(keras.utils.Sequence):
             x_tokenized = sub_x
 
         # prevent sequence of length 1 alone in a batch (this causes an error in tf)
-        print(max_length_x)
         extend = False
         if max_length_x == 1:
             max_length_x += 1
             extend = True
-        print("max_length_x updated to:", max_length_x)
 
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
-        print("batch_x.shape:", batch_x.shape)
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
 
@@ -114,7 +112,7 @@ class DataGenerator(keras.utils.Sequence):
         elif self.embeddings.use_BERT:     
             #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x)
-        print("batch_x.shape(2):", batch_x.shape)    
+
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
@@ -136,8 +134,6 @@ class DataGenerator(keras.utils.Sequence):
         batch_c = np.asarray(batches[0])
 
         batch_l = batches[1]
-
-        print(batch_x.shape, batch_c.shape)
 
         if self.preprocessor.return_casing:
             return batch_x, batch_c, batch_a, batch_l, batch_y

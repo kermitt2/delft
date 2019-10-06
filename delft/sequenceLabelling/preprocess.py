@@ -276,6 +276,12 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        '''
+        # below, padding up to maxlen, TBD check the case of max length at 1 in a batch
+        # do we need to extend this too? 
+        if len(tokens[i]) < maxlen:
+            for j in range(len(tokens[i]), maxlen):
+                local_tokens.append(PAD)'''
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
