@@ -447,17 +447,17 @@ For ten model training with average, worst and best model with ELMo embeddings, 
 
 ##### French model (based on Le Monde corpus)
 
-Note that Le Monde corpus is subject to copyrights and is limited to research usage only. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type lemonde`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
+Note that Le Monde corpus is subject to copyrights and is limited to research usage only, it is usually referred to as "corpus FTB". The corpus file `ftb6_ALL.EN.docs.relinked.xml` must be located under `delft/data/sequenceLabelling/leMonde/`. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type ftb`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
 
 Similarly as before, for training and evaluating use:
 
-> python3 nerTagger.py --lang fr train_eval
+> python3 nerTagger.py --lang fr --dataset-type ftb train_eval
 
 In practice, we need to repeat training and evaluation several times to neutralise random seed effects and to average scores, here ten times:
 
-> python3 nerTagger.py --lang fr --fold-count 10 train_eval
+> python3 nerTagger.py --lang fr --dataset-type ftb --fold-count 10 train_eval
 
-The performance is as follow, with a f-score of __91.01__ averaged over 10 training:
+The performance is as follow, for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, with a f-score of __91.01__ averaged over 10 training:
 
 ```text
 average over 10 folds
@@ -494,7 +494,7 @@ all (micro avg.)     0.9090    0.9242    0.9166      1254
 
 With frELMo:
 
-> python3 nerTagger.py --lang fr --fold-count 10 --use-ELMo train_eval
+> python3 nerTagger.py --lang fr --dataset-type ftb --fold-count 10 --use-ELMo train_eval
 
 ```text
 average over 10 folds
@@ -529,13 +529,113 @@ all (micro avg.)     0.9110    0.9147    0.9129      1254
 all (micro avg.)     0.9268    0.9290    0.9279      1254
 ```
 
-For training with all the dataset without evaluation:
+For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
 
-> python3 nerTagger.py --lang fr train
+> python3 nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 train_eval
+
+which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, a f-score of __86.37__ averaged over 10 training:
+
+```
+average over 10 folds
+                    precision    recall  f1-score   support
+
+      Organization     0.8410    0.7431    0.7888       311
+            Person     0.9086    0.9327    0.9204       205
+          Location     0.9219    0.9144    0.9181       347
+           Company     0.8140    0.8603    0.8364       290
+  FictionCharacter     0.0000    0.0000    0.0000         2
+           Product     1.0000    1.0000    1.0000         3
+               POI     0.0000    0.0000    0.0000         0
+           company     0.0000    0.0000    0.0000         0
+
+  macro f1 = 0.8637
+  macro precision = 0.8708
+  macro recall = 0.8567 
+
+
+** Worst ** model scores -
+                  precision    recall  f1-score   support
+
+    Organization     0.8132    0.7138    0.7603       311
+        Location     0.9152    0.9020    0.9086       347
+         Company     0.7926    0.8172    0.8048       290
+          Person     0.9095    0.9317    0.9205       205
+         Product     1.0000    1.0000    1.0000         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8571    0.8342    0.8455      1158
+
+
+** Best ** model scores -
+                  precision    recall  f1-score   support
+
+    Organization     0.8542    0.7910    0.8214       311
+        Location     0.9226    0.9280    0.9253       347
+         Company     0.8212    0.8552    0.8378       290
+          Person     0.9095    0.9317    0.9205       205
+         Product     1.0000    1.0000    1.0000         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8767    0.8722    0.8745      1158
+```
+
+With frELMo:
+
+> python3 nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 --use-ELMo train_eval
+
+```
+average over 10 folds
+                    precision    recall  f1-score   support
+
+      Organization     0.8605    0.7752    0.8155       311
+            Person     0.9227    0.9371    0.9298       205
+          Location     0.9281    0.9432    0.9356       347
+           Company     0.8401    0.8779    0.8585       290
+  FictionCharacter     0.1000    0.0500    0.0667         2
+           Product     0.8750    1.0000    0.9286         3
+               POI     0.0000    0.0000    0.0000         0
+           company     0.0000    0.0000    0.0000         0
+
+  macro f1 = 0.8831
+  macro precision = 0.8870
+  macro recall = 0.8793 
+
+
+** Worst ** model scores -
+                  precision    recall  f1-score   support
+
+        Location     0.9366    0.9366    0.9366       347
+    Organization     0.8309    0.7428    0.7844       311
+          Person     0.9268    0.9268    0.9268       205
+         Company     0.8179    0.8828    0.8491       290
+         Product     0.7500    1.0000    0.8571         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8762    0.8679    0.8720      1158
+
+
+** Best ** model scores -
+                  precision    recall  f1-score   support
+
+        Location     0.9220    0.9539    0.9377       347
+    Organization     0.8777    0.7846    0.8285       311
+          Person     0.9187    0.9366    0.9275       205
+         Company     0.8444    0.9172    0.8793       290
+         Product     1.0000    1.0000    1.0000         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8900    0.8946    0.8923      1158
+```
+
+For the `ftb_force_split` dataset, similarly as for CoNLL 2013, you can use the `train_with_validation_set` parameter to add the validation set in the training data. The above results are all obtained without using `train_with_validation_set` (which is the common approach).
+
+Finally, for training with all the dataset without evaluation (e.g. for production):
+
+> python3 nerTagger.py --lang fr --dataset-type ftb train
 
 and for annotating some examples:
 
-> python3 nerTagger.py --lang fr --file-in data/test/test.ner.fr.txt tag
+> python3 nerTagger.py --lang fr --dataset-type ftb --file-in data/test/test.ner.fr.txt tag
 
 ```json
 {

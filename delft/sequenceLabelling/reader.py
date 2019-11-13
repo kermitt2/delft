@@ -470,7 +470,10 @@ def load_data_and_labels_conll(filename):
                     labels.append(tags)
                     words, tags = [], []
             else:
-                word, tag = line.split('\t')
+                if len(line.split('\t')) == 2:
+                    word, tag = line.split('\t')
+                else:
+                    word, _, tag = line.split('\t')
                 words.append(word)
                 tags.append(tag)
 

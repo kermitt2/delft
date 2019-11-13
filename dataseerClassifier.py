@@ -46,7 +46,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
-
+    
     print('loading first-level dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
 
@@ -67,14 +67,110 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     # saving the model
     model.save()
 
+    print('training second-level dataset subtype corpus...')
+    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    # aggregate by class, we will have one training set per class
+    datatypes_y = {}
+    datatypes_xtr = {}
+    datatypes_list_subclasses = {}
+    for i in range(0,len(xtr)):
+        datatype = y1[i]
+        datasubtype = y2[i]
+        if datatype in datatypes_y:
+            datatypes_y[datatype].append(datasubtype)
+            datatypes_xtr[datatype].append(xtr[i])
+            if not y2[i] in datatypes_list_subclasses[datatype]:
+                datatypes_list_subclasses[datatype].append(y2[i])
+        else:
+            datatypes_y[datatype] = []
+            datatypes_y[datatype].append(datasubtype)
+            datatypes_xtr[datatype] = []
+            datatypes_xtr[datatype].append(xtr[i])
+            datatypes_list_subclasses[datatype] = []
+            datatypes_list_subclasses[datatype].append(y2[i])
+
+    for the_class in list_classes:
+        print('training', the_class)
+
+        model_name = 'dataseer-' + theclass
+        if use_ELMo:
+            model_name += '-with_ELMo'
+        elif use_BERT:
+            model_name += '-with_BERT'
+
+        model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
+            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, 
+            use_BERT=use_BERT, batch_size=batch_size, class_weights=class_weights)
+
+        if fold_count == 1:
+            model.train(datatypes_xtr[the_class], datatypes_y[the_class])
+        else:
+            model.train_nfold(datatypes_xtr[the_class], datatypes_y[the_class])
+        # saving the model
+        model.save()
 
 def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru", cascaded=False): 
     if cascaded:
         return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
+    # classifier for deciding if we have a dataset or not in a sentence
+    #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+
+    # classifier for first level data type hierarchy
+    #train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+
+    # classifier for second level data type hierarchy (subtypes)
+    train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+
+def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+    print('loading dataset type corpus...')
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
+
+    # distinct values of classes
+    print(list_classes)
+    print(len(list_classes), "classes")
+
+    print(len(xtr), "texts")
+    print(len(y), "classes")
+
+    class_weights = None
+    batch_size = 256
+    maxlen = 300
+    if use_ELMo:
+        batch_size = 20
+    elif use_BERT:
+        batch_size = 50
+
+    # default bert model parameters
+    if architecture.find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+
+    model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        class_weights=class_weights)
+
+    # segment train and eval sets
+    x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
+
+    print(len(x_train), "train texts")
+    print(len(y_train), "train classes")
+
+    print(len(x_test), "eval texts")
+    print(len(y_test), "eval classes")
+
+    if fold_count == 1:
+        model.train(x_train, y_train)
+    else:
+        model.train_nfold(x_train, y_train)
+    model.eval(x_test, y_test)
+
+    # saving the model
+    model.save()
+    
+def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
-    #xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
     # distinct values of classes
     print(list_classes)
@@ -118,7 +214,100 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
     # saving the model
     model.save()
 
+def train_and_eval_secondary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+    print('training second-level dataset subtype corpus...')
+    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    # aggregate by class, we will have one training set per class
 
+    print(list_classes)
+    print(list_subclasses)
+    print(len(list_classes), "classes")
+    print(len(list_subclasses), "sub-classes")
+
+    class_weights = None
+    batch_size = 256
+    maxlen = 300
+    if use_ELMo:
+        batch_size = 20
+    elif use_BERT:
+        batch_size = 50
+
+    # default bert model parameters
+    if architecture.find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+
+    datatypes_y = {}
+    datatypes_xtr = {}
+    datatypes_list_subclasses = {}
+    for i in range(0,len(xtr)):
+        #print(np.where(y2[i] == 1))
+        ind1= np.where(y1[i] == 1)[0][0]
+        ind2 = np.where(y2[i] == 1)[0][0]
+        #print(ind2)
+        datatype = list_classes[ind1]
+        datasubtype = list_subclasses[ind2]
+        #print(str(xtr[i]), datatype, datasubtype)
+        if datatype in datatypes_y:
+            datatypes_y[datatype].append(datasubtype)
+            datatypes_xtr[datatype].append(xtr[i])
+            if not datasubtype in datatypes_list_subclasses[datatype]:
+                datatypes_list_subclasses[datatype].append(datasubtype)
+        else:
+            datatypes_y[datatype] = []
+            datatypes_y[datatype].append(datasubtype)
+            datatypes_xtr[datatype] = []
+            datatypes_xtr[datatype].append(xtr[i])
+            datatypes_list_subclasses[datatype] = []
+            datatypes_list_subclasses[datatype].append(datasubtype)
+
+    print(datatypes_list_subclasses)
+
+    for the_class in list_classes:
+        print('\ntraining', the_class)
+        if not the_class in datatypes_list_subclasses:
+            print('no subclass for', the_class)
+            continue
+
+        if len(datatypes_list_subclasses[the_class]) <= 1:
+            print('only one subclass for', the_class)
+            continue
+
+        if len(datatypes_list_subclasses[the_class]) == 2 and 'nan' in datatypes_list_subclasses[the_class]:
+            continue     
+
+        if the_class == 'Protein Data':
+            continue
+
+        print('subtypes to be classified:', datatypes_list_subclasses[the_class])
+
+        model_name = 'dataseer-' + the_class
+        if use_ELMo:
+            model_name += '-with_ELMo'
+        elif use_BERT:
+            model_name += '-with_BERT'
+
+        model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
+            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, 
+            use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen, class_weights=class_weights)
+
+        # we need to vectorize the y according to the actual list of classes
+        local_y = []
+        for the_y in datatypes_y[the_class]:
+            the_ind = datatypes_list_subclasses[the_class].index(the_y)
+            local_y.append(vectorizer(the_ind, len(datatypes_list_subclasses[the_class])))
+
+        # segment train and eval sets
+        x_train, y_train, x_test, y_test = split_data_and_labels(np.asarray(datatypes_xtr[the_class]), np.asarray(local_y), 0.9)
+
+        if fold_count == 1:
+            model.train(x_train, y_train)
+        else:
+            model.train_nfold(x_train, y_train)
+        model.eval(x_test, y_test)
+        # saving the model
+        #model.save()
+    
 def classify(texts, output_format, architecture="gru", cascaded=False):
     '''
         Classify a list of texts with an existing model
@@ -209,10 +398,6 @@ def train_eval_cascaded(embeddings_name, fold_count, use_ELMo=False, use_BERT=Fa
         return result
     result_binary = np.array([vectorize(xi, len(list_classes)) for xi in result_intermediate])
 
-
-    
-
-
 def filter_exclude_class(xtr, y_classes, the_class):
     # apply the filter
     new_xtr = []
@@ -223,7 +408,6 @@ def filter_exclude_class(xtr, y_classes, the_class):
             new_classes.append(y_classes[i])
 
     return np.array(new_xtr), np.array(new_classes)
-
 
 def build_prior_class_distribution():
     """

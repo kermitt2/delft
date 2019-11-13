@@ -265,9 +265,8 @@ def train_eval(embedding_name,
                             use_ELMo=use_ELMo,
                             use_BERT=use_BERT)
 
-    elif (lang == 'fr'):
+    elif (lang == 'fr') and (dataset_type == 'ftb' or dataset_type is None):
         print('Loading data...')
-        dataset_type = 'lemonde'
         x_all, y_all = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml')
         x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
         x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
@@ -294,6 +293,52 @@ def train_eval(embedding_name,
                         batch_size=batch_size,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
+    elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
+        print('Loading data...')
+        x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_train.conll')
+        x_valid, y_valid = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_dev.conll')
+        x_eval, y_eval = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_test.conll')
+        stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
+
+        model_name = 'ner-fr-lemonde-force-split'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+            # custom batch size for French ELMo
+            batch_size = 20
+        elif use_BERT:
+            # need to find a French BERT :/
+            model_name += '-with_BERT'
+        model_name += '-' + architecture
+
+        if not train_with_validation_set: 
+            # restrict training on train set, use validation set for early stop, as in most papers
+            model = Sequence(model_name, 
+                            max_epoch=60, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=True, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            use_ELMo=use_ELMo,
+                            use_BERT=use_BERT)
+        else:
+            # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
+            # as (Chui & Nochols, 2016) and (Peters and al., 2017)
+            # this leads obviously to much higher results (~ +0.5 f1 score with CoNLL-2003)
+            model = Sequence(model_name, 
+                            max_epoch=max_epoch, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=False, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            use_ELMo=use_ELMo,
+                            use_BERT=use_BERT)
+
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
