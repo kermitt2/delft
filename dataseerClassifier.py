@@ -92,7 +92,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     for the_class in list_classes:
         print('training', the_class)
 
-        model_name = 'dataseer-' + theclass
+        model_name = 'dataseer-' + the_class
         if use_ELMo:
             model_name += '-with_ELMo'
         elif use_BERT:
