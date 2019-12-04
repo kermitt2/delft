@@ -12,7 +12,8 @@ class ModelConfig(object):
                  char_emb_size=25, 
                  char_lstm_units=25,
                  max_char_length=30,
-                 word_lstm_units=100, 
+                 word_lstm_units=100,
+                 features_vector_size=12,
                  max_sequence_length=None,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
@@ -33,6 +34,7 @@ class ModelConfig(object):
         self.char_embedding_size = char_emb_size
         self.num_char_lstm_units = char_lstm_units
         self.max_char_length = max_char_length
+        self.features_vector_size = features_vector_size
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size

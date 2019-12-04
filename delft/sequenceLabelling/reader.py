@@ -317,6 +317,7 @@ def load_data_and_labels_crf_file(filepath):
                 tokens.append(token)
                 tags.append(_translate_tags_grobid_to_IOB(tag))
                 features.append(localFeatures)
+
     return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
 
 

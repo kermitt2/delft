@@ -1,15 +1,8 @@
 import json
-import numpy as np
 
-from delft.sequenceLabelling.preprocess import prepare_preprocessor
-from delft.utilities.Embeddings import Embeddings
-import delft.sequenceLabelling
 from delft.sequenceLabelling import Sequence
-from delft.utilities.Tokenizer import tokenizeAndFilter
 from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.sequenceLabelling.reader import load_data_and_labels_crf_string
-from delft.sequenceLabelling.reader import load_data_crf_string
 import keras.backend as K
 import argparse
 import time
@@ -18,13 +11,15 @@ models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 
 
 
 # train a GROBID model with all available data 
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+        x_all, y_all, f_all = load_data_and_labels_crf_file(
+            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
-    x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
+
+    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
@@ -32,20 +27,20 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     if output_path:
         model_name = model
     else:
-        model_name = 'grobid-'+model
+        model_name = 'grobid-' + model
 
     if use_ELMo:
         model_name += '-with_ELMo'
 
-    model = Sequence(model_name, 
-                    max_epoch=100, 
-                    recurrent_dropout=0.50,
-                    embeddings_name=embeddings_name, 
-                    model_type=architecture,
-                    use_ELMo=use_ELMo)
+    model = Sequence(model_name,
+                     max_epoch=100,
+                     recurrent_dropout=0.50,
+                     embeddings_name=embeddings_name,
+                     model_type=architecture,
+                     use_ELMo=use_ELMo)
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid, y_valid)
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -55,11 +50,14 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model.save()
 
-# split data, train a GROBID model and evaluate it 
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1): 
+
+# split data, train a GROBID model and evaluate it
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
+               fold_count=1):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
+        x_all, y_all, f_all = load_data_and_labels_crf_file(
+            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -73,7 +71,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     if output_path:
         model_name = model
     else:
-        model_name = 'grobid-'+model
+        model_name = 'grobid-' + model
 
     batch_size = 20
     max_sequence_length = 3000
@@ -82,21 +80,21 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         # class are more unbalanced, so we need to extend the batch size  
         batch_size = 50
         max_sequence_length = 1500
-    
+
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 5
 
-    model = Sequence(model_name, 
-                    max_epoch=100, 
-                    recurrent_dropout=0.50,
-                    embeddings_name=embeddings_name, 
-                    model_type=architecture,
-                    use_ELMo=use_ELMo,
-                    max_sequence_length=max_sequence_length,
-                    batch_size=batch_size,
-                    fold_number=fold_count)
+    model = Sequence(model_name,
+                     max_epoch=100,
+                     recurrent_dropout=0.50,
+                     embeddings_name=embeddings_name,
+                     model_type=architecture,
+                     use_ELMo=use_ELMo,
+                     max_sequence_length=max_sequence_length,
+                     batch_size=batch_size,
+                     fold_number=fold_count)
 
     start_time = time.time()
 
@@ -171,7 +169,7 @@ def annotate_text(texts, model, output_format, use_ELMo=False):
     annotations = []
 
     # load model
-    model_name = 'grobid-'+model
+    model_name = 'grobid-' + model
     if use_ELMo:
         model_name += '-with_ELMo'
     model = Sequence(model_name)
@@ -188,9 +186,10 @@ def annotate_text(texts, model, output_format, use_ELMo=False):
         print("runtime: %s seconds " % (runtime))
     return annotations
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description = "Trainer for GROBID models")
+        description="Trainer for GROBID models")
 
     actions = ['train', 'tag', 'train_eval', 'eval']
     architectures = ['BidLSTM_CRF', 'BidLSTM_CNN', 'BidLSTM_CNN_CRF', 'BidGRU-CRF']
@@ -212,11 +211,11 @@ if __name__ == "__main__":
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--output", help="directory where to save a trained model")
     parser.add_argument("--input", help="provided training file")
-    
+
     args = parser.parse_args()
 
-    model = args.model    
-    #if not model in models:
+    model = args.model
+    # if not model in models:
     #    print('invalid model, should be one of', models)
 
     action = args.action
@@ -233,7 +232,8 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
 
     if action == 'train':
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path,
+              output_path=output)
 
     if action == 'eval':
         eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
@@ -241,7 +241,8 @@ if __name__ == "__main__":
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path,
+                   output_path=output, fold_count=args.fold_count)
 
     if action == 'tag':
         someTexts = []
@@ -251,8 +252,10 @@ if __name__ == "__main__":
             someTexts.append("March the 27th, 2001")
             someTexts.append('2018')
         elif model == 'citation':
-            someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
-            someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
+            someTexts.append(
+                "N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
+            someTexts.append(
+                "T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
         elif model == 'name-citation':
             someTexts.append("L. Romary and L. Foppiano")
             someTexts.append("Maniscalco, S., Francica, F., Zaffino, R.L.")
@@ -260,8 +263,10 @@ if __name__ == "__main__":
             someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
         elif model == 'software':
-            someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
-            someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
+            someTexts.append(
+                "Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
+            someTexts.append(
+                "The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

@@ -43,40 +43,42 @@ class Trainer(object):
         self.preprocessor = preprocessor
 
     """ train the instance self.model """
-    def train(self, x_train, y_train, x_valid, y_valid):
+    def train(self, x_train, y_train, f_train, x_valid, y_valid, f_valid):
         self.model.summary()
         #print("self.model_config.use_crf:", self.model_config.use_crf)
+        run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
 
         if self.model_config.use_crf:
             self.model.compile(loss=self.model.crf.loss,
-                           optimizer='adam')
+                           optimizer='adam', options=run_opts)
         else:
             self.model.compile(loss='categorical_crossentropy',
-                           optimizer='adam')
+                                optimizer='adam',
+                                options=run_opts)
                            #optimizer=Adam(lr=self.training_config.learning_rate))
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-        self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
+        self.model = self.train_model(self.model, x_train, y_train, f_train, x_valid, y_valid, f_valid,
                                                   self.training_config.max_epoch)
 
     """ parameter model local_model must be compiled before calling this method 
         this model will be returned with trained weights """
-    def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50):
-        # todo: if valid set if None, create it as random segment of the shuffled train set 
+    def train_model(self, local_model, x_train, y_train, f_train, x_valid=None, y_valid=None, f_valid=None, max_epoch=50):
+        # todo: if valid set if None, create it as random segment of the shuffled train set
 
         if self.training_config.early_stop:
             training_generator = DataGenerator(x_train, y_train, 
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True)
+                embeddings=self.embeddings, shuffle=True, features=f_train)
 
             validation_generator = DataGenerator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False)
+                embeddings=self.embeddings, shuffle=False, features=f_valid)
 
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
@@ -85,11 +87,12 @@ class Trainer(object):
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
-            training_generator = DataGenerator(x_train, y_train, 
+            f_train = np.concatenate((f_train, f_valid), axis=0)
+            training_generator = DataGenerator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True)
+                embeddings=self.embeddings, shuffle=True, features=f_train)
 
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
@@ -116,6 +119,7 @@ class Trainer(object):
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
+        run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
 
         for fold_id in range(0, fold_count):
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -145,10 +149,10 @@ class Trainer(object):
             foldModel.summary()
             if self.model_config.use_crf:
                 foldModel.compile(loss=foldModel.crf.loss,
-                               optimizer='adam')
+                               optimizer='adam', options=run_opts)
             else:
                 foldModel.compile(loss='categorical_crossentropy',
-                               optimizer='adam')
+                               optimizer='adam', options=run_opts)
 
             foldModel = self.train_model(foldModel, 
                                     train_x, 

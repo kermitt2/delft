@@ -1,12 +1,14 @@
 import itertools
 import re
 import numpy as np
+
 np.random.seed(7)
-#from tensorflow import set_random_seed
-#set_random_seed(7)
+# from tensorflow import set_random_seed
+# set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
 import tensorflow as tf
+
 tf.set_random_seed(7)
 
 # this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
@@ -14,7 +16,16 @@ tf.set_random_seed(7)
 UNK = '<UNK>'
 PAD = '<PAD>'
 
-case_index = {'<PAD>': 0, 'numeric': 1, 'allLower':2, 'allUpper':3, 'initialUpper':4, 'other':5, 'mainly_numeric':6, 'contains_digit': 7}
+case_index = {
+    '<PAD>': 0,
+    'numeric': 1,
+    'allLower': 2,
+    'allUpper': 3,
+    'initialUpper': 4,
+    'other': 5,
+    'mainly_numeric': 6,
+    'contains_digit': 7
+}
 
 
 class WordPreprocessor(BaseEstimator, TransformerMixin):
@@ -22,9 +33,9 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self,
                  use_char_feature=True,
                  padding=True,
-                 return_lengths=True, 
-                 return_casing=False, 
-                 return_features=False, 
+                 return_lengths=True,
+                 return_casing=False,
+                 return_features=False,
                  max_char_length=30
                  ):
 
@@ -34,15 +45,15 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         self.return_casing = return_casing
         self.return_features = return_features
         self.vocab_char = None
-        self.vocab_tag  = None
+        self.vocab_tag = None
         self.vocab_case = [k for k, v in case_index.items()]
         self.max_char_length = max_char_length
 
     def fit(self, X, y):
         chars = {PAD: 0, UNK: 1}
-        tags  = {PAD: 0}
+        tags = {PAD: 0}
 
-        for w in set(itertools.chain(*X)): 
+        for w in set(itertools.chain(*X)):
             if not self.use_char_feature:
                 continue
             for c in w:
@@ -54,7 +65,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
                 tags[t] = len(tags)
 
         self.vocab_char = chars
-        self.vocab_tag  = tags
+        self.vocab_tag = tags
 
         return self
 
@@ -95,6 +106,14 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             sents = [chars]
 
         # optional additional information
+        # features
+        if self.return_features:
+            features, _ = pad_sequences(features, 0)
+            features = np.asarray(features)
+            self.features = dense_to_one_hot(features, 12, nlevels=2)
+
+        # batch_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
+
         # lengths
         if self.return_lengths:
             lengths = np.asarray(lengths, dtype=np.int32)
@@ -188,6 +207,11 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
 def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
     """
     Convert class labels from scalars to one-hot vectors
+
+    Args:
+        labels_dense: a dense set of values
+        num_classes: the number of classes in output
+        nlevels: the number of levels (??)
     """
     if nlevels == 1:
         num_labels = labels_dense.shape[0]
@@ -235,7 +259,7 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
             word = _lower(word)
         if num_norm:
             word = _normalize_num(word)
-        x[i,:] = embeddings.get_word_vector(word).astype('float32')
+        x[i, :] = embeddings.get_word_vector(word).astype('float32')
 
     return x
 
@@ -336,36 +360,34 @@ def to_casing_single(tokens, maxlen=300):
     return x
 
 
-def _casing(word):   
-        casing = 'other'
+def _casing(word):
+    casing = 'other'
 
-        numDigits = 0
-        for char in word:
-            if char.isdigit():
-                numDigits += 1
-        digitFraction = numDigits / float(len(word))
+    numDigits = 0
+    for char in word:
+        if char.isdigit():
+            numDigits += 1
+    digitFraction = numDigits / float(len(word))
 
-        if word.isdigit():
-            casing = 'numeric'
-        elif digitFraction > 0.5:
-            casing = 'mainly_numeric'
-        elif word.islower(): 
-            casing = 'allLower'
-        elif word.isupper(): 
-            casing = 'allUpper'
-        elif word[0].isupper(): 
-            casing = 'initialUpper'
-        elif numDigits > 0:
-            casing = 'contains_digit'
+    if word.isdigit():
+        casing = 'numeric'
+    elif digitFraction > 0.5:
+        casing = 'mainly_numeric'
+    elif word.islower():
+        casing = 'allLower'
+    elif word.isupper():
+        casing = 'allUpper'
+    elif word[0].isupper():
+        casing = 'initialUpper'
+    elif numDigits > 0:
+        casing = 'contains_digit'
 
-        return case_index[casing]
+    return case_index[casing]
 
 
 def _lower(word):
-    return word.lower() 
+    return word.lower()
 
 
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
-
-
