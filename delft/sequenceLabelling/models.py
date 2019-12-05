@@ -98,10 +98,15 @@ class BidLSTM_CRF(BaseModel):
             char_embeddings)
 
         # build features vector
-        features_input = Input(shape=(None, config.features_vector_size), dtype='int32', name='features_input')
+        features_input = Input(shape=(None, config.features_vector_size), dtype='float32', name='features_input')
 
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        print(
+            'word_input=%s, charts=%s, features=%s',
+            word_input, chars, features_input
+        )
 
         # combine characters, word embeddings and features
         x = Concatenate()([word_input, chars])
@@ -115,8 +120,9 @@ class BidLSTM_CRF(BaseModel):
         x = Dense(ntags)(x)
         self.crf = ChainCRF()
         pred = self.crf(x)
+        inputs = [word_input, char_input, features_input, length_input]
 
-        self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
+        self.model = Model(inputs=inputs, outputs=[pred])
         self.config = config
 
 

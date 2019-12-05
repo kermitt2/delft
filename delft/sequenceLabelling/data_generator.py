@@ -2,7 +2,8 @@ import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import keras
-from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo, to_vector_bert, to_vector_simple_with_bert
+from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, \
+    to_vector_simple_with_elmo, to_vector_bert, to_vector_simple_with_bert, pad_sequences, dense_to_one_hot
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
@@ -122,15 +123,19 @@ class DataGenerator(keras.utils.Sequence):
             if self.preprocessor.return_casing:
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
 
-            # store tag embeddings
-            if self.y is not None:
-                batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
+        # store tag embeddings
+        if self.y is not None:
+            batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
-            if self.features is not None:
-                batch_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
+        if self.features is not None:
+            batch_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
+
+            batch_f, _ = pad_sequences(batch_f, 0)
+            batch_f = np.asarray(batch_f)
+            batch_f = dense_to_one_hot(batch_f, 12, nlevels=2)
 
         if self.y is not None:
-            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
+            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, batch_f, extend=extend)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 

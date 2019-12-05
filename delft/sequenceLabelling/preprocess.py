@@ -69,7 +69,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None, extend=False):
+    def transform(self, X, y=None, features=None, extend=False):
         """
         transforms input into sequence
         the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch 
@@ -107,12 +107,12 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
 
         # optional additional information
         # features
-        if self.return_features:
-            features, _ = pad_sequences(features, 0)
-            features = np.asarray(features)
-            self.features = dense_to_one_hot(features, 12, nlevels=2)
-
-        # batch_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
+        # if self.return_features:
+        #     features, _ = pad_sequences(features, 0)
+        #     features = np.asarray(features)
+        #     note: remove hardcoded value
+            # features = dense_to_one_hot(features, 12, nlevels=2)
+            # sents.append(features)
 
         # lengths
         if self.return_lengths:

@@ -107,7 +107,7 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep)
 
-    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None):
+    def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None):
         #####
         # We can ignore first and last column
         # frequencies = find_values_frequency(f_train[1:-1])

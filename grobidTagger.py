@@ -73,7 +73,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     else:
         model_name = 'grobid-' + model
 
-    batch_size = 20
+    batch_size = 1
     max_sequence_length = 3000
 
     if model == "software":

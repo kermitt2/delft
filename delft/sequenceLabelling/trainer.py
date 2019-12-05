@@ -87,12 +87,14 @@ class Trainer(object):
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
-            f_train = np.concatenate((f_train, f_valid), axis=0)
+            feature_all  = None
+            if f_train is not None:
+                feature_all = np.concatenate((f_train, f_valid), axis=0)
             training_generator = DataGenerator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=f_train)
+                embeddings=self.embeddings, shuffle=True, features=feature_all)
 
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
