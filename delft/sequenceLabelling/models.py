@@ -103,11 +103,6 @@ class BidLSTM_CRF(BaseModel):
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
-        print(
-            'word_input=%s, charts=%s, features=%s',
-            word_input, chars, features_input
-        )
-
         # combine characters, word embeddings and features
         x = Concatenate()([word_input, chars])
         x = Dropout(config.dropout)(x)

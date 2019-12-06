@@ -135,7 +135,7 @@ class DataGenerator(keras.utils.Sequence):
             batch_f = dense_to_one_hot(batch_f, 12, nlevels=2)
 
         if self.y is not None:
-            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, batch_f, extend=extend)
+            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 

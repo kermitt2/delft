@@ -46,15 +46,13 @@ class Trainer(object):
     def train(self, x_train, y_train, f_train, x_valid, y_valid, f_valid):
         self.model.summary()
         #print("self.model_config.use_crf:", self.model_config.use_crf)
-        run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
 
         if self.model_config.use_crf:
             self.model.compile(loss=self.model.crf.loss,
-                           optimizer='adam', options=run_opts)
+                           optimizer='adam')
         else:
             self.model.compile(loss='categorical_crossentropy',
-                                optimizer='adam',
-                                options=run_opts)
+                                optimizer='adam')
                            #optimizer=Adam(lr=self.training_config.learning_rate))
         # uncomment to plot graph
         #plot_model(self.model, 
@@ -87,9 +85,10 @@ class Trainer(object):
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
-            feature_all  = None
+            feature_all = None
             if f_train is not None:
                 feature_all = np.concatenate((f_train, f_valid), axis=0)
+
             training_generator = DataGenerator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
@@ -121,7 +120,6 @@ class Trainer(object):
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
-        run_opts = tf.RunOptions(report_tensor_allocations_upon_oom=True)
 
         for fold_id in range(0, fold_count):
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -151,10 +149,10 @@ class Trainer(object):
             foldModel.summary()
             if self.model_config.use_crf:
                 foldModel.compile(loss=foldModel.crf.loss,
-                               optimizer='adam', options=run_opts)
+                               optimizer='adam')
             else:
                 foldModel.compile(loss='categorical_crossentropy',
-                               optimizer='adam', options=run_opts)
+                               optimizer='adam')
 
             foldModel = self.train_model(foldModel, 
                                     train_x, 

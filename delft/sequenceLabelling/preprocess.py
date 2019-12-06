@@ -69,7 +69,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None, features=None, extend=False):
+    def transform(self, X, y=None, extend=False):
         """
         transforms input into sequence
         the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch 
