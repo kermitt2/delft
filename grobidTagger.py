@@ -1,22 +1,20 @@
-import json
-import numpy as np
-from delft.utilities.Embeddings import Embeddings
-import delft.sequenceLabelling
-from delft.sequenceLabelling import Sequence
-from delft.utilities.Tokenizer import tokenizeAndFilter
-from sklearn.model_selection import train_test_split
-from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.sequenceLabelling.reader import load_data_and_labels_crf_string
-from delft.sequenceLabelling.reader import load_data_crf_string
-import keras.backend as K
+# -*- coding: utf-8 -*-
+
 import argparse
+import json
 import time
 
-models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
+import keras.backend as K
+from sklearn.model_selection import train_test_split
 
+from delft.sequenceLabelling import Sequence
+from delft.sequenceLabelling.models import *
+from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 
-# train a GROBID model with all available data 
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None): 
+MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
+
+# train a GROBID model with all available data
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -35,10 +33,10 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     if use_ELMo:
         model_name += '-with_ELMo'
 
-    model = Sequence(model_name, 
-                    max_epoch=100, 
+    model = Sequence(model_name,
+                    max_epoch=100,
                     recurrent_dropout=0.50,
-                    embeddings_name=embeddings_name, 
+                    embeddings_name=embeddings_name,
                     model_type=architecture,
                     use_ELMo=use_ELMo)
 
@@ -53,8 +51,8 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model.save()
 
-# split data, train a GROBID model and evaluate it 
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1): 
+# split data, train a GROBID model and evaluate it
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -80,16 +78,16 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         # class are more unbalanced, so we need to extend the batch size  
         batch_size = 50
         max_sequence_length = 1500
-    
+
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 5
 
-    model = Sequence(model_name, 
-                    max_epoch=100, 
+    model = Sequence(model_name,
+                    max_epoch=100,
                     recurrent_dropout=0.50,
-                    embeddings_name=embeddings_name, 
+                    embeddings_name=embeddings_name,
                     model_type=architecture,
                     use_ELMo=use_ELMo,
                     max_sequence_length=max_sequence_length,
@@ -117,6 +115,39 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model.save()
 
 
+# split data, train a GROBID model and evaluate it
+def eval_(model, use_ELMo=False, input_path=None, output_path=None):
+    print('Loading data...')
+    if input_path is None:
+        x_all, y_all, f_all = load_data_and_labels_crf_file(
+            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
+    else:
+        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+
+    print(len(x_all), 'evaluation sequences')
+
+    if output_path:
+        model_name = model
+    else:
+        model_name = 'grobid-' + model
+
+    if use_ELMo:
+        model_name += '-with_ELMo'
+
+    start_time = time.time()
+
+    # load the model
+    model = Sequence(model_name)
+    model.load()
+
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_all, y_all)
+
+    runtime = round(time.time() - start_time, 3)
+    print("Evaluation runtime: %s seconds " % (runtime))
+
+
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
 def annotate_text(texts, model, output_format, use_ELMo=False):
@@ -140,18 +171,24 @@ def annotate_text(texts, model, output_format, use_ELMo=False):
         print("runtime: %s seconds " % (runtime))
     return annotations
 
+class Tasks:
+    TRAIN = 'train'
+    TRAIN_EVAL = 'train_eval'
+    EVAL = 'eval'
+    TAG = 'tag'
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description = "Trainer for GROBID models")
 
-    actions = ['train', 'tag', 'train_eval', 'eval']
-    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN', 'BidLSTM_CNN_CRF', 'BidGRU-CRF']
+    actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
+    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name]
 
-    parser.add_argument("model")
-    parser.add_argument("action")
-    parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture", default='BidLSTM_CRF',
-                        help="type of model architecture to be used, one of " + str(architectures))
+    parser.add_argument("model", help="Name of the model.")
+    parser.add_argument("action", choices=actions)
+    parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation.")
+    parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
+                        help="Type of model architecture to be used.")
     parser.add_argument(
         "--embedding", default='glove-840B',
         help=(
@@ -161,38 +198,39 @@ if __name__ == "__main__":
             " and that the path in the registry to the embedding file is correct on your system."
         )
     )
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
-    parser.add_argument("--output", help="directory where to save a trained model")
-    parser.add_argument("--input", help="provided training file")
-    
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
+    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--input", help="Provided training file.")
+
     args = parser.parse_args()
 
-    model = args.model    
+    model = args.model
     #if not model in models:
     #    print('invalid model, should be one of', models)
 
     action = args.action
-    if action not in actions:
-        print('action not specified, must be one of ' + str(actions))
 
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if architecture not in architectures:
-        print('unknown model architecture, must be one of ' + str(architectures))
 
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
 
-    if action == 'train':
+    if action == Tasks.TRAIN:
         train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
-    if action == 'train_eval':
+    if action == Tasks.EVAL:
+        if args.fold_count is not None:
+            print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use it in combination with " + str(Tasks.TRAIN_EVAL))
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+
+    if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
         train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count)
 
-    if action == 'tag':
+    if action == Tasks.TAG:
         someTexts = []
 
         if model == 'date':
