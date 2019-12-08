@@ -121,9 +121,9 @@ class DataGenerator(keras.utils.Sequence):
             if self.preprocessor.return_casing:
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
 
-            # store tag embeddings
-            if self.y is not None:
-                batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
+        # store tag embeddings
+        if self.y is not None:
+            batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
