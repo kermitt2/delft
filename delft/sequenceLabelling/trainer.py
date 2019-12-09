@@ -116,7 +116,7 @@ class Trainer(object):
 
     """ n-fold training for the instance model 
         the n models are stored in self.models, and self.model left unset at this stage """
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None):
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
@@ -134,16 +134,20 @@ class Trainer(object):
 
                 train_x = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
                 train_y = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
+                train_f = np.concatenate([f_train[:fold_start], f_train[fold_end:]])
 
                 val_x = x_train[fold_start:fold_end]
                 val_y = y_train[fold_start:fold_end]
+                val_f = f_train[fold_start:fold_end]
             else:
                 # reuse given segmentation
                 train_x = x_train
                 train_y = y_train
+                train_f = f_train
 
                 val_x = x_valid
                 val_y = y_valid
+                val_f = f_valid
 
             foldModel = self.models[fold_id]
             foldModel.summary()
@@ -155,11 +159,13 @@ class Trainer(object):
                                optimizer='adam')
 
             foldModel = self.train_model(foldModel, 
-                                    train_x, 
-                                    train_y, 
-                                    val_x, 
-                                    val_y,
-                                    max_epoch=self.training_config.max_epoch)
+                                        train_x,
+                                        train_y,
+                                        val_x,
+                                        val_y,
+                                        f_train= train_f,
+                                        f_valid=val_f,
+                                        max_epoch=self.training_config.max_epoch)
             self.models[fold_id] = foldModel
 
 

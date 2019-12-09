@@ -127,12 +127,13 @@ class DataGenerator(keras.utils.Sequence):
         if self.y is not None:
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
+        batch_f = np.zeros((max_iter, 12), dtype='int32')
         if self.features is not None:
             batch_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
 
             batch_f, _ = pad_sequences(batch_f, 0)
             batch_f = np.asarray(batch_f)
-            batch_f = dense_to_one_hot(batch_f, 12, nlevels=2)
+        batch_f = dense_to_one_hot(batch_f, 12, nlevels=2)
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)

@@ -107,12 +107,15 @@ class Sequence(object):
                                               max_checkpoints_to_keep)
 
     def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None):
-        #####
+
+        ##### Squeezing features
         # We can ignore first and last column
         # frequencies = find_values_frequency(f_train[1:-1])
-
-        f_train_new = self.squeeze_features_vector(f_train)
-        f_valid_new = self.squeeze_features_vector(f_valid)
+        f_train_new= None
+        f_valid_new=None
+        if f_train is not None:
+            f_train_new = self.squeeze_features_vector(f_train)
+            f_valid_new = self.squeeze_features_vector(f_valid)
 
         #####
 
@@ -179,7 +182,13 @@ class Sequence(object):
                                                 index, index_column in enumerate(index_list)])
         return feature_vector_squeezed
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10):
+        f_train_new = None
+        f_valid_new = None
+        if f_train is not None:
+            f_train_new = self.squeeze_features_vector(f_train)
+            f_valid_new = self.squeeze_features_vector(f_valid)
+
         if x_valid is not None and y_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
             y_all = np.concatenate((y_train, y_valid), axis=0)
@@ -205,7 +214,7 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train_nfold(x_train, y_train, x_valid, y_valid)
+        trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train_new, f_valid=f_valid_new)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
