@@ -107,10 +107,10 @@ class DataGenerator(keras.utils.Sequence):
 
         if self.embeddings.use_ELMo:     
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
-            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
+            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
         elif self.embeddings.use_BERT:     
             #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
-            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x)
+            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
             
         # generate data
         for i in range(0, max_iter):
