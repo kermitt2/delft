@@ -1,21 +1,23 @@
+# -*- coding: utf-8 -*-
+
+import argparse
 import json
 
-from delft.sequenceLabelling import Sequence
-from sklearn.model_selection import train_test_split
-from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-import keras.backend as K
-import argparse
 import time
 
-models = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
+from sklearn.model_selection import train_test_split
+from delft.sequenceLabelling import Sequence
+from delft.sequenceLabelling.models import *
+from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+import keras.backend as K
 
+MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
-# train a GROBID model with all available data 
+# train a GROBID model with all available data
 def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(
-            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
+        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -27,17 +29,17 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     if output_path:
         model_name = model
     else:
-        model_name = 'grobid-' + model
+        model_name = 'grobid-'+model
 
     if use_ELMo:
         model_name += '-with_ELMo'
 
     model = Sequence(model_name,
-                     max_epoch=100,
-                     recurrent_dropout=0.50,
-                     embeddings_name=embeddings_name,
-                     model_type=architecture,
-                     use_ELMo=use_ELMo)
+                    max_epoch=100,
+                    recurrent_dropout=0.50,
+                    embeddings_name=embeddings_name,
+                    model_type=architecture,
+                    use_ELMo=use_ELMo)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -50,14 +52,11 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model.save()
 
-
 # split data, train a GROBID model and evaluate it
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
-               fold_count=1):
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(
-            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
+        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -71,9 +70,9 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     if output_path:
         model_name = model
     else:
-        model_name = 'grobid-' + model
+        model_name = 'grobid-'+model
 
-    batch_size = 1
+    batch_size = 20
     max_sequence_length = 3000
 
     if model == "software":
@@ -87,14 +86,14 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
             batch_size = 5
 
     model = Sequence(model_name,
-                     max_epoch=100,
-                     recurrent_dropout=0.50,
-                     embeddings_name=embeddings_name,
-                     model_type=architecture,
-                     use_ELMo=use_ELMo,
-                     max_sequence_length=max_sequence_length,
-                     batch_size=batch_size,
-                     fold_number=fold_count)
+                    max_epoch=100,
+                    recurrent_dropout=0.50,
+                    embeddings_name=embeddings_name,
+                    model_type=architecture,
+                    use_ELMo=use_ELMo,
+                    max_sequence_length=max_sequence_length,
+                    batch_size=batch_size,
+                    fold_number=fold_count)
 
     start_time = time.time()
 
@@ -128,48 +127,35 @@ def eval_(model, use_ELMo=False, input_path=None, output_path=None):
 
     print(len(x_all), 'evaluation sequences')
 
-    batch_size = 20
-    max_sequence_length = 3000
-
     if output_path:
         model_name = model
     else:
         model_name = 'grobid-' + model
 
-    if model == "software":
-        # class are more unbalanced, so we need to extend the batch size
-        batch_size = 50
-        max_sequence_length = 1500
-
     if use_ELMo:
         model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 3
 
     start_time = time.time()
 
     # load the model
     model = Sequence(model_name)
     model.load()
-    # model.p.fit(x_all, y_all)
-    # model.model_config.char_vocab_size = len(model.p.vocab_char)
-    # model.model_config.case_vocab_size = len(model.p.vocab_case)
 
     # evaluation
     print("\nEvaluation:")
     model.eval(x_all, y_all)
 
     runtime = round(time.time() - start_time, 3)
-    print("evaluation runtime: %s seconds " % (runtime))
+    print("Evaluation runtime: %s seconds " % (runtime))
 
 
-# annotate a list of texts, this is relevant only of models taking only text as input 
+# annotate a list of texts, this is relevant only of models taking only text as input
 # (so not text with layout information) 
 def annotate_text(texts, model, output_format, use_ELMo=False):
     annotations = []
 
     # load model
-    model_name = 'grobid-' + model
+    model_name = 'grobid-'+model
     if use_ELMo:
         model_name += '-with_ELMo'
     model = Sequence(model_name)
@@ -186,19 +172,24 @@ def annotate_text(texts, model, output_format, use_ELMo=False):
         print("runtime: %s seconds " % (runtime))
     return annotations
 
+class Tasks:
+    TRAIN = 'train'
+    TRAIN_EVAL = 'train_eval'
+    EVAL = 'eval'
+    TAG = 'tag'
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Trainer for GROBID models")
+        description = "Trainer for GROBID models")
 
-    actions = ['train', 'tag', 'train_eval', 'eval']
-    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN', 'BidLSTM_CNN_CRF', 'BidGRU-CRF']
+    actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
+    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name]
 
-    parser.add_argument("model")
-    parser.add_argument("action")
-    parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture", default='BidLSTM_CRF',
-                        help="type of model architecture to be used, one of " + str(architectures))
+    parser.add_argument("model", help="Name of the model.")
+    parser.add_argument("action", choices=actions)
+    parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation.")
+    parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
+                        help="Type of model architecture to be used.")
     parser.add_argument(
         "--embedding", default='glove-840B',
         help=(
@@ -208,43 +199,39 @@ if __name__ == "__main__":
             " and that the path in the registry to the embedding file is correct on your system."
         )
     )
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
-    parser.add_argument("--output", help="directory where to save a trained model")
-    parser.add_argument("--input", help="provided training file")
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
+    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--input", help="Provided training file.")
 
     args = parser.parse_args()
 
     model = args.model
-    # if not model in models:
+    #if not model in models:
     #    print('invalid model, should be one of', models)
 
     action = args.action
-    if action not in actions:
-        print('action not specified, must be one of ' + str(actions))
 
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-    if architecture not in architectures:
-        print('unknown model architecture, must be one of ' + str(architectures))
 
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
 
-    if action == 'train':
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path,
-              output_path=output)
+    if action == Tasks.TRAIN:
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
-    if action == 'eval':
+    if action == Tasks.EVAL:
+        if args.fold_count is not None:
+            print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use it in combination with " + str(Tasks.TRAIN_EVAL))
         eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
-    if action == 'train_eval':
+    if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path,
-                   output_path=output, fold_count=args.fold_count)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count)
 
-    if action == 'tag':
+    if action == Tasks.TAG:
         someTexts = []
 
         if model == 'date':
@@ -252,10 +239,8 @@ if __name__ == "__main__":
             someTexts.append("March the 27th, 2001")
             someTexts.append('2018')
         elif model == 'citation':
-            someTexts.append(
-                "N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
-            someTexts.append(
-                "T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
+            someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
+            someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
         elif model == 'name-citation':
             someTexts.append("L. Romary and L. Foppiano")
             someTexts.append("Maniscalco, S., Francica, F., Zaffino, R.L.")
@@ -263,10 +248,8 @@ if __name__ == "__main__":
             someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
         elif model == 'software':
-            someTexts.append(
-                "Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
-            someTexts.append(
-                "The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
+            someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
+            someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

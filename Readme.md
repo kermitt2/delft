@@ -678,6 +678,11 @@ Similarly to the NER models, for n-fold training (action `train_eval` only), spe
 
 (To be completed)
 
+The evaluation of a model can be performed calling 
+
+> python3 grobidTagger.py citation eval --input evaluation_data
+
+
 #### Insult recognition
 
 A small experimental model for recognising insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually.

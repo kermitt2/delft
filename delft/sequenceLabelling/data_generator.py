@@ -12,13 +12,13 @@ tf.set_random_seed(7)
 # generate batch of data to feed sequence labelling model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, x, y,
-                batch_size=24,
-                preprocessor=None,
-                char_embed_size=25,
-                embeddings=None,
+    def __init__(self, x, y, 
+                batch_size=24, 
+                preprocessor=None, 
+                char_embed_size=25, 
+                embeddings=None, 
                 max_sequence_length=None,
-                tokenize=False,
+                tokenize=False, 
                 shuffle=True,
                 features=None):
         'Initialization'
@@ -66,11 +66,11 @@ class DataGenerator(keras.utils.Sequence):
         if self.shuffle == True:
             if self.y is None:
                 np.random.shuffle(self.x)
-            else:
+            else:      
                 self.shuffle_pair(self.x,self.y)
 
     def __data_generation(self, index):
-        'Generates data containing batch_size samples'
+        'Generates data containing batch_size samples' 
         max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
 
         # restrict data to index window
@@ -96,7 +96,7 @@ class DataGenerator(keras.utils.Sequence):
         if max_length_x == 1:
             max_length_x += 1
             extend = True
-
+        
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
@@ -107,17 +107,17 @@ class DataGenerator(keras.utils.Sequence):
             # note: tags are always already "tokenized",
             batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
 
-        if self.embeddings.use_ELMo:
+        if self.embeddings.use_ELMo:     
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
-        elif self.embeddings.use_BERT:
+        elif self.embeddings.use_BERT:     
             #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x)
-
+            
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
-            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:
+            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:    
                 batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             if self.preprocessor.return_casing:
