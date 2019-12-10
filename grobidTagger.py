@@ -11,10 +11,12 @@ from delft.sequenceLabelling.models import *
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 import keras.backend as K
 
+from delft.utilities.misc import parse_number_ranges
+
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 # train a model with all available data
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, use_layout_features=False):
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, ignore_features=False):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -23,7 +25,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 
     f_train = None
     f_valid = None
-    if use_layout_features:
+    if not ignore_features:
         x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
     else:
         x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
@@ -58,7 +60,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         model.save()
 
 # split data, train a GROBID model and evaluate it
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1, use_layout_features=False):
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1, ignore_features=False):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -67,7 +69,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
     f_train = None
     f_valid = None
-    if use_layout_features:
+    if not ignore_features:
         x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1)
         x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
     else:
@@ -128,7 +130,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, output_path=None, use_layout_features=False):
+def eval_(model, use_ELMo=False, input_path=None, output_path=None, ignore_features=False):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file(
@@ -136,7 +138,7 @@ def eval_(model, use_ELMo=False, input_path=None, output_path=None, use_layout_f
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
-    f_all = None if not use_layout_features else f_all
+    f_all = None if ignore_features else f_all
 
     print(len(x_all), 'evaluation sequences')
 
@@ -216,7 +218,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Provided training file.")
-    parser.add_argument("--use-layout-features", default=False, action="store_true", help="Use layout features")
+    parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
 
     args = parser.parse_args()
 
@@ -232,21 +234,21 @@ if __name__ == "__main__":
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
-    use_layout_features = args.use_layout_features
+    ignore_features = args.ignore_features
 
     if action == Tasks.TRAIN:
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, use_layout_features=use_layout_features)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, ignore_features=ignore_features)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None:
             print("The argument fold-count argument will be ignored. For n-fold cross-validation, "
                   "please use it in combination with " + str(Tasks.TRAIN_EVAL))
-        eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output, use_layout_features=use_layout_features)
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output, ignore_features=ignore_features)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count, use_layout_features=use_layout_features)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count, ignore_features=ignore_features)
 
     if action == Tasks.TAG:
         someTexts = []
