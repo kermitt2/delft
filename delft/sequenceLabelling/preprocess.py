@@ -99,6 +99,8 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
 
         if y is not None:
             y = [[self.vocab_tag[t] for t in sent] for sent in y]
+            if extend:
+                y[0].append(self.vocab_tag[PAD])
 
         if self.padding:
             sents, y = self.pad_sequence(chars, y)
@@ -285,7 +287,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
     """
 
 
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -300,11 +302,13 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        if extend:
+            local_tokens.append(UNK)
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
 
-def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the BERT contextualized embeddings, introducing
@@ -318,6 +322,8 @@ def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        if extend:
+            local_tokens.append(UNK)
         subtokens.append(local_tokens)
     vector = embeddings.get_sentence_vector_only_BERT(subtokens)
     return vector
