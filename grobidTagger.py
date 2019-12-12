@@ -11,8 +11,6 @@ from delft.sequenceLabelling.models import *
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 import keras.backend as K
 
-from delft.utilities.misc import parse_number_ranges
-
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 # train a model with all available data
