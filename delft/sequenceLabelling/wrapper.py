@@ -107,8 +107,8 @@ class Sequence(object):
 
     def train(self, x_train, y_train, x_valid=None, y_valid=None):
         # TBD if valid is None, segment train to get one
-        x_all = np.concatenate((x_train, x_valid), axis=0)
-        y_all = np.concatenate((y_train, y_valid), axis=0)
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         self.p = prepare_preprocessor(x_all, y_all, self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
