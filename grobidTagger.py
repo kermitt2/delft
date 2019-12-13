@@ -180,7 +180,9 @@ class Tasks:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description = "Trainer for GROBID models")
+                description = "Trainer/Evaluation for GROBID models. Using 'eval', the model is tested against provided data (holdout scenario). "
+                      "The option 'train_eval uses the provided data randomly partitioned into training and evaluation, the optional parameter --fold-count apply n-fold cross-validation. "
+                      "For training the model use 'train'. --input is the whole data to be used, if not specified is behaving from train_eval. ")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
     architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name]
