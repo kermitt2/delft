@@ -69,7 +69,8 @@ class Sequence(object):
                  log_dir=None,
                  use_ELMo=False,
                  use_BERT=False,
-                 fold_number=1):
+                 fold_number=1,
+                 multiprocessing=True):
 
         self.model = None
         self.models = None
@@ -103,7 +104,7 @@ class Sequence(object):
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               early_stop, patience, 
-                                              max_checkpoints_to_keep)
+                                              max_checkpoints_to_keep, multiprocessing)
 
     def train(self, x_train, y_train, x_valid=None, y_valid=None):
         # TBD if valid is None, segment train to get one
