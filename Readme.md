@@ -676,12 +676,13 @@ Similarly to the NER models, for n-fold training (action `train_eval` only), spe
 
 > python3 grobidTagger.py citation --fold-count=10 train_eval
 
-(To be completed)
+The `--input` parameter can provide specify the data be used in case of `train` or `train_eval`.  
 
-The evaluation of a model can be performed calling 
+The evaluation of a model can be performed with `eval`:  
 
 > python3 grobidTagger.py citation eval --input evaluation_data
 
+in this case (holdout scenario) the whole `evaluation_data` is used to test the model.
 
 #### Insult recognition
 
