@@ -94,7 +94,7 @@ class Trainer(object):
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
         nb_workers = 6
-        multiprocessing = True
+        multiprocessing = self.training_config.multiprocessing
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.embeddings.use_ELMo or self.embeddings.use_BERT:
             # worker at 0 means the training will be executed in the main thread
