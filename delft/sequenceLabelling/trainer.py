@@ -214,6 +214,8 @@ class Scorer(Callback):
         self.evaluation = evaluation
 
     def on_epoch_end(self, epoch, logs={}):
+        y_pred = None
+        y_true = None
         for i, (data, label) in enumerate(self.valid_batches):
             if i == self.valid_steps:
                 break
@@ -239,14 +241,15 @@ class Scorer(Callback):
         #for i in range(0,len(y_pred)):
         #    print("pred", y_pred[i])
         #    print("true", y_true[i])
-        f1 = f1_score(y_true, y_pred)
+        has_data = y_true is not None and y_pred is not None
+        f1 = f1_score(y_true, y_pred) if has_data else 0.0
         print("\tf1 (micro): {:04.2f}".format(f1 * 100))
 
         if self.evaluation:
-            self.accuracy = accuracy_score(y_true, y_pred)
-            self.precision = precision_score(y_true, y_pred)
-            self.recall = recall_score(y_true, y_pred)
-            self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4)
+            self.accuracy = accuracy_score(y_true, y_pred) if has_data else 0.0
+            self.precision = precision_score(y_true, y_pred) if has_data else 0.0
+            self.recall = recall_score(y_true, y_pred) if has_data else 0.0
+            self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4) if has_data else classification_report([], [], digits=4)
             print(self.report)
 
         # save eval

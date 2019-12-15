@@ -38,7 +38,9 @@ class DataGenerator(keras.utils.Sequence):
     def __len__(self):
         'Denotes the number of batches per epoch'
         # The number of batches is set so that each training sample is seen at most once per epoch
-        if (len(self.x) % self.batch_size) == 0:
+        if self.x is None:
+            return 0
+        elif (len(self.x) % self.batch_size) == 0:
             return int(np.floor(len(self.x) / self.batch_size))
         else:
             return int(np.floor(len(self.x) / self.batch_size) + 1)
