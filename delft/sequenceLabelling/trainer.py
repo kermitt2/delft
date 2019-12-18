@@ -5,7 +5,7 @@ from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoin
 from keras.utils import plot_model
 
 # seqeval
-from delft.sequenceLabelling.evaluation import accuracy_score
+from delft.sequenceLabelling.evaluation import accuracy_score, get_report
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
@@ -253,6 +253,7 @@ class Scorer(Callback):
             self.recall = recall_score(y_true, y_pred) if has_data else 0.0
             self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4) if has_data else classification_report([], [], digits=4)
             print(self.report)
+
 
         # save eval
         logs['f1'] = f1

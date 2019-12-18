@@ -244,9 +244,9 @@ class Sequence(object):
 
             row_fmt = u'{:>{width}s} ' + u' {:>9.{digits}f}' * 3 + u' {:>9}'
 
-            # field-level average over th n folds
+            # field-level average over the n folds
             labels = []
-            for label in self.p.vocab_tag:
+            for label in sorted(self.p.vocab_tag):
               if label == 'O' or label == '<PAD>':
                 continue
               if label.startswith("B-") or label.startswith("S-") or label.startswith("I-") or label.startswith("E-"):
@@ -261,9 +261,9 @@ class Sequence(object):
               sum_f1 = 0
               sum_support = 0
               for j in range(0, self.model_config.fold_number):
-                if not label in reports_as_map[j]:
+                if not label in reports_as_map[j]['labels']:
                   continue
-                report_as_map = reports_as_map[j][label]
+                report_as_map = reports_as_map[j]['labels'][label]
                 sum_p += report_as_map["precision"]
                 sum_r += report_as_map["recall"]
                 sum_f1 += report_as_map["f1"]
