@@ -3,6 +3,7 @@ import json
 
 # Model parameters
 class ModelConfig(object):
+    DEFAULT_FEATURES_VECTOR_SIZE = 12
 
     def __init__(self, 
                  model_name="",
@@ -13,7 +14,7 @@ class ModelConfig(object):
                  char_lstm_units=25,
                  max_char_length=30,
                  word_lstm_units=100,
-                 features_vector_size=12,
+                 features_vector_size=DEFAULT_FEATURES_VECTOR_SIZE,
                  max_sequence_length=None,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
@@ -22,7 +23,9 @@ class ModelConfig(object):
                  fold_number=1,
                  batch_size=64,
                  use_ELMo=False,
-                 use_BERT=False):
+                 use_BERT=False,
+                 ignore_features=False,
+                 features_indices=None):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -34,7 +37,10 @@ class ModelConfig(object):
         self.char_embedding_size = char_emb_size
         self.num_char_lstm_units = char_lstm_units
         self.max_char_length = max_char_length
+
         self.features_vector_size = features_vector_size
+        self.ignore_features = ignore_features
+        self.features_indices = features_indices
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size
@@ -78,7 +84,8 @@ class TrainingConfig(object):
                  max_epoch=50, 
                  early_stop=True,
                  patience=5,
-                 max_checkpoints_to_keep=5):
+                 max_checkpoints_to_keep=5,
+                 multiprocessing=True):
 
         self.batch_size = batch_size
         self.optimizer = optimizer
@@ -89,3 +96,4 @@ class TrainingConfig(object):
         self.early_stop = early_stop
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
+        self.multiprocessing = multiprocessing

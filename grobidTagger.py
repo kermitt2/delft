@@ -2,19 +2,24 @@
 
 import argparse
 import json
-
 import time
 
 from sklearn.model_selection import train_test_split
+
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.models import *
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+
 import keras.backend as K
+
+from delft.utilities.misc import parse_number_ranges
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 # train a model with all available data
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, ignore_features=False):
+def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
+          ignore_features=False, features_indices=None):
+
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -39,12 +44,27 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     if use_ELMo:
         model_name += '-with_ELMo'
 
+    batch_size = 20
+    max_sequence_length = 3000
+
+    if model == "software":
+        # class are more unbalanced, so we need to extend the batch size
+        batch_size = 50
+        max_sequence_length = 1500
+
+    if use_ELMo:
+        model_name += '-with_ELMo'
+        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+            batch_size = 5
+
     model = Sequence(model_name,
-                    max_epoch=100,
-                    recurrent_dropout=0.50,
-                    embeddings_name=embeddings_name,
-                    model_type=architecture,
-                    use_ELMo=use_ELMo)
+                     max_epoch=100,
+                     recurrent_dropout=0.50,
+                     embeddings_name=embeddings_name,
+                     model_type=architecture,
+                     use_ELMo=use_ELMo,
+                     features_indices=features_indices,
+                     ignore_features=ignore_features)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -58,7 +78,9 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         model.save()
 
 # split data, train a GROBID model and evaluate it
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1, ignore_features=False):
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1,
+               ignore_features=False,
+               features_indices=None):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -114,7 +136,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, fold_number=fold_count)
 
     runtime = round(time.time() - start_time, 3)
-    print("training runtime: %s seconds " % (runtime))
+    print("training runtime: %s seconds " % runtime)
 
     # evaluation
     print("\nEvaluation:")
@@ -128,15 +150,13 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, output_path=None, ignore_features=False):
+def eval_(model, use_ELMo=False, input_path=None, output_path=None, ignore_features=False, features_indices=None):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(
-            'data/sequenceLabelling/grobid/' + model + '/' + model + '-060518.train')
+        # it should never be the case
+        print("A Grobid evaluation data file must be specified to evaluate a grobid model for the eval action")
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
-
-    f_all = None if ignore_features else f_all
 
     print(len(x_all), 'evaluation sequences')
 
@@ -215,13 +235,18 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--input", help="Provided training file.")
+    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
+    parser.add_argument(
+        "--feature-indices",
+        type=parse_number_ranges,
+        help="The feature indices to use. e.g. 7:10. If blank, all of the features will be used."
+    )
 
     args = parser.parse_args()
 
     model = args.model
-    # if not model in models:
+    #if not model in models:
     #    print('invalid model, should be one of', models)
 
     action = args.action
@@ -233,14 +258,16 @@ if __name__ == "__main__":
     input_path = args.input
     embeddings_name = args.embedding
     ignore_features = args.ignore_features
+    feature_indices = args.feature_indices
 
     if action == Tasks.TRAIN:
         train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, ignore_features=ignore_features)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None:
-            print("The argument fold-count argument will be ignored. For n-fold cross-validation, "
-                  "please use it in combination with " + str(Tasks.TRAIN_EVAL))
+            print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use it in combination with " + str(Tasks.TRAIN_EVAL))
+        if input_path is None:
+            raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
         eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output, ignore_features=ignore_features)
 
     if action == Tasks.TRAIN_EVAL:

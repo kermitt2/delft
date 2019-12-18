@@ -43,7 +43,7 @@ class Trainer(object):
         self.preprocessor = preprocessor
 
     """ train the instance self.model """
-    def train(self, x_train, y_train, f_train, x_valid, y_valid, f_valid):
+    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None):
         self.model.summary()
         #print("self.model_config.use_crf:", self.model_config.use_crf)
 
@@ -52,17 +52,18 @@ class Trainer(object):
                            optimizer='adam')
         else:
             self.model.compile(loss='categorical_crossentropy',
-                                optimizer='adam')
+                           optimizer='adam')
                            #optimizer=Adam(lr=self.training_config.learning_rate))
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-        self.model = self.train_model(self.model, x_train, y_train, f_train, x_valid, y_valid, f_valid,
-                                                  self.training_config.max_epoch)
+        self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
+                                      f_train=features_train, f_valid=features_valid, max_epoch=self.training_config.max_epoch)
 
     """ parameter model local_model must be compiled before calling this method 
         this model will be returned with trained weights """
-    def train_model(self, local_model, x_train, y_train, f_train, x_valid=None, y_valid=None, f_valid=None, max_epoch=50):
+    def train_model(self, local_model, x_train, y_train, f_train=None,
+                    x_valid=None, y_valid=None, f_valid=None, max_epoch=50):
         # todo: if valid set if None, create it as random segment of the shuffled train set
 
         if self.training_config.early_stop:
@@ -98,7 +99,7 @@ class Trainer(object):
             callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
         nb_workers = 6
-        multiprocessing = True
+        multiprocessing = self.training_config.multiprocessing
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.embeddings.use_ELMo or self.embeddings.use_BERT:
             # worker at 0 means the training will be executed in the main thread
@@ -224,6 +225,8 @@ class Scorer(Callback):
         self.evaluation = evaluation
 
     def on_epoch_end(self, epoch, logs={}):
+        y_pred = None
+        y_true = None
         for i, (data, label) in enumerate(self.valid_batches):
             if i == self.valid_steps:
                 break
@@ -249,14 +252,15 @@ class Scorer(Callback):
         #for i in range(0,len(y_pred)):
         #    print("pred", y_pred[i])
         #    print("true", y_true[i])
-        f1 = f1_score(y_true, y_pred)
+        has_data = y_true is not None and y_pred is not None
+        f1 = f1_score(y_true, y_pred) if has_data else 0.0
         print("\tf1 (micro): {:04.2f}".format(f1 * 100))
 
         if self.evaluation:
-            self.accuracy = accuracy_score(y_true, y_pred)
-            self.precision = precision_score(y_true, y_pred)
-            self.recall = recall_score(y_true, y_pred)
-            self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4)
+            self.accuracy = accuracy_score(y_true, y_pred) if has_data else 0.0
+            self.precision = precision_score(y_true, y_pred) if has_data else 0.0
+            self.recall = recall_score(y_true, y_pred) if has_data else 0.0
+            self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4) if has_data else classification_report([], [], digits=4)
             print(self.report)
 
         # save eval

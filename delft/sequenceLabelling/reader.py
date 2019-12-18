@@ -318,6 +318,14 @@ def load_data_and_labels_crf_file(filepath):
                 tags.append(_translate_tags_grobid_to_IOB(tag))
                 features.append(localFeatures)
 
+        if len(tokens) == len(tags) == len(localFeatures) > 0:
+            sents.append(tokens)
+            labels.append(tags)
+            featureSets.append(features)
+            print("Adding the final items from the input file. ")
+
+    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(tags) == len(features)
+
     return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
 
 

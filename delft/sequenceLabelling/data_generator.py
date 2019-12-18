@@ -1,9 +1,12 @@
 import numpy as np
 # seed is fixed for reproducibility
+from delft.sequenceLabelling.config import ModelConfig
+
 np.random.seed(7)
 import keras
 from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, \
-    to_vector_simple_with_elmo, to_vector_bert, to_vector_simple_with_bert, pad_sequences, dense_to_one_hot
+    to_vector_simple_with_elmo, to_vector_bert, to_vector_simple_with_bert, pad_sequences, dense_to_one_hot, \
+    _pad_sequences
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 tf.set_random_seed(7)
@@ -27,7 +30,6 @@ class DataGenerator(keras.utils.Sequence):
         # features here are optional additional features provided in the case of GROBID input for instance
         self.features = features
         self.preprocessor = preprocessor
-        self.max_sequence_length = max_sequence_length
         if preprocessor:
             self.labels = preprocessor.vocab_tag
         self.batch_size = batch_size
@@ -40,7 +42,9 @@ class DataGenerator(keras.utils.Sequence):
     def __len__(self):
         'Denotes the number of batches per epoch'
         # The number of batches is set so that each training sample is seen at most once per epoch
-        if (len(self.x) % self.batch_size) == 0:
+        if self.x is None:
+            return 0
+        elif (len(self.x) % self.batch_size) == 0:
             return int(np.floor(len(self.x) / self.batch_size))
         else:
             return int(np.floor(len(self.x) / self.batch_size) + 1)
@@ -127,19 +131,20 @@ class DataGenerator(keras.utils.Sequence):
         if self.y is not None:
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
-        batch_f = np.zeros((max_iter, 12), dtype='int32')
+        batch_f_asarray = np.zeros((max_iter, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE), dtype='int32')
         if self.features is not None:
-            batch_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
-
-            batch_f, _ = pad_sequences(batch_f, 0)
-            batch_f = np.asarray(batch_f)
-        batch_f = dense_to_one_hot(batch_f, 12, nlevels=2)
+            sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
+            batch_f_transformed, features_length = self.preprocessor.transform_features(sub_f)
+            batch_f_padded, _ = pad_sequences(batch_f_transformed, [0]*features_length)
+            batch_f_asarray = np.asarray(batch_f_padded)
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
+        batch_f_list_one_hot = [dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in batch_f_asarray]
+        batch_f = np.asarray(batch_f_list_one_hot)
         batch_c = np.asarray(batches[0])
 
         batch_l = batches[1]

@@ -7,8 +7,9 @@ import re
 import math
 
 import numpy as np
-
 # seed is fixed for reproducibility
+from delft.utilities.numpy import concatenate_or_none
+
 np.random.seed(7)
 
 # ask tensorflow to be quiet and not print hundred lines of logs
@@ -70,7 +71,10 @@ class Sequence(object):
                  log_dir=None,
                  use_ELMo=False,
                  use_BERT=False,
-                 fold_number=1):
+                 fold_number=1,
+                 multiprocessing=True,
+                 ignore_features=False,
+                 features_indices=None):
 
         self.model = None
         self.models = None
@@ -99,33 +103,31 @@ class Sequence(object):
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
                                         use_ELMo=use_ELMo,
-                                        use_BERT=use_BERT)
+                                        use_BERT=use_BERT,
+                                        ignore_features=ignore_features,
+                                        features_indices=features_indices)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               early_stop, patience, 
-                                              max_checkpoints_to_keep)
+                                              max_checkpoints_to_keep, multiprocessing)
 
     def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None):
-
-        ##### Squeezing features
-        # We can ignore first and last column
-        # frequencies = find_values_frequency(f_train[1:-1])
-        f_train_new= None
-        f_valid_new=None
-        if f_train is not None:
-            f_train_new = self.squeeze_features_vector(f_train)
-            f_valid_new = self.squeeze_features_vector(f_valid)
-
-        #####
-
         # TBD if valid is None, segment train to get one
-        x_all = np.concatenate((x_train, x_valid), axis=0)
-        y_all = np.concatenate((y_train, y_valid), axis=0)
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
+        features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
-        self.p = prepare_preprocessor(x_all, y_all, self.model_config)
+        self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
+
+        if f_train is not None:
+            print('x_train.shape: ', x_train.shape)
+            print('features_train.shape: ', f_train.shape)
+            sample_transformed_features, _ = self.p.transform_features(f_train)
+            self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
+            print('max_feature_size: ', self.model_config.max_feature_size)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         trainer = Trainer(self.model, 
@@ -136,58 +138,18 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train(x_train, y_train, f_train_new, x_valid, y_valid, f_valid_new)
+        trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def squeeze_features_vector(self, feature_vector):
-        # Compute frequencies for each column
-        columns_length = []
-        index = 1  # we skip the first column which contains the tokens
-        for index_column in range(index, len(feature_vector[0][0])):
-            values = set()
-            for index_document in range(0, len(feature_vector)):
-                for index_row in range(0, len(feature_vector[index_document])):
-                    value = feature_vector[index_document][index_row][index_column]
-                    if value != " ":
-                        values.add(value)
-
-            values_cardinality = len(values)
-
-            values_list = list(values)
-            values_to_int = {}
-            for val_num in range(0, values_cardinality):
-                values_to_int[values_list[val_num]] = val_num
-
-            columns_length.append((index, values_to_int))
-            index += 1
-            # print("Column: " + str(index_column) + " Len:  " + str(len(values)))
-        # Filter out the columns that are not fitting
-        columns_index = []
-        for index, column_content_cardinality in columns_length:
-            if len(column_content_cardinality) < self.model_config.features_vector_size:
-                columns_index.append((index, column_content_cardinality))
-        # print(columns_index)
-        index_list = [ind[0] for ind in columns_index if ind[0]]
-        val_to_int_list = [ind[1] for ind in columns_index]
-
-        feature_vector_squeezed = []
-        for index_document in range(0, len(feature_vector)):
-            # print(len(f_train[index_document]))
-            for index_row in range(0, len(feature_vector[index_document])):
-                feature_vector_squeezed.append([val_to_int_list[index][
-                                                    feature_vector[index_document][index_row][index_column]] for
-                                                index, index_column in enumerate(index_list)])
-        return feature_vector_squeezed
-
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10):
         f_train_new = None
         f_valid_new = None
         if f_train is not None:
-            f_train_new = self.squeeze_features_vector(f_train)
-            f_valid_new = self.squeeze_features_vector(f_valid)
+            f_train_new = self.reduce_features_vector(f_train)
+            f_valid_new = self.reduce_features_vector(f_valid)
 
         if x_valid is not None and y_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
