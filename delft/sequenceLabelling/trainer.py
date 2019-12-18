@@ -43,7 +43,7 @@ class Trainer(object):
         self.preprocessor = preprocessor
 
     """ train the instance self.model """
-    def train(self, x_train, y_train, x_valid, y_valid):
+    def train(self, x_train, y_train, x_valid, y_valid, callbacks=None):
         self.model.summary()
         #print("self.model_config.use_crf:", self.model_config.use_crf)
 
@@ -58,11 +58,11 @@ class Trainer(object):
         #plot_model(self.model, 
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
-                                                  self.training_config.max_epoch)
+                                                  self.training_config.max_epoch, callbacks=callbacks)
 
     """ parameter model local_model must be compiled before calling this method 
         this model will be returned with trained weights """
-    def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50):
+    def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50, callbacks=None):
         # todo: if valid set if None, create it as random segment of the shuffled train set 
 
         if self.training_config.early_stop:
@@ -78,7 +78,7 @@ class Trainer(object):
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=False)
 
-            callbacks = get_callbacks(log_dir=self.checkpoint_path,
+            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
                                       patience=self.training_config.patience,
                                       valid=(validation_generator, self.preprocessor))
@@ -91,8 +91,9 @@ class Trainer(object):
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=True)
 
-            callbacks = get_callbacks(log_dir=self.checkpoint_path,
+            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
+        _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
@@ -106,13 +107,13 @@ class Trainer(object):
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,
                                 workers=nb_workers,
-                                callbacks=callbacks)
+                                callbacks=_callbacks)
 
         return local_model
 
     """ n-fold training for the instance model 
         the n models are stored in self.models, and self.model left unset at this stage """
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, callbacks=None):
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
@@ -155,7 +156,8 @@ class Trainer(object):
                                     train_y, 
                                     val_x, 
                                     val_y,
-                                    max_epoch=self.training_config.max_epoch)
+                                    max_epoch=self.training_config.max_epoch,
+                                    callbacks=callbacks)
             self.models[fold_id] = foldModel
 
 
