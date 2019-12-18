@@ -63,6 +63,8 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
                      embeddings_name=embeddings_name,
                      model_type=architecture,
                      use_ELMo=use_ELMo,
+                     batch_size=batch_size,
+                     max_sequence_length=max_sequence_length,
                      features_indices=features_indices,
                      ignore_features=ignore_features)
 
@@ -150,7 +152,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, output_path=None, ignore_features=False, features_indices=None):
+def eval_(model, use_ELMo=False, input_path=None, ignore_features=False, features_indices=None):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -160,10 +162,7 @@ def eval_(model, use_ELMo=False, input_path=None, output_path=None, ignore_featu
 
     print(len(x_all), 'evaluation sequences')
 
-    if output_path:
-        model_name = model
-    else:
-        model_name = 'grobid-' + model
+    model_name = 'grobid-' + model
 
     if use_ELMo:
         model_name += '-with_ELMo'
@@ -235,7 +234,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and evaluation (train_eval action) or just for evaluation (eval action).")
+    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
     parser.add_argument(
         "--feature-indices",
@@ -268,7 +267,7 @@ if __name__ == "__main__":
             print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
-        eval_(model, use_ELMo=use_ELMo, input_path=input_path, output_path=output, ignore_features=ignore_features)
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:

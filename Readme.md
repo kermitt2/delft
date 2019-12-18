@@ -676,11 +676,17 @@ Similarly to the NER models, for n-fold training (action `train_eval` only), spe
 
 > python3 grobidTagger.py citation --fold-count=10 train_eval
 
-(To be completed)
+By default the Grobid data to be used are the ones available under the `data/sequenceLabelling/grobid` subdirectory, but a Grobid data file can be provided by the parameter `--input`: 
 
-The evaluation of a model can be performed calling 
+> python3 grobidTagger.py *name-of-model* train --input *path-to-the-grobid-data-file-to-be-used-for-training*
 
-> python3 grobidTagger.py citation eval --input evaluation_data
+or 
+
+> python3 grobidTagger.py *name-of-model* train_Eval --input *path-to-the-grobid-data-file-to-be-used-for-training_and_eval_with_random_split*
+
+The evaluation of a model with a specific Grobid data file can be performed using the `eval` action and specifying the data file with `--input`: 
+
+> python3 grobidTagger.py citation eval --input *path-to-the-grobid-data-file-to-be-used-for-evaluation*
 
 
 #### Insult recognition
