@@ -144,7 +144,10 @@ class DataGenerator(keras.utils.Sequence):
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
         batch_f_list_one_hot = [dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in batch_f_asarray]
-        batch_f = np.asarray(batch_f_list_one_hot)
+        batch_f_4dimentions = np.asarray(batch_f_list_one_hot)
+        batch_f_shape = batch_f_4dimentions.shape
+        batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1], batch_f_shape[2] * batch_f_shape[3])
+
         batch_c = np.asarray(batches[0])
 
         batch_l = batches[1]

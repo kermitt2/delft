@@ -215,7 +215,7 @@ if __name__ == "__main__":
         description = "Trainer for GROBID models")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
-    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name]
+    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name, BidLSTM_CRF_CASING.name]
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)

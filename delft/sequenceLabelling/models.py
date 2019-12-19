@@ -1,7 +1,6 @@
 from keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout
 from keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from keras.layers.merge import Concatenate
-from keras.initializers import RandomUniform
 from keras.models import Model
 from keras.models import clone_model
 from delft.utilities.layers import ChainCRF
@@ -96,10 +95,10 @@ class BidLSTM_CRF(BaseModel):
         chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
 
         # layout features input and embeddings
-        features_input = Input(shape=(None,), dtype='int32', name='features_input')
+        features_input = Input(batch_shape=(None, None, ), dtype='int32', name='features_input')
 
-        features_embedding = Embedding(input_dim=12,
-                                       output_dim=5,
+        features_embedding = Embedding(input_dim=84,
+                                       output_dim=48,
                                        mask_zero=True,
                                        trainable=False,
                                        name='features_embedding')(features_input)
@@ -112,8 +111,8 @@ class BidLSTM_CRF(BaseModel):
         x = Concatenate()([word_input, chars, features_embedding])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
-                               return_sequences=True, 
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
@@ -336,10 +335,10 @@ class BidLSTM_CRF_CASING(BaseModel):
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
         # layout features input and embeddings
-        features_input = Input(shape=(None, None,), dtype='float32', name='features_input')
+        features_input = Input(batch_shape=(None, None,), dtype='int32', name='features_input')
 
-        features_embedding = Embedding(input_dim=config.case_vocab_size,
-                           output_dim=config.case_embedding_size,
+        features_embedding = Embedding(input_dim=84,
+                           output_dim=48,
                            mask_zero=True,
                            trainable=False,
                            name='features_embedding')(features_input)
@@ -361,5 +360,5 @@ class BidLSTM_CRF_CASING(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
+        self.model = Model(inputs=[word_input, char_input, casing_input, features_input, length_input], outputs=[pred])
         self.config = config

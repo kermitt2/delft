@@ -7,7 +7,7 @@ from typing import List, Iterable, Set
 import numpy as np
 from sklearn.feature_extraction import DictVectorizer
 from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer, OneHotEncoder
+from sklearn.preprocessing import FunctionTransformer
 
 from delft.sequenceLabelling.config import ModelConfig
 
@@ -424,19 +424,6 @@ def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
         layer_idx = np.arange(num_labels).reshape(num_labels, 1)
         # this index selects each component separately
         component_idx = np.tile(np.arange(num_length), (num_labels, 1))
-        # then we use `a` to select indices according to category label
-        labels_one_hot[layer_idx, component_idx, labels_dense] = 1
-        return labels_one_hot
-    elif nlevels == 3:
-        # assume that labels_dense has same column length
-        num_labels = labels_dense.shape[0]
-        num_length = labels_dense.shape[1]
-        something_else = labels_dense.shape[2]
-        labels_one_hot = np.zeros((num_labels, num_length, num_classes), dtype=np.int32)
-        layer_idx = np.arange(num_labels).reshape(num_labels, 1)
-        # this index selects each component separately
-        component_idx = np.tile(np.arange(num_length), (num_labels, 1))
-        # component_idx = np.tile(np.tile(np.arange(num_classes), (num_length,1)), (num_labels, 1, 1))
         # then we use `a` to select indices according to category label
         labels_one_hot[layer_idx, component_idx, labels_dense] = 1
         return labels_one_hot

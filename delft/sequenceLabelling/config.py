@@ -39,6 +39,7 @@ class ModelConfig(object):
         self.max_char_length = max_char_length
 
         self.features_vector_size = features_vector_size
+        self.features_embedding_size = 4
         self.ignore_features = ignore_features
         self.features_indices = features_indices
 
