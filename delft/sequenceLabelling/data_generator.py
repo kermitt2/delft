@@ -148,6 +148,9 @@ class DataGenerator(keras.utils.Sequence):
         batch_f_shape = batch_f_4dimentions.shape
         batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1], batch_f_shape[2] * batch_f_shape[3])
 
+        ## I obtain a vector that is 20 x token number (which is padded in line 138 with empty vectors) and number of features x number of one hot encode
+        ## For a case where the number of features are 7, I got something like 20, num_tokens, (12x7) = 20, n, 84
+
         batch_c = np.asarray(batches[0])
 
         batch_l = batches[1]
