@@ -153,6 +153,7 @@ class DataGenerator(keras.utils.Sequence):
             # batch_f_padded, _ = pad_sequences(batch_f_asarray, [0])
             # batch_f_asarray = np.asarray(batch_f_padded).reshape(max_iter, 1, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE)
 
+        # batch_f = batch_f.reshape(batch_f.shape[0], batch_f.shape[1] * batch_f.shape[2])
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:

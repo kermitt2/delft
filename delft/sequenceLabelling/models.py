@@ -335,23 +335,30 @@ class BidLSTM_CRF_CASING(BaseModel):
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
         # layout features input and embeddings
-        features_input = Input(batch_shape=(None, None, None), dtype='int32', name='features_input')
+        features_input = Input(batch_shape=(None, None, ), dtype='int32', name='features_input')
 
-        # features_embedding = Embedding(input_dim=84,
-        #                    output_dim=48,
-        #                    mask_zero=True,
-        #                    trainable=False,
-        #                    name='features_embedding')(features_input)
-        # features_embedding = Dropout(config.dropout)(features_embedding)
+        feature_count = 1 if not config.features_indices else len(config.features_indices)
+        feature_input_dimentions = config.features_vector_size * feature_count
+        print(feature_input_dimentions)
+
+        feature_output_dimensions = feature_count * config.features_embedding_size
+        print(feature_output_dimensions)
+        features_embedding = Embedding(input_dim=feature_input_dimentions,
+                                       output_dim=feature_output_dimensions,
+                                       mask_zero=True,
+                                       trainable=True,
+                                       name='features_embedding')(features_input)
+
+        features_embedding = Dropout(config.dropout)(features_embedding)
 
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
-        x = Concatenate()([word_input, casing_embedding, chars])
+        x = Concatenate()([word_input, casing_embedding, chars, features_embedding])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                return_sequences=True, 
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)

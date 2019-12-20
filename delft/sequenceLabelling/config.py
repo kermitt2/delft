@@ -42,8 +42,7 @@ class ModelConfig(object):
         self.features_vector_size = features_vector_size    # maximum number of unique values per feature
         self.ignore_features = ignore_features              # ignore features - might be useless
         self.features_indices = features_indices
-        self.features_count = 0 if features_indices is None else len(features_indices)
-        self.features_embedding_size = 4                    #
+        self.features_embedding_size = 4
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size
