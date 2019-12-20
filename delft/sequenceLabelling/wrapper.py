@@ -144,19 +144,12 @@ class Sequence(object):
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10):
-        f_train_new = None
-        f_valid_new = None
-        if f_train is not None:
-            f_train_new = self.reduce_features_vector(f_train)
-            f_valid_new = self.reduce_features_vector(f_valid)
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train: np.array = None, f_valid: np.array = None, fold_number=10):
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
+        features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
-        if x_valid is not None and y_valid is not None:
-            x_all = np.concatenate((x_train, x_valid), axis=0)
-            y_all = np.concatenate((y_train, y_valid), axis=0)
-            self.p = prepare_preprocessor(x_all, y_all, self.model_config)
-        else:
-            self.p = prepare_preprocessor(x_train, y_train, self.model_config)
+        self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
@@ -176,26 +169,29 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train_new, f_valid=f_valid_new)
+        trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def eval(self, x_test, y_test):
-        if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:
-            self.eval_nfold(x_test, y_test)
-        else:
-            self.eval_single(x_test, y_test)
+    def eval(self, x_test, y_test, features=None):
+        if self.model_config.ignore_features:
+            features = None
 
-    def eval_single(self, x_test, y_test):   
+        if self.models and 1 < self.model_config.fold_number == len(self.models):
+            self.eval_nfold(x_test, y_test, features=features)
+        else:
+            self.eval_single(x_test, y_test, features=features)
+
+    def eval_single(self, x_test, y_test, features=None):
         if self.model:
             # Prepare test data(steps, generator)
             test_generator = DataGenerator(x_test, y_test, 
               batch_size=self.training_config.batch_size, preprocessor=self.p, 
               char_embed_size=self.model_config.char_embedding_size, 
               max_sequence_length=self.model_config.max_sequence_length,
-              embeddings=self.embeddings, shuffle=False)
+              embeddings=self.embeddings, shuffle=False, features=features)
 
             # Build the evaluator and evaluate the model
             scorer = Scorer(test_generator, self.p, evaluation=True)
@@ -204,7 +200,7 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.'))
 
-    def eval_nfold(self, x_test, y_test):
+    def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
             total_f1 = 0
             best_f1 = 0
@@ -223,7 +219,7 @@ class Sequence(object):
                   batch_size=self.training_config.batch_size, preprocessor=self.p, 
                   char_embed_size=self.model_config.char_embedding_size, 
                   max_sequence_length=self.model_config.max_sequence_length,
-                  embeddings=self.embeddings, shuffle=False)
+                  embeddings=self.embeddings, shuffle=False, features=features)
 
                 # Build the evaluator and evaluate the model
                 scorer = Scorer(test_generator, self.p, evaluation=True)

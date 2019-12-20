@@ -162,9 +162,9 @@ class Trainer(object):
             foldModel = self.train_model(foldModel, 
                                         train_x,
                                         train_y,
-                                        val_x,
-                                        val_y,
-                                        f_train= train_f,
+                                        x_valid=val_x,
+                                        y_valid=val_y,
+                                        f_train=train_f,
                                         f_valid=val_f,
                                         max_epoch=self.training_config.max_epoch)
             self.models[fold_id] = foldModel

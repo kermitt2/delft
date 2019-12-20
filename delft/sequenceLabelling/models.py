@@ -95,7 +95,7 @@ class BidLSTM_CRF(BaseModel):
         chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
 
         # layout features input and embeddings
-        features_input = Input(batch_shape=(None, None, ), dtype='int32', name='features_input')
+        features_input = Input(batch_shape=(None, None, None), dtype='int32', name='features_input')
 
         features_embedding = Embedding(input_dim=84,
                                        output_dim=48,
@@ -108,7 +108,7 @@ class BidLSTM_CRF(BaseModel):
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters, word embeddings and features
-        x = Concatenate()([word_input, chars, features_embedding])
+        x = Concatenate()([word_input, chars])
         x = Dropout(config.dropout)(x)
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units,
@@ -335,7 +335,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
         # layout features input and embeddings
-        features_input = Input(shape=(None, 84), dtype='float32', name='features_input')
+        features_input = Input(batch_shape=(None, None, None), dtype='int32', name='features_input')
 
         # features_embedding = Embedding(input_dim=84,
         #                    output_dim=48,
@@ -348,7 +348,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
-        x = Concatenate()([word_input, casing_embedding, chars, features_input])
+        x = Concatenate()([word_input, casing_embedding, chars])
         x = Dropout(config.dropout)(x)
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units, 

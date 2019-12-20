@@ -14,7 +14,6 @@ class ModelConfig(object):
                  char_lstm_units=25,
                  max_char_length=30,
                  word_lstm_units=100,
-                 features_vector_size=DEFAULT_FEATURES_VECTOR_SIZE,
                  max_sequence_length=None,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
@@ -24,6 +23,7 @@ class ModelConfig(object):
                  batch_size=64,
                  use_ELMo=False,
                  use_BERT=False,
+                 features_vector_size=DEFAULT_FEATURES_VECTOR_SIZE,
                  ignore_features=False,
                  features_indices=None):
 
@@ -38,10 +38,12 @@ class ModelConfig(object):
         self.num_char_lstm_units = char_lstm_units
         self.max_char_length = max_char_length
 
-        self.features_vector_size = features_vector_size
-        self.features_embedding_size = 4
-        self.ignore_features = ignore_features
+        # Features
+        self.features_vector_size = features_vector_size    # maximum number of unique values per feature
+        self.ignore_features = ignore_features              # ignore features - might be useless
         self.features_indices = features_indices
+        self.features_count = 0 if features_indices is None else len(features_indices)
+        self.features_embedding_size = 4                    #
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size

@@ -128,7 +128,9 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
                     use_ELMo=use_ELMo,
                     max_sequence_length=max_sequence_length,
                     batch_size=batch_size,
-                    fold_number=fold_count)
+                    fold_number=fold_count,
+                    features_indices=features_indices,
+                    ignore_features=ignore_features)
 
     start_time = time.time()
 
@@ -152,7 +154,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, ignore_features=False, features_indices=None):
+def eval_(model, use_ELMo=False, input_path=None):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -175,7 +177,7 @@ def eval_(model, use_ELMo=False, input_path=None, ignore_features=False, feature
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_all, y_all)
+    model.eval(x_all, y_all, features=f_all)
 
     runtime = round(time.time() - start_time, 3)
     print("Evaluation runtime: %s seconds " % (runtime))

@@ -15,13 +15,13 @@ tf.set_random_seed(7)
 # generate batch of data to feed sequence labelling model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, x, y, 
-                batch_size=24, 
-                preprocessor=None, 
-                char_embed_size=25, 
-                embeddings=None, 
+    def __init__(self, x, y,
+                batch_size=24,
+                preprocessor=None,
+                char_embed_size=25,
+                embeddings=None,
                 max_sequence_length=None,
-                tokenize=False, 
+                tokenize=False,
                 shuffle=True,
                 features=None):
         'Initialization'
@@ -70,11 +70,11 @@ class DataGenerator(keras.utils.Sequence):
         if self.shuffle == True:
             if self.y is None:
                 np.random.shuffle(self.x)
-            else:      
+            else:
                 self.shuffle_pair(self.x,self.y)
 
     def __data_generation(self, index):
-        'Generates data containing batch_size samples' 
+        'Generates data containing batch_size samples'
         max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
 
         # restrict data to index window
@@ -100,7 +100,7 @@ class DataGenerator(keras.utils.Sequence):
         if max_length_x == 1:
             max_length_x += 1
             extend = True
-        
+
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
@@ -111,17 +111,17 @@ class DataGenerator(keras.utils.Sequence):
             # note: tags are always already "tokenized",
             batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
 
-        if self.embeddings.use_ELMo:     
+        if self.embeddings.use_ELMo:
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
-        elif self.embeddings.use_BERT:     
+        elif self.embeddings.use_BERT:
             #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
-            
+
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
-            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:    
+            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:
                 batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             if self.preprocessor.return_casing:
@@ -131,25 +131,32 @@ class DataGenerator(keras.utils.Sequence):
         if self.y is not None:
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
-        batch_f_asarray = np.zeros((max_iter, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE), dtype='int32')
         if self.features is not None:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
             batch_f_transformed, features_length = self.preprocessor.transform_features(sub_f)
             batch_f_padded, _ = pad_sequences(batch_f_transformed, [0]*features_length)
             batch_f_asarray = np.asarray(batch_f_padded)
+            batch_f_list_one_hot = [
+                dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in
+                batch_f_asarray]
+            batch_f_4dimentions = np.asarray(batch_f_list_one_hot)
+            batch_f_shape = batch_f_4dimentions.shape
+            batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1],
+                                                  batch_f_shape[2] * batch_f_shape[3])
+
+            ## I obtain a vector that is 20 x token number (which is padded in line 138 with empty vectors) and number of features x number of one hot encode
+            ## For a case where the number of features are 7, I got something like 20, num_tokens, (12x7) = 20, n, 84
+
+        else:
+            batch_f_asarray = np.zeros((batch_x.shape[0:2]), dtype='int32')
+            batch_f = dense_to_one_hot(batch_f_asarray, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2)
+            # batch_f_padded, _ = pad_sequences(batch_f_asarray, [0])
+            # batch_f_asarray = np.asarray(batch_f_padded).reshape(max_iter, 1, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE)
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
-
-        batch_f_list_one_hot = [dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in batch_f_asarray]
-        batch_f_4dimentions = np.asarray(batch_f_list_one_hot)
-        batch_f_shape = batch_f_4dimentions.shape
-        batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1], batch_f_shape[2] * batch_f_shape[3])
-
-        ## I obtain a vector that is 20 x token number (which is padded in line 138 with empty vectors) and number of features x number of one hot encode
-        ## For a case where the number of features are 7, I got something like 20, num_tokens, (12x7) = 20, n, 84
 
         batch_c = np.asarray(batches[0])
 

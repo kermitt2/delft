@@ -170,29 +170,34 @@ def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
 
 class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self, features_indices: Iterable[int] = None,
-                 features_vector_size = ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE):
+                 features_vector_size=ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE,
+                 features_map_to_index=[]):
         # feature_indices_set = None
-        self.features_max_vector_size = features_vector_size
+        self.features_vector_size = features_vector_size
         self.features_indices = features_indices
-        self.feature_count = 0
 
         # List of mappings to integers (corresponding to each feature column) of features values
-        self.features_map_to_index = []
+        # This value could be provided (model has been loaded) or not (first-time-training)
+        self.features_map_to_index = features_map_to_index
 
     def fit(self, X):
         if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_max_vector_size)
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vector_size)
             self.features_indices = indexes
             self.features_map_to_index = mapping
-            self.feature_count = len(self.features_indices)
 
         return self
 
     def transform(self, X):
-        output = [[[self.features_map_to_index[index][value] for index, value in enumerate(value_list) if index in self.features_indices] for
+        """
+        Transform the features into a vector, return the vector and the extracted number of features
+        """
+        output = [[[self.features_map_to_index[index][value]
+                    for index, value in enumerate(value_list) if index in self.features_indices] for
                     value_list in document] for document in X]
 
         return output, len(self.features_indices)
+
 
 class FeaturesPreprocessor2(BaseEstimator, TransformerMixin):
     def __init__(self, feature_indices: Iterable[int] = None,
@@ -447,8 +452,13 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
         feature_preprocessor=feature_preprocessor
     )
     preprocessor.fit(X, y)
-    if features is not None:
+
+    # Compute features and store information in the model config
+    if not model_config.ignore_features and features is not None:
         preprocessor.fit_features(features)
+        model_config.features_indices = preprocessor.feature_preprocessor.features_indices
+        model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
+
     return preprocessor
 
 def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
