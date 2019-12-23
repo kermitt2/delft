@@ -296,7 +296,7 @@ def compute_metrics(y_true, y_pred):
     for e in pred_entities:
         d2[e[0]].add((e[1], e[2]))
 
-    evaluation = {'labels': {}, 'micro': {}, 'macro': {}}
+    evaluation = {'labels': {}}
 
     ps, rs, f1s, s = [], [], [], []
     total_nb_correct = 0
@@ -332,14 +332,14 @@ def compute_metrics(y_true, y_pred):
     # compute averages
 
     # marco aveage
-    macro_eval_block = {
-        "precision": np.average(ps, weights=s),
-        "recall": np.average(rs, weights=s),
-        "f1": np.average(f1s, weights=s),
-        "support": np.sum(s)
-    }
-
-    evaluation['macro'] = macro_eval_block
+    # macro_eval_block = {
+    #     "precision": np.average(ps, weights=s),
+    #     "recall": np.average(rs, weights=s),
+    #     "f1": np.average(f1s, weights=s),
+    #     "support": np.sum(s)
+    # }
+    #
+    # evaluation['macro'] = macro_eval_block
 
     # micro average
     micro_precision = total_nb_correct / total_nb_pred if total_nb_pred > 0 else 0
@@ -357,11 +357,26 @@ def compute_metrics(y_true, y_pred):
 
     return evaluation
 
-def get_report(evaluation, digits=2):
+
+def get_report(evaluation, digits=2, include_avgs=['micro']):
+    """
+    Calculate the report from the evaluation metrics.
+
+    :param evaluation: the map for evaluation containing three keys:
+        - 'labels', a map of maps contains the values of precision, recall, f1 and support for each label
+        - 'macro' and 'micro', containing the micro and macro average, respectively (precision, recall, f1 and support)
+
+    :param digits: the number of digits to use in the report
+    :param include_avgs: the average to include in the report, default: 'micro'
+    :return:
+    """
     name_width = max([len(e) for e in evaluation.keys()])
 
-    last_line_heading = 'all (micro avg.)'
-    width = max(name_width, len(last_line_heading), digits)
+    last_line_heading = {
+        'micro': 'all (micro avg.)',
+        'macro': 'all (macro avg.)'
+    }
+    width = max(name_width, len(last_line_heading['micro']), digits)
 
     headers = ["precision", "recall", "f1-score", "support"]
     head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers)
@@ -382,12 +397,13 @@ def get_report(evaluation, digits=2):
         report += row_fmt.format(*[label, p, r, f1, s], width=width, digits=digits)
 
     report += u'\n'
-    micro_avg = evaluation['micro']
-    report += row_fmt.format(last_line_heading,
-                             np.average(micro_avg['precision'], weights=s),
-                             np.average(micro_avg['recall'], weights=s),
-                             np.average(micro_avg['f1'], weights=s),
-                             micro_avg['support'],
-                             width=width, digits=digits)
+    for average in include_avgs:
+        avg = evaluation[average]
+        report += row_fmt.format(last_line_heading[average],
+                                 np.average(avg['precision'], weights=s),
+                                 np.average(avg['recall'], weights=s),
+                                 np.average(avg['f1'], weights=s),
+                                 avg['support'] if 'support' in avg else "",
+                                 width=width, digits=digits)
 
     return report
