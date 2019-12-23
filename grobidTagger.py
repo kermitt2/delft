@@ -91,6 +91,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
     f_train = None
     f_valid = None
+    f_eval = None
     if not ignore_features:
         x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1)
         x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
@@ -144,7 +145,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_eval, y_eval)
+    model.eval(x_eval, y_eval, features=f_eval)
 
     # saving the model
     if (output_path):
