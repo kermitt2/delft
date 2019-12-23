@@ -242,8 +242,10 @@ def classification_report(y_true, y_pred, digits=2):
         digits : int. Number of digits for formatting output floating point values.
     Returns:
         report : string. Text summary of the precision, recall, F1 score and support number for each class.
-        evaluation: map. Map giving for all class precision, recall, F1 score and support number, in
-                    addition micro average values with key "micro" are provided in the map. 
+        evaluation: map. Map with three keys:
+            - 'labels', containing a map for all class with precision, recall, F1 score and support number,
+            - 'micro' with precision, recall, F1 score and support number micro average
+            - 'macro' with precision, recall, F1 score and support number macro average
     Examples:
         >>> from seqeval.metrics import classification_report
         >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
@@ -257,6 +259,30 @@ def classification_report(y_true, y_pred, digits=2):
         <BLANKLINE>
         avg / total       0.50      0.50      0.50         2
         <BLANKLINE>
+    """
+    evaluation = compute_metrics(y_true, y_pred)
+
+    return get_report(evaluation, digits=digits), evaluation
+
+
+def compute_metrics(y_true, y_pred):
+    """Build a text report showing the main classification metrics.
+    Args:
+        y_true : 2d array. Ground truth (correct) target values.
+        y_pred : 2d array. Estimated targets as returned by a classifier.
+    Returns:
+        report : string. Text summary of the precision, recall, F1 score and support number for each class.
+        evaluation: map. Map with three keys:
+            - 'labels', containing a map for all class with precision, recall, F1 score and support number,
+            - 'micro' with precision, recall, F1 score and support number micro average
+            - 'macro' with precision, recall, F1 score and support number macro average
+    Examples:
+        >>> from seqeval.metrics import classification_report
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> eval = compute_metrics(y_true, y_pred)
+        >>> print(eval)
+
     """
     true_entities = set(get_entities(y_true))
     pred_entities = set(get_entities(y_pred))
@@ -315,10 +341,11 @@ def classification_report(y_true, y_pred, digits=2):
 
     evaluation['macro'] = macro_eval_block
 
-    # micro average 
+    # micro average
     micro_precision = total_nb_correct / total_nb_pred if total_nb_pred > 0 else 0
     micro_recall = total_nb_correct / total_nb_true if total_nb_true > 0 else 0
-    micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall) if micro_precision + micro_recall > 0 else 0
+    micro_f1 = 2 * micro_precision * micro_recall / (
+                micro_precision + micro_recall) if micro_precision + micro_recall > 0 else 0
 
     micro_eval_block = {
         "precision": micro_precision,
@@ -328,8 +355,7 @@ def classification_report(y_true, y_pred, digits=2):
     }
     evaluation["micro"] = micro_eval_block
 
-    return get_report(evaluation), evaluation
-
+    return evaluation
 
 def get_report(evaluation, digits=2):
     name_width = max([len(e) for e in evaluation.keys()])
