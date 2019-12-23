@@ -271,6 +271,7 @@ class Sequence(object):
               block_label = {'precision': avg_p, 'recall': avg_r, 'support': avg_support, 'f1': avg_f1}
               fold_average_evaluation['labels'][label] = block_label
 
+            print("----------------------------------------------------------------------")
             print("\n** Worst ** model scores -")
             print(reports[worst_index])
 
