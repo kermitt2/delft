@@ -4,6 +4,8 @@ import numpy as np
 
 from delft.sequenceLabelling.preprocess import WordPreprocessor, FeaturesPreprocessor
 
+# derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
+
 LOGGER = logging.getLogger(__name__)
 
 FEATURE_VALUE_1 = 'feature1'

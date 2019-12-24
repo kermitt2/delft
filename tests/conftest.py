@@ -7,6 +7,7 @@ from py._path.local import LocalPath
 
 import tensorflow as tf
 
+# derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
 
 LOGGER = logging.getLogger(__name__)
 
