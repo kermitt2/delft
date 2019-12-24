@@ -97,13 +97,6 @@ class BidLSTM_CRF(BaseModel):
         # layout features input and embeddings
         features_input = Input(batch_shape=(None, None, None), dtype='int32', name='features_input')
 
-        features_embedding = Embedding(input_dim=84,
-                                       output_dim=48,
-                                       mask_zero=True,
-                                       trainable=False,
-                                       name='features_embedding')(features_input)
-        features_embedding = Dropout(config.dropout)(features_embedding)
-
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
@@ -159,7 +152,7 @@ class BidLSTM_CNN(BaseModel):
 
         # custom features input and embeddings
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
-        casing_embedding = Embedding(input_dim=config.case_vocab_size, 
+        casing_embedding = Embedding(input_dim=config.case_vocab_size,
                            output_dim=config.case_embedding_size,
                            #mask_zero=True,
                            trainable=False,
@@ -335,23 +328,26 @@ class BidLSTM_CRF_CASING(BaseModel):
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
         feature_count = 1 if not config.features_indices else len(config.features_indices)
+
+        # features dimension = number of features x vector size
         feature_input_dimentions = config.features_vector_size * feature_count
         # print(feature_input_dimentions)
 
         # layout features input and embeddings
         features_input = Input(shape=(None, feature_input_dimentions), dtype='float32', name='features_input')
 
-        feature_output_dimensions = feature_count * config.features_embedding_size
+        # feature_output_dimensions = feature_count * config.features_embedding_size
         # print(feature_output_dimensions)
-        features_embedding = Embedding(input_dim=feature_input_dimentions,
-                                       output_dim=feature_output_dimensions,
-                                       mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding')(features_input)
+        # features_embedding = Embedding(input_dim=feature_input_dimentions,
+        #                                output_dim=feature_output_dimensions,
+        #                                mask_zero=True,
+        #                                trainable=True,
+        #                                name='features_embedding')(features_input)
+        #
+        # features_embedding = Dropout(config.dropout)(features_embedding)
 
-        features_embedding = Dropout(config.dropout)(features_embedding)
-
-        features_embedding2 = TimeDistributed(Dense(config.features_embedding_size, name='feature_embeddings_dense'), name='feature_embeddings2')(features_input)
+        features_embedding2 = TimeDistributed(Dense(config.features_embedding_size, name='feature_embeddings_dense'),
+                                              name='feature_embeddings2')(features_input)
 
         # print(features_embedding2.shape)
         # length of sequence not used for the moment (but used for f1 communication)
