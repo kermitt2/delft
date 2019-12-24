@@ -29,13 +29,32 @@ PAD = '<PAD>'
 case_index = {'<PAD>': 0, 'numeric': 1, 'allLower':2, 'allUpper':3, 'initialUpper':4, 'other':5, 'mainly_numeric':6, 'contains_digit': 7}
 
 
-def calculate_cardinality(feature_vector):
+def calculate_cardinality(feature_vector, indices=None):
+    """
+    Calculate cardinality of each features
+
+    :param feature_vector: three dimensional vector with features
+    :param indices: list of indices of the features to be extracted
+    :return: a map where each key is the index of the feature and the value is a map feature_value,
+    value_index.
+    For example
+     [(0, {'feature1': 1, 'feature2': 2})]
+
+     indicates that the feature is at index 0 and has two values, features1 and features2 with two
+     unique index.
+
+     NOTE: the features are indexed from 1 to n + 1. The 0 value is reserved as padding
+    """
     columns_length = []
     index = 0
     if not len(feature_vector) > 0:
         return []
 
     for index_column in range(index, len(feature_vector[0][0])):
+        if indices and index_column not in indices:
+            index += 1
+            continue
+
         values = set()
         for index_document in range(0, len(feature_vector)):
             for index_row in range(0, len(feature_vector[index_document])):
@@ -43,12 +62,14 @@ def calculate_cardinality(feature_vector):
                 if value != " ":
                     values.add(value)
 
+        values = sorted(values)
         values_cardinality = len(values)
 
         values_list = list(values)
         values_to_int = {}
         for val_num in range(0, values_cardinality):
-            values_to_int[values_list[val_num]] = val_num
+            # We reserve the 0 for the unseen features so the indexes will go from 1 to cardinality + 1
+            values_to_int[values_list[val_num]] = val_num + 1
 
         columns_length.append((index, values_to_int))
         index += 1
@@ -62,14 +83,14 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
         if len(column_content_cardinality) <= features_max_vector_size:
             columns_index.append((index, column_content_cardinality))
     # print(columns_index)
-    index_list = [ind[0] for ind in columns_index if ind[0]]
+    index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
     val_to_int_list = {value[0]: value[1] for value in columns_index}
 
     return index_list, val_to_int_list
 
 
-def reduce_features_to_indexes(feature_vector, features_max_vector_size):
-    cardinality = calculate_cardinality(feature_vector)
+def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices=None):
+    cardinality = calculate_cardinality(feature_vector, indices=indices)
     index_list, map_to_integers = cardinality_to_index_map(cardinality, features_max_vector_size)
 
     return index_list, map_to_integers
@@ -156,6 +177,10 @@ def reduce_features_vector(feature_vector, features_max_vector_size):
     return reduced_features_vector
 
 
+def get_map_to_index(X, features_indices, features_vector_size):
+    pass
+
+
 def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
             features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE):
 
@@ -183,16 +208,19 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
     def fit(self, X):
         if not self.features_indices:
             indexes, mapping = reduce_features_to_indexes(X, self.features_vector_size)
-            self.features_indices = indexes
-            self.features_map_to_index = mapping
+        else:
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vector_size,
+                                                          indices= self.features_indices)
 
+        self.features_map_to_index = mapping
+        self.features_indices = indexes
         return self
 
     def transform(self, X):
         """
         Transform the features into a vector, return the vector and the extracted number of features
         """
-        output = [[[self.features_map_to_index[index][value]
+        output = [[[self.features_map_to_index[index][value] if index in self.features_map_to_index and value in self.features_map_to_index[index] else 0
                     for index, value in enumerate(value_list) if index in self.features_indices] for
                     value_list in document] for document in X]
 
@@ -335,6 +363,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]
 
     def pad_sequence(self, char_ids, labels=None):
+        labels_one_hot = None
         if labels:
             labels_padded, _ = pad_sequences(labels, 0)
             labels_asarray = np.asarray(labels_padded)
