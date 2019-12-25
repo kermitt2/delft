@@ -52,7 +52,7 @@ class Sequence(object):
                  max_char_length=30,
                  char_lstm_units=25,
                  word_lstm_units=100, 
-                 max_sequence_length=None,
+                 max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.25,
                  use_char_feature=True, 

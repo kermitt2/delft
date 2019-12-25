@@ -44,7 +44,8 @@ map_size = 100 * 1024 * 1024 * 1024
 
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
-BERT_embed_size = 768
+#BERT_embed_size = 768
+BERT_embed_size = 3072
 BERT_sentence_size = 512
 
 class Embeddings(object):
@@ -336,7 +337,7 @@ class Embeddings(object):
             with self.graph.as_default():
             #    with self.session.as_default():
             #with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-                self.bert_model = load_trained_model_from_checkpoint(config_file, weight_file)
+                self.bert_model = load_trained_model_from_checkpoint(config_file, weight_file, output_layer_num=4)
                 self.bert_model.summary(line_length=120)
                 self.bert_model._make_predict_function()
 

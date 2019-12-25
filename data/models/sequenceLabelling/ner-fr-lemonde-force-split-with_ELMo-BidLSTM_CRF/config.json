@@ -2,7 +2,7 @@
     "model_name": "ner-fr-lemonde-force-split-with_ELMo-BidLSTM_CRF",
     "model_type": "BidLSTM_CRF",
     "embeddings_name": "wiki.fr",
-    "char_vocab_size": 110,
+    "char_vocab_size": 107,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
     "num_char_lstm_units": 25,

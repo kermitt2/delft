@@ -42,27 +42,37 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
 
-    """ train the instance self.model """
+    
     def train(self, x_train, y_train, x_valid, y_valid):
-        self.model.summary()
-        #print("self.model_config.use_crf:", self.model_config.use_crf)
+        """ 
+        Train the instance self.model 
+        """
+        if 'bert' not in self.model_config.model_type.lower():
+            self.model.summary()
+            #print("self.model_config.use_crf:", self.model_config.use_crf)
 
-        if self.model_config.use_crf:
-            self.model.compile(loss=self.model.crf.loss,
-                           optimizer='adam')
-        else:
-            self.model.compile(loss='categorical_crossentropy',
-                           optimizer='adam')
-                           #optimizer=Adam(lr=self.training_config.learning_rate))
-        # uncomment to plot graph
-        #plot_model(self.model, 
-        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-        self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
+            if self.model_config.use_crf:
+                self.model.compile(loss=self.model.crf.loss,
+                               optimizer='adam')
+            else:
+                self.model.compile(loss='categorical_crossentropy',
+                               optimizer='adam')
+                               #optimizer=Adam(lr=self.training_config.learning_rate))
+            # uncomment to plot graph
+            #plot_model(self.model, 
+            #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
+            self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
                                                   self.training_config.max_epoch)
+        else:
+            # for BERT architectures, directly call the model trainer
+            self.model.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
 
-    """ parameter model local_model must be compiled before calling this method 
-        this model will be returned with trained weights """
+    
     def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50):
+        """ 
+        The parameter model local_model must be compiled before calling this method.
+        This model will be returned with trained weights 
+        """
         # todo: if valid set if None, create it as random segment of the shuffled train set 
 
         if self.training_config.early_stop:
@@ -110,9 +120,12 @@ class Trainer(object):
 
         return local_model
 
-    """ n-fold training for the instance model 
-        the n models are stored in self.models, and self.model left unset at this stage """
+    
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None):
+        """ 
+        n-fold training for the instance model 
+        the n models are stored in self.models, and self.model left unset at this stage 
+        """
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
@@ -142,7 +155,8 @@ class Trainer(object):
                 val_y = y_valid
 
             foldModel = self.models[fold_id]
-            foldModel.summary()
+            if 'bert' not in self.model_config.model_type.lower():
+                foldModel.summary()
             if self.model_config.use_crf:
                 foldModel.compile(loss=foldModel.crf.loss,
                                optimizer='adam')

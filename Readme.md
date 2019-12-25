@@ -14,7 +14,7 @@ __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framewor
 
 From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment (with all the known limitations of Python of course for this purpose). The benefits of DeLFT are:
 
-* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) and [BERT](https://github.com/google-research/bert) contextualised embeddings, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems, and even improve most of them.
+* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) contextualised embeddings and [BERT](https://github.com/google-research/bert) transformer architecture, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems, and even improve most of them.
 
 * Reduce model size, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
@@ -104,7 +104,7 @@ To get FastText .bin format support please uncomment the package `fasttextmirror
 
 While FastText .bin format are supported by DeLFT (including using ngrams for OOV words), this format will be loaded entirely in memory and does not take advantage of our memory-efficient management of embeddings.
 
-> I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management !
+> I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee every ten minutes, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management !
 
 Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedding-registry.json`, the embeddings will be loaded in memory as immutable data, like in the usual Keras scripts.
 
@@ -132,13 +132,15 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 &nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
-* Feature extraction to be used as contextual embeddings can also be obtained from BERT, as ELMo alternative, as explained in section 5.4 of: 
+* Feature extraction to be used as contextual embeddings can also be obtained from _BERT_, as ELMo alternative, as explained in section 5.4 of: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
-The addition of BERT transformer architecture (with fine-tuning), as alternative to the above RNN architectures for sequence labeling, is currently work in progress. 
+* _BERT_ transformer architecture, which can be used for sequence labelling. A BERT transformer architecture (with fine-tuning) is used as alternative to the above RNN architectures for sequence labeling. Any trained TensorFlow BERT models can be used. 
 
-Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme.
+&nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
+
+Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme and we did not find any advantages to add alternative labelling scheme after experiments.
 
 ### Examples
 

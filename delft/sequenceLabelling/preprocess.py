@@ -6,6 +6,9 @@ np.random.seed(7)
 #set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
+
+import delft.utilities.bert.tokenization as tokenization
+
 import tensorflow as tf
 tf.set_random_seed(7)
 
@@ -381,19 +384,18 @@ class InputExample(object):
     """
     def __init__(self,
                  guid,
-                 text,
-                 label=None):
+                 tokens,
+                 labels=None):
         """Constructs a InputExample.
         Args:
           guid: Unique id for the example.
-          text: string. The untokenized text of the first sequence. For single
-            sequence tasks, only this sequence must be specified.
-          label: (Optional) string. The label of the example. This should be
+          tokens: list of tokens (strings)
+          label: list of string. The labels of the example. This should be
             specified for train and dev examples, but not for test examples.
         """
         self.guid = guid
-        self.text = text
-        self.label = label
+        self.tokens = tokens
+        self.labels = labels
 
 class PaddingInputExample(object):
     """
@@ -427,38 +429,37 @@ class NERProcessor(object):
     BERT Processor for a NER data set.
     """
     def __init__(self,
-                 data_dir,
-                 task_name):
-        self.data_dir = data_dir
-        self.task_name = task_name
+                labels):
+        self.labels = labels
     
-    def get_train_examples(self):
-        """Gets a collection of `InputExample`s for the train set."""
-        data_path = os.path.join(self.data_dir, "train-{0}".format(self.task_name), "train-{0}.json".format(self.task_name))
-        data_list = self._read_json(data_path)
-        example_list = self._get_example(data_list)
+    def get_train_examples(self, x, y):
+        """
+        Gets a collection of `InputExample`s for the train set.
+        """
+        example_list = self._get_example(x, y)
         return example_list
     
-    def get_dev_examples(self):
-        """Gets a collection of `InputExample`s for the dev set."""
-        data_path = os.path.join(self.data_dir, "dev-{0}".format(self.task_name), "dev-{0}.json".format(self.task_name))
-        data_list = self._read_json(data_path)
-        example_list = self._get_example(data_list)
+    def get_dev_examples(self, x, y):
+        """
+        Gets a collection of `InputExample`s for the dev set.
+        """
+        example_list = self._get_example(x, y)
         return example_list
     
-    def get_test_examples(self):
-        """Gets a collection of `InputExample`s for the test set."""
-        data_path = os.path.join(self.data_dir, "test-{0}".format(self.task_name), "test-{0}.json".format(self.task_name))
-        data_list = self._read_json(data_path)
-        example_list = self._get_example(data_list)
+    def get_test_examples(self, x, y):
+        """
+        Gets a collection of `InputExample`s for the test set.
+        """
+        example_list = self._get_example(x, y)
         return example_list
     
     def get_labels(self):
-        """Gets the list of labels for this data set."""
-        data_path = os.path.join(self.data_dir, "resource", "label.vocab")
-        label_list = self._read_text(data_path)
-        return label_list
+        """
+        Gets the list of labels for this data set.
+        """
+        return self.labels
     
+    '''
     def _read_text(self,
                    data_path):
         if os.path.exists(data_path):
@@ -479,20 +480,120 @@ class NERProcessor(object):
                 return data_list
         else:
             raise FileNotFoundError("data path not found")
-    
-    def _get_example(self,
+    '''
+
+    def _get_example_old(self,
                      data_list):
         example_list = []
         for data in data_list:
             guid = data["id"]
-            text = tokenization.convert_to_unicode(data["text"])
-            label = tokenization.convert_to_unicode(data["label"])
-            example = InputExample(guid=guid, text=text, label=label)
+            tokens = tokenization.convert_to_unicode(data["text"])
+            labels = tokenization.convert_to_unicode(data["label"])
+            example = InputExample(guid=guid, tokens=tokens, labels=labels)
             example_list.append(example)
         
         return example_list
 
-def convert_single_example(ex_index,
+    def _get_example(self, x, y):
+        example_list = []
+        for i in range(len(x)):
+            guid = i
+            tokens = []
+            labels = []
+            for j in range(len(x[i])):
+                tokens.append(tokenization.convert_to_unicode(x[i][j]))
+                labels.append(tokenization.convert_to_unicode(y[i][j]))
+            example = InputExample(guid=guid, tokens=tokens, labels=labels)
+            example_list.append(example)
+        return example_list
+
+
+def convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer, mode):
+    """
+    :param ex_index: example num
+    :param example:
+    :param label_list: all labels
+    :param max_seq_length:
+    :param tokenizer: WordPiece tokenization
+    :param mode:
+    :return: feature
+    IN this part we should rebuild input sentences to the following format.
+    example:[Jim,Hen,##son,was,a,puppet,##eer]
+    labels: [I-PER,I-PER,X,O,O,O,X]
+    """
+    label_map = {}
+    #here start with zero this means that "[PAD]" is zero
+    for (i,label) in enumerate(label_list):
+        label_map[label] = i
+    
+    #textlist = example.text.split(' ')
+    #labellist = example.label.split(' ')
+
+    textlist = example.tokens
+    labellist = example.labels
+    tokens = []
+    labels = []
+    for i,(word,label) in enumerate(zip(textlist,labellist)):
+        token = tokenizer.tokenize(word)
+        tokens.extend(token)
+        for i,_ in enumerate(token):
+            if i==0:
+                labels.append(label)
+            else:
+                labels.append("X")
+    # only Account for [CLS] with "- 1".
+    if len(tokens) >= max_seq_length - 1:
+        tokens = tokens[0:(max_seq_length - 1)]
+        labels = labels[0:(max_seq_length - 1)]
+    ntokens = []
+    segment_ids = []
+    label_ids = []
+    ntokens.append("[CLS]")
+    segment_ids.append(0)
+    label_ids.append(label_map["[CLS]"])
+    for i, token in enumerate(tokens):
+        ntokens.append(token)
+        segment_ids.append(0)
+        label_ids.append(label_map[labels[i]])
+    # after that we don't add "[SEP]" because we want a sentence don't have
+    # stop tag, because i think its not very necessary.
+    # or if add "[SEP]" the model even will cause problem, special the crf layer was used.
+    input_ids = tokenizer.convert_tokens_to_ids(ntokens)
+
+    # The mask has 1 for real tokens and 0 for padding tokens. Only real tokens are attended to.
+    input_mask = [1] * len(input_ids)
+
+    #use zero to padding and you should
+    while len(input_ids) < max_seq_length:
+        input_ids.append(0)
+        input_mask.append(0)
+        segment_ids.append(0)
+        label_ids.append(0)
+        ntokens.append("[PAD]")
+    assert len(input_ids) == max_seq_length
+    assert len(input_mask) == max_seq_length
+    assert len(segment_ids) == max_seq_length
+    assert len(label_ids) == max_seq_length
+    assert len(ntokens) == max_seq_length
+    if ex_index < 3:
+        tf.logging.info("*** Example ***")
+        tf.logging.info("guid: %s" % (example.guid))
+        tf.logging.info("tokens: %s" % " ".join(
+            [tokenization.printable_text(x) for x in tokens]))
+        tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+        tf.logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+        tf.logging.info("label_ids: %s" % " ".join([str(x) for x in label_ids]))
+
+    feature = InputFeatures(
+        input_ids=input_ids,
+        input_mask=input_mask,
+        segment_ids=segment_ids,
+        label_ids=label_ids)
+    # we need ntokens because if we do predict it can help us return to original token.
+    return feature,ntokens,label_ids
+
+def convert_single_example_old(ex_index,
                            example,
                            label_list,
                            max_seq_length,
@@ -510,14 +611,29 @@ def convert_single_example(ex_index,
     label_map = {}
     for (i, label) in enumerate(label_list):
         label_map[label] = i
-    
-    text_tokens = example.text.split(" ")
-    label_tokens = example.label.split(" ")
+
+    # check that label without IOB prefix are also present
+    label_index = len(label_list)
+    for label in label_list:
+        if label.find("-") != -1:
+            sub_label = label[label.index("-")+1:]
+            if sub_label not in label_map:
+                label_map[sub_label] = label_index
+                label_index += 1
+
+    #text_tokens = example.text.split(" ")
+    #label_tokens = example.label.split(" ")
+    text_tokens = example.tokens
+    label_tokens = example.labels
     
     tokens = []
     labels = []
     for text_token, label_token in zip(text_tokens, label_tokens):
         text_sub_tokens = tokenizer.tokenize(text_token)
+        label_sub_token = label_token 
+        if label_sub_token.find("-") != -1:
+            label_sub_token = label_sub_token[label_sub_token.index("-")+1:]
+        #label_sub_tokens = [label_token] + [label_sub_token] * (len(text_sub_tokens) - 1)
         label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
         tokens.extend(text_sub_tokens)
         labels.extend(label_sub_tokens)
@@ -555,6 +671,9 @@ def convert_single_example(ex_index,
     segment_ids.append(0)
     label_ids.append(label_map["[CLS]"])
     
+    print(tokens)
+    print(labels)
+
     for i, token in enumerate(tokens):
         input_tokens.append(token)
         segment_ids.append(0)

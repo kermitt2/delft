@@ -535,6 +535,8 @@ if __name__ == "__main__":
         )
     )
 
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BERT']
+
     args = parser.parse_args()
 
     action = args.action    
@@ -546,8 +548,8 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     use_BERT = args.use_BERT
     architecture = args.architecture
-    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU_CRF, BidLSTM_CNN]')
+    if architecture not in architectures:
+        print('unknown model architecture, must be one of', architectures)
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
