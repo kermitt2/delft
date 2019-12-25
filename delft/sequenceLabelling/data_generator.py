@@ -1,6 +1,7 @@
 import numpy as np
 # seed is fixed for reproducibility
 from delft.sequenceLabelling.config import ModelConfig
+from delft.utilities.numpy import shuffle_arrays
 
 np.random.seed(7)
 import keras
@@ -59,19 +60,22 @@ class DataGenerator(keras.utils.Sequence):
             batch_x, batch_c, batch_f, batch_l, batch_y = self.__data_generation(index)
             return [batch_x, batch_c, batch_f, batch_l], batch_y
 
-    def shuffle_pair(self, a, b):
-        # generate permutation index array
-        permutation = np.random.permutation(a.shape[0])
-        # shuffle the two arrays
-        return a[permutation], b[permutation]
+    def _shuffle_dataset(self):
+        arrays_to_shuffle = [self.x]
+        if self.y is not None:
+            arrays_to_shuffle.append(self.y)
+        if self.features is not None:
+            arrays_to_shuffle.append(self.features)
+        shuffle_arrays(arrays_to_shuffle)
 
     def on_epoch_end(self):
+        # If we are predicting, we don't need to shuffle
+        if self.y is None:
+            return
+
         # shuffle dataset at each epoch
-        if self.shuffle == True:
-            if self.y is None:
-                np.random.shuffle(self.x)
-            else:
-                self.shuffle_pair(self.x,self.y)
+        if self.shuffle:
+            self._shuffle_dataset()
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples'
