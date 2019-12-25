@@ -196,8 +196,10 @@ def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
 class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self, features_indices: Iterable[int] = None,
                  features_vector_size=ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE,
-                 features_map_to_index=[]):
+                 features_map_to_index=None):
         # feature_indices_set = None
+        if features_map_to_index is None:
+            features_map_to_index = []
         self.features_vector_size = features_vector_size
         self.features_indices = features_indices
 
@@ -216,15 +218,24 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
         self.features_indices = indexes
         return self
 
-    def transform(self, X):
+    def transform(self, X, extend=False):
         """
         Transform the features into a vector, return the vector and the extracted number of features
+
+        :param extend: when set to true it's adding an additional empty feature list in the sequence.
         """
         output = [[[self.features_map_to_index[index][value] if index in self.features_map_to_index and value in self.features_map_to_index[index] else 0
                     for index, value in enumerate(value_list) if index in self.features_indices] for
                     value_list in document] for document in X]
 
-        return output, len(self.features_indices)
+        features_count = len(self.features_indices)
+
+        if extend:
+            for out in output:
+                out.append([0]*features_count)
+
+
+        return output, features_count
 
 
 class FeaturesPreprocessor2(BaseEstimator, TransformerMixin):
@@ -302,7 +313,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         """
         transforms input into sequence
         the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch 
-        (which would cause an error with tf)
+        (which would cause an cd)
 
         Args:
             X: list of list of word tokens
@@ -349,8 +360,8 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
     def fit_features(self, features_batch):
         return self.feature_preprocessor.fit(features_batch)
 
-    def transform_features(self, features_batch):
-        return self.feature_preprocessor.transform(features_batch)
+    def transform_features(self, features_batch, extend=False):
+        return self.feature_preprocessor.transform(features_batch, extend=extend)
 
     def inverse_transform(self, y):
         """

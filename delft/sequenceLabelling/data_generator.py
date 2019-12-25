@@ -137,7 +137,7 @@ class DataGenerator(keras.utils.Sequence):
 
         if self.features is not None:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
-            batch_f_transformed, features_length = self.preprocessor.transform_features(sub_f)
+            batch_f_transformed, features_length = self.preprocessor.transform_features(sub_f, extend=extend)
             batch_f_padded, _ = pad_sequences(batch_f_transformed, [0]*features_length)
             batch_f_asarray = np.asarray(batch_f_padded)
             batch_f_list_one_hot = [

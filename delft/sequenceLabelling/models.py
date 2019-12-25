@@ -328,10 +328,11 @@ class BidLSTM_CRF_CASING(BaseModel):
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
         feature_count = 1 if not config.features_indices else len(config.features_indices)
+        # print("Feature count: " + str(feature_count))
 
         # features dimension = number of features x vector size
         feature_input_dimentions = config.features_vector_size * feature_count
-        # print(feature_input_dimentions)
+        # print("Feature input dimensions: " + str(feature_input_dimentions))
 
         # layout features input and embeddings
         features_input = Input(shape=(None, feature_input_dimentions), dtype='float32', name='features_input')
