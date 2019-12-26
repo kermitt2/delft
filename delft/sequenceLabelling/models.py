@@ -331,31 +331,29 @@ class BidLSTM_CRF_CASING(BaseModel):
         # print("Feature count: " + str(feature_count))
 
         # features dimension = number of features x vector size
-        feature_input_dimentions = config.features_vector_size * feature_count
-        # print("Feature input dimensions: " + str(feature_input_dimentions))
+        feature_input_dimensions = config.features_vector_size * feature_count
 
         # layout features input and embeddings
-        features_input = Input(shape=(None, feature_input_dimentions), dtype='float32', name='features_input')
+        features_input = Input(shape=(None, feature_input_dimensions), dtype='float32', name='features_input')
 
         # feature_output_dimensions = feature_count * config.features_embedding_size
-        # print(feature_output_dimensions)
-        # features_embedding = Embedding(input_dim=feature_input_dimentions,
+        # features_embedding = Embedding(input_dim=feature_input_dimensions,
         #                                output_dim=feature_output_dimensions,
         #                                mask_zero=True,
         #                                trainable=True,
-        #                                name='features_embedding')(features_input)
-        #
-        # features_embedding = Dropout(config.dropout)(features_embedding)
+        #                                name='features_embedding')
+        # features_embedding_td = TimeDistributed(features_embedding)(features_input)
 
-        features_embedding2 = TimeDistributed(Dense(config.features_embedding_size, name='feature_embeddings_dense'),
-                                              name='feature_embeddings2')(features_input)
+        features_embedding_td_dense = TimeDistributed(Dense(config.features_embedding_size, name='feature_embeddings_dense'),
+                                              name='feature_embeddings_td_dense')(features_input)
 
-        # print(features_embedding2.shape)
+        features_embedding_out = Dropout(config.dropout)(features_embedding_td_dense)
+
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
-        x = Concatenate()([word_input, casing_embedding, chars, features_embedding2])
+        x = Concatenate()([word_input, casing_embedding, chars, features_embedding_out])
         x = Dropout(config.dropout)(x)
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units,
