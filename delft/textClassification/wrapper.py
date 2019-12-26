@@ -336,7 +336,7 @@ class Classifier(object):
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
 
-        # bert model are always saved via training process steps
+        # bert model are always saved via training process steps as checkpoint
         if self.model_config.model_type.find("bert") != -1:
             print('model saved')
             return

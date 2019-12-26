@@ -379,9 +379,6 @@ class BERT_Sequence(BaseModel):
     def __init__(self, config, ntags=None):
         self.graph = tf.get_default_graph()
 
-        print("config.max_sequence_length: ", config.max_sequence_length)
-        print("config.batch_size: ", config.batch_size)
-
         self.model_name = config.model_name
         self.model_type = config.model_type
 
@@ -401,19 +398,20 @@ class BERT_Sequence(BaseModel):
         self.vocab_file = description["path-vocab"]
 
         self.labels = []
-        # by convention, PAD is zero
-        self.labels.append("[PAD]")
-        for key in config.labels:
-            self.labels.append(key)
 
-        # adding other default convention labels if necessary
-        # adding other default convention labels if necessary
-        if "X" not in self.labels:
-            self.labels.append("X")
-        if "[CLS]" not in self.labels:
-            self.labels.append("[CLS]")
-        if "[SEP]" not in self.labels:
-            self.labels.append("[SEP]")
+        # by bert convention, PAD is zero
+        self.labels.append("[PAD]")
+        # adding other default bert convention labels 
+        self.labels.append("[CLS]")
+        self.labels.append("[SEP]")
+        # the following label is added for added bert tokens introduced by ## 
+        self.labels.append("X")
+
+        for label in config.labels:
+            if label == '<PAD>' or label == '<UNK>':
+                continue
+            if label not in self.labels:
+                self.labels.append(label)
 
         self.do_lower_case = False
         self.max_seq_length = config.max_sequence_length
@@ -430,7 +428,7 @@ class BERT_Sequence(BaseModel):
         self.processor = NERProcessor(self.labels)
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
-        self.model_dir = 'data/models/textClassification/' + self.model_name    
+        self.model_dir = 'data/models/sequenceLabelling/' + self.model_name    
 
         self.loaded_estimator = None
 
@@ -444,6 +442,9 @@ class BERT_Sequence(BaseModel):
         for fold_number in range(0, self.fold_count):
             if os.path.exists(self.model_dir+str(fold_number)):
                 shutil.rmtree(self.model_dir+str(fold_number))
+
+        if os.path.exists(self.model_dir):
+            shutil.rmtree(self.model_dir)
 
         train_examples = self.processor.get_train_examples(x_train, y_train)
 
@@ -470,22 +471,12 @@ class BERT_Sequence(BaseModel):
 
     def train_fold(self, fold_number, train_examples):
         '''
-        Train the seuqnce labelling model
+        Train the sequence labelling model
         '''
         start = time.time()
 
-        print("len(train_examples): ", len(train_examples))
-        print("self.train_batch_size: ", self.train_batch_size)
-        print("self.num_train_epochs: ", self.num_train_epochs)
-
         num_train_steps = int(len(train_examples) / self.train_batch_size * self.num_train_epochs)
-
-        print("num_train_steps: ", num_train_steps)
-        print("self.warmup_proportion: ", self.warmup_proportion)
-
         num_warmup_steps = int(num_train_steps * self.warmup_proportion)
-
-        print("num_warmup_steps: ", num_warmup_steps)
 
         model_fn = self.model_fn_builder(
               bert_config=self.bert_config,
@@ -497,7 +488,7 @@ class BERT_Sequence(BaseModel):
               use_tpu=False,
               use_one_hot_embeddings=True)
 
-        run_config = self._get_run_config(fold_number)
+        run_config = self._get_run_config()
 
         estimator = tf.contrib.tpu.TPUEstimator(
               use_tpu=False,
@@ -506,10 +497,10 @@ class BERT_Sequence(BaseModel):
               train_batch_size=self.train_batch_size)
               
         # create dir if does not exist
-        if not os.path.exists(self.model_dir+str(fold_number)):
-            os.makedirs(self.model_dir+str(fold_number))
+        if not os.path.exists(self.model_dir):
+            os.makedirs(self.model_dir)
         
-        train_file = os.path.join(self.model_dir+str(fold_number), "train.tf_record")
+        train_file = os.path.join(self.model_dir, "train.tf_record")
 
         file_based_convert_examples_to_features(train_examples, self.labels, 
             self.max_seq_length, self.tokenizer, train_file)
@@ -539,114 +530,19 @@ class BERT_Sequence(BaseModel):
 
         # the initial check point has prefix model.ckpt-0* and can be removed
         # (given that there is a 1.3 GB file, it's better!) 
-        garbage = os.path.join(self.model_dir+str(fold_number), "model.ckpt-0.data-00000-of-00001")
+        garbage = os.path.join(self.model_dir, "model.ckpt-0.data-00000-of-00001")
         if os.path.exists(garbage):
             os.remove(garbage)
-        garbage = os.path.join(self.model_dir+str(fold_number), "model.ckpt-0.index")
+        garbage = os.path.join(self.model_dir, "model.ckpt-0.index")
         if os.path.exists(garbage):
             os.remove(garbage)
-        garbage = os.path.join(self.model_dir+str(fold_number), "model.ckpt-0.meta")
+        garbage = os.path.join(self.model_dir, "model.ckpt-0.meta")
         if os.path.exists(garbage):
             os.remove(garbage)
 
-    def evaluate(self, x_test=None, y_test=None, run_number=0):
-        '''
-        Train and eval the nb_runs model(s) against holdout set. If nb_runs>1, the final
-        score are averaged over the nb_runs models. The best model against holdout is saved.
-        '''
-        start = time.time()
-        predict_examples, y_test = self.processor.get_test_examples(x_test=x_test, y_test=y_test)
-        #y_test_gold = np.asarray([np.argmax(line) for line in y_test])
-
-        y_predicts = self.eval_fold(predict_examples)
-        result_intermediate = np.asarray([np.argmax(line) for line in y_predicts])
-
-        def vectorize(index, size):
-            result = np.zeros(size)
-            if index < size:
-                result[index] = 1
-            return result
-        result_binary = np.array([vectorize(xi, len(self.labels)) for xi in result_intermediate])
-
-        precision, recall, fscore, support = precision_recall_fscore_support(y_test, result_binary, average=None)
-        print('\n')
-        print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(" ", "precision", "recall", "f-score", "support"))
-        p = 0
-        for the_class in self.labels:
-            the_class = the_class[:14]
-            print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(the_class, "{:10.4f}"
-                .format(precision[p]), "{:10.4f}".format(recall[p]), "{:10.4f}".format(fscore[p]), support[p]))
-            p += 1
-
-        runtime = round(time.time() - start, 3)
-
-        print("Total runtime for eval: " + str(runtime) + " seconds")
-
-    def evaluate_fold(self, predict_examples, fold_number=0):
-        
-        num_actual_predict_examples = len(predict_examples)
-
-        predict_file = os.path.join(self.model_dir+str(fold_number), "predict.tf_record")
-
-        file_based_convert_examples_to_features(predict_examples, self.labels,
-                                                self.max_seq_length, self.tokenizer,
-                                                predict_file)
-
-        tf.logging.info("***** Running holdout prediction*****")
-        tf.logging.info("  Num examples = %d (%d actual, %d padding)",
-                        len(predict_examples), num_actual_predict_examples,
-                        len(predict_examples) - num_actual_predict_examples)
-        tf.logging.info("  Batch size = %d", self.predict_batch_size)
-
-        predict_input_fn = file_based_input_fn_builder(
-            input_file=predict_file,
-            seq_length=self.max_seq_length,
-            is_training=False,
-            drop_remainder=False,
-            batch_size=self.predict_batch_size)
-
-        num_train_steps = int(31861 / self.train_batch_size * self.num_train_epochs)
-        num_warmup_steps = int(num_train_steps * self.warmup_proportion)
-
-        model_fn = self.model_fn_builder(
-              self.bert_config,
-              label_list=self.labels,
-              init_checkpoint=self.weight_file,
-              learning_rate=self.learning_rate,
-              num_train_steps=num_train_steps,
-              num_warmup_steps=num_warmup_steps,
-              use_tpu=False,
-              use_one_hot_embeddings=True)
-
-        run_config = self._get_run_config(fold_number)
-
-        estimator = tf.contrib.tpu.TPUEstimator(
-              use_tpu=False,
-              model_fn=model_fn,
-              config=run_config,
-              predict_batch_size=self.predict_batch_size)
-
-        result = estimator.predict(input_fn=predict_input_fn)
-        
-        y_pred = np.zeros(shape=(len(predict_examples),len(self.labels)))
-
-        p = 0
-        for prediction in result:
-            probabilities = prediction["probabilities"]
-            q = 0
-            for class_probability in probabilities:
-                y_pred[p,q] = class_probability
-                q += 1
-            p += 1
-        
-        # cleaning the garbages
-        os.remove(predict_file)
-
-        return y_pred
-
-    def predict_on_batch(self, texts, fold_number=0):
+    def predict(self, texts, fold_number=0):
         if self.loaded_estimator is None:
-            self.load_model(fold_number)        
+            self.load_model()        
 
         if texts is None or len(texts) == 0:
             return res
@@ -656,9 +552,7 @@ class BERT_Sequence(BaseModel):
             for i in range(0, len(l), n):
                 yield l[i:i + n]
 
-        y_pred = np.zeros(shape=(len(texts),len(self.labels)))
-        y_pos = 0
-
+        y_pred = []
         for text_batch in list(chunks(texts, self.predict_batch_size)):
             if type(text_batch) is np.ndarray:
                 text_batch = text_batch.tolist()
@@ -671,23 +565,28 @@ class BERT_Sequence(BaseModel):
                     text_batch.append(dummy_text)
 
             # segment in batches corresponding to self.predict_batch_size
-            input_examples = self.processor.create_inputs(text_batch, dummy_label=self.labels[0])
-            input_features = convert_examples_to_features(input_examples, self.labels, self.max_seq_length, self.tokenizer)
+            input_examples = self.processor.create_inputs(text_batch)
+            input_features, input_tokens = convert_examples_to_features(input_examples, self.labels, self.max_seq_length, self.tokenizer)
 
             results = self.loaded_estimator.predict(input_features, self.max_seq_length, self.predict_batch_size)
-
-            #y_pred = np.zeros(shape=(num_current_batch,len(self.labels)))
             p = 0
-            for prediction in results:
+            for i, prediction in enumerate(results):
                 if p == num_current_batch:
                     break
-                probabilities = prediction["probabilities"]
-                q = 0
-                for class_probability in probabilities:
-                    y_pred[y_pos+p,q] = class_probability 
-                    q += 1
+                predicted_labels = prediction["predicts"]
+                #print("\n", input_tokens[i])
+                #print(predicted_labels)
+                y_pred_result = []
+                for q in range(len(predicted_labels)):
+                    if input_tokens[i][q] == '[SEP]':
+                        break
+                    if self.labels[predicted_labels[q]] in ['[PAD]', '[CLS]', '[SEP]', 'X']:
+                        continue
+                    if input_tokens[i][q].startswith("##"): 
+                        continue
+                    y_pred_result.append(self.labels[predicted_labels[q]]) 
+                y_pred.append(y_pred_result)
                 p += 1
-            y_pos += num_current_batch
 
         return y_pred
 
@@ -722,7 +621,15 @@ class BERT_Sequence(BaseModel):
             is_training = False
             if mode == tf.estimator.ModeKeys.TRAIN: 
                 is_training = True
-            (loss, logits, predicts) = self.create_model(bert_config, is_training, input_ids, input_mask, segment_ids, label_ids, len(label_list), use_one_hot_embeddings)
+            (loss, logits, predicts) = self.create_model(bert_config, 
+                                                        is_training, 
+                                                        input_ids, 
+                                                        input_mask, 
+                                                        segment_ids, 
+                                                        label_ids, 
+                                                        len(label_list), 
+                                                        use_one_hot_embeddings, 
+                                                        mode)
             tvars = tf.trainable_variables()
             initialized_variable_names = {}
             scaffold_fn = None
@@ -807,14 +714,14 @@ class BERT_Sequence(BaseModel):
         
         return model_fn
 
-    def _get_run_config(self, fold_number=0):
+    def _get_run_config(self):
         tpu_cluster_resolver = None
         is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
 
         run_config = tf.contrib.tpu.RunConfig(
             cluster=tpu_cluster_resolver,
             master=self.master,
-            model_dir=self.model_dir+str(fold_number),
+            model_dir=self.model_dir,
             save_checkpoints_steps=self.save_checkpoints_steps,
             tpu_config=tf.contrib.tpu.TPUConfig(
                 iterations_per_loop=self.iterations_per_loop,
@@ -824,7 +731,7 @@ class BERT_Sequence(BaseModel):
         return run_config
 
     def create_model(self, bert_config, is_training, input_ids, input_mask,
-                 segment_ids, labels, num_labels, use_one_hot_embeddings):
+                 segment_ids, labels, num_labels, use_one_hot_embeddings, mode):
         model = modeling.BertModel(
             config=bert_config,
             is_training=is_training,
@@ -846,7 +753,7 @@ class BERT_Sequence(BaseModel):
             "output_bias", [num_labels], initializer=tf.zeros_initializer()
         )
         with tf.variable_scope("loss"):
-            if is_training:
+            if mode == tf.estimator.ModeKeys.TRAIN:
                 output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
             output_layer = tf.reshape(output_layer, [-1, hidden_size])
             logits = tf.matmul(output_layer, output_weight, transpose_b=True)
@@ -857,9 +764,13 @@ class BERT_Sequence(BaseModel):
             # return (loss, logits, predict)
             ##########################################################################
             log_probs = tf.nn.log_softmax(logits, axis=-1)
-            one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
-            per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
-            loss = tf.reduce_sum(per_example_loss)
+            if mode != tf.estimator.ModeKeys.PREDICT:
+                one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+                per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
+                loss = tf.reduce_sum(per_example_loss)
+            else:
+                # if prediction, loss is not relevant
+                loss = 0.0
             probabilities = tf.nn.softmax(logits, axis=-1)
             predicts = tf.argmax(probabilities, axis=-1)
             return (loss, logits, predicts)
@@ -870,7 +781,7 @@ class BERT_Sequence(BaseModel):
         num_train_steps = int(10000 / self.train_batch_size * self.num_train_epochs)
         num_warmup_steps = int(num_train_steps * self.warmup_proportion)
 
-        model_fn = model_fn_builder(
+        model_fn = self.model_fn_builder(
               bert_config=self.bert_config,
               label_list=self.labels,
               init_checkpoint=self.weight_file,
@@ -879,7 +790,7 @@ class BERT_Sequence(BaseModel):
               num_warmup_steps=num_warmup_steps,
               use_one_hot_embeddings=True)
 
-        run_config = self._get_run_config(0)
+        run_config = self._get_run_config()
 
         self.loaded_estimator = FastPredict(tf.contrib.tpu.TPUEstimator(
               use_tpu=False,
@@ -895,7 +806,8 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "label_ids": tf.FixedLenFeature([], tf.int64)
+        #"label_ids": tf.FixedLenFeature([], tf.int64)
+        "label_ids": tf.FixedLenFeature([seq_length], tf.int64),
     }
 
     def _decode_record(record, name_to_features):
@@ -922,7 +834,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
             d = d.shuffle(buffer_size=100)
 
         d = d.apply(
-          tf.contrib.data.map_and_batch(
+          tf.data.experimental.map_and_batch(
                 lambda record: _decode_record(record, name_to_features),
                 batch_size=batch_size,
                 drop_remainder=drop_remainder))
@@ -931,44 +843,46 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
 
     return input_fn
 
-def file_based_convert_examples_to_features_old(examples, label_list, max_seq_length, tokenizer, output_file):
-    """Convert a set of `InputExample`s to a TFRecord file."""
-    print(output_file)
+def input_fn_generator(generator, seq_length, batch_size):
+    """
+    Creates an `input_fn` closure to be passed to the estimator.
+    """
+    def input_fn(params):
+        """The actual input function."""
+
+        output_types = {
+          "input_ids": tf.int64,
+          "input_mask": tf.int64,
+          "segment_ids": tf.int64,
+          "label_ids": tf.int64
+        }
+
+        output_shapes = {
+          "input_ids": tf.TensorShape([None, seq_length]),
+          "input_mask": tf.TensorShape([None, seq_length]),
+          "segment_ids": tf.TensorShape([None, seq_length]),
+          "label_ids": tf.TensorShape([None, seq_length])
+        }
+
+        return tf.data.Dataset.from_generator(generator, output_types=output_types, output_shapes=output_shapes)
+
+    return input_fn
+
+def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file):
+    """
+    Convert a list of `InputExample` to a list of bert `InputFeatures` in a file.
+    This is used when training to avoid re-doing this conversion other multiple epochs.
+    """
     writer = tf.python_io.TFRecordWriter(output_file)
-
-    for (ex_index, example) in enumerate(examples):
-        if ex_index % 10000 == 0:
-            tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
-
-        feature = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
-
-        def create_int_feature(values):
-            f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
-            return f
-
-        features = collections.OrderedDict()
-        features["input_ids"] = create_int_feature(feature.input_ids)
-        features["input_mask"] = create_int_feature(feature.input_mask)
-        features["segment_ids"] = create_int_feature(feature.segment_ids)
-        features["label_ids"] = create_int_feature([feature.label_ids])
-        #features["is_real_example"] = create_int_feature([int(feature.is_real_example)])
-
-        tf_example = tf.train.Example(features=tf.train.Features(feature=features))
-        writer.write(tf_example.SerializeToString())
-
-    writer.close()
-
-def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file, mode=None):
-    writer = tf.python_io.TFRecordWriter(output_file)
-    batch_tokens = []
-    batch_labels = []
+    #batch_tokens = []
+    #batch_labels = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 5000 == 0:
             tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
-        feature,ntokens,label_ids = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer, mode)
+        feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
         
-        batch_tokens.extend(ntokens)
-        batch_labels.extend(label_ids)
+        #batch_tokens.extend(ntokens)
+        #batch_labels.extend(label_ids)
 
         def create_int_feature(values):
             f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
@@ -984,12 +898,25 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
 
     # sentence token in each batch
     writer.close()
-    return batch_tokens,batch_labels
+    #return batch_tokens,batch_labels
 
+def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
+    """
+    Convert a list of `InputExample` to be labelled into a list of bert `InputFeatures`
+    """
+    features = []
+    input_tokens = []
+    for (ex_index, example) in enumerate(examples):
+        #if ex_index % 10000 == 0:
+        #  tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
+        feature, tokens = convert_single_example(ex_index, example, label_list,
+                                         max_seq_length, tokenizer)
+        features.append(feature)
+        input_tokens.append(tokens)
+    return features, input_tokens
 
+# note: use same method in embeddings util and remove this one
 def _get_description(name, path="./embedding-registry.json"):
-    print(name)
-    print(path)
     registry_json = open(path).read()
     registry = json.loads(registry_json)
     for emb in registry["embeddings-contextualized"]:
@@ -998,3 +925,71 @@ def _get_description(name, path="./embedding-registry.json"):
     return None
 
 
+class FastPredict:
+    '''
+    Modified from https://github.com/marcsto/rl/blob/master/src/fast_predict2.py
+
+    Speeds up estimator.predict by preventing it from reloading the graph on each call to predict.
+    It does this by creating a python generator to keep the predict call open.
+    Usage: Just warp your estimator in a FastPredict. i.e.
+    classifier = FastPredict(learn.Estimator(model_fn=model_params.model_fn, model_dir=model_params.model_dir), my_input_fn)
+    This version supports tf 1.4 and above and can be used by pre-made Estimators like tf.estimator.DNNClassifier. 
+  
+    Original author: Marc Stogaitis
+    '''
+    def __init__(self, estimator, input_fn):
+        self.estimator = estimator
+        self.first_run = True
+        self.closed = False
+        self.input_fn = input_fn
+        self.next_features = None
+        self.seq_length = None
+        self.batch_size = None
+
+    def _create_generator(self):
+        while not self.closed:
+            # this must be changed into sequence (same as input_fn_builder but for the self.next_features content)
+            local_gen = _gen_builder(self.next_features)
+            yield local_gen
+
+    def predict(self, feature_batch, seq_length, batch_size):
+        """ Runs a prediction on a set of features. Calling multiple times
+            does *not* regenerate the graph which makes predict much faster.
+            feature_batch a list of list of features. IMPORTANT: If you're only classifying 1 thing,
+            you still need to make it a batch of 1 by wrapping it in a list (i.e. predict([my_feature]), not predict(my_feature) 
+        """
+        self.next_features = feature_batch
+        self.seq_length = seq_length
+        if self.first_run:
+            self.batch_size = len(feature_batch)
+            self.predictions = self.estimator.predict(
+                input_fn=self.input_fn(self._create_generator, seq_length, batch_size))
+            self.first_run = False
+        elif self.batch_size != len(feature_batch):
+            raise ValueError("All batches must be of the same size. First-batch:" + str(self.batch_size) + " This-batch:" + str(len(feature_batch)))
+
+        results = []
+        for _ in range(self.batch_size):
+            results.append(next(self.predictions))
+        return results
+
+    def close(self):
+        self.closed = True
+        try:
+            next(self.predictions)
+        except:
+            print("Exception in fast_predict. But this is probably OK.")
+
+def _gen_builder(features):
+    all_input_ids = []
+    all_input_mask = []
+    all_segment_ids = []
+    all_label_ids = []
+
+    for feature in features:
+        all_input_ids.append(feature.input_ids)
+        all_input_mask.append(feature.input_mask)
+        all_segment_ids.append(feature.segment_ids)
+        all_label_ids.append(feature.label_ids)
+
+    return {"input_ids":all_input_ids, "input_mask":all_input_mask, "segment_ids":all_segment_ids, "label_ids": all_label_ids}

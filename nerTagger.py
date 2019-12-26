@@ -22,6 +22,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
 
     if use_ELMo:
         batch_size = 100
+    elif architecture.lower().find("bert") != -1:
+        batch_size = 10
     else:
         batch_size = 20
 
@@ -150,6 +152,8 @@ def train_eval(embedding_name,
 
     if use_ELMo or use_BERT:
         batch_size = 120
+    elif architecture.lower().find("bert") != -1:
+        batch_size = 10
     else:
         batch_size = 20
 

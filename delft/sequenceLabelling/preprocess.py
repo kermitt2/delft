@@ -1,5 +1,6 @@
 import itertools
 import re
+import collections
 import numpy as np
 np.random.seed(7)
 #from tensorflow import set_random_seed
@@ -8,6 +9,7 @@ from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
 
 import delft.utilities.bert.tokenization as tokenization
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 import tensorflow as tf
 tf.set_random_seed(7)
@@ -434,68 +436,30 @@ class NERProcessor(object):
     
     def get_train_examples(self, x, y):
         """
-        Gets a collection of `InputExample`s for the train set.
+        Gets a collection of `InputExample`s for the train set
         """
-        example_list = self._get_example(x, y)
-        return example_list
+        return self._get_example(x, y)
     
     def get_dev_examples(self, x, y):
         """
-        Gets a collection of `InputExample`s for the dev set.
+        Gets a collection of `InputExample`s for the dev set
         """
-        example_list = self._get_example(x, y)
-        return example_list
+        return self._get_example(x, y)
     
     def get_test_examples(self, x, y):
         """
-        Gets a collection of `InputExample`s for the test set.
+        Gets a collection of `InputExample`s for the test set
         """
-        example_list = self._get_example(x, y)
-        return example_list
+        return self._get_example(x, y)
     
     def get_labels(self):
         """
-        Gets the list of labels for this data set.
+        Gets the list of labels for this data set
         """
         return self.labels
-    
-    '''
-    def _read_text(self,
-                   data_path):
-        if os.path.exists(data_path):
-            with open(data_path, "rb") as file:
-                data_list = []
-                for line in file:
-                    data_list.append(line.decode("utf-8").strip())
-
-                return data_list
-        else:
-            raise FileNotFoundError("data path not found")
-    
-    def _read_json(self,
-                   data_path):
-        if os.path.exists(data_path):
-            with open(data_path, "r") as file:
-                data_list = json.load(file)
-                return data_list
-        else:
-            raise FileNotFoundError("data path not found")
-    '''
-
-    def _get_example_old(self,
-                     data_list):
-        example_list = []
-        for data in data_list:
-            guid = data["id"]
-            tokens = tokenization.convert_to_unicode(data["text"])
-            labels = tokenization.convert_to_unicode(data["label"])
-            example = InputExample(guid=guid, tokens=tokens, labels=labels)
-            example_list.append(example)
-        
-        return example_list
 
     def _get_example(self, x, y):
-        example_list = []
+        examples = []
         for i in range(len(x)):
             guid = i
             tokens = []
@@ -504,11 +468,33 @@ class NERProcessor(object):
                 tokens.append(tokenization.convert_to_unicode(x[i][j]))
                 labels.append(tokenization.convert_to_unicode(y[i][j]))
             example = InputExample(guid=guid, tokens=tokens, labels=labels)
-            example_list.append(example)
-        return example_list
+            examples.append(example)
+        return examples
+
+    def create_inputs(self, x_s, dummy_label='O'):
+        """
+        Gets a collection of `InputExample` for input to be labelled
+        """
+        examples = []
+        # dummy label to avoid breaking the bert base code
+        #label = tokenization.convert_to_unicode(dummy_label)
+        for (i, x) in enumerate(x_s):
+            guid = i
+            tokens = []
+            labels = []
+            # if x is not already segmented:
+            if isinstance(x, list):
+                simple_tokens = x
+            else:
+                simple_tokens = tokenizeAndFilterSimple(x)                
+            for j in range(len(simple_tokens)):
+                tokens.append(tokenization.convert_to_unicode(simple_tokens[j]))
+                labels.append(tokenization.convert_to_unicode(dummy_label))
+            examples.append(InputExample(guid=guid, tokens=tokens, labels=labels))
+        return examples
 
 
-def convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer, mode):
+def convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer):
     """
     :param ex_index: example num
     :param example:
@@ -521,65 +507,73 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     example:[Jim,Hen,##son,was,a,puppet,##eer]
     labels: [I-PER,I-PER,X,O,O,O,X]
     """
+
+    text_tokens = example.tokens
+    tokens = []
+    label_tokens = example.labels
+    labels = []    
+
     label_map = {}
     #here start with zero this means that "[PAD]" is zero
     for (i,label) in enumerate(label_list):
         label_map[label] = i
-    
-    #textlist = example.text.split(' ')
-    #labellist = example.label.split(' ')
 
-    textlist = example.tokens
-    labellist = example.labels
-    tokens = []
-    labels = []
-    for i,(word,label) in enumerate(zip(textlist,labellist)):
-        token = tokenizer.tokenize(word)
-        tokens.extend(token)
-        for i,_ in enumerate(token):
-            if i==0:
-                labels.append(label)
-            else:
-                labels.append("X")
-    # only Account for [CLS] with "- 1".
+    for text_token, label_token in zip(text_tokens, label_tokens):
+        text_sub_tokens = tokenizer.tokenize(text_token)
+        label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
+        tokens.extend(text_sub_tokens)
+        labels.extend(label_sub_tokens)
+    
+    '''
+    if len(tokens) > max_seq_length - 2:
+        tokens = tokens[0:(max_seq_length - 2)]
+    if len(labels) > max_seq_length - 2:
+        labels = labels[0:(max_seq_length - 2)]
+    '''
+
     if len(tokens) >= max_seq_length - 1:
         tokens = tokens[0:(max_seq_length - 1)]
         labels = labels[0:(max_seq_length - 1)]
-    ntokens = []
+
+    input_tokens = []
     segment_ids = []
     label_ids = []
-    ntokens.append("[CLS]")
+    
+    input_tokens.append("[CLS]")
     segment_ids.append(0)
     label_ids.append(label_map["[CLS]"])
+
     for i, token in enumerate(tokens):
-        ntokens.append(token)
+        input_tokens.append(token)
         segment_ids.append(0)
         label_ids.append(label_map[labels[i]])
-    # after that we don't add "[SEP]" because we want a sentence don't have
-    # stop tag, because i think its not very necessary.
-    # or if add "[SEP]" the model even will cause problem, special the crf layer was used.
-    input_ids = tokenizer.convert_tokens_to_ids(ntokens)
-
-    # The mask has 1 for real tokens and 0 for padding tokens. Only real tokens are attended to.
+    
+    # tbr: do we need to add "[SEP]" for single sequence? 
+    input_tokens.append("[SEP]")
+    segment_ids.append(0)
+    label_ids.append(label_map["[SEP]"])
+    
+    input_ids = tokenizer.convert_tokens_to_ids(input_tokens)
+    
+    # The mask has 1 for real tokens and 0 for padding tokens
     input_mask = [1] * len(input_ids)
-
-    #use zero to padding and you should
+    
+    # Zero-pad up to the sequence length.
     while len(input_ids) < max_seq_length:
         input_ids.append(0)
         input_mask.append(0)
         segment_ids.append(0)
         label_ids.append(0)
-        ntokens.append("[PAD]")
+
     assert len(input_ids) == max_seq_length
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
     assert len(label_ids) == max_seq_length
-    assert len(ntokens) == max_seq_length
-    if ex_index < 3:
+    
+    if ex_index < 5:
         tf.logging.info("*** Example ***")
         tf.logging.info("guid: %s" % (example.guid))
-        tf.logging.info("tokens: %s" % " ".join(
-            [tokenization.printable_text(x) for x in tokens]))
+        tf.logging.info("tokens: %s" % " ".join([tokenization.printable_text(x) for x in tokens]))
         tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
         tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
         tf.logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
@@ -590,8 +584,9 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         input_mask=input_mask,
         segment_ids=segment_ids,
         label_ids=label_ids)
-    # we need ntokens because if we do predict it can help us return to original token.
-    return feature,ntokens,label_ids
+
+    return feature, input_tokens
+
 
 def convert_single_example_old(ex_index,
                            example,
@@ -612,11 +607,11 @@ def convert_single_example_old(ex_index,
     for (i, label) in enumerate(label_list):
         label_map[label] = i
 
-    # check that label without IOB prefix are also present
+    # check that label with I prefix are also present
     label_index = len(label_list)
     for label in label_list:
-        if label.find("-") != -1:
-            sub_label = label[label.index("-")+1:]
+        if label.find("B-") != -1:
+            sub_label = "I-"+label[label.index("-")+1:]
             if sub_label not in label_map:
                 label_map[sub_label] = label_index
                 label_index += 1
@@ -716,22 +711,6 @@ def convert_single_example_old(ex_index,
         label_ids=label_ids)
     return feature
 
-def convert_examples_to_features(examples,
-                                 label_list,
-                                 max_seq_length,
-                                 tokenizer):
-    """
-    Convert a set of BERT `InputExample`s to a list of BERT `InputFeatures`.
-    """
-    features = []
-    for (ex_index, example) in enumerate(examples):
-        if ex_index % 10000 == 0:
-            tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
-        
-        feature = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
-        features.append(feature)
-    
-    return features
 
 def input_fn_builder(features,
                      seq_length,
@@ -791,7 +770,7 @@ def file_based_convert_examples_to_features(examples,
         if ex_index % 10000 == 0:
             tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
     
-        feature = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
+        feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
         
         features = collections.OrderedDict()
         features["input_ids"] = create_int_feature(feature.input_ids)

@@ -31,9 +31,14 @@ from delft.sequenceLabelling.trainer import Scorer
 
 from delft.utilities.Embeddings import Embeddings
 
+# seqeval
+from delft.sequenceLabelling.evaluation import accuracy_score
+from delft.sequenceLabelling.evaluation import classification_report
+from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+
+
 # initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
 # with various modifications
-
 
 class Sequence(object):
 
@@ -167,20 +172,57 @@ class Sequence(object):
             self.eval_single(x_test, y_test)
 
     def eval_single(self, x_test, y_test):   
-        if self.model:
-            # Prepare test data(steps, generator)
-            test_generator = DataGenerator(x_test, y_test, 
-              batch_size=self.training_config.batch_size, preprocessor=self.p, 
-              char_embed_size=self.model_config.char_embedding_size, 
-              max_sequence_length=self.model_config.max_sequence_length,
-              embeddings=self.embeddings, shuffle=False)
+        if 'bert' not in self.model_config.model_type.lower():
+            if self.model:
+                # Prepare test data(steps, generator)
+                test_generator = DataGenerator(x_test, y_test, 
+                  batch_size=self.training_config.batch_size, preprocessor=self.p, 
+                  char_embed_size=self.model_config.char_embedding_size, 
+                  max_sequence_length=self.model_config.max_sequence_length,
+                  embeddings=self.embeddings, shuffle=False)
 
-            # Build the evaluator and evaluate the model
-            scorer = Scorer(test_generator, self.p, evaluation=True)
-            scorer.model = self.model
-            scorer.on_epoch_end(epoch=-1) 
-        else:
-            raise (OSError('Could not find a model.'))
+                # Build the evaluator and evaluate the model
+                scorer = Scorer(test_generator, self.p, evaluation=True)
+                scorer.model = self.model
+                scorer.on_epoch_end(epoch=-1) 
+            else:
+                raise (OSError('Could not find a model.'))
+        else: 
+            # BERT architecture model
+            print("eval with:", len(x_test), "texts")
+            #print(x_test)
+            #print(y_test)
+            y_pred = self.model.predict(x_test, fold_number=0)
+            print("eval with:", len(y_test), "expected results")
+            print("eval with:", len(y_pred), "predicted results")
+
+            for i in range(len(y_test)):
+                if len(y_test[i]) != len(y_pred[i]):
+                    '''
+                    print(str(i))
+                    print(x_test[i])
+                    print(str(len(x_test[i])), str(len(y_test[i])),str(len(y_pred[i])))
+                    print(y_test[i])
+                    print(y_pred[i])
+                    '''
+                    if len(y_test[i]) < len(y_pred[i]):
+                        y_pred[i] = y_pred[i][0:len(y_test[i])-1]
+                    if len(y_test[i]) > len(y_pred[i]):
+                        y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
+
+            f1 = f1_score(y_test, y_pred)
+            print("\tf1 (micro): {:04.2f}".format(f1 * 100))
+
+            accuracy = accuracy_score(y_test, y_pred)
+            precision = precision_score(y_test, y_pred)
+            recall = recall_score(y_test, y_pred)
+
+            print("\taccuracy: {:04.2f}".format(accuracy * 100))
+            print("\tprecision: {:04.2f}".format(precision * 100))
+            print("\trecall: {:04.2f}".format(recall * 100))
+
+            report, report_as_map = classification_report(y_test, y_pred, digits=4)
+            print(report)
 
     def eval_nfold(self, x_test, y_test):
         if self.models is not None:
@@ -395,19 +437,25 @@ class Sequence(object):
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        self.p.save(os.path.join(directory, self.preprocessor_file))
-        print('preprocessor saved')
-
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
 
-        self.model.save(os.path.join(directory, self.weight_file))
+        self.p.save(os.path.join(directory, self.preprocessor_file))
+        print('preprocessor saved')
+
+        # bert model are always saved via training process steps as checkpoint
+        if self.model_config.model_type.lower().find("bert") == -1:
+            self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling/'):
+        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
 
-        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+        if self.model_config.model_type.lower().find("bert") != -1:
+             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+             self.model.load_model()
+             return
 
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT) 

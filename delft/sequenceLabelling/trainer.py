@@ -157,20 +157,26 @@ class Trainer(object):
             foldModel = self.models[fold_id]
             if 'bert' not in self.model_config.model_type.lower():
                 foldModel.summary()
-            if self.model_config.use_crf:
-                foldModel.compile(loss=foldModel.crf.loss,
-                               optimizer='adam')
-            else:
-                foldModel.compile(loss='categorical_crossentropy',
-                               optimizer='adam')
 
-            foldModel = self.train_model(foldModel, 
-                                    train_x, 
-                                    train_y, 
-                                    val_x, 
-                                    val_y,
-                                    max_epoch=self.training_config.max_epoch)
-            self.models[fold_id] = foldModel
+                if self.model_config.use_crf:
+                    foldModel.compile(loss=foldModel.crf.loss,
+                                   optimizer='adam')
+                else:
+                    foldModel.compile(loss='categorical_crossentropy',
+                                   optimizer='adam')
+
+                foldModel = self.train_model(foldModel, 
+                                        train_x, 
+                                        train_y, 
+                                        val_x, 
+                                        val_y,
+                                        max_epoch=self.training_config.max_epoch)
+                self.models[fold_id] = foldModel
+
+            else: 
+                # for BERT architectures, directly call the model trainer
+                foldModel.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
+                self.models[fold_id] = foldModel
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):

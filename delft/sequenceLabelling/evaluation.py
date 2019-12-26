@@ -136,6 +136,9 @@ def f1_score(y_true, y_pred, average='micro'):
     true_entities = set(get_entities(y_true))
     pred_entities = set(get_entities(y_pred))
 
+    print("true_entities:", len(true_entities))
+    print("pred_entities:", len(pred_entities))
+
     nb_correct = len(true_entities & pred_entities)
     nb_pred = len(pred_entities)
     nb_true = len(true_entities)

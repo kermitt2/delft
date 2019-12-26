@@ -37,4 +37,4 @@ data/models/textClassification/citations/citations0/
 data/textClassification/dataseer
 data/models/textClassification/dataseer-*
 grobidTest.py
-data/models/textClassification/ner-en-conll2003-bert-base-en0/*
+data/models/sequenceLabelling/ner-en-conll2003-bert-base-en/
