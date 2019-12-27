@@ -418,7 +418,7 @@ class BERT_Sequence(BaseModel):
         self.train_batch_size = config.batch_size
         self.predict_batch_size = config.batch_size
         self.learning_rate = 2e-5 
-        self.num_train_epochs = 1.0
+        self.num_train_epochs = 3.0
         self.warmup_proportion = 0.1
         self.master = None
         self.save_checkpoints_steps = 99999999 # <----- don't want to save any checkpoints
@@ -544,15 +544,16 @@ class BERT_Sequence(BaseModel):
         if self.loaded_estimator is None:
             self.load_model()        
 
+        y_pred = []
+
         if texts is None or len(texts) == 0:
-            return res
+            return y_pred
 
         def chunks(l, n):
             """Yield successive n-sized chunks from l."""
             for i in range(0, len(l), n):
                 yield l[i:i + n]
-
-        y_pred = []
+        
         for text_batch in list(chunks(texts, self.predict_batch_size)):
             if type(text_batch) is np.ndarray:
                 text_batch = text_batch.tolist()

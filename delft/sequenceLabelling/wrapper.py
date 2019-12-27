@@ -198,13 +198,11 @@ class Sequence(object):
 
             for i in range(len(y_test)):
                 if len(y_test[i]) != len(y_pred[i]):
-                    '''
-                    print(str(i))
-                    print(x_test[i])
-                    print(str(len(x_test[i])), str(len(y_test[i])),str(len(y_pred[i])))
-                    print(y_test[i])
-                    print(y_pred[i])
-                    '''
+                    # BERT tokenizer appears to introduce rarely some new tokens without ## prefix
+                    # which make hard to align prediction and expected tokens/labels in 100%
+                    # of the cases - the reason is actually the weird CoNLL forced segmentation
+                    # the solution would be to retokenize the test set with BERT tokenizer -
+                    # below a quick fix
                     if len(y_test[i]) < len(y_pred[i]):
                         y_pred[i] = y_pred[i][0:len(y_test[i])-1]
                     if len(y_test[i]) > len(y_pred[i]):

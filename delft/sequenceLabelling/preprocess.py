@@ -531,9 +531,9 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         labels = labels[0:(max_seq_length - 2)]
     '''
 
-    if len(tokens) >= max_seq_length - 1:
-        tokens = tokens[0:(max_seq_length - 1)]
-        labels = labels[0:(max_seq_length - 1)]
+    if len(tokens) >= max_seq_length - 2:
+        tokens = tokens[0:(max_seq_length - 2)]
+        labels = labels[0:(max_seq_length - 2)]
 
     input_tokens = []
     segment_ids = []
@@ -547,14 +547,14 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         input_tokens.append(token)
         segment_ids.append(0)
         label_ids.append(label_map[labels[i]])
-    
-    # tbr: do we need to add "[SEP]" for single sequence? 
+
+    # tbr: do we really need to add "[SEP]" for single sequence? 
     input_tokens.append("[SEP]")
     segment_ids.append(0)
     label_ids.append(label_map["[SEP]"])
-    
+
     input_ids = tokenizer.convert_tokens_to_ids(input_tokens)
-    
+
     # The mask has 1 for real tokens and 0 for padding tokens
     input_mask = [1] * len(input_ids)
     
