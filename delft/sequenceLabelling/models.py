@@ -575,8 +575,6 @@ class BERT_Sequence(BaseModel):
                 if p == num_current_batch:
                     break
                 predicted_labels = prediction["predicts"]
-                #print("\n", input_tokens[i])
-                #print(predicted_labels)
                 y_pred_result = []
                 for q in range(len(predicted_labels)):
                     if input_tokens[i][q] == '[SEP]':
@@ -606,9 +604,9 @@ class BERT_Sequence(BaseModel):
         def model_fn(features,
                      labels,
                      mode,
-                     params):  # pylint: disable=unused-argument
+                     params):
             """
-            The `model_fn` for TPUEstimator.
+            The `model_fn` for TPUEstimator
             """
             tf.logging.info("*** Features ***")
             for name in sorted(features.keys()):
@@ -760,10 +758,6 @@ class BERT_Sequence(BaseModel):
             logits = tf.matmul(output_layer, output_weight, transpose_b=True)
             logits = tf.nn.bias_add(logits, output_bias)
             logits = tf.reshape(logits, [-1, self.max_seq_length, num_labels])
-            # mask = tf.cast(input_mask,tf.float32)
-            # loss = tf.contrib.seq2seq.sequence_loss(logits,labels,mask)
-            # return (loss, logits, predict)
-            ##########################################################################
             log_probs = tf.nn.log_softmax(logits, axis=-1)
             if mode != tf.estimator.ModeKeys.PREDICT:
                 one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
@@ -775,7 +769,6 @@ class BERT_Sequence(BaseModel):
             probabilities = tf.nn.softmax(logits, axis=-1)
             predicts = tf.argmax(probabilities, axis=-1)
             return (loss, logits, predicts)
-            ##########################################################################
 
     def load_model(self):
         # default
@@ -801,13 +794,13 @@ class BERT_Sequence(BaseModel):
 
 
 def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder, batch_size):
-    """Creates an `input_fn` closure to be passed to TPUEstimator."""
-
+    """
+    Creates an `input_fn` closure to be passed to TPUEstimator
+    """
     name_to_features = {
         "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
         "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
         "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        #"label_ids": tf.FixedLenFeature([], tf.int64)
         "label_ids": tf.FixedLenFeature([seq_length], tf.int64),
     }
 
@@ -825,8 +818,9 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
         return example
 
     def input_fn(params):
-        """The actual input function."""
-
+        """
+        the actual input function
+        """
         # For training, we want a lot of parallel reading and shuffling.
         # For eval, we want no shuffling and parallel reading doesn't matter.
         d = tf.data.TFRecordDataset(input_file)
@@ -846,11 +840,9 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
 
 def input_fn_generator(generator, seq_length, batch_size):
     """
-    Creates an `input_fn` closure to be passed to the estimator.
+    Creates an `input_fn` closure to be passed to the estimator
     """
     def input_fn(params):
-        """The actual input function."""
-
         output_types = {
           "input_ids": tf.int64,
           "input_mask": tf.int64,
@@ -873,17 +865,13 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
     """
     Convert a list of `InputExample` to a list of bert `InputFeatures` in a file.
     This is used when training to avoid re-doing this conversion other multiple epochs.
+    For prediction, we don't want to use a file. 
     """
     writer = tf.python_io.TFRecordWriter(output_file)
-    #batch_tokens = []
-    #batch_labels = []
     for (ex_index, example) in enumerate(examples):
         if ex_index % 5000 == 0:
             tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
         feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
-        
-        #batch_tokens.extend(ntokens)
-        #batch_labels.extend(label_ids)
 
         def create_int_feature(values):
             f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
@@ -899,7 +887,6 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
 
     # sentence token in each batch
     writer.close()
-    #return batch_tokens,batch_labels
 
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """
@@ -908,8 +895,6 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     features = []
     input_tokens = []
     for (ex_index, example) in enumerate(examples):
-        #if ex_index % 10000 == 0:
-        #  tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
         feature, tokens = convert_single_example(ex_index, example, label_list,
                                          max_seq_length, tokenizer)
         features.append(feature)
@@ -925,7 +910,6 @@ def _get_description(name, path="./embedding-registry.json"):
             return emb
     return None
 
-
 class FastPredict:
     '''
     Modified from https://github.com/marcsto/rl/blob/master/src/fast_predict2.py
@@ -935,7 +919,7 @@ class FastPredict:
     Usage: Just warp your estimator in a FastPredict. i.e.
     classifier = FastPredict(learn.Estimator(model_fn=model_params.model_fn, model_dir=model_params.model_dir), my_input_fn)
     This version supports tf 1.4 and above and can be used by pre-made Estimators like tf.estimator.DNNClassifier. 
-  
+    
     Original author: Marc Stogaitis
     '''
     def __init__(self, estimator, input_fn):
@@ -949,15 +933,16 @@ class FastPredict:
 
     def _create_generator(self):
         while not self.closed:
-            # this must be changed into sequence (same as input_fn_builder but for the self.next_features content)
             local_gen = _gen_builder(self.next_features)
             yield local_gen
 
     def predict(self, feature_batch, seq_length, batch_size):
-        """ Runs a prediction on a set of features. Calling multiple times
-            does *not* regenerate the graph which makes predict much faster.
-            feature_batch a list of list of features. IMPORTANT: If you're only classifying 1 thing,
-            you still need to make it a batch of 1 by wrapping it in a list (i.e. predict([my_feature]), not predict(my_feature) 
+        """ 
+        Runs a prediction on a set of features. Calling multiple times does *not* regenerate the graph 
+        which makes predict much faster.
+        feature_batch is a list of list of features. IMPORTANT: If you're only classifying 1 thing, 
+        you still need to make it a batch of 1 by wrapping it in a list (i.e. predict([my_feature]), 
+        not predict(my_feature) 
         """
         self.next_features = feature_batch
         self.seq_length = seq_length

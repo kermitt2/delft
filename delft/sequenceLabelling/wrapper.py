@@ -189,13 +189,7 @@ class Sequence(object):
                 raise (OSError('Could not find a model.'))
         else: 
             # BERT architecture model
-            print("eval with:", len(x_test), "texts")
-            #print(x_test)
-            #print(y_test)
             y_pred = self.model.predict(x_test, fold_number=0)
-            print("eval with:", len(y_test), "expected results")
-            print("eval with:", len(y_pred), "predicted results")
-
             for i in range(len(y_test)):
                 if len(y_test[i]) != len(y_pred[i]):
                     # BERT tokenizer appears to introduce rarely some new tokens without ## prefix
@@ -208,17 +202,13 @@ class Sequence(object):
                     if len(y_test[i]) > len(y_pred[i]):
                         y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
 
+            '''
             f1 = f1_score(y_test, y_pred)
-            print("\tf1 (micro): {:04.2f}".format(f1 * 100))
-
             accuracy = accuracy_score(y_test, y_pred)
             precision = precision_score(y_test, y_pred)
             recall = recall_score(y_test, y_pred)
-
-            print("\taccuracy: {:04.2f}".format(accuracy * 100))
-            print("\tprecision: {:04.2f}".format(precision * 100))
-            print("\trecall: {:04.2f}".format(recall * 100))
-
+            '''
+            
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
             print(report)
 
@@ -236,22 +226,51 @@ class Sequence(object):
             for i in range(0, self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                # Prepare test data(steps, generator)
-                test_generator = DataGenerator(x_test, y_test, 
-                  batch_size=self.training_config.batch_size, preprocessor=self.p, 
-                  char_embed_size=self.model_config.char_embedding_size, 
-                  max_sequence_length=self.model_config.max_sequence_length,
-                  embeddings=self.embeddings, shuffle=False)
+                if 'bert' not in self.model_config.model_type.lower():
+                    # Prepare test data(steps, generator)
+                    test_generator = DataGenerator(x_test, y_test, 
+                      batch_size=self.training_config.batch_size, preprocessor=self.p, 
+                      char_embed_size=self.model_config.char_embedding_size, 
+                      max_sequence_length=self.model_config.max_sequence_length,
+                      embeddings=self.embeddings, shuffle=False)
 
-                # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True)
-                scorer.model = self.models[i]
-                scorer.on_epoch_end(epoch=-1) 
-                f1 = scorer.f1
-                precision = scorer.precision
-                recall = scorer.recall
-                reports.append(scorer.report)
-                reports_as_map.append(scorer.report_as_map)
+                    # Build the evaluator and evaluate the model
+                    scorer = Scorer(test_generator, self.p, evaluation=True)
+                    scorer.model = self.models[i]
+                    scorer.on_epoch_end(epoch=-1) 
+                    f1 = scorer.f1
+                    precision = scorer.precision
+                    recall = scorer.recall
+                    reports.append(scorer.report)
+                    reports_as_map.append(scorer.report_as_map)
+                    
+                else:
+                    # BERT architecture model
+                    y_pred = self.model.predict(x_test, fold_number=0)
+                    for i in range(len(y_test)):
+                        if len(y_test[i]) != len(y_pred[i]):
+                            # BERT tokenizer appears to introduce rarely some new tokens without ## prefix
+                            # which make hard to align prediction and expected tokens/labels in 100%
+                            # of the cases - the reason is actually the weird CoNLL forced segmentation
+                            # (never repeated enough: what an awful format!).
+                            # The solution would be to retokenize the test set with BERT tokenizer -
+                            # below a quick fix:
+                            if len(y_test[i]) < len(y_pred[i]):
+                                y_pred[i] = y_pred[i][0:len(y_test[i])-1]
+                            if len(y_test[i]) > len(y_pred[i]):
+                                y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
+
+                    f1 = f1_score(y_test, y_pred)
+                    precision = precision_score(y_test, y_pred)
+                    recall = recall_score(y_test, y_pred)
+
+                    print("\f1: {:04.2f}".format(f1 * 100))
+                    print("\tprecision: {:04.2f}".format(precision * 100))
+                    print("\trecall: {:04.2f}".format(recall * 100))
+
+                    report, report_as_map = classification_report(y_test, y_pred, digits=4)
+                    reports.append(report)
+                    reports_as_map.append(report_as_map)
 
                 if best_f1 < f1:
                     best_f1 = f1
@@ -272,7 +291,7 @@ class Sequence(object):
 
             name_width = 0
             for label in self.p.vocab_tag:
-              name_width = max(name_width, len(label))
+                name_width = max(name_width, len(label))
 
             width = max(name_width, 10)
             digits = 4
@@ -323,7 +342,9 @@ class Sequence(object):
             print("\n** Worst ** model scores -")
             print(reports[worst_index])
 
-            self.model = self.models[best_index]
+            if 'bert' not in self.model_config.model_type.lower():
+                self.model = self.models[best_index]
+            
             print("\n** Best ** model scores -")
             print(reports[best_index])
 

@@ -23,7 +23,8 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
     if use_ELMo:
         batch_size = 100
     elif architecture.lower().find("bert") != -1:
-        batch_size = 10
+        batch_size = 32
+        max_sequence_length = 128
     else:
         batch_size = 20
 
@@ -55,6 +56,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -87,6 +89,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
     elif (lang == 'fr'):
@@ -110,6 +113,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
     else:
