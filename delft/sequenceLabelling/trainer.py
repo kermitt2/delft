@@ -41,8 +41,6 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-
-<<<<<<< HEAD
     
     def train(self, x_train, y_train, x_valid, y_valid, callbacks=None):
         """ 

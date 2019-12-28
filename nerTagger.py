@@ -531,6 +531,10 @@ def annotate(output_format,
 
 
 if __name__ == "__main__":
+
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
+
     parser = argparse.ArgumentParser(
         description = "Neural Named Entity Recognizers")
 
@@ -539,7 +543,7 @@ if __name__ == "__main__":
     parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code")
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-CRF]")
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument("--use-BERT", action="store_true", help="Use BERT extracted features (embeddings)") 
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
@@ -554,9 +558,6 @@ if __name__ == "__main__":
             " and that the path in the registry to the embedding file is correct on your system."
         )
     )
-
-    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
-                     'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
 
     args = parser.parse_args()
 

@@ -10,7 +10,7 @@
 
 __Work in progress !__
 
-__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures.
+__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, covering sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing.
 
 From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment (with all the known limitations of Python of course for this purpose). The benefits of DeLFT are:
 
@@ -112,6 +112,8 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 ### Available models
 
+The following DL architectures are supported by DeLFT:
+
 * _BidLSTM-CRF_ with words and characters input following:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
@@ -128,15 +130,17 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 &nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Waleed Ammar, Chandra Bhagavatula, Russell Power. "Semi-supervised sequence tagging with bidirectional language models". 2017. https://arxiv.org/pdf/1705.00108  
 
+* _BERT_ transformer architecture, which can be used for sequence labelling. A BERT transformer architecture (with fine-tuning) is used as alternative to the above RNN architectures for sequence labeling. Any pre-trained TensorFlow BERT models can be used (e.g. SciBERT or BioBERT for scientific and medical texts). 
+
+&nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
+
+In addition, the following contextual embeddings can be used in combination to the previous RNN architectures: 
+
 * the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualised embeddings, see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
 * Feature extraction to be used as contextual embeddings can also be obtained from _BERT_, as ELMo alternative, as explained in section 5.4 of: 
-
-&nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
-
-* _BERT_ transformer architecture, which can be used for sequence labelling. A BERT transformer architecture (with fine-tuning) is used as alternative to the above RNN architectures for sequence labeling. Any trained TensorFlow BERT models can be used. 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
@@ -205,8 +209,9 @@ optional arguments:
                         training set
   --architecture ARCHITECTURE
                         type of model architecture to be used, one of
-                        [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-
-                        CRF]
+                        ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF',
+                        'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING',
+                        'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
   --use-ELMo            Use ELMo contextual embeddings
   --use-BERT            Use BERT extracted features (embeddings)
   --data-path DATA_PATH
