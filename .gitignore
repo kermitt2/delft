@@ -38,3 +38,4 @@ data/textClassification/dataseer
 data/models/textClassification/dataseer-*
 grobidTest.py
 data/models/sequenceLabelling/ner-en-conll2003-bert-base-en*
+grobidTest.py
