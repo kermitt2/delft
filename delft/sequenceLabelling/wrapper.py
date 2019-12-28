@@ -360,7 +360,7 @@ class Sequence(object):
                 self.model = self.models[best_index]
             else:
                 # copy best BERT model folder
-                best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + best_index
+                best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
                 new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
                 # delete new_model_dir if it already exists
                 shutil.rmtree(new_model_dir) 
