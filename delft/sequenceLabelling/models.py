@@ -553,7 +553,6 @@ class BERT_Sequence(BaseModel):
 
     def predict(self, texts, fold_id=-1):
         if self.loaded_estimator is None:
-            print(fold_id)
             self.load_model(fold_id)        
 
         y_pred = []
@@ -733,8 +732,6 @@ class BERT_Sequence(BaseModel):
             suffix = ""
         else:
             suffix = str(fold_id)
-
-        print("self.model_dir:", self.model_dir+suffix)
         
         run_config = tf.contrib.tpu.RunConfig(
             cluster=tpu_cluster_resolver,
@@ -750,7 +747,7 @@ class BERT_Sequence(BaseModel):
 
     def create_model(self, bert_config, is_training, input_ids, input_mask,
                  segment_ids, labels, num_labels, use_one_hot_embeddings, mode, 
-                 use_crf=False):
+                 use_crf=True):
         model = modeling.BertModel(
             config=bert_config,
             is_training=is_training,
@@ -780,14 +777,15 @@ class BERT_Sequence(BaseModel):
             logits = tf.nn.bias_add(logits, output_bias)
             logits = tf.reshape(logits, [-1, self.max_seq_length, num_labels])
             if use_crf:
-                mask2len = tf.reduce_sum(mask,axis=1)
-                loss, trans = crf_loss(logits,labels,mask,num_labels,mask2len)
+                mask2len = tf.reduce_sum(input_mask, axis=1)
+                loss, trans = crf_loss(logits, labels, input_mask, num_labels, mask2len, mode)
                 predicts, viterbi_score = tf.contrib.crf.crf_decode(logits, trans, mask2len)
                 return (loss, logits, predicts)
             else:
                 log_probs = tf.nn.log_softmax(logits, axis=-1)
                 loss = 0.0
                 if mode != tf.estimator.ModeKeys.PREDICT:
+                    # loss to be ignored for prediction
                     one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
                     per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
                     loss = tf.reduce_sum(per_example_loss)
@@ -936,17 +934,20 @@ def _get_description(name, path="./embedding-registry.json"):
             return emb
     return None
 
-def crf_loss(logits, labels, mask,num_labels, mask2len):
+def crf_loss(logits, labels, mask, num_labels, mask2len, mode):
+
     with tf.variable_scope("crf_loss"):
         trans = tf.get_variable(
             "transition",
             shape=[num_labels,num_labels],
             initializer=tf.contrib.layers.xavier_initializer()
         )
-    log_likelihood,transition = tf.contrib.crf.crf_log_likelihood(logits,labels,transition_params=trans, sequence_lengths=mask2len)
-    loss = tf.math.reduce_mean(-log_likelihood)
-   
-    return loss,transition
+        if mode == tf.estimator.ModeKeys.PREDICT:   
+            return None, trans
+        else:
+            log_likelihood, transition = tf.contrib.crf.crf_log_likelihood(logits, labels, transition_params=trans, sequence_lengths=mask2len)
+            loss = tf.math.reduce_mean(-log_likelihood)
+            return loss, transition
 
 class FastPredict:
     '''
