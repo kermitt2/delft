@@ -39,7 +39,9 @@ class DataGenerator(keras.utils.Sequence):
     def __len__(self):
         'Denotes the number of batches per epoch'
         # The number of batches is set so that each training sample is seen at most once per epoch
-        if (len(self.x) % self.batch_size) == 0:
+        if self.x is None:
+            return 0
+        elif (len(self.x) % self.batch_size) == 0:
             return int(np.floor(len(self.x) / self.batch_size))
         else:
             return int(np.floor(len(self.x) / self.batch_size) + 1)
@@ -108,11 +110,11 @@ class DataGenerator(keras.utils.Sequence):
 
         if self.embeddings.use_ELMo:     
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
-            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x)
+            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
         elif self.embeddings.use_BERT:     
             #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
-            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x)
-
+            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
+            
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
@@ -122,9 +124,9 @@ class DataGenerator(keras.utils.Sequence):
             if self.preprocessor.return_casing:
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
 
-            # store tag embeddings
-            if self.y is not None:
-                batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
+        # store tag embeddings
+        if self.y is not None:
+            batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)

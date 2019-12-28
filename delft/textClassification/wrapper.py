@@ -85,7 +85,7 @@ class Classifier(object):
                                               patience, use_roc_auc,
                                               class_weights=class_weights)
 
-    def train(self, x_train, y_train, vocab_init=None):
+    def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
 
         # bert models
@@ -110,14 +110,14 @@ class Classifier(object):
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.training_config.use_roc_auc, self.training_config.class_weights, 
             training_generator, validation_generator, val_y, use_ELMo=self.embeddings.use_ELMo, 
-            use_BERT=self.embeddings.use_BERT)
+            use_BERT=self.embeddings.use_BERT, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def train_nfold(self, x_train, y_train, vocab_init=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings)
+    def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
+        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:

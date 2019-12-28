@@ -76,7 +76,8 @@ class TrainingConfig(object):
                  max_epoch=50, 
                  early_stop=True,
                  patience=5,
-                 max_checkpoints_to_keep=5):
+                 max_checkpoints_to_keep=5,
+                 multiprocessing=True):
 
         self.batch_size = batch_size
         self.optimizer = optimizer
@@ -87,3 +88,4 @@ class TrainingConfig(object):
         self.early_stop = early_stop
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
+        self.multiprocessing = multiprocessing

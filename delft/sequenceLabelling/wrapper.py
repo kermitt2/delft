@@ -5,6 +5,7 @@ import time
 import json
 import re
 import math
+import shutil
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -74,7 +75,8 @@ class Sequence(object):
                  log_dir=None,
                  use_ELMo=False,
                  use_BERT=False,
-                 fold_number=1):
+                 fold_number=1,
+                 multiprocessing=True):
 
         self.model = None
         self.models = None
@@ -108,12 +110,12 @@ class Sequence(object):
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               early_stop, patience, 
-                                              max_checkpoints_to_keep)
+                                              max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, x_valid=None, y_valid=None):
+    def train(self, x_train, y_train, x_valid=None, y_valid=None, callbacks=None):
         # TBD if valid is None, segment train to get one
-        x_all = np.concatenate((x_train, x_valid), axis=0)
-        y_all = np.concatenate((y_train, y_valid), axis=0)
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         self.p = prepare_preprocessor(x_all, y_all, self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
@@ -127,13 +129,13 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train(x_train, y_train, x_valid, y_valid)
+        trainer.train(x_train, y_train, x_valid, y_valid, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10, callbacks=None):
         if x_valid is not None and y_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
             y_all = np.concatenate((y_train, y_valid), axis=0)
@@ -160,7 +162,7 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train_nfold(x_train, y_train, x_valid, y_valid)
+        trainer.train_nfold(x_train, y_train, x_valid, y_valid, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:

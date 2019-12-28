@@ -1,5 +1,5 @@
 {
-    "model_name": "units",
+    "model_name": "grobid-units",
     "model_type": "BidLSTM_CRF",
     "embeddings_name": "glove-840B",
     "char_vocab_size": 73,

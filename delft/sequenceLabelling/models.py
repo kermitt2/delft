@@ -1,6 +1,5 @@
-import keras.backend as K
-from keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Lambda, Flatten
-from keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D, MaxPooling1D
+from keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout
+from keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from keras.layers.merge import Concatenate
 from keras.initializers import RandomUniform
 from keras.models import Model
@@ -26,23 +25,23 @@ tf.set_random_seed(7)
 
 
 def get_model(config, preprocessor, ntags=None):
-    if config.model_type == 'BidLSTM_CRF':
+    if config.model_type == BidLSTM_CRF.name:
         preprocessor.return_casing = False
         config.use_crf = True
         return BidLSTM_CRF(config, ntags)
-    elif config.model_type == 'BidLSTM_CNN':
+    elif config.model_type == BidLSTM_CNN.name:
         preprocessor.return_casing = True
         config.use_crf = False
         return BidLSTM_CNN(config, ntags)
-    elif config.model_type == 'BidLSTM_CNN_CRF':
+    elif config.model_type == BidLSTM_CNN_CRF.name:
         preprocessor.return_casing = True
         config.use_crf = True
         return BidLSTM_CNN_CRF(config, ntags)
-    elif config.model_type == 'BidGRU_CRF':
+    elif config.model_type == BidGRU_CRF.name:
         preprocessor.return_casing = False
         config.use_crf = True
         return BidGRU_CRF(config, ntags)
-    elif config.model_type == 'BidLSTM_CRF_CASING':
+    elif config.model_type == BidLSTM_CRF_CASING.name:
         preprocessor.return_casing = True
         config.use_crf = True
         return BidLSTM_CRF_CASING(config, ntags)
@@ -98,6 +97,7 @@ class BidLSTM_CRF(BaseModel):
     "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
     https://arxiv.org/abs/1603.01360
     """
+    name = 'BidLSTM_CRF'
 
     def __init__(self, config, ntags=None):
 
@@ -144,6 +144,8 @@ class BidLSTM_CNN(BaseModel):
     Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. 
     https://arxiv.org/abs/1511.08308
     """
+
+    name = 'BidLSTM_CNN'
 
     def __init__(self, config, ntags=None):
 
@@ -201,6 +203,8 @@ class BidLSTM_CNN_CRF(BaseModel):
     https://arxiv.org/abs/1603.01354
     """
 
+    name = 'BidLSTM_CNN_CRF'
+
     def __init__(self, config, ntags=None):
 
         # build input, directly feed with word embedding by the data generator
@@ -257,6 +261,9 @@ class BidGRU_CRF(BaseModel):
     """
     A Keras implementation of BidGRU-CRF for sequence labelling.
     """
+
+    name = 'BidGRU_CRF'
+
     def __init__(self, config, ntags=None):
 
         # build input, directly feed with word embedding by the data generator
@@ -308,6 +315,8 @@ class BidLSTM_CRF_CASING(BaseModel):
 
     In this architecture some casing features are added, just to see...
     """
+
+    name = 'BidLSTM_CRF_CASING'
 
     def __init__(self, config, ntags=None):
 
