@@ -555,7 +555,8 @@ if __name__ == "__main__":
         )
     )
 
-    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'bert-base-en', 'scibert']
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
 
     args = parser.parse_args()
 
