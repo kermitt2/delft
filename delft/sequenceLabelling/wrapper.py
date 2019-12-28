@@ -192,7 +192,7 @@ class Sequence(object):
                 raise (OSError('Could not find a model.'))
         else: 
             # BERT architecture model
-            y_pred = self.model.predict(x_test, fold_number=0)
+            y_pred = self.model.predict(x_test, fold_id=-1)
 
             nb_alignment_issues = 0
             for i in range(len(y_test)):
@@ -253,7 +253,7 @@ class Sequence(object):
                     self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
                     self.model.load_model(i)
                     
-                    y_pred = self.model.predict(x_test, fold_number=i)
+                    y_pred = self.model.predict(x_test, fold_id=i)
 
                     nb_alignment_issues = 0
                     for j in range(len(y_test)):

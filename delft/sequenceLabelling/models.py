@@ -551,9 +551,10 @@ class BERT_Sequence(BaseModel):
             os.remove(garbage)
 
 
-    def predict(self, texts, fold_number=-1):
+    def predict(self, texts, fold_id=-1):
         if self.loaded_estimator is None:
-            self.load_model(fold_number)        
+            print(fold_id)
+            self.load_model(fold_id)        
 
         y_pred = []
 
@@ -724,15 +725,17 @@ class BERT_Sequence(BaseModel):
         
         return model_fn
 
-    def _get_run_config(self, fold_number=-1):
+    def _get_run_config(self, fold_id=-1):
         tpu_cluster_resolver = None
         is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
 
-        if fold_number == -1:
+        if fold_id == -1:
             suffix = ""
         else:
-            suffix = str(fold_number)
+            suffix = str(fold_id)
 
+        print("self.model_dir:", self.model_dir+suffix)
+        
         run_config = tf.contrib.tpu.RunConfig(
             cluster=tpu_cluster_resolver,
             master=self.master,
@@ -746,7 +749,8 @@ class BERT_Sequence(BaseModel):
         return run_config
 
     def create_model(self, bert_config, is_training, input_ids, input_mask,
-                 segment_ids, labels, num_labels, use_one_hot_embeddings, mode):
+                 segment_ids, labels, num_labels, use_one_hot_embeddings, mode, 
+                 use_crf=False):
         model = modeling.BertModel(
             config=bert_config,
             is_training=is_training,
@@ -767,6 +771,7 @@ class BERT_Sequence(BaseModel):
         output_bias = tf.get_variable(
             "output_bias", [num_labels], initializer=tf.zeros_initializer()
         )
+
         with tf.variable_scope("loss"):
             if mode == tf.estimator.ModeKeys.TRAIN:
                 output_layer = tf.nn.dropout(output_layer, keep_prob=0.9)
@@ -774,15 +779,22 @@ class BERT_Sequence(BaseModel):
             logits = tf.matmul(output_layer, output_weight, transpose_b=True)
             logits = tf.nn.bias_add(logits, output_bias)
             logits = tf.reshape(logits, [-1, self.max_seq_length, num_labels])
-            log_probs = tf.nn.log_softmax(logits, axis=-1)
-            loss = 0.0
-            if mode != tf.estimator.ModeKeys.PREDICT:
-                one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
-                per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
-                loss = tf.reduce_sum(per_example_loss)
-            probabilities = tf.nn.softmax(logits, axis=-1)
-            predicts = tf.argmax(probabilities, axis=-1)
-            return (loss, logits, predicts)
+            if use_crf:
+                mask2len = tf.reduce_sum(mask,axis=1)
+                loss, trans = crf_loss(logits,labels,mask,num_labels,mask2len)
+                predicts, viterbi_score = tf.contrib.crf.crf_decode(logits, trans, mask2len)
+                return (loss, logits, predicts)
+            else:
+                log_probs = tf.nn.log_softmax(logits, axis=-1)
+                loss = 0.0
+                if mode != tf.estimator.ModeKeys.PREDICT:
+                    one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
+                    per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
+                    loss = tf.reduce_sum(per_example_loss)
+                probabilities = tf.nn.softmax(logits, axis=-1)
+                predicts = tf.argmax(probabilities, axis=-1)
+                return (loss, logits, predicts)
+
 
     def load_model(self, fold_id=-1):
         # default
@@ -923,6 +935,18 @@ def _get_description(name, path="./embedding-registry.json"):
         if emb["name"] == name:
             return emb
     return None
+
+def crf_loss(logits, labels, mask,num_labels, mask2len):
+    with tf.variable_scope("crf_loss"):
+        trans = tf.get_variable(
+            "transition",
+            shape=[num_labels,num_labels],
+            initializer=tf.contrib.layers.xavier_initializer()
+        )
+    log_likelihood,transition = tf.contrib.crf.crf_log_likelihood(logits,labels,transition_params=trans, sequence_lengths=mask2len)
+    loss = tf.math.reduce_mean(-log_likelihood)
+   
+    return loss,transition
 
 class FastPredict:
     '''
