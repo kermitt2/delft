@@ -65,7 +65,10 @@ class Trainer(object):
                                                   self.training_config.max_epoch)
         else:
             # for BERT architectures, directly call the model trainer
-            self.model.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
+            if self.training_config.early_stop:
+                self.model.train(x_train,y_train)
+            else:
+                self.model.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
 
     
     def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50):
@@ -126,6 +129,14 @@ class Trainer(object):
         n-fold training for the instance model 
         the n models are stored in self.models, and self.model left unset at this stage 
         """
+        if 'bert' in self.model_config.model_type.lower():
+            # for BERT architectures, directly call the model trainer which is managing n-fold training
+            if x_valid is not None and y_valid is not None:
+                self.model.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
+            else: 
+                self.model.train(x_train, y_train)
+            return
+
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
@@ -155,28 +166,22 @@ class Trainer(object):
                 val_y = y_valid
 
             foldModel = self.models[fold_id]
-            if 'bert' not in self.model_config.model_type.lower():
-                foldModel.summary()
+            foldModel.summary()
 
-                if self.model_config.use_crf:
-                    foldModel.compile(loss=foldModel.crf.loss,
-                                   optimizer='adam')
-                else:
-                    foldModel.compile(loss='categorical_crossentropy',
-                                   optimizer='adam')
+            if self.model_config.use_crf:
+                foldModel.compile(loss=foldModel.crf.loss,
+                               optimizer='adam')
+            else:
+                foldModel.compile(loss='categorical_crossentropy',
+                               optimizer='adam')
 
-                foldModel = self.train_model(foldModel, 
-                                        train_x, 
-                                        train_y, 
-                                        val_x, 
-                                        val_y,
-                                        max_epoch=self.training_config.max_epoch)
-                self.models[fold_id] = foldModel
-
-            else: 
-                # for BERT architectures, directly call the model trainer
-                foldModel.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
-                self.models[fold_id] = foldModel
+            foldModel = self.train_model(foldModel, 
+                                    train_x, 
+                                    train_y, 
+                                    val_x, 
+                                    val_y,
+                                    max_epoch=self.training_config.max_epoch)
+            self.models[fold_id] = foldModel
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):

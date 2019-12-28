@@ -23,7 +23,7 @@ import keras.backend as K
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
-from delft.sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
+from delft.sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor, convert_test_set_for_bert
 from delft.sequenceLabelling.tagger import Tagger
 from delft.sequenceLabelling.trainer import Trainer
 from delft.sequenceLabelling.data_generator import DataGenerator
@@ -144,7 +144,8 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
 
-        #self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+        if 'bert' in self.model_config.model_type.lower():
+            self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         self.models = []
 
         for k in range(0, fold_number):
@@ -190,25 +191,23 @@ class Sequence(object):
         else: 
             # BERT architecture model
             y_pred = self.model.predict(x_test, fold_number=0)
+
+            nb_alignment_issues = 0
             for i in range(len(y_test)):
                 if len(y_test[i]) != len(y_pred[i]):
-                    # BERT tokenizer appears to introduce rarely some new tokens without ## prefix
-                    # which make hard to align prediction and expected tokens/labels in 100%
-                    # of the cases - the reason is actually the weird CoNLL forced segmentation
-                    # the solution would be to retokenize the test set with BERT tokenizer -
-                    # below a quick fix
+                    nb_alignment_issues += 1
+                    # BERT tokenizer appears to introduce some additional tokens without ## prefix,
+                    # but this is normally handled when predicting.
+                    # To be very conservative, the following ensure the number of tokens always 
+                    # match, but it should never be used in practice. 
                     if len(y_test[i]) < len(y_pred[i]):
-                        y_pred[i] = y_pred[i][0:len(y_test[i])-1]
+                        y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
                     if len(y_test[i]) > len(y_pred[i]):
                         y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
 
-            '''
-            f1 = f1_score(y_test, y_pred)
-            accuracy = accuracy_score(y_test, y_pred)
-            precision = precision_score(y_test, y_pred)
-            recall = recall_score(y_test, y_pred)
-            '''
-            
+            if nb_alignment_issues > 0:
+                print("number of alignment issues with test set:", nb_alignment_issues)
+
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
             print(report)
 
@@ -223,7 +222,7 @@ class Sequence(object):
             reports_as_map = []
             total_precision = 0
             total_recall = 0
-            for i in range(0, self.model_config.fold_number):
+            for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
                 if 'bert' not in self.model_config.model_type.lower():
@@ -246,25 +245,35 @@ class Sequence(object):
                     
                 else:
                     # BERT architecture model
-                    y_pred = self.model.predict(x_test, fold_number=0)
-                    for i in range(len(y_test)):
-                        if len(y_test[i]) != len(y_pred[i]):
-                            # BERT tokenizer appears to introduce rarely some new tokens without ## prefix
-                            # which make hard to align prediction and expected tokens/labels in 100%
-                            # of the cases - the reason is actually the weird CoNLL forced segmentation
-                            # (never repeated enough: what an awful format!).
-                            # The solution would be to retokenize the test set with BERT tokenizer -
-                            # below a quick fix:
-                            if len(y_test[i]) < len(y_pred[i]):
-                                y_pred[i] = y_pred[i][0:len(y_test[i])-1]
-                            if len(y_test[i]) > len(y_pred[i]):
-                                y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
+                    dir_path = 'data/models/sequenceLabelling/'
+                    self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+                    self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+                    self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+                    self.model.load_model(i)
+                    
+                    y_pred = self.model.predict(x_test, fold_number=i)
+
+                    nb_alignment_issues = 0
+                    for j in range(len(y_test)):
+                        if len(y_test[i]) != len(y_pred[j]):
+                            nb_alignment_issues += 1
+                            # BERT tokenizer appears to introduce some additional tokens without ## prefix,
+                            # but this is normally handled when predicting.
+                            # To be very conservative, the following ensure the number of tokens always 
+                            # match, but it should never be used in practice. 
+                            if len(y_test[j]) < len(y_pred[j]):
+                                y_test[j] = y_test[j] + ["O"] * (len(y_pred[j]) - len(y_test[j]))
+                            if len(y_test[j]) > len(y_pred[j]):
+                                y_pred[j] = y_pred[j] + ["O"] * (len(y_test[j]) - len(y_pred[j]))
+
+                    if nb_alignment_issues > 0:
+                        print("number of alignment issues with test set:", nb_alignment_issues)
 
                     f1 = f1_score(y_test, y_pred)
                     precision = precision_score(y_test, y_pred)
                     recall = recall_score(y_test, y_pred)
 
-                    print("\f1: {:04.2f}".format(f1 * 100))
+                    print("\tf1: {:04.2f}".format(f1 * 100))
                     print("\tprecision: {:04.2f}".format(precision * 100))
                     print("\trecall: {:04.2f}".format(recall * 100))
 
@@ -339,14 +348,22 @@ class Sequence(object):
             print("\tmacro precision =", '{0:.4f}'.format(macro_precision))
             print("\tmacro recall =", '{0:.4f}'.format(macro_recall), "\n")
 
-            print("\n** Worst ** model scores -")
+            print("\n** Worst ** model scores -", str(worst_index))
             print(reports[worst_index])
+
+            print("\n** Best ** model scores -", str(best_index))
+            print(reports[best_index])
 
             if 'bert' not in self.model_config.model_type.lower():
                 self.model = self.models[best_index]
-            
-            print("\n** Best ** model scores -")
-            print(reports[best_index])
+            else:
+                # copy best BERT model folder
+                best_model_dir = 'data/models/sequenceLabelling/' + self.model_name + best_index
+                new_model_dir = 'data/models/sequenceLabelling/' + self.model_name
+                # delete new_model_dir if it already exists
+                shutil.rmtree(new_model_dir) 
+                shutil.copytree(best_model_dir, new_model_dir)
+        
 
     def tag(self, texts, output_format):
         # annotate a list of sentences, return the list of annotations in the 

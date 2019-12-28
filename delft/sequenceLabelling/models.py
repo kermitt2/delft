@@ -382,9 +382,6 @@ class BERT_Sequence(BaseModel):
         self.model_name = config.model_name
         self.model_type = config.model_type
 
-        print(self.model_name)
-        print(self.model_type)
-
         # we get the BERT pretrained files from the embeddings registry
         description = _get_description(self.model_type)
 
@@ -449,12 +446,12 @@ class BERT_Sequence(BaseModel):
         train_examples = self.processor.get_train_examples(x_train, y_train)
 
         if self.fold_count == 1:
-            self.train_fold(0, train_examples)
+            self.train_fold(-1, train_examples)
         else:
             fold_size = len(train_examples) // self.fold_count
 
             for fold_id in range(0, self.fold_count):
-                tf.logging.info('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
+                print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
                 fold_start = fold_size * fold_id
                 fold_end = fold_start + fold_size
 
@@ -488,7 +485,7 @@ class BERT_Sequence(BaseModel):
               use_tpu=False,
               use_one_hot_embeddings=True)
 
-        run_config = self._get_run_config()
+        run_config = self._get_run_config(fold_number)
 
         estimator = tf.contrib.tpu.TPUEstimator(
               use_tpu=False,
@@ -497,10 +494,14 @@ class BERT_Sequence(BaseModel):
               train_batch_size=self.train_batch_size)
               
         # create dir if does not exist
-        if not os.path.exists(self.model_dir):
-            os.makedirs(self.model_dir)
+        if fold_number == -1:
+            suffix = ""
+        else:
+            suffix = str(fold_number)
+        if not os.path.exists(self.model_dir+suffix):
+            os.makedirs(self.model_dir+suffix)
         
-        train_file = os.path.join(self.model_dir, "train.tf_record")
+        train_file = os.path.join(self.model_dir+suffix, "train.tf_record")
 
         file_based_convert_examples_to_features(train_examples, self.labels, 
             self.max_seq_length, self.tokenizer, train_file)
@@ -530,19 +531,20 @@ class BERT_Sequence(BaseModel):
 
         # the initial check point has prefix model.ckpt-0* and can be removed
         # (given that there is a 1.3 GB file, it's better!) 
-        garbage = os.path.join(self.model_dir, "model.ckpt-0.data-00000-of-00001")
+        garbage = os.path.join(self.model_dir+suffix, "model.ckpt-0.data-00000-of-00001")
         if os.path.exists(garbage):
             os.remove(garbage)
-        garbage = os.path.join(self.model_dir, "model.ckpt-0.index")
+        garbage = os.path.join(self.model_dir+suffix, "model.ckpt-0.index")
         if os.path.exists(garbage):
             os.remove(garbage)
-        garbage = os.path.join(self.model_dir, "model.ckpt-0.meta")
+        garbage = os.path.join(self.model_dir+suffix, "model.ckpt-0.meta")
         if os.path.exists(garbage):
             os.remove(garbage)
 
-    def predict(self, texts, fold_number=0):
+
+    def predict(self, texts, fold_number=-1):
         if self.loaded_estimator is None:
-            self.load_model()        
+            self.load_model(fold_number)        
 
         y_pred = []
 
@@ -579,7 +581,7 @@ class BERT_Sequence(BaseModel):
                 for q in range(len(predicted_labels)):
                     if input_tokens[i][q] == '[SEP]':
                         break
-                    if self.labels[predicted_labels[q]] in ['[PAD]', '[CLS]', '[SEP]', 'X']:
+                    if self.labels[predicted_labels[q]] in ['[PAD]', '[CLS]', '[SEP]']:
                         continue
                     if input_tokens[i][q].startswith("##"): 
                         continue
@@ -713,14 +715,19 @@ class BERT_Sequence(BaseModel):
         
         return model_fn
 
-    def _get_run_config(self):
+    def _get_run_config(self, fold_number=-1):
         tpu_cluster_resolver = None
         is_per_host = tf.contrib.tpu.InputPipelineConfig.PER_HOST_V2
+
+        if fold_number == -1:
+            suffix = ""
+        else:
+            suffix = str(fold_number)
 
         run_config = tf.contrib.tpu.RunConfig(
             cluster=tpu_cluster_resolver,
             master=self.master,
-            model_dir=self.model_dir,
+            model_dir=self.model_dir+suffix,
             save_checkpoints_steps=self.save_checkpoints_steps,
             tpu_config=tf.contrib.tpu.TPUConfig(
                 iterations_per_loop=self.iterations_per_loop,
@@ -759,18 +766,16 @@ class BERT_Sequence(BaseModel):
             logits = tf.nn.bias_add(logits, output_bias)
             logits = tf.reshape(logits, [-1, self.max_seq_length, num_labels])
             log_probs = tf.nn.log_softmax(logits, axis=-1)
+            loss = 0.0
             if mode != tf.estimator.ModeKeys.PREDICT:
                 one_hot_labels = tf.one_hot(labels, depth=num_labels, dtype=tf.float32)
                 per_example_loss = -tf.reduce_sum(one_hot_labels * log_probs, axis=-1)
                 loss = tf.reduce_sum(per_example_loss)
-            else:
-                # if prediction, loss is not relevant
-                loss = 0.0
             probabilities = tf.nn.softmax(logits, axis=-1)
             predicts = tf.argmax(probabilities, axis=-1)
             return (loss, logits, predicts)
 
-    def load_model(self):
+    def load_model(self, fold_id=-1):
         # default
         num_train_steps = int(10000 / self.train_batch_size * self.num_train_epochs)
         num_warmup_steps = int(num_train_steps * self.warmup_proportion)
@@ -784,7 +789,7 @@ class BERT_Sequence(BaseModel):
               num_warmup_steps=num_warmup_steps,
               use_one_hot_embeddings=True)
 
-        run_config = self._get_run_config()
+        run_config = self._get_run_config(fold_id)
 
         self.loaded_estimator = FastPredict(tf.contrib.tpu.TPUEstimator(
               use_tpu=False,

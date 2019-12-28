@@ -415,11 +415,11 @@ def train_eval(embedding_name,
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
-    print("\nEvaluation on test set:")
-    model.eval(x_eval, y_eval)
-
     # saving the model
     model.save()
+
+    print("\nEvaluation on test set:")
+    model.eval(x_eval, y_eval)
 
 
 # usual eval on CoNLL 2003 eng.testb 
@@ -555,7 +555,7 @@ if __name__ == "__main__":
         )
     )
 
-    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BERT']
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'bert-base-en', 'scibert']
 
     args = parser.parse_args()
 
@@ -568,7 +568,7 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     use_BERT = args.use_BERT
     architecture = args.architecture
-    if architecture not in architectures:
+    if architecture not in architectures and architecture.lower().find("bert") == -1:
         print('unknown model architecture, must be one of', architectures)
     data_path = args.data_path
     file_in = args.file_in
@@ -630,5 +630,10 @@ if __name__ == "__main__":
                 if file_out is None:
                     print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
             """
-    # see https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()
+
+    try:
+        # see https://github.com/tensorflow/tensorflow/issues/3388
+        K.clear_session()
+    except:
+        # TF could complain in some case
+        print("\nLeaving TensorFlow...")

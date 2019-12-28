@@ -496,6 +496,9 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     text_tokens = example.tokens
     tokens = []
+    # the following is to better keep track of additional tokens added by BERT tokenizer, 
+    # only some of them has a prefix ## that allows to identify them downstream in the process
+    tokens_marked = []
     label_tokens = example.labels
     labels = []    
 
@@ -506,15 +509,25 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     for text_token, label_token in zip(text_tokens, label_tokens):
         text_sub_tokens = tokenizer.tokenize(text_token)
+        text_sub_tokens_marked = tokenizer.tokenize(text_token)
+        for i in range(len(text_sub_tokens_marked)):
+            if i == 0:
+                continue
+            tok = text_sub_tokens_marked[i]
+            if not tok.startswith("##"):
+                text_sub_tokens_marked[i] = "##" + tok
         label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
         tokens.extend(text_sub_tokens)
+        tokens_marked.extend(text_sub_tokens_marked)
         labels.extend(label_sub_tokens)
 
     if len(tokens) >= max_seq_length - 2:
         tokens = tokens[0:(max_seq_length - 2)]
+        tokens_marked = tokens_marked[0:(max_seq_length - 2)]
         labels = labels[0:(max_seq_length - 2)]
 
     input_tokens = []
+    input_tokens_marked = []
     segment_ids = []
     label_ids = []
 
@@ -530,6 +543,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     # or the second sequence. 
     
     input_tokens.append("[CLS]")
+    input_tokens_marked.append("[CLS]")
     segment_ids.append(0)
     label_ids.append(label_map["[CLS]"])
 
@@ -538,8 +552,12 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         segment_ids.append(0)
         label_ids.append(label_map[labels[i]])
 
+    for token in tokens_marked:
+        input_tokens_marked.append(token)
+
     # note: do we really need to add "[SEP]" for single sequence? 
     input_tokens.append("[SEP]")
+    input_tokens_marked.append("[SEP]")
     segment_ids.append(0)
     label_ids.append(label_map["[SEP]"])
 
@@ -575,5 +593,46 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         segment_ids=segment_ids,
         label_ids=label_ids)
 
-    return feature, input_tokens
+    return feature, input_tokens_marked
 
+def convert_test_set_for_bert(x_test, y_test, tokenizer):
+    '''
+    BERT tokenizer introduce or remove tokens as compared to the forced tokenization
+    given by a CoNNL dataset format. Some additional tokens introduced by BERT have
+    a ## prefix, but not always. 
+    This method retokenizes a CoNLL eval set so that the token returned by the BERT 
+    predictions match the test/eval set.
+    '''
+    x_test_new =[]
+    y_test_new = []
+
+    for i, x_test_example in enumerate(x_test):
+        y_text_example = y_test[i]
+
+        x_test_example_new = []
+        y_test_example_new = []
+        for text_token, label_token in zip(x_test_example, y_text_example):
+            text_sub_tokens = tokenizer.tokenize(text_token)
+            for i in range(len(text_sub_tokens)):
+                if i == 0:
+                    continue
+                tok = text_sub_tokens[i]
+                if not tok.startswith("##"):
+                    text_sub_tokens[i] = "##" + tok
+            label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
+            x_test_example_new.extend(text_sub_tokens)
+            y_test_example_new.extend(label_sub_tokens)
+
+        x_test_example_filtered_new = []
+        y_test_example_filtered_new = []
+
+        for text_token, label_token in zip(x_test_example_new, y_test_example_new):
+            if text_token.startswith("##"): 
+                continue
+            x_test_example_filtered_new.append(text_token)
+            y_test_example_filtered_new.append(label_token)
+
+        x_test_new.append(x_test_example_filtered_new)
+        y_test_new.append(y_test_example_filtered_new)
+
+    return np.asarray(x_test_new), np.asarray(y_test_new)
