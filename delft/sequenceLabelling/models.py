@@ -424,8 +424,8 @@ class BERT_Sequence(BaseModel):
         self.train_batch_size = config.batch_size
         self.predict_batch_size = config.batch_size
         self.learning_rate = 2e-5 
-        self.num_train_epochs = 3.0
-        self.warmup_proportion = 0.4
+        self.num_train_epochs = 5.0
+        self.warmup_proportion = 0.1
         self.master = None
         self.save_checkpoints_steps = 99999999 # <----- don't want to save any checkpoints
         self.iterations_per_loop = 1000
