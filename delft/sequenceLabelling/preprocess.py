@@ -595,44 +595,111 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     return feature, input_tokens_marked
 
-def convert_test_set_for_bert(x_test, y_test, tokenizer):
-    '''
-    BERT tokenizer introduce or remove tokens as compared to the forced tokenization
-    given by a CoNNL dataset format. Some additional tokens introduced by BERT have
-    a ## prefix, but not always. 
-    This method retokenizes a CoNLL eval set so that the token returned by the BERT 
-    predictions match the test/eval set.
-    '''
-    x_test_new =[]
-    y_test_new = []
+def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder, batch_size):
+    """
+    Creates an `input_fn` closure to be passed to TPUEstimator
+    """
+    name_to_features = {
+        "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
+        "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
+        "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
+        "label_ids": tf.FixedLenFeature([seq_length], tf.int64),
+    }
 
-    for i, x_test_example in enumerate(x_test):
-        y_text_example = y_test[i]
+    def _decode_record(record, name_to_features):
+        """Decodes a record to a TensorFlow example."""
+        example = tf.parse_single_example(record, name_to_features)
 
-        x_test_example_new = []
-        y_test_example_new = []
-        for text_token, label_token in zip(x_test_example, y_text_example):
-            text_sub_tokens = tokenizer.tokenize(text_token)
-            for i in range(len(text_sub_tokens)):
-                if i == 0:
-                    continue
-                tok = text_sub_tokens[i]
-                if not tok.startswith("##"):
-                    text_sub_tokens[i] = "##" + tok
-            label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
-            x_test_example_new.extend(text_sub_tokens)
-            y_test_example_new.extend(label_sub_tokens)
+        # int32 cast 
+        for name in list(example.keys()):
+            t = example[name]
+            if t.dtype == tf.int64:
+                t = tf.to_int32(t)
+            example[name] = t
+        
+        return example
 
-        x_test_example_filtered_new = []
-        y_test_example_filtered_new = []
+    def input_fn(params):
+        """
+        the actual input function
+        """
+        # For training, we want a lot of parallel reading and shuffling.
+        # For eval, we want no shuffling and parallel reading doesn't matter.
+        d = tf.data.TFRecordDataset(input_file)
+        if is_training:
+            d = d.repeat()
+            d = d.shuffle(buffer_size=100)
 
-        for text_token, label_token in zip(x_test_example_new, y_test_example_new):
-            if text_token.startswith("##"): 
-                continue
-            x_test_example_filtered_new.append(text_token)
-            y_test_example_filtered_new.append(label_token)
+        d = d.apply(
+          tf.data.experimental.map_and_batch(
+                lambda record: _decode_record(record, name_to_features),
+                batch_size=batch_size,
+                drop_remainder=drop_remainder))
 
-        x_test_new.append(x_test_example_filtered_new)
-        y_test_new.append(y_test_example_filtered_new)
+        return d
 
-    return np.asarray(x_test_new), np.asarray(y_test_new)
+    return input_fn
+
+def input_fn_generator(generator, seq_length, batch_size):
+    """
+    Creates an `input_fn` closure to be passed to the estimator
+    """
+    def input_fn(params):
+        output_types = {
+          "input_ids": tf.int64,
+          "input_mask": tf.int64,
+          "segment_ids": tf.int64,
+          "label_ids": tf.int64
+        }
+
+        output_shapes = {
+          "input_ids": tf.TensorShape([None, seq_length]),
+          "input_mask": tf.TensorShape([None, seq_length]),
+          "segment_ids": tf.TensorShape([None, seq_length]),
+          "label_ids": tf.TensorShape([None, seq_length])
+        }
+
+        return tf.data.Dataset.from_generator(generator, output_types=output_types, output_shapes=output_shapes)
+
+    return input_fn
+
+def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file):
+    """
+    Convert a list of `InputExample` to a list of bert `InputFeatures` in a file.
+    This is used when training to avoid re-doing this conversion other multiple epochs.
+    For prediction, we don't want to use a file. 
+    """
+    writer = tf.python_io.TFRecordWriter(output_file)
+    for (ex_index, example) in enumerate(examples):
+        if ex_index % 5000 == 0:
+            tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
+        feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
+
+        def create_int_feature(values):
+            f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
+            return f
+
+        features = collections.OrderedDict()
+        features["input_ids"] = create_int_feature(feature.input_ids)
+        features["input_mask"] = create_int_feature(feature.input_mask)
+        features["segment_ids"] = create_int_feature(feature.segment_ids)
+        features["label_ids"] = create_int_feature(feature.label_ids)
+        tf_example = tf.train.Example(features=tf.train.Features(feature=features))
+        writer.write(tf_example.SerializeToString())
+
+    # sentence token in each batch
+    writer.close()
+
+def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
+    """
+    Convert a list of `InputExample` to be labelled into a list of bert `InputFeatures`
+    """
+    features = []
+    input_tokens = []
+    for (ex_index, example) in enumerate(examples):
+        feature, tokens = convert_single_example(ex_index, example, label_list,
+                                         max_seq_length, tokenizer)
+        features.append(feature)
+        input_tokens.append(tokens)
+    return features, input_tokens
+    

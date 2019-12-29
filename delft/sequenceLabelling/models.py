@@ -11,7 +11,8 @@ from delft.utilities.bert import tokenization
 
 from delft.utilities.layers import ChainCRF
 
-from delft.sequenceLabelling.preprocess import NERProcessor, convert_single_example
+from delft.sequenceLabelling.preprocess import NERProcessor, convert_single_example, input_fn_generator, convert_examples_to_features
+from delft.sequenceLabelling.preprocess import file_based_input_fn_builder, file_based_convert_examples_to_features
 
 import json
 import time
@@ -778,7 +779,7 @@ class BERT_Sequence(BaseModel):
             logits = tf.reshape(logits, [-1, self.max_seq_length, num_labels])
             if use_crf:
                 mask2len = tf.reduce_sum(input_mask, axis=1)
-                loss, trans = crf_loss(logits, labels, input_mask, num_labels, mask2len, mode)
+                loss, trans = _crf_loss(logits, labels, input_mask, num_labels, mask2len, mode)
                 predicts, viterbi_score = tf.contrib.crf.crf_decode(logits, trans, mask2len)
                 return (loss, logits, predicts)
             else:
@@ -817,114 +818,6 @@ class BERT_Sequence(BaseModel):
               predict_batch_size=self.predict_batch_size), input_fn_generator)   
 
 
-def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder, batch_size):
-    """
-    Creates an `input_fn` closure to be passed to TPUEstimator
-    """
-    name_to_features = {
-        "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
-        "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
-        "label_ids": tf.FixedLenFeature([seq_length], tf.int64),
-    }
-
-    def _decode_record(record, name_to_features):
-        """Decodes a record to a TensorFlow example."""
-        example = tf.parse_single_example(record, name_to_features)
-
-        # int32 cast 
-        for name in list(example.keys()):
-            t = example[name]
-            if t.dtype == tf.int64:
-                t = tf.to_int32(t)
-            example[name] = t
-        
-        return example
-
-    def input_fn(params):
-        """
-        the actual input function
-        """
-        # For training, we want a lot of parallel reading and shuffling.
-        # For eval, we want no shuffling and parallel reading doesn't matter.
-        d = tf.data.TFRecordDataset(input_file)
-        if is_training:
-            d = d.repeat()
-            d = d.shuffle(buffer_size=100)
-
-        d = d.apply(
-          tf.data.experimental.map_and_batch(
-                lambda record: _decode_record(record, name_to_features),
-                batch_size=batch_size,
-                drop_remainder=drop_remainder))
-
-        return d
-
-    return input_fn
-
-def input_fn_generator(generator, seq_length, batch_size):
-    """
-    Creates an `input_fn` closure to be passed to the estimator
-    """
-    def input_fn(params):
-        output_types = {
-          "input_ids": tf.int64,
-          "input_mask": tf.int64,
-          "segment_ids": tf.int64,
-          "label_ids": tf.int64
-        }
-
-        output_shapes = {
-          "input_ids": tf.TensorShape([None, seq_length]),
-          "input_mask": tf.TensorShape([None, seq_length]),
-          "segment_ids": tf.TensorShape([None, seq_length]),
-          "label_ids": tf.TensorShape([None, seq_length])
-        }
-
-        return tf.data.Dataset.from_generator(generator, output_types=output_types, output_shapes=output_shapes)
-
-    return input_fn
-
-def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file):
-    """
-    Convert a list of `InputExample` to a list of bert `InputFeatures` in a file.
-    This is used when training to avoid re-doing this conversion other multiple epochs.
-    For prediction, we don't want to use a file. 
-    """
-    writer = tf.python_io.TFRecordWriter(output_file)
-    for (ex_index, example) in enumerate(examples):
-        if ex_index % 5000 == 0:
-            tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
-        feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
-
-        def create_int_feature(values):
-            f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
-            return f
-
-        features = collections.OrderedDict()
-        features["input_ids"] = create_int_feature(feature.input_ids)
-        features["input_mask"] = create_int_feature(feature.input_mask)
-        features["segment_ids"] = create_int_feature(feature.segment_ids)
-        features["label_ids"] = create_int_feature(feature.label_ids)
-        tf_example = tf.train.Example(features=tf.train.Features(feature=features))
-        writer.write(tf_example.SerializeToString())
-
-    # sentence token in each batch
-    writer.close()
-
-def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
-    """
-    Convert a list of `InputExample` to be labelled into a list of bert `InputFeatures`
-    """
-    features = []
-    input_tokens = []
-    for (ex_index, example) in enumerate(examples):
-        feature, tokens = convert_single_example(ex_index, example, label_list,
-                                         max_seq_length, tokenizer)
-        features.append(feature)
-        input_tokens.append(tokens)
-    return features, input_tokens
-
 # note: use same method in embeddings util and remove this one
 def _get_description(name, path="./embedding-registry.json"):
     registry_json = open(path).read()
@@ -934,7 +827,7 @@ def _get_description(name, path="./embedding-registry.json"):
             return emb
     return None
 
-def crf_loss(logits, labels, mask, num_labels, mask2len, mode):
+def _crf_loss(logits, labels, mask, num_labels, mask2len, mode):
 
     with tf.variable_scope("crf_loss"):
         trans = tf.get_variable(
@@ -948,6 +841,20 @@ def crf_loss(logits, labels, mask, num_labels, mask2len, mode):
             log_likelihood, transition = tf.contrib.crf.crf_log_likelihood(logits, labels, transition_params=trans, sequence_lengths=mask2len)
             loss = tf.math.reduce_mean(-log_likelihood)
             return loss, transition
+
+def _gen_builder(features):
+    all_input_ids = []
+    all_input_mask = []
+    all_segment_ids = []
+    all_label_ids = []
+
+    for feature in features:
+        all_input_ids.append(feature.input_ids)
+        all_input_mask.append(feature.input_mask)
+        all_segment_ids.append(feature.segment_ids)
+        all_label_ids.append(feature.label_ids)
+
+    return {"input_ids":all_input_ids, "input_mask":all_input_mask, "segment_ids":all_segment_ids, "label_ids": all_label_ids}
 
 class FastPredict:
     '''
@@ -1005,16 +912,3 @@ class FastPredict:
         except:
             print("Exception in fast_predict. But this is probably OK.")
 
-def _gen_builder(features):
-    all_input_ids = []
-    all_input_mask = []
-    all_segment_ids = []
-    all_label_ids = []
-
-    for feature in features:
-        all_input_ids.append(feature.input_ids)
-        all_input_mask.append(feature.input_mask)
-        all_segment_ids.append(feature.segment_ids)
-        all_label_ids.append(feature.label_ids)
-
-    return {"input_ids":all_input_ids, "input_mask":all_input_mask, "segment_ids":all_segment_ids, "label_ids": all_label_ids}

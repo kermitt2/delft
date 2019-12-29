@@ -7,6 +7,7 @@ seed(7)
 import pandas as pd
 import sys
 import os.path
+import shutil
 
 from keras.preprocessing import text
 from keras import backend as K
@@ -537,6 +538,24 @@ def convert_conll2003_to_iob2(filein, fileout):
                         else:
                             f2.write(word+"\tB-"+tag[2:]+"\n")
                     previous_tag = tag
+
+
+def merge_folders(root_src_dir, root_dst_dir):
+    """
+    Recursively merge two folders including subfolders. 
+    This method is motivated by the limitation of shutil.copytree() which supposes that the 
+    destination directory must not exist.
+    """
+    for src_dir, dirs, files in os.walk(root_src_dir):
+        dst_dir = src_dir.replace(root_src_dir, root_dst_dir, 1)
+        if not os.path.exists(dst_dir):
+            os.makedirs(dst_dir)
+        for file_ in files:
+            src_file = os.path.join(src_dir, file_)
+            dst_file = os.path.join(dst_dir, file_)
+            if os.path.exists(dst_file):
+                os.remove(dst_file)
+            shutil.copy(src_file, dst_dir)
 
 
 if __name__ == "__main__":

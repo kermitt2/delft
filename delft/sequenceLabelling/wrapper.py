@@ -5,7 +5,6 @@ import time
 import json
 import re
 import math
-import shutil
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -24,13 +23,14 @@ import keras.backend as K
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
-from delft.sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor, convert_test_set_for_bert
+from delft.sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
 from delft.sequenceLabelling.tagger import Tagger
 from delft.sequenceLabelling.trainer import Trainer
 from delft.sequenceLabelling.data_generator import DataGenerator
 from delft.sequenceLabelling.trainer import Scorer
 
 from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Utilities import merge_folders
 
 # seqeval
 from delft.sequenceLabelling.evaluation import accuracy_score
@@ -362,9 +362,8 @@ class Sequence(object):
                 # copy best BERT model folder
                 best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
                 new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
-                # delete new_model_dir if it already exists
-                shutil.rmtree(new_model_dir) 
-                shutil.copytree(best_model_dir, new_model_dir)
+                # update new_model_dir if it already exists, keep its existing config content
+                merge_folders(best_model_dir, new_model_dir)
         
 
     def tag(self, texts, output_format):
@@ -501,7 +500,6 @@ class Sequence(object):
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
-
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]
