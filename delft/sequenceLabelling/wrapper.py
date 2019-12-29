@@ -5,6 +5,7 @@ import time
 import json
 import re
 import math
+import shutil
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -364,6 +365,9 @@ class Sequence(object):
                 new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
                 # update new_model_dir if it already exists, keep its existing config content
                 merge_folders(best_model_dir, new_model_dir)
+                # clean other fold directory
+                for i in range(self.model_config.fold_number):
+                    shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
         
 
     def tag(self, texts, output_format):

@@ -131,10 +131,9 @@ class Trainer(object):
         """
         if 'bert' in self.model_config.model_type.lower():
             # for BERT architectures, directly call the model trainer which is managing n-fold training
-            if x_valid is not None and y_valid is not None:
-                self.model.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
-            else: 
-                self.model.train(x_train, y_train)
+            # validation set is ignored, we suppose that the hyper-parameters are set with the validation set
+            # before
+            self.model.train(x_train, y_train)
             return
 
         fold_count = len(self.models)

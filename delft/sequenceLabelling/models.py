@@ -458,19 +458,11 @@ class BERT_Sequence(BaseModel):
         if self.fold_count == 1:
             self.train_fold(-1, train_examples)
         else:
-            fold_size = len(train_examples) // self.fold_count
-
             for fold_id in range(0, self.fold_count):
                 print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
-                fold_start = fold_size * fold_id
-                fold_end = fold_start + fold_size
-
-                if fold_id == fold_size - 1:
-                    fold_end = len(train_examples)
-
-                fold_train_examples = train_examples[:fold_start] + train_examples[fold_end:]
-
-                self.train_fold(fold_id, fold_train_examples)
+                # no validation set used during training (it's just used for setting the hyper-parameters)
+                # so it's simply repeating n times a tranining with the test set
+                self.train_fold(fold_id, train_examples)
 
         end = time.time()
         tf.logging.info("\nTotal training complete in " + str(end - start) + " seconds")
