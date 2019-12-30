@@ -114,6 +114,24 @@
             "lang": "en"
         },
         {
+            "name": "bert-large-en",
+            "path-config": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/vocab.txt",
+            "path-cache": "/media/lopez/T5/cache/bert/",
+            "cache-training": true,
+            "lang": "en"
+        },
+        {
+            "name": "bert-base-multi",
+            "path-config": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/vocab.txt",
+            "path-cache": "/media/lopez/T5/cache/bert/",
+            "cache-training": true,
+            "lang": "multi"
+        },
+        {
             "name": "scibert",
             "path-config": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_config.json",
             "path-weights": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_model.ckpt",

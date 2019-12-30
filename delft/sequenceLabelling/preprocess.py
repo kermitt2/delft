@@ -224,7 +224,7 @@ def prepare_preprocessor(X, y, model_config):
     return p
 
 
-def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
+def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
@@ -247,7 +247,7 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
     return x
 
 
-def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on ELMo contextualized embeddings
@@ -268,7 +268,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
     """
 
 
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False, extend=False):
+def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -289,7 +289,7 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
 
-def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False, extend=False):
+def to_vector_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the BERT contextualized embeddings, introducing
@@ -310,7 +310,7 @@ def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
     return vector
 
 
-def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+def to_vector_simple_with_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -329,7 +329,7 @@ def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, 
     return embeddings.get_sentence_vector_with_BERT(subtokens)
 
 
-def to_casing_single(tokens, maxlen=300):
+def to_casing_single(tokens, maxlen):
     """
     Given a list of tokens set the casing, introducing <PAD> and <UNK> padding 
     when appropriate
@@ -702,4 +702,3 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
         features.append(feature)
         input_tokens.append(tokens)
     return features, input_tokens
-    
