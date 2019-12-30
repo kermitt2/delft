@@ -242,8 +242,10 @@ def classification_report(y_true, y_pred, digits=2):
         digits : int. Number of digits for formatting output floating point values.
     Returns:
         report : string. Text summary of the precision, recall, F1 score and support number for each class.
-        evaluation: map. Map giving for all class precision, recall, F1 score and support number, in
-                    addition micro average values with key "micro" are provided in the map. 
+        evaluation: map. Map with three keys:
+            - 'labels', containing a map for all class with precision, recall, F1 score and support number,
+            - 'micro' with precision, recall, F1 score and support number micro average
+            - 'macro' with precision, recall, F1 score and support number macro average
     Examples:
         >>> from seqeval.metrics import classification_report
         >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
@@ -258,6 +260,30 @@ def classification_report(y_true, y_pred, digits=2):
         avg / total       0.50      0.50      0.50         2
         <BLANKLINE>
     """
+    evaluation = compute_metrics(y_true, y_pred)
+
+    return get_report(evaluation, digits=digits), evaluation
+
+
+def compute_metrics(y_true, y_pred):
+    """Build a text report showing the main classification metrics.
+    Args:
+        y_true : 2d array. Ground truth (correct) target values.
+        y_pred : 2d array. Estimated targets as returned by a classifier.
+    Returns:
+        report : string. Text summary of the precision, recall, F1 score and support number for each class.
+        evaluation: map. Map with three keys:
+            - 'labels', containing a map for all class with precision, recall, F1 score and support number,
+            - 'micro' with precision, recall, F1 score and support number micro average
+            - 'macro' with precision, recall, F1 score and support number macro average
+    Examples:
+        >>> from seqeval.metrics import classification_report
+        >>> y_true = [['O', 'O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> y_pred = [['O', 'O', 'B-MISC', 'I-MISC', 'I-MISC', 'I-MISC', 'O'], ['B-PER', 'I-PER', 'O']]
+        >>> eval = compute_metrics(y_true, y_pred)
+        >>> print(eval)
+
+    """
     true_entities = set(get_entities(y_true))
     pred_entities = set(get_entities(y_pred))
 
@@ -266,21 +292,11 @@ def classification_report(y_true, y_pred, digits=2):
     d2 = defaultdict(set)
     for e in true_entities:
         d1[e[0]].add((e[1], e[2]))
-        name_width = max(name_width, len(e[0]))
+
     for e in pred_entities:
         d2[e[0]].add((e[1], e[2]))
 
-    last_line_heading = 'all (micro avg.)'
-    width = max(name_width, len(last_line_heading), digits)
-
-    evaluation = {}
-
-    headers = ["precision", "recall", "f1-score", "support"]
-    head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers)
-    report = head_fmt.format(u'', *headers, width=width)
-    report += u'\n\n'
-
-    row_fmt = u'{:>{width}s} ' + u' {:>9.{digits}f}' * 3 + u' {:>9}\n'
+    evaluation = {'labels': {}}
 
     ps, rs, f1s, s = [], [], [], []
     total_nb_correct = 0
@@ -296,15 +312,13 @@ def classification_report(y_true, y_pred, digits=2):
         r = nb_correct / nb_true if nb_true > 0 else 0
         f1 = 2 * p * r / (p + r) if p + r > 0 else 0
 
-        report += row_fmt.format(*[type_name, p, r, f1, nb_true], width=width, digits=digits)
-        
         eval_block = {}
         eval_block["precision"] = p
         eval_block["recall"] = r
         eval_block["f1"] = f1
         eval_block["support"] = nb_true
 
-        evaluation[type_name] = eval_block
+        evaluation['labels'][type_name] = eval_block
 
         ps.append(p)
         rs.append(r)
@@ -315,33 +329,81 @@ def classification_report(y_true, y_pred, digits=2):
         total_nb_true += nb_true
         total_nb_pred += nb_pred
 
-    report += u'\n'
-
     # compute averages
-    """
-    report += row_fmt.format(last_line_heading,
-                             np.average(ps, weights=s),
-                             np.average(rs, weights=s),
-                             np.average(f1s, weights=s),
-                             np.sum(s),
-                             width=width, digits=digits)
-    """
 
-    # micro average 
+    # marco aveage
+    # macro_eval_block = {
+    #     "precision": np.average(ps, weights=s),
+    #     "recall": np.average(rs, weights=s),
+    #     "f1": np.average(f1s, weights=s),
+    #     "support": np.sum(s)
+    # }
+    #
+    # evaluation['macro'] = macro_eval_block
+
+    # micro average
     micro_precision = total_nb_correct / total_nb_pred if total_nb_pred > 0 else 0
     micro_recall = total_nb_correct / total_nb_true if total_nb_true > 0 else 0
-    micro_f1 = 2 * micro_precision * micro_recall / (micro_precision + micro_recall) if micro_precision + micro_recall > 0 else 0
-    report += row_fmt.format(last_line_heading,
-                             micro_precision,
-                             micro_recall,
-                             micro_f1,
-                             np.sum(s),
-                             width=width, digits=digits)
-    eval_block = {}
-    eval_block["precision"] = micro_precision
-    eval_block["recall"] = micro_recall
-    eval_block["f1"] = micro_f1
-    eval_block["support"] = np.sum(s)
-    evaluation["micro"] = eval_block
+    micro_f1 = 2 * micro_precision * micro_recall / (
+                micro_precision + micro_recall) if micro_precision + micro_recall > 0 else 0
 
-    return report, evaluation
+    micro_eval_block = {
+        "precision": micro_precision,
+        "recall": micro_recall,
+        "f1": micro_f1,
+        "support": np.sum(s)
+    }
+    evaluation["micro"] = micro_eval_block
+
+    return evaluation
+
+
+def get_report(evaluation, digits=2, include_avgs=['micro']):
+    """
+    Calculate the report from the evaluation metrics.
+
+    :param evaluation: the map for evaluation containing three keys:
+        - 'labels', a map of maps contains the values of precision, recall, f1 and support for each label
+        - 'macro' and 'micro', containing the micro and macro average, respectively (precision, recall, f1 and support)
+
+    :param digits: the number of digits to use in the report
+    :param include_avgs: the average to include in the report, default: 'micro'
+    :return:
+    """
+    name_width = max([len(e) for e in evaluation.keys()])
+
+    last_line_heading = {
+        'micro': 'all (micro avg.)',
+        'macro': 'all (macro avg.)'
+    }
+    width = max(name_width, len(last_line_heading['micro']), digits)
+
+    headers = ["precision", "recall", "f1-score", "support"]
+    head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers)
+    report = head_fmt.format(u'', *headers, width=width)
+    report += u'\n\n'
+
+    row_fmt = u'{:>{width}s} ' + u' {:>9.{digits}f}' * 3 + u' {:>9}\n'
+
+    block = evaluation['labels']
+    labels = sorted(block.keys())
+
+    for label in labels:
+        p = block[label]['precision']
+        r = block[label]['recall']
+        f1 = block[label]['f1']
+        s = block[label]['support']
+
+        report += row_fmt.format(*[label, p, r, f1, s], width=width, digits=digits)
+
+    report += u'\n'
+    for average in include_avgs:
+        avg = evaluation[average]
+        report += row_fmt.format(last_line_heading[average],
+                                 np.average(avg['precision'], weights=s),
+                                 np.average(avg['recall'], weights=s),
+                                 np.average(avg['f1'], weights=s),
+                                 avg['support'] if 'support' in avg else "",
+                                 width=width, digits=digits)
+
+    return report

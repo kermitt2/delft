@@ -9,6 +9,8 @@ import shutil
 
 import numpy as np
 # seed is fixed for reproducibility
+from delft.sequenceLabelling.evaluation import get_report
+
 np.random.seed(7)
 
 # ask tensorflow to be quiet and not print hundred lines of logs
@@ -294,10 +296,13 @@ class Sequence(object):
                 total_precision += precision
                 total_recall += recall
 
+            fold_average_evaluation = {'labels': {}, 'micro': {}, 'macro': {}}
+
             macro_f1 = total_f1 / self.model_config.fold_number
             macro_precision = total_precision / self.model_config.fold_number
             macro_recall = total_recall / self.model_config.fold_number
 
+            '''
             print("----------------------------------------------------------------------")
             print("\naverage over", self.model_config.fold_number, "folds")
 
@@ -311,12 +316,14 @@ class Sequence(object):
             head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers) + "\n"
             print(head_fmt.format(u'', *headers, width=width))
             #print(u'\n')
+            '''
 
-            row_fmt = u'{:>{width}s} ' + u' {:>9.{digits}f}' * 3 + u' {:>9}'
+            macro_eval_block = {'f1': macro_f1, 'precision': macro_precision, 'recall': macro_recall}
+            fold_average_evaluation['macro'] = macro_eval_block
 
-            # field-level average over th n folds
+            # field-level average over the n folds
             labels = []
-            for label in self.p.vocab_tag:
+            for label in sorted(self.p.vocab_tag):
               if label == 'O' or label == '<PAD>':
                 continue
               if label.startswith("B-") or label.startswith("S-") or label.startswith("I-") or label.startswith("E-"):
@@ -331,13 +338,14 @@ class Sequence(object):
               sum_f1 = 0
               sum_support = 0
               for j in range(0, self.model_config.fold_number):
-                if not label in reports_as_map[j]:
+                if not label in reports_as_map[j]['labels']:
                   continue
-                report_as_map = reports_as_map[j][label]
+                report_as_map = reports_as_map[j]['labels'][label]
                 sum_p += report_as_map["precision"]
                 sum_r += report_as_map["recall"]
                 sum_f1 += report_as_map["f1"]
                 sum_support += report_as_map["support"]
+
               avg_p = sum_p / self.model_config.fold_number
               avg_r = sum_r / self.model_config.fold_number
               avg_f1 = sum_f1 / self.model_config.fold_number
@@ -345,16 +353,15 @@ class Sequence(object):
               avg_support_dec = str(avg_support-int(avg_support))[1:]
               if avg_support_dec != '0':
                 avg_support = math.floor(avg_support)
-              print(row_fmt.format(*[label, avg_p, avg_r, avg_f1, avg_support], width=width, digits=digits))
 
-            print("\n\tmacro f1 =", '{0:.4f}'.format(macro_f1))
-            print("\tmacro precision =", '{0:.4f}'.format(macro_precision))
-            print("\tmacro recall =", '{0:.4f}'.format(macro_recall), "\n")
+              block_label = {'precision': avg_p, 'recall': avg_r, 'support': avg_support, 'f1': avg_f1}
+              fold_average_evaluation['labels'][label] = block_label
 
-            print("\n** Worst ** model scores -", str(worst_index))
+            print("----------------------------------------------------------------------")
+            print("\n** Worst ** model scores - run", str(worst_index))
             print(reports[worst_index])
 
-            print("\n** Best ** model scores -", str(best_index))
+            print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
 
             if 'bert' not in self.model_config.model_type.lower():
@@ -369,6 +376,10 @@ class Sequence(object):
                 for i in range(self.model_config.fold_number):
                     shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
         
+            print("----------------------------------------------------------------------")
+            print("\nAverage over", self.model_config.fold_number, "folds")
+            print(get_report(fold_average_evaluation, digits=4, include_avgs=['macro']))
+
 
     def tag(self, texts, output_format):
         # annotate a list of sentences, return the list of annotations in the 
