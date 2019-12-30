@@ -540,6 +540,9 @@ class Embeddings(object):
         for emb in self.registry["embeddings-contextualized"]:
             if emb["name"] == name:
                 return emb
+        for emb in self.registry["transformers"]:
+            if emb["name"] == name:
+                return emb
         return None
 
     def get_word_vector(self, word):

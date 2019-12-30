@@ -814,7 +814,7 @@ class BERT_Sequence(BaseModel):
 def _get_description(name, path="./embedding-registry.json"):
     registry_json = open(path).read()
     registry = json.loads(registry_json)
-    for emb in registry["embeddings-contextualized"]:
+    for emb in registry["transformers"]:
         if emb["name"] == name:
             return emb
     return None

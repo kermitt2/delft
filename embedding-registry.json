@@ -103,7 +103,9 @@
             "path-cache": "data/models/FLAIR/",
             "cache-training": false,
             "lang": "en"
-        },
+        }
+    ],
+    "transformers": [
         {
             "name": "bert-base-en",
             "path-config": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_config.json",
