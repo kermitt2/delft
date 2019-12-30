@@ -810,7 +810,7 @@ class BERT_Sequence(BaseModel):
               predict_batch_size=self.predict_batch_size), input_fn_generator)   
 
 
-# note: use same method in embeddings util and remove this one
+# note: use same method in Embeddings class utilities and remove this one
 def _get_description(name, path="./embedding-registry.json"):
     registry_json = open(path).read()
     registry = json.loads(registry_json)

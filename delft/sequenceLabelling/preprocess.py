@@ -247,7 +247,7 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
     return x
 
 
-def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False):
+def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on ELMo contextualized embeddings
@@ -260,6 +260,8 @@ def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False):
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        if extend:
+            local_tokens.append(UNK)
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_only_ELMo(subtokens)
     """
@@ -310,7 +312,7 @@ def to_vector_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, 
     return vector
 
 
-def to_vector_simple_with_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False):
+def to_vector_simple_with_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -325,6 +327,8 @@ def to_vector_simple_with_bert(tokens, embeddings, maxlen, lowercase=False, num_
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        if extend:
+            local_tokens.append(UNK)
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_BERT(subtokens)
 
