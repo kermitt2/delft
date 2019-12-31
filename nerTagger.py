@@ -24,7 +24,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         batch_size = 100
     elif architecture.lower().find("bert") != -1:
         batch_size = 32
-        max_sequence_length = 128
+        max_sequence_length = 150
     else:
         batch_size = 20
 

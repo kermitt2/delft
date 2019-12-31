@@ -10,7 +10,7 @@ import keras.backend as K
 import time
 
 
-def train(embeddings_name): 
+def train(embeddings_name, architecture='BidLSTM_CRF'): 
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
 
     train_path = os.path.join(root, 'corrected.xml')
@@ -31,11 +31,11 @@ def train(embeddings_name):
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, output_format):
+def annotate(texts, output_format, architecture='BidLSTM_CRF'):
     annotations = []
 
     # load model
-    model = Sequence('insult')
+    model = Sequence('insult', architecture=architecture)
     model.load()
 
     start_time = time.time()
@@ -52,11 +52,16 @@ def annotate(texts, output_format):
 
 if __name__ == "__main__":
 
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
+
     parser = argparse.ArgumentParser(
         description = "Experimental insult recognizer for the Wikipedia toxic comments dataset")
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
+    parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
+                        help="Type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
         "--embedding", default='fasttext-crawl',
         help=(
@@ -73,15 +78,16 @@ if __name__ == "__main__":
         print('action not specifed, must be one of [train,tag]')
 
     embeddings_name = args.embedding
+    architecture = args.architecture
 
     if args.action == 'train':
-        train(embeddings_name)
+        train(embeddings_name, architecture=architecture)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
                      'This is a fucking test.']
-        result = annotate(someTexts, "json")
+        result = annotate(someTexts, "json", architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # see https://github.com/tensorflow/tensorflow/issues/3388

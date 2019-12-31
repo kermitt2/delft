@@ -57,6 +57,11 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 5
 
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
+
     model = Sequence(model_name,
                     max_epoch=100,
                     recurrent_dropout=0.50,
@@ -111,6 +116,12 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 7
+
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
+        model_name += '-' + architecture;
 
     model = Sequence(model_name,
                     max_epoch=100,
@@ -207,13 +218,15 @@ if __name__ == "__main__":
         description = "Trainer for GROBID models")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
-    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name]
+
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation.")
     parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
-                        help="Type of model architecture to be used.")
+                        help="Type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
         "--embedding", default='glove-840B',
         help=(
@@ -223,7 +236,7 @@ if __name__ == "__main__":
             " and that the path in the registry to the embedding file is correct on your system."
         )
     )
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
+    parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and evaluation (train_eval action) or just for evaluation (eval action).")
 
@@ -280,5 +293,10 @@ if __name__ == "__main__":
         result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
-    # see https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()
+    try:
+        # see https://github.com/tensorflow/tensorflow/issues/3388
+        K.clear_session()
+    except:
+        # TF could complain in some case
+        print("\nLeaving TensorFlow...")
+
