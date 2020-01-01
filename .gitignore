@@ -40,3 +40,5 @@ grobidTest.py
 data/models/sequenceLabelling/ner-en-conll2003-bert-base-en*
 grobidTest.py
 data/models/sequenceLabelling/*scibert*
+data/models/sequenceLabelling/*biobert*
+data/models/sequenceLabelling/*-bert-*-en/

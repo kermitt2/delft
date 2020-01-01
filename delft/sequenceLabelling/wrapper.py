@@ -170,6 +170,8 @@ class Sequence(object):
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
+        if 'bert' in self.model_config.model_type.lower():
+            self.save()
 
     def eval(self, x_test, y_test):
         if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:

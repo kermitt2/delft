@@ -134,6 +134,7 @@ class Trainer(object):
             # validation set is ignored, we suppose that the hyper-parameters are set with the validation set
             # before
             self.model.train(x_train, y_train)
+            # force config saving to ensure nothing is lost 
             return
 
         fold_count = len(self.models)
