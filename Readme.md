@@ -919,88 +919,33 @@ with n-folds:
 
 > python3 citationClassifier.py train --fold-count 10
 
-Training and evalation (ratio):
+Training and evalation (ratio) with 10-folds:
 
-> python3 citationClassifier.py train_eval
+> python3 citationClassifier.py train_eval --fold-count 10
 
-<!-- which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
-
-eval before data generator
-```
-Evaluation on 896 instances:
-
-Class: negative
-    accuracy at 0.5 = 0.9665178571428571
-    f-1 at 0.5 = 0.9665178571428571
-    log-loss = 0.10193770380479757
-    roc auc = 0.9085232470270055
-
-Class: neutral
-    accuracy at 0.5 = 0.8995535714285714
-    f-1 at 0.5 = 0.8995535714285714
-    log-loss = 0.2584601024897698
-    roc auc = 0.8914776135848872
-
-Class: positive
-    accuracy at 0.5 = 0.9252232142857143
-    f-1 at 0.5 = 0.9252232142857143
-    log-loss = 0.20726886795593405
-    roc auc = 0.8892779640954823
-
-Macro-average:
-    average accuracy at 0.5 = 0.9304315476190476
-    average f-1 at 0.5 = 0.9304315476190476
-    average log-loss = 0.18922222475016715
-    average roc auc = 0.8964262749024584
-
-Micro-average:
-    average accuracy at 0.5 = 0.9304315476190482
-    average f-1 at 0.5 = 0.9304315476190482
-    average log-loss = 0.18922222475016712
-    average roc auc = 0.9319196428571429
-```    
-
-
-```text
-Evaluation on 896 instances:
-
-Class: negative
-    accuracy at 0.5 = 0.9654017857142857
-    f-1 at 0.5 = 0.9654017857142857
-    log-loss = 0.1056664130630102
-    roc auc = 0.898580121703854
-
-Class: neutral
-    accuracy at 0.5 = 0.8939732142857143
-    f-1 at 0.5 = 0.8939732142857143
-    log-loss = 0.25354114470640177
-    roc auc = 0.88643347739321
-
-Class: positive
-    accuracy at 0.5 = 0.9185267857142857
-    f-1 at 0.5 = 0.9185267857142856
-    log-loss = 0.1980544119553914
-    roc auc = 0.8930591175116723
-
-Macro-average:
-    average accuracy at 0.5 = 0.9259672619047619
-    average f-1 at 0.5 = 0.9259672619047619
-    average log-loss = 0.18575398990826777
-    average roc auc = 0.8926909055362455
-
-Micro-average:
-    average accuracy at 0.5 = 0.9259672619047624
-    average f-1 at 0.5 = 0.9259672619047624
-    average log-loss = 0.18575398990826741
-    average roc auc = 0.9296875
-
+which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
 ```
+Evaluation on 896 instances:
+                   precision        recall       f-score       support
+      negative        0.1494        0.4483        0.2241            29
+       neutral        0.9653        0.8058        0.8784           793
+      positive        0.3333        0.6622        0.4434            74
+```
 
-In [7], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
--->
+Similarly as other scripts, use `--architecture` to specify an alternative DL architecture, for instance SciBERT:
 
-To classify a set of citation contexts:
+> python3 citationClassifier.py train_eval --architecture scibert
+
+```
+Evaluation on 896 instances:
+                   precision        recall       f-score       support
+      negative        0.1712        0.6552        0.2714            29
+       neutral        0.9740        0.8020        0.8797           793
+      positive        0.4015        0.7162        0.5146            74
+```
+
+To classify a set of citation contexts with default model (2-layers Bidirectional GRU model `gru`):
 
 > python3 citationClassifier.py classify
 

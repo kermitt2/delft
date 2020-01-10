@@ -42,3 +42,4 @@ grobidTest.py
 data/models/sequenceLabelling/*scibert*
 data/models/sequenceLabelling/*biobert*
 data/models/sequenceLabelling/*-bert-*-en/
+data/models/textClassification/citations*
