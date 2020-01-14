@@ -79,8 +79,10 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model.save()
 
+
 # split data, train a GROBID model and evaluate it
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None, fold_count=1,
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False,
+               input_path=None, output_path=None, fold_count=1,
                ignore_features=False,
                features_indices=None):
     print('Loading data...')

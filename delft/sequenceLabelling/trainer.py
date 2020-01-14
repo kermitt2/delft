@@ -5,6 +5,7 @@ from keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from delft.sequenceLabelling.data_generator import DataGenerator
 # seqeval
+from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compute_metrics
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
@@ -41,7 +42,7 @@ class Trainer(object):
         self.preprocessor = preprocessor
 
     """ train the instance self.model """
-    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None):
+    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         self.model.summary()
         #print("self.model_config.use_crf:", self.model_config.use_crf)
 
@@ -56,12 +57,13 @@ class Trainer(object):
         #plot_model(self.model, 
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
-                                      f_train=features_train, f_valid=features_valid, max_epoch=self.training_config.max_epoch)
+                                      f_train=features_train, f_valid=features_valid,
+                                      max_epoch=self.training_config.max_epoch, callbacks=callbacks)
 
     """ parameter model local_model must be compiled before calling this method 
         this model will be returned with trained weights """
     def train_model(self, local_model, x_train, y_train, f_train=None,
-                    x_valid=None, y_valid=None, f_valid=None, max_epoch=50):
+                    x_valid=None, y_valid=None, f_valid=None, max_epoch=50, callbacks=None):
         # todo: if valid set if None, create it as random segment of the shuffled train set
 
         if self.training_config.early_stop:
@@ -77,7 +79,7 @@ class Trainer(object):
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=False, features=f_valid)
 
-            callbacks = get_callbacks(log_dir=self.checkpoint_path,
+            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
                                       patience=self.training_config.patience,
                                       valid=(validation_generator, self.preprocessor))
@@ -94,8 +96,9 @@ class Trainer(object):
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=True, features=feature_all)
 
-            callbacks = get_callbacks(log_dir=self.checkpoint_path,
+            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
+        _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
@@ -109,13 +112,13 @@ class Trainer(object):
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,
                                 workers=nb_workers,
-                                callbacks=callbacks)
+                                callbacks=_callbacks)
 
         return local_model
 
     """ n-fold training for the instance model 
         the n models are stored in self.models, and self.model left unset at this stage """
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
@@ -164,7 +167,8 @@ class Trainer(object):
                                         y_valid=val_y,
                                         f_train=train_f,
                                         f_valid=val_f,
-                                        max_epoch=self.training_config.max_epoch)
+                                        max_epoch=self.training_config.max_epoch,
+                                    callbacks=callbacks)
             self.models[fold_id] = foldModel
 
 
@@ -258,8 +262,10 @@ class Scorer(Callback):
             self.accuracy = accuracy_score(y_true, y_pred) if has_data else 0.0
             self.precision = precision_score(y_true, y_pred) if has_data else 0.0
             self.recall = recall_score(y_true, y_pred) if has_data else 0.0
-            self.report, self.report_as_map = classification_report(y_true, y_pred, digits=4) if has_data else classification_report([], [], digits=4)
+            self.report_as_map = compute_metrics(y_true, y_pred) if has_data else compute_metrics([], [])
+            self.report = get_report(self.report_as_map, digits=4)
             print(self.report)
+
 
         # save eval
         logs['f1'] = f1
