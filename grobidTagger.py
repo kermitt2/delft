@@ -16,7 +16,7 @@ from delft.utilities.misc import parse_number_ranges
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
-# train a model with all available data
+# train a GROBID model with all available data
 def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
           ignore_features=False, features_indices=None):
 
@@ -25,12 +25,6 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
-
-    f_train = None
-    f_valid = None
-    if not ignore_features:
-        x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
-    else:
         x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -41,14 +35,24 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model_name = 'grobid-'+model
 
+    batch_size = 20
+    max_sequence_length = 3000
+
+    if model == "software":
+        # class are more unbalanced, so we need to extend the batch size  
+        batch_size = 50
+        max_sequence_length = 1500
+    
     if use_ELMo:
         model_name += '-with_ELMo'
+        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+            batch_size = 7
 
     batch_size = 20
     max_sequence_length = 3000
 
     if model == "software":
-        # class are more unbalanced, so we need to extend the batch size
+        # class are more unbalanced, so we need to extend the batch size  
         batch_size = 50
         max_sequence_length = 1500
 
@@ -56,6 +60,11 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 5
+
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
 
     model = Sequence(model_name,
                      max_epoch=100,
@@ -121,7 +130,13 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 5
+            batch_size = 7
+
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
+        model_name += '-' + architecture;
 
     model = Sequence(model_name,
                     max_epoch=100,
@@ -155,7 +170,6 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     else:
         model.save()
 
-
 # split data, train a GROBID model and evaluate it
 def eval_(model, use_ELMo=False, input_path=None):
     print('Loading data...')
@@ -186,7 +200,7 @@ def eval_(model, use_ELMo=False, input_path=None):
     print("Evaluation runtime: %s seconds " % (runtime))
 
 
-# annotate a list of texts, this is relevant only of models taking only text as input
+# annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
 def annotate_text(texts, model, output_format, use_ELMo=False):
     annotations = []
@@ -220,14 +234,14 @@ if __name__ == "__main__":
         description = "Trainer for GROBID models")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
-    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name, BidLSTM_CRF_CASING.name]
+    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name, BidLSTM_CRF_CASING.name,
+                     'bert-base-en', 'bert-large-en', 'scibert', 'biobert']
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
-    parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
-                                                                  "cross validation.")
+    parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation.")
     parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
-                        help="Type of model architecture to be used.")
+                        help="Type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
         "--embedding", default='glove-840B',
         help=(
@@ -237,7 +251,7 @@ if __name__ == "__main__":
             " and that the path in the registry to the embedding file is correct on your system."
         )
     )
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings.")
+    parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
@@ -302,5 +316,10 @@ if __name__ == "__main__":
         result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
-    # see https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()
+    try:
+        # see https://github.com/tensorflow/tensorflow/issues/3388
+        K.clear_session()
+    except:
+        # TF could complain in some case
+        print("\nLeaving TensorFlow...")
+
