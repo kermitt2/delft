@@ -562,7 +562,6 @@ class Embeddings(object):
             return self.get_word_vector_in_memory(word)
         try:    
             with self.env.begin() as txn:
-                txn = self.env.begin()   
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
                     word_vector = _deserialize_pickle(vector)
