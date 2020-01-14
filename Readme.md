@@ -305,6 +305,25 @@ Using ELMo with the best model obtained over 10 training (not using the validati
 
 Using ELMo and training with the validation set gives a f-score of 93.09 (best model), 92.69 averaged over 10 runs (the best model is provided under `data/models/sequenceLabelling/ner-en-conll2003-BidLSTM_CRF/with_validation_set/`).
 
+Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
+
+> python3 nerTagger.py --architecture bert-base-en --dataset-type conll2003 --fold-count 10 train_eval
+
+```text
+average over 10 folds
+            precision    recall  f1-score   support
+
+       ORG     0.8804    0.9114    0.8957      1661
+      MISC     0.7823    0.8189    0.8002       702
+       PER     0.9633    0.9576    0.9605      1617
+       LOC     0.9290    0.9316    0.9303      1668
+
+  macro f1 = 0.9120
+  macro precision = 0.9050
+  macro recall = 0.9191
+
+```
+
 For training with all the available data:
 
 > python3 nerTagger.py --dataset-type conll2003 train

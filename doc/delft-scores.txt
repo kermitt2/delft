@@ -781,6 +781,46 @@ all (micro avg.)     0.9163    0.9242    0.9202      5648
 
 
 
+---------------------------------------------------------
+bert-base-en (cased), CoNLL 2003 NER (train without validation set)
+---------------------------------------------------------
+
+average over 10 folds
+            precision    recall  f1-score   support
+
+       ORG     0.8804    0.9114    0.8957      1661
+      MISC     0.7823    0.8189    0.8002       702
+       PER     0.9633    0.9576    0.9605      1617
+       LOC     0.9290    0.9316    0.9303      1668
+
+  macro f1 = 0.9120
+  macro precision = 0.9050
+  macro recall = 0.9191 
+
+
+** Worst ** model scores - 9
+                  precision    recall  f1-score   support
+
+             ORG     0.8736    0.9073    0.8901      1661
+             PER     0.9596    0.9555    0.9575      1617
+             LOC     0.9221    0.9293    0.9256      1668
+            MISC     0.7757    0.8177    0.7961       702
+
+all (micro avg.)     0.8992    0.9164    0.9078      5648
+
+
+** Best ** model scores - 2
+                  precision    recall  f1-score   support
+
+             ORG     0.8897    0.9229    0.9060      1661
+             PER     0.9627    0.9573    0.9600      1617
+             LOC     0.9375    0.9353    0.9364      1668
+            MISC     0.7862    0.8120    0.7989       702
+
+all (micro avg.)     0.9110    0.9226    0.9168      5648
+
+
+
 
 
 
