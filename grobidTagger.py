@@ -25,6 +25,12 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+
+    f_train = None
+    f_valid = None
+    if not ignore_features:
+        x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    else:
         x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -35,14 +41,6 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model_name = 'grobid-'+model
 
-    batch_size = 20
-    max_sequence_length = 3000
-
-    if model == "software":
-        # class are more unbalanced, so we need to extend the batch size  
-        batch_size = 50
-        max_sequence_length = 1500
-    
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
