@@ -47,6 +47,28 @@ ELMo_embed_size = 1024
 BERT_embed_size = 768
 BERT_sentence_size = 512
 
+
+def fetch_header_if_available(line):
+    """
+    Fetch the header if the line is just composed by two elements the number of workds and the embedding size
+
+    :param line: a splitted line (if not split, tried to split by spaces)
+    :return: the number of words and the embedding size, if there is no header, they will be set to -1
+    """
+    if type(line) == 'str':
+        line = line.split(" ")
+
+    nb_words = -1
+    embed_size = -1
+
+    if len(line) == 2:
+        # first line gives the nb of words and the embedding size
+        nb_words = int(line[0])
+        embed_size = int(line[1].replace("\n", ""))
+
+    return nb_words, embed_size
+
+
 class Embeddings(object):
 
     def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False, use_BERT=False):
@@ -111,7 +133,7 @@ class Embeddings(object):
         registry_json = open(path).read()
         return json.loads(registry_json)
 
-    def make_embeddings_simple_in_memory(self, name="fasttext-crawl", hasHeader=True):
+    def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
         print('loading embeddings...')
         begin = True
@@ -126,21 +148,20 @@ class Embeddings(object):
                 nbWords = len(self.model.get_words())
                 self.embed_size = self.model.get_dimension()
             else:
-                if embeddings_type == "glove":
-                    hasHeader = False
                 with open(embeddings_path, encoding='utf8') as f:
                     for line in f:
                         line = line.strip()
                         line = line.split(' ')
                         if begin:
-                            if hasHeader:
-                                # first line gives the nb of words and the embedding size
-                                nbWords = int(line[0])
-                                self.embed_size = int(line[1].replace("\n", ""))
-                                begin = False
+                            begin = False
+                            nb_words, embed_size = fetch_header_if_available(line)
+
+                            # we parse the header
+                            if nb_words > 0 and embed_size > 0:
+                                nbWords = nb_words
+                                self.embed_size = embed_size
                                 continue
-                            else:
-                                begin = False
+
                         word = line[0]
                         #if embeddings_type == 'glove':
                         vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
@@ -165,7 +186,7 @@ class Embeddings(object):
         self.model = load_fasttext_format(embeddings_path)
     '''
 
-    def make_embeddings_lmdb(self, name="fasttext-crawl", hasHeader=True):
+    def make_embeddings_lmdb(self, name="fasttext-crawl"):
         nbWords = 0
         print('\nCompiling embeddings... (this is done only one time per embeddings at first launch)')
         begin = True
@@ -175,8 +196,7 @@ class Embeddings(object):
             embeddings_type = description["type"]
             self.lang = description["lang"]
             print("path:", embeddings_path)
-            if embeddings_type == "glove":
-                hasHeader = False
+
             txn = self.env.begin(write=True)
             # batch_size = 1024
             i = 0
@@ -189,14 +209,14 @@ class Embeddings(object):
                 for line in tqdm(f, total=nb_lines):
                     line = line.split(' ')
                     if begin:
-                        if hasHeader:
-                            # first line gives the nb of words and the embedding size
-                            nbWords = int(line[0])
-                            self.embed_size = int(line[1].replace("\n", ""))
-                            begin = False
+                        begin = False
+                        nb_words, embed_size = fetch_header_if_available(line)
+
+                        if nb_words > 0 and embed_size > 0:
+                            nbWords = nb_words
+                            self.embed_size = embed_size
                             continue
-                        else:
-                            begin = False
+
                     word = line[0]
                     #if embeddings_type == 'glove':
                     try:
@@ -231,7 +251,7 @@ class Embeddings(object):
             self.vocab_size = nbWords
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
-    def make_embeddings_simple(self, name="fasttext-crawl", hasHeader=True):
+    def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self._get_description(name)
         if description is not None:
             self.extension = description["format"]
@@ -239,7 +259,7 @@ class Embeddings(object):
         if self.extension == "bin":
             if fasttext_support == True:
                 print("embeddings are of .bin format, so they will be loaded in memory...")
-                self.make_embeddings_simple_in_memory(name, hasHeader)
+                self.make_embeddings_simple_in_memory(name)
             else:
                 if not (sys.platform == 'linux' or sys.platform == 'darwin'):
                     raise ValueError('FastText .bin format not supported for your platform')
@@ -248,7 +268,7 @@ class Embeddings(object):
 
         elif self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
             print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
-            self.make_embeddings_simple_in_memory(name, hasHeader)
+            self.make_embeddings_simple_in_memory(name)
         else:    
             # if the path to the lmdb database files does not exist, we create it
             if not os.path.isdir(self.embedding_lmdb_path):
@@ -293,7 +313,7 @@ class Embeddings(object):
             if load_db: 
                 # create and load the database in write mode
                 self.env = lmdb.open(envFilePath, map_size=map_size)
-                self.make_embeddings_lmdb(name, hasHeader)
+                self.make_embeddings_lmdb(name)
 
     def make_ELMo(self):
         # Location of pretrained BiLM for the specified language
