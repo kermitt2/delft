@@ -117,6 +117,13 @@ class Classifier(object):
             self.embeddings.clean_BERT_cache()
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
+        # bert models
+        if self.model_config.model_type.find("bert") != -1:     
+            self.model = getModel(self.model_config, self.training_config)
+            self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes, x_train=x_train, y_train=y_train)
+            self.model.train()
+            return
+
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
@@ -184,7 +191,7 @@ class Classifier(object):
             if self.model is not None:
                 # bert model?
                 if self.model_config.model_type.find("bert") != -1:
-                    self.model.eval(x_test, y_test)
+                    #self.model.eval(x_test, y_test)
                     result = self.model.predict(x_test)
                 else:
                     test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
@@ -195,16 +202,25 @@ class Classifier(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:
-            if self.models is not None:
+            if self.models is not None or (self.model_config.model_type.find("bert") != -1 and self.model is not None):
                 # bert model?
+                print(self.model_config.model_type)
                 if self.model_config.model_type.find("bert") != -1:
-                    result = self.models[0].eval(x_test, y_test)
+                    result_list = []
+                    for i in range(self.model_config.fold_number):
+                        result = self.model.predict(x_test, i)
+                        result_list.append(result)
 
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False)
+                    result = np.ones(result_list[0].shape)
+                    for fold_result in result_list:
+                        result *= fold_result
 
-                result = predict_folds(self.models, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
+                    result **= (1. / len(result_list))
+                else:
+                    test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                        embeddings=self.embeddings, shuffle=False)
+                    result = predict_folds(self.models, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         print("-----------------------------------------------")
@@ -336,7 +352,7 @@ class Classifier(object):
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
 
-        # bert model are always saved via training process steps
+        # bert model are always saved via training process steps as checkpoint
         if self.model_config.model_type.find("bert") != -1:
             print('model saved')
             return

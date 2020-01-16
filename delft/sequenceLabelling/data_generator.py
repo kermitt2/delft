@@ -33,6 +33,7 @@ class DataGenerator(keras.utils.Sequence):
         self.char_embed_size = char_embed_size
         self.shuffle = shuffle
         self.tokenize = tokenize
+        self.max_sequence_length = max_sequence_length
         self.on_epoch_end()
 
     def __len__(self):
@@ -82,7 +83,11 @@ class DataGenerator(keras.utils.Sequence):
             x_tokenized = []
             for i in range(0, max_iter):
                 tokens = tokenizeAndFilterSimple(sub_x[i])
-                if len(tokens) > max_length_x:
+                if len(tokens) > self.max_sequence_length:
+                    max_length_x = self.max_sequence_length
+                    # truncation of sequence at max_sequence_length
+                    tokens = tokens[:self.max_sequence_length]
+                elif len(tokens) > max_length_x:
                     max_length_x = len(tokens)
                 x_tokenized.append(tokens)
         else:
@@ -96,7 +101,7 @@ class DataGenerator(keras.utils.Sequence):
         if max_length_x == 1:
             max_length_x += 1
             extend = True
-        
+
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
@@ -133,7 +138,6 @@ class DataGenerator(keras.utils.Sequence):
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
         batch_c = np.asarray(batches[0])
-
         batch_l = batches[1]
 
         if self.preprocessor.return_casing:

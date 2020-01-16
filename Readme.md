@@ -10,11 +10,11 @@
 
 __Work in progress !__
 
-__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras framework for text processing, covering sequence labelling (e.g. named entity tagging) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures.
+__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, covering sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing.
 
 From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment (with all the known limitations of Python of course for this purpose). The benefits of DeLFT are:
 
-* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) and [BERT](https://github.com/google-research/bert) contextualised embeddings, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems, and even improve most of them.
+* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of the recent [ELMo](https://allennlp.org/elmo) contextualised embeddings and [BERT](https://github.com/google-research/bert) transformer architecture, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems, and even improve most of them.
 
 * Reduce model size, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
@@ -104,13 +104,15 @@ To get FastText .bin format support please uncomment the package `fasttextmirror
 
 While FastText .bin format are supported by DeLFT (including using ngrams for OOV words), this format will be loaded entirely in memory and does not take advantage of our memory-efficient management of embeddings.
 
-> I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management !
+> I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee every ten minutes, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management !
 
 Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedding-registry.json`, the embeddings will be loaded in memory as immutable data, like in the usual Keras scripts.
 
 ## Sequence Labelling
 
 ### Available models
+
+The following DL architectures are supported by DeLFT:
 
 * _BidLSTM-CRF_ with words and characters input following:
 
@@ -128,17 +130,21 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 &nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Waleed Ammar, Chandra Bhagavatula, Russell Power. "Semi-supervised sequence tagging with bidirectional language models". 2017. https://arxiv.org/pdf/1705.00108  
 
+* _BERT_ transformer architecture, which can be used for sequence labelling. A BERT transformer architecture (with fine-tuning) is used as alternative to the above RNN architectures for sequence labeling. Any pre-trained TensorFlow BERT models can be used (e.g. SciBERT or BioBERT for scientific and medical texts). 
+
+&nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
+
+In addition, the following contextual embeddings can be used in combination to the previous RNN architectures: 
+
 * the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualised embeddings, see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
-* Feature extraction to be used as contextual embeddings can also be obtained from BERT, as ELMo alternative, as explained in section 5.4 of: 
+* Feature extraction to be used as contextual embeddings can also be obtained from _BERT_, as ELMo alternative, as explained in section 5.4 of: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
-The addition of BERT transformer architecture (with fine-tuning), as alternative to the above RNN architectures for sequence labeling, is currently work in progress. 
-
-Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme.
+Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme and we did not find any advantages to add alternative labelling scheme after experiments.
 
 ### Examples
 
@@ -203,8 +209,9 @@ optional arguments:
                         training set
   --architecture ARCHITECTURE
                         type of model architecture to be used, one of
-                        [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-
-                        CRF]
+                        ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF',
+                        'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING',
+                        'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
   --use-ELMo            Use ELMo contextual embeddings
   --use-BERT            Use BERT extracted features (embeddings)
   --data-path DATA_PATH
@@ -297,6 +304,25 @@ Using ELMo with the best model obtained over 10 training (not using the validati
 ```
 
 Using ELMo and training with the validation set gives a f-score of 93.09 (best model), 92.69 averaged over 10 runs (the best model is provided under `data/models/sequenceLabelling/ner-en-conll2003-BidLSTM_CRF/with_validation_set/`).
+
+Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
+
+> python3 nerTagger.py --architecture bert-base-en --dataset-type conll2003 --fold-count 10 train_eval
+
+```text
+average over 10 folds
+            precision    recall  f1-score   support
+
+       ORG     0.8804    0.9114    0.8957      1661
+      MISC     0.7823    0.8189    0.8002       702
+       PER     0.9633    0.9576    0.9605      1617
+       LOC     0.9290    0.9316    0.9303      1668
+
+  macro f1 = 0.9120
+  macro precision = 0.9050
+  macro recall = 0.9191
+
+```
 
 For training with all the available data:
 
@@ -447,17 +473,17 @@ For ten model training with average, worst and best model with ELMo embeddings, 
 
 ##### French model (based on Le Monde corpus)
 
-Note that Le Monde corpus is subject to copyrights and is limited to research usage only. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type lemonde`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
+Note that Le Monde corpus is subject to copyrights and is limited to research usage only, it is usually referred to as "corpus FTB". The corpus file `ftb6_ALL.EN.docs.relinked.xml` must be located under `delft/data/sequenceLabelling/leMonde/`. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type ftb`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
 
 Similarly as before, for training and evaluating use:
 
-> python3 nerTagger.py --lang fr train_eval
+> python3 nerTagger.py --lang fr --dataset-type ftb train_eval
 
 In practice, we need to repeat training and evaluation several times to neutralise random seed effects and to average scores, here ten times:
 
-> python3 nerTagger.py --lang fr --fold-count 10 train_eval
+> python3 nerTagger.py --lang fr --dataset-type ftb --fold-count 10 train_eval
 
-The performance is as follow, with a f-score of __91.01__ averaged over 10 training:
+The performance is as follow, for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, with a f-score of __91.01__ averaged over 10 training:
 
 ```text
 average over 10 folds
@@ -494,7 +520,7 @@ all (micro avg.)     0.9090    0.9242    0.9166      1254
 
 With frELMo:
 
-> python3 nerTagger.py --lang fr --fold-count 10 --use-ELMo train_eval
+> python3 nerTagger.py --lang fr --dataset-type ftb --fold-count 10 --use-ELMo train_eval
 
 ```text
 average over 10 folds
@@ -529,13 +555,113 @@ all (micro avg.)     0.9110    0.9147    0.9129      1254
 all (micro avg.)     0.9268    0.9290    0.9279      1254
 ```
 
-For training with all the dataset without evaluation:
+For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
 
-> python3 nerTagger.py --lang fr train
+> python3 nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 train_eval
+
+which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, a f-score of __86.37__ averaged over 10 training:
+
+```
+average over 10 folds
+                    precision    recall  f1-score   support
+
+      Organization     0.8410    0.7431    0.7888       311
+            Person     0.9086    0.9327    0.9204       205
+          Location     0.9219    0.9144    0.9181       347
+           Company     0.8140    0.8603    0.8364       290
+  FictionCharacter     0.0000    0.0000    0.0000         2
+           Product     1.0000    1.0000    1.0000         3
+               POI     0.0000    0.0000    0.0000         0
+           company     0.0000    0.0000    0.0000         0
+
+  macro f1 = 0.8637
+  macro precision = 0.8708
+  macro recall = 0.8567 
+
+
+** Worst ** model scores -
+                  precision    recall  f1-score   support
+
+    Organization     0.8132    0.7138    0.7603       311
+        Location     0.9152    0.9020    0.9086       347
+         Company     0.7926    0.8172    0.8048       290
+          Person     0.9095    0.9317    0.9205       205
+         Product     1.0000    1.0000    1.0000         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8571    0.8342    0.8455      1158
+
+
+** Best ** model scores -
+                  precision    recall  f1-score   support
+
+    Organization     0.8542    0.7910    0.8214       311
+        Location     0.9226    0.9280    0.9253       347
+         Company     0.8212    0.8552    0.8378       290
+          Person     0.9095    0.9317    0.9205       205
+         Product     1.0000    1.0000    1.0000         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8767    0.8722    0.8745      1158
+```
+
+With frELMo:
+
+> python3 nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 --use-ELMo train_eval
+
+```
+average over 10 folds
+                    precision    recall  f1-score   support
+
+      Organization     0.8605    0.7752    0.8155       311
+            Person     0.9227    0.9371    0.9298       205
+          Location     0.9281    0.9432    0.9356       347
+           Company     0.8401    0.8779    0.8585       290
+  FictionCharacter     0.1000    0.0500    0.0667         2
+           Product     0.8750    1.0000    0.9286         3
+               POI     0.0000    0.0000    0.0000         0
+           company     0.0000    0.0000    0.0000         0
+
+  macro f1 = 0.8831
+  macro precision = 0.8870
+  macro recall = 0.8793 
+
+
+** Worst ** model scores -
+                  precision    recall  f1-score   support
+
+        Location     0.9366    0.9366    0.9366       347
+    Organization     0.8309    0.7428    0.7844       311
+          Person     0.9268    0.9268    0.9268       205
+         Company     0.8179    0.8828    0.8491       290
+         Product     0.7500    1.0000    0.8571         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8762    0.8679    0.8720      1158
+
+
+** Best ** model scores -
+                  precision    recall  f1-score   support
+
+        Location     0.9220    0.9539    0.9377       347
+    Organization     0.8777    0.7846    0.8285       311
+          Person     0.9187    0.9366    0.9275       205
+         Company     0.8444    0.9172    0.8793       290
+         Product     1.0000    1.0000    1.0000         3
+FictionCharacter     0.0000    0.0000    0.0000         2
+
+all (micro avg.)     0.8900    0.8946    0.8923      1158
+```
+
+For the `ftb_force_split` dataset, similarly as for CoNLL 2013, you can use the `train_with_validation_set` parameter to add the validation set in the training data. The above results are all obtained without using `train_with_validation_set` (which is the common approach).
+
+Finally, for training with all the dataset without evaluation (e.g. for production):
+
+> python3 nerTagger.py --lang fr --dataset-type ftb train
 
 and for annotating some examples:
 
-> python3 nerTagger.py --lang fr --file-in data/test/test.ner.fr.txt tag
+> python3 nerTagger.py --lang fr --dataset-type ftb --file-in data/test/test.ner.fr.txt tag
 
 ```json
 {
@@ -812,88 +938,33 @@ with n-folds:
 
 > python3 citationClassifier.py train --fold-count 10
 
-Training and evalation (ratio):
+Training and evalation (ratio) with 10-folds:
 
-> python3 citationClassifier.py train_eval
+> python3 citationClassifier.py train_eval --fold-count 10
 
-<!-- which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
-
-eval before data generator
-```
-Evaluation on 896 instances:
-
-Class: negative
-    accuracy at 0.5 = 0.9665178571428571
-    f-1 at 0.5 = 0.9665178571428571
-    log-loss = 0.10193770380479757
-    roc auc = 0.9085232470270055
-
-Class: neutral
-    accuracy at 0.5 = 0.8995535714285714
-    f-1 at 0.5 = 0.8995535714285714
-    log-loss = 0.2584601024897698
-    roc auc = 0.8914776135848872
-
-Class: positive
-    accuracy at 0.5 = 0.9252232142857143
-    f-1 at 0.5 = 0.9252232142857143
-    log-loss = 0.20726886795593405
-    roc auc = 0.8892779640954823
-
-Macro-average:
-    average accuracy at 0.5 = 0.9304315476190476
-    average f-1 at 0.5 = 0.9304315476190476
-    average log-loss = 0.18922222475016715
-    average roc auc = 0.8964262749024584
-
-Micro-average:
-    average accuracy at 0.5 = 0.9304315476190482
-    average f-1 at 0.5 = 0.9304315476190482
-    average log-loss = 0.18922222475016712
-    average roc auc = 0.9319196428571429
-```    
-
-
-```text
-Evaluation on 896 instances:
-
-Class: negative
-    accuracy at 0.5 = 0.9654017857142857
-    f-1 at 0.5 = 0.9654017857142857
-    log-loss = 0.1056664130630102
-    roc auc = 0.898580121703854
-
-Class: neutral
-    accuracy at 0.5 = 0.8939732142857143
-    f-1 at 0.5 = 0.8939732142857143
-    log-loss = 0.25354114470640177
-    roc auc = 0.88643347739321
-
-Class: positive
-    accuracy at 0.5 = 0.9185267857142857
-    f-1 at 0.5 = 0.9185267857142856
-    log-loss = 0.1980544119553914
-    roc auc = 0.8930591175116723
-
-Macro-average:
-    average accuracy at 0.5 = 0.9259672619047619
-    average f-1 at 0.5 = 0.9259672619047619
-    average log-loss = 0.18575398990826777
-    average roc auc = 0.8926909055362455
-
-Micro-average:
-    average accuracy at 0.5 = 0.9259672619047624
-    average f-1 at 0.5 = 0.9259672619047624
-    average log-loss = 0.18575398990826741
-    average roc auc = 0.9296875
-
+which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
 ```
+Evaluation on 896 instances:
+                   precision        recall       f-score       support
+      negative        0.1494        0.4483        0.2241            29
+       neutral        0.9653        0.8058        0.8784           793
+      positive        0.3333        0.6622        0.4434            74
+```
 
-In [7], based on a SVM (linear kernel) and custom features, the author reports a F-score of 0.898 for micro-average and 0.764 for macro-average. As we can observe, a non-linear deep learning approach, even without any feature engineering nor tuning, is very robust for an unbalanced dataset and provides higher accuracy.
--->
+Similarly as other scripts, use `--architecture` to specify an alternative DL architecture, for instance SciBERT:
 
-To classify a set of citation contexts:
+> python3 citationClassifier.py train_eval --architecture scibert
+
+```
+Evaluation on 896 instances:
+                   precision        recall       f-score       support
+      negative        0.1712        0.6552        0.2714            29
+       neutral        0.9740        0.8020        0.8797           793
+      positive        0.4015        0.7162        0.5146            74
+```
+
+To classify a set of citation contexts with default model (2-layers Bidirectional GRU model `gru`):
 
 > python3 citationClassifier.py classify
 
@@ -931,21 +1002,17 @@ which will produce some JSON output like this:
 
 ## TODO
 
-__Embeddings__:
-
-* use/experiment more with OOV mechanisms
-
-* train decent French embeddings (ELMo)
-
 __Models__:
 
-* add BERT transformer architecture (non just the extracted features as embeddings as now)
+* The integration of FLAIR contextual embeddings (branch `flair` and `flair2`) raised several issues and we did not manage to reproduce the results from the full FLAIR implementation. We should experiment with https://github.com/kensho-technologies/bubs, a Keras/TensorFlow reimplementation of the Flair Contextualized Embeddings.
 
-* test Theano as alternative backend (waiting for Apache MXNet...)
+* Augment word vectors with features, in particular layout features generated by GROBID (ongoing with PR #76)
 
-* augment word vectors with features, in particular layout features generated by GROBID
+* Try to migrate to TF 2.0 and tf.keras
 
-* review/rewrite the current Linear Chain CRF layer that we are using, this Keras CRF implementation is (i) a runtime bottleneck, we could try to use Cython for improving runtime and (ii) the viterbi decoding is incomplete, it does not outputing final decoded label scores and it can't output n-best. 
+* Review/rewrite the current Linear Chain CRF layer that we are using, this Keras CRF implementation is (i) a runtime bottleneck, we could try to use Cython for improving runtime and (ii) the viterbi decoding is incomplete, it does not outputing final decoded label scores and it can't output n-best. 
+
+* Port everything to Apache MXNet? :)
 
 __NER__:
 
@@ -953,15 +1020,19 @@ __NER__:
 
 * align the CoNLL corpus tokenisation (CoNLL corpus is "pre-tokenised", but we might not want to follow this particular tokenisation)
 
-__Production stack__:
+__Production__:
+
+* automatic download of embeddings on demand
 
 * improve runtime
 
 __Build more models and examples__...
 
-* model for entity disambiguation
+* Model for entity disambiguation (deeptype for entity-fishing)
 
-* dependency parser
+* Relation extractions (in particular with medical texts)
+
+Note that we are focusing on sequence labelling/information extraction and text classification tasks, which are our main applications, and not on text understanding and machine translation which are the object of already many other Open Source frameworks. 
 
 ## Acknowledgments
 
@@ -972,6 +1043,10 @@ __Build more models and examples__...
 * The preprocessor of the sequence labelling part is derived from https://github.com/Hironsan/anago/
 
 * [ELMo](https://allennlp.org/elmo) contextual embeddings are developed by the [AllenNLP](https://allennlp.org) team and we use the TensorFlow library [bilm-tf](https://github.com/allenai/bilm-tf) for integrating them into DeLFT.
+
+* [BERT](https://github.com/google-research/bert) transformer original implementation by Google Research, which has been adapted for text classification and sequence labelling in DeLFT.
+
+* [FastPredict](https://github.com/marcsto/rl/blob/master/src/fast_predict2.py) from by Marc Stogaitis, adapted to our BERT usages. 
 
 ## License and contact
 

@@ -1,11 +1,16 @@
 import itertools
 import re
+import collections
 import numpy as np
 np.random.seed(7)
 #from tensorflow import set_random_seed
 #set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 from sklearn.externals import joblib
+
+import delft.utilities.bert.tokenization as tokenization
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+
 import tensorflow as tf
 tf.set_random_seed(7)
 
@@ -219,7 +224,7 @@ def prepare_preprocessor(X, y, model_config):
     return p
 
 
-def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=True):
+def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
@@ -242,7 +247,7 @@ def to_vector_single(tokens, embeddings, maxlen=300, lowercase=False, num_norm=T
     return x
 
 
-def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on ELMo contextualized embeddings
@@ -255,6 +260,8 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        if extend:
+            local_tokens.append(UNK)
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_only_ELMo(subtokens)
     """
@@ -263,7 +270,7 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
     """
 
 
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False, extend=False):
+def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -284,7 +291,7 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
 
-def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False, extend=False):
+def to_vector_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the BERT contextualized embeddings, introducing
@@ -305,7 +312,7 @@ def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
     return vector
 
 
-def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
+def to_vector_simple_with_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
     vectors based on the concatenation of the provided static embeddings and 
@@ -320,11 +327,13 @@ def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, 
                 local_tokens.append(_lower(tokens[i][j]))
             else:
                 local_tokens.append(tokens[i][j])
+        if extend:
+            local_tokens.append(UNK)
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_BERT(subtokens)
 
 
-def to_casing_single(tokens, maxlen=300):
+def to_casing_single(tokens, maxlen):
     """
     Given a list of tokens set the casing, introducing <PAD> and <UNK> padding 
     when appropriate
@@ -374,4 +383,326 @@ def _lower(word):
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
 
+class InputExample(object):
+    """
+    A single training/test example for simple BERT sequence classification.
+    """
+    def __init__(self,
+                 guid,
+                 tokens,
+                 labels=None):
+        """Constructs a InputExample.
+        Args:
+          guid: Unique id for the example.
+          tokens: list of tokens (strings)
+          label: list of string. The labels of the example. This should be
+            specified for train and dev examples, but not for test examples.
+        """
+        self.guid = guid
+        self.tokens = tokens
+        self.labels = labels
 
+class InputFeatures(object):
+    """
+    A single BERT set of features of data.
+    """
+    def __init__(self,
+                 input_ids,
+                 input_mask,
+                 segment_ids,
+                 label_ids):
+        self.input_ids = input_ids
+        self.input_mask = input_mask
+        self.segment_ids = segment_ids
+        self.label_ids = label_ids     
+
+class NERProcessor(object):
+    """
+    General BERT processor for a sequence labelling data set.
+    This is simply feed by the DeLFT sequence labelling data obtained by the 
+    custom DeLFT readers. 
+    """
+    def __init__(self,
+                labels):
+        self.labels = labels
+    
+    def get_train_examples(self, x, y):
+        """
+        Gets a collection of `InputExample`s for the train set
+        """
+        return self._get_example(x, y)
+    
+    def get_dev_examples(self, x, y):
+        """
+        Gets a collection of `InputExample`s for the dev set
+        """
+        return self._get_example(x, y)
+    
+    def get_test_examples(self, x, y):
+        """
+        Gets a collection of `InputExample`s for the test set
+        """
+        return self._get_example(x, y)
+    
+    def get_labels(self):
+        """
+        Gets the list of labels for this data set
+        """
+        return self.labels
+
+    def _get_example(self, x, y):
+        """
+        Gets a collection of `InputExample` already labelled (for training and eval)
+        """
+        examples = []
+        for i in range(len(x)):
+            guid = i
+            tokens = []
+            labels = []
+            for j in range(len(x[i])):
+                tokens.append(tokenization.convert_to_unicode(x[i][j]))
+                labels.append(tokenization.convert_to_unicode(y[i][j]))
+            example = InputExample(guid=guid, tokens=tokens, labels=labels)
+            examples.append(example)
+        return examples
+
+    def create_inputs(self, x_s, dummy_label='O'):
+        """
+        Gets a collection of `InputExample` for input to be labelled (for prediction)
+        """
+        examples = []
+        # dummy label to avoid breaking the BERT base code
+        for (i, x) in enumerate(x_s):
+            guid = i
+            tokens = []
+            labels = []
+            # if x is not already segmented:
+            if isinstance(x, list):
+                simple_tokens = x
+            else:
+                simple_tokens = tokenizeAndFilterSimple(x)                
+            for j in range(len(simple_tokens)):
+                tokens.append(tokenization.convert_to_unicode(simple_tokens[j]))
+                labels.append(tokenization.convert_to_unicode(dummy_label))
+            examples.append(InputExample(guid=guid, tokens=tokens, labels=labels))
+        return examples
+
+
+def convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer):
+    """
+    Converts a single BERT `InputExample` into a single BERT `InputFeatures`.
+
+    The BERT tokenization is introduced which will modify sentence and labels as 
+    follow:
+    tokens: [Jim,Hen,##son,was,a,puppet,##eer]
+    labels: [I-PER,I-PER,X,O,O,O,X]
+    """
+
+    text_tokens = example.tokens
+    tokens = []
+    # the following is to better keep track of additional tokens added by BERT tokenizer, 
+    # only some of them has a prefix ## that allows to identify them downstream in the process
+    tokens_marked = []
+    label_tokens = example.labels
+    labels = []    
+
+    label_map = {}
+    #here start with zero this means that "[PAD]" is zero
+    for (i,label) in enumerate(label_list):
+        label_map[label] = i
+
+    for text_token, label_token in zip(text_tokens, label_tokens):
+        text_sub_tokens = tokenizer.tokenize(text_token)
+        text_sub_tokens_marked = tokenizer.tokenize(text_token)
+        for i in range(len(text_sub_tokens_marked)):
+            if i == 0:
+                continue
+            tok = text_sub_tokens_marked[i]
+            if not tok.startswith("##"):
+                text_sub_tokens_marked[i] = "##" + tok
+        label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
+        tokens.extend(text_sub_tokens)
+        tokens_marked.extend(text_sub_tokens_marked)
+        labels.extend(label_sub_tokens)
+
+    if len(tokens) >= max_seq_length - 2:
+        tokens = tokens[0:(max_seq_length - 2)]
+        tokens_marked = tokens_marked[0:(max_seq_length - 2)]
+        labels = labels[0:(max_seq_length - 2)]
+
+    input_tokens = []
+    input_tokens_marked = []
+    segment_ids = []
+    label_ids = []
+
+    # The convention in BERT is:
+    # (a) For sequence pairs:
+    #  tokens:   [CLS] is this jack ##son ##ville ? [SEP] no it is not . [SEP]
+    #  type_ids: 0     0  0    0    0     0       0 0     1  1  1  1   1 1
+    # (b) For single sequences:
+    #  tokens:   [CLS] the dog is hairy . [SEP]
+    #  type_ids: 0     0   0   0  0     0 0
+    #
+    # Where "type_ids" are used to indicate whether this is the first sequence 
+    # or the second sequence. 
+    
+    input_tokens.append("[CLS]")
+    input_tokens_marked.append("[CLS]")
+    segment_ids.append(0)
+    label_ids.append(label_map["[CLS]"])
+
+    for i, token in enumerate(tokens):
+        input_tokens.append(token)
+        segment_ids.append(0)
+        label_ids.append(label_map[labels[i]])
+
+    for token in tokens_marked:
+        input_tokens_marked.append(token)
+
+    # note: do we really need to add "[SEP]" for single sequence? 
+    input_tokens.append("[SEP]")
+    input_tokens_marked.append("[SEP]")
+    segment_ids.append(0)
+    label_ids.append(label_map["[SEP]"])
+
+    input_ids = tokenizer.convert_tokens_to_ids(input_tokens)
+
+    # The mask has 1 for real tokens and 0 for padding tokens
+    input_mask = [1] * len(input_ids)
+    
+    # Zero-pad up to the sequence length.
+    while len(input_ids) < max_seq_length:
+        input_ids.append(0)
+        input_mask.append(0)
+        segment_ids.append(0)
+        label_ids.append(0)
+
+    assert len(input_ids) == max_seq_length
+    assert len(input_mask) == max_seq_length
+    assert len(segment_ids) == max_seq_length
+    assert len(label_ids) == max_seq_length
+    
+    if ex_index < 5:
+        tf.logging.info("*** Example ***")
+        tf.logging.info("guid: %s" % (example.guid))
+        tf.logging.info("tokens: %s" % " ".join([tokenization.printable_text(x) for x in tokens]))
+        tf.logging.info("input_ids: %s" % " ".join([str(x) for x in input_ids]))
+        tf.logging.info("input_mask: %s" % " ".join([str(x) for x in input_mask]))
+        tf.logging.info("segment_ids: %s" % " ".join([str(x) for x in segment_ids]))
+        tf.logging.info("label_ids: %s" % " ".join([str(x) for x in label_ids]))
+
+    feature = InputFeatures(
+        input_ids=input_ids,
+        input_mask=input_mask,
+        segment_ids=segment_ids,
+        label_ids=label_ids)
+
+    return feature, input_tokens_marked
+
+def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder, batch_size):
+    """
+    Creates an `input_fn` closure to be passed to TPUEstimator
+    """
+    name_to_features = {
+        "input_ids": tf.FixedLenFeature([seq_length], tf.int64),
+        "input_mask": tf.FixedLenFeature([seq_length], tf.int64),
+        "segment_ids": tf.FixedLenFeature([seq_length], tf.int64),
+        "label_ids": tf.FixedLenFeature([seq_length], tf.int64),
+    }
+
+    def _decode_record(record, name_to_features):
+        """Decodes a record to a TensorFlow example."""
+        example = tf.parse_single_example(record, name_to_features)
+
+        # int32 cast 
+        for name in list(example.keys()):
+            t = example[name]
+            if t.dtype == tf.int64:
+                t = tf.to_int32(t)
+            example[name] = t
+        
+        return example
+
+    def input_fn(params):
+        """
+        the actual input function
+        """
+        # For training, we want a lot of parallel reading and shuffling.
+        # For eval, we want no shuffling and parallel reading doesn't matter.
+        d = tf.data.TFRecordDataset(input_file)
+        if is_training:
+            d = d.repeat()
+            d = d.shuffle(buffer_size=100)
+
+        d = d.apply(
+          tf.data.experimental.map_and_batch(
+                lambda record: _decode_record(record, name_to_features),
+                batch_size=batch_size,
+                drop_remainder=drop_remainder))
+
+        return d
+
+    return input_fn
+
+def input_fn_generator(generator, seq_length, batch_size):
+    """
+    Creates an `input_fn` closure to be passed to the estimator
+    """
+    def input_fn(params):
+        output_types = {
+          "input_ids": tf.int64,
+          "input_mask": tf.int64,
+          "segment_ids": tf.int64,
+          "label_ids": tf.int64
+        }
+
+        output_shapes = {
+          "input_ids": tf.TensorShape([None, seq_length]),
+          "input_mask": tf.TensorShape([None, seq_length]),
+          "segment_ids": tf.TensorShape([None, seq_length]),
+          "label_ids": tf.TensorShape([None, seq_length])
+        }
+
+        return tf.data.Dataset.from_generator(generator, output_types=output_types, output_shapes=output_shapes)
+
+    return input_fn
+
+def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file):
+    """
+    Convert a list of `InputExample` to a list of bert `InputFeatures` in a file.
+    This is used when training to avoid re-doing this conversion other multiple epochs.
+    For prediction, we don't want to use a file. 
+    """
+    writer = tf.python_io.TFRecordWriter(output_file)
+    for (ex_index, example) in enumerate(examples):
+        if ex_index % 5000 == 0:
+            tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
+        feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
+
+        def create_int_feature(values):
+            f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
+            return f
+
+        features = collections.OrderedDict()
+        features["input_ids"] = create_int_feature(feature.input_ids)
+        features["input_mask"] = create_int_feature(feature.input_mask)
+        features["segment_ids"] = create_int_feature(feature.segment_ids)
+        features["label_ids"] = create_int_feature(feature.label_ids)
+        tf_example = tf.train.Example(features=tf.train.Features(feature=features))
+        writer.write(tf_example.SerializeToString())
+
+    # sentence token in each batch
+    writer.close()
+
+def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
+    """
+    Convert a list of `InputExample` to be labelled into a list of bert `InputFeatures`
+    """
+    features = []
+    input_tokens = []
+    for (ex_index, example) in enumerate(examples):
+        feature, tokens = convert_single_example(ex_index, example, label_list,
+                                         max_seq_length, tokenizer)
+        features.append(feature)
+        input_tokens.append(tokens)
+    return features, input_tokens

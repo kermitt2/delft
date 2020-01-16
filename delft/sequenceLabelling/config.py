@@ -13,7 +13,7 @@ class ModelConfig(object):
                  char_lstm_units=25,
                  max_char_length=30,
                  word_lstm_units=100, 
-                 max_sequence_length=None,
+                 max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
                  use_char_feature=True, 

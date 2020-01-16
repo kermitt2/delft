@@ -8,7 +8,7 @@
     "num_char_lstm_units": 25,
     "max_char_length": 30,
     "max_sequence_length": null,
-    "word_embedding_size": 1068,
+    "word_embedding_size": 3372,
     "num_word_lstm_units": 100,
     "case_embedding_size": 5,
     "dropout": 0.5,

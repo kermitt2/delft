@@ -33,7 +33,6 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 # for BERT extraction of word embeddings (not the fine tuning, this realized by a specific model)
 from keras_bert import load_trained_model_from_checkpoint, Tokenizer
 
-
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
 
@@ -44,8 +43,12 @@ map_size = 100 * 1024 * 1024 * 1024
 
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
-BERT_embed_size = 768
+
 BERT_sentence_size = 512
+# BERT embedding size depends on the pooling method (one layer has a size of 768)
+#BERT_embed_size = 768
+BERT_embed_size = 3072
+
 
 class Embeddings(object):
 
@@ -334,9 +337,12 @@ class Embeddings(object):
 
             # load the pretrained model
             with self.graph.as_default():
-            #    with self.session.as_default():
-            #with tf.variable_scope('', reuse=tf.AUTO_REUSE):
-                self.bert_model = load_trained_model_from_checkpoint(config_file, weight_file)
+                # there are different typical pooling strategies for getting BERT features:
+                # - concatenation of 4 last layers (the one from the original BERT paper, BERT_embed_size is then 3072)
+                # - last layer (BERT_embed_size is 768)
+                # - average of 4 last layers (BERT_embed_size is 768)
+                # - sum of the 4 last layers (BERT_embed_size is 768)
+                self.bert_model = load_trained_model_from_checkpoint(config_file, weight_file, output_layer_num=4)
                 self.bert_model.summary(line_length=120)
                 self.bert_model._make_predict_function()
 
@@ -539,6 +545,9 @@ class Embeddings(object):
         for emb in self.registry["embeddings-contextualized"]:
             if emb["name"] == name:
                 return emb
+        for emb in self.registry["transformers"]:
+            if emb["name"] == name:
+                return emb
         return None
 
     def get_word_vector(self, word):
@@ -553,7 +562,6 @@ class Embeddings(object):
             return self.get_word_vector_in_memory(word)
         try:    
             with self.env.begin() as txn:
-                txn = self.env.begin()   
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
                     word_vector = _deserialize_pickle(vector)
