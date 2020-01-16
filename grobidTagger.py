@@ -41,23 +41,18 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         model_name = 'grobid-'+model
 
-    if use_ELMo:
-        model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 7
-
     batch_size = 20
     max_sequence_length = 3000
 
     if model == "software":
-        # class are more unbalanced, so we need to extend the batch size  
+        # class are more unbalanced, so we need to extend the batch size
         batch_size = 50
         max_sequence_length = 1500
 
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 5
+            batch_size = 7
 
     if architecture.lower().find("bert") != -1:
         batch_size = 6
@@ -158,15 +153,15 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
 
-    # evaluation
-    print("\nEvaluation:")
-    model.eval(x_eval, y_eval, features=f_eval)
-
     # saving the model
     if (output_path):
         model.save(output_path)
     else:
         model.save()
+
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_eval, y_eval, features=f_eval)
 
 # split data, train a GROBID model and evaluate it
 def eval_(model, use_ELMo=False, input_path=None):

@@ -5,8 +5,9 @@ import time
 import json
 import re
 import math
-import numpy as np
+import shutil
 
+import numpy as np
 from delft.sequenceLabelling.evaluation import get_report
 from delft.utilities.numpy import concatenate_or_none
 
@@ -33,10 +34,16 @@ from delft.sequenceLabelling.data_generator import DataGenerator
 from delft.sequenceLabelling.trainer import Scorer
 
 from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Utilities import merge_folders
+
+# seqeval
+from delft.sequenceLabelling.evaluation import accuracy_score
+from delft.sequenceLabelling.evaluation import classification_report
+from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+
 
 # initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
 # with various modifications
-
 
 class Sequence(object):
 
@@ -55,7 +62,7 @@ class Sequence(object):
                  max_char_length=30,
                  char_lstm_units=25,
                  word_lstm_units=100, 
-                 max_sequence_length=None,
+                 max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.25,
                  use_char_feature=True, 
@@ -155,7 +162,8 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
 
-        #self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+        if 'bert' in self.model_config.model_type.lower():
+            self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
         self.models = []
 
         for k in range(0, fold_number):
@@ -175,6 +183,8 @@ class Sequence(object):
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
+        if 'bert' in self.model_config.model_type.lower():
+            self.save()
 
     def eval(self, x_test, y_test, features=None):
         if self.model_config.ignore_features:
@@ -186,20 +196,43 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-        if self.model:
-            # Prepare test data(steps, generator)
-            test_generator = DataGenerator(x_test, y_test, 
-              batch_size=self.training_config.batch_size, preprocessor=self.p, 
-              char_embed_size=self.model_config.char_embedding_size, 
-              max_sequence_length=self.model_config.max_sequence_length,
-              embeddings=self.embeddings, shuffle=False, features=features)
+        if 'bert' not in self.model_config.model_type.lower():
+            if self.model:
+                # Prepare test data(steps, generator)
+                test_generator = DataGenerator(x_test, y_test,
+                  batch_size=self.training_config.batch_size, preprocessor=self.p,
+                  char_embed_size=self.model_config.char_embedding_size,
+                  max_sequence_length=self.model_config.max_sequence_length,
+                  embeddings=self.embeddings, shuffle=False, features=features)
 
-            # Build the evaluator and evaluate the model
-            scorer = Scorer(test_generator, self.p, evaluation=True)
-            scorer.model = self.model
-            scorer.on_epoch_end(epoch=-1) 
+                # Build the evaluator and evaluate the model
+                scorer = Scorer(test_generator, self.p, evaluation=True)
+                scorer.model = self.model
+                scorer.on_epoch_end(epoch=-1)
+            else:
+                raise (OSError('Could not find a model.'))
         else:
-            raise (OSError('Could not find a model.'))
+            # BERT architecture model
+            y_pred = self.model.predict(x_test, fold_id=-1)
+
+            nb_alignment_issues = 0
+            for i in range(len(y_test)):
+                if len(y_test[i]) != len(y_pred[i]):
+                    nb_alignment_issues += 1
+                    # BERT tokenizer appears to introduce some additional tokens without ## prefix,
+                    # but this is normally handled when predicting.
+                    # To be very conservative, the following ensure the number of tokens always
+                    # match, but it should never be used in practice.
+                    if len(y_test[i]) < len(y_pred[i]):
+                        y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
+                    if len(y_test[i]) > len(y_pred[i]):
+                        y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
+
+            if nb_alignment_issues > 0:
+                print("number of alignment issues with test set:", nb_alignment_issues)
+
+            report, report_as_map = classification_report(y_test, y_pred, digits=4)
+            print(report)
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
@@ -212,25 +245,64 @@ class Sequence(object):
             reports_as_map = []
             total_precision = 0
             total_recall = 0
-            for i in range(0, self.model_config.fold_number):
+            for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                # Prepare test data(steps, generator)
-                test_generator = DataGenerator(x_test, y_test, 
-                  batch_size=self.training_config.batch_size, preprocessor=self.p, 
-                  char_embed_size=self.model_config.char_embedding_size, 
-                  max_sequence_length=self.model_config.max_sequence_length,
-                  embeddings=self.embeddings, shuffle=False, features=features)
+                if 'bert' not in self.model_config.model_type.lower():
+                    # Prepare test data(steps, generator)
+                    test_generator = DataGenerator(x_test, y_test,
+                      batch_size=self.training_config.batch_size, preprocessor=self.p,
+                      char_embed_size=self.model_config.char_embedding_size,
+                      max_sequence_length=self.model_config.max_sequence_length,
+                      embeddings=self.embeddings, shuffle=False, features=features)
 
-                # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True)
-                scorer.model = self.models[i]
-                scorer.on_epoch_end(epoch=-1) 
-                f1 = scorer.f1
-                precision = scorer.precision
-                recall = scorer.recall
-                reports.append(scorer.report)
-                reports_as_map.append(scorer.report_as_map)
+                    # Build the evaluator and evaluate the model
+                    scorer = Scorer(test_generator, self.p, evaluation=True)
+                    scorer.model = self.models[i]
+                    scorer.on_epoch_end(epoch=-1)
+                    f1 = scorer.f1
+                    precision = scorer.precision
+                    recall = scorer.recall
+                    reports.append(scorer.report)
+                    reports_as_map.append(scorer.report_as_map)
+
+                else:
+                    # BERT architecture model
+                    dir_path = 'data/models/sequenceLabelling/'
+                    self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+                    self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+                    self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+                    self.model.load_model(i)
+
+                    y_pred = self.model.predict(x_test, fold_id=i)
+
+                    nb_alignment_issues = 0
+                    for j in range(len(y_test)):
+                        if len(y_test[i]) != len(y_pred[j]):
+                            nb_alignment_issues += 1
+                            # BERT tokenizer appears to introduce some additional tokens without ## prefix,
+                            # but this is normally handled when predicting.
+                            # To be very conservative, the following ensure the number of tokens always
+                            # match, but it should never be used in practice.
+                            if len(y_test[j]) < len(y_pred[j]):
+                                y_test[j] = y_test[j] + ["O"] * (len(y_pred[j]) - len(y_test[j]))
+                            if len(y_test[j]) > len(y_pred[j]):
+                                y_pred[j] = y_pred[j] + ["O"] * (len(y_test[j]) - len(y_pred[j]))
+
+                    if nb_alignment_issues > 0:
+                        print("number of alignment issues with test set:", nb_alignment_issues)
+
+                    f1 = f1_score(y_test, y_pred)
+                    precision = precision_score(y_test, y_pred)
+                    recall = recall_score(y_test, y_pred)
+
+                    print("\tf1: {:04.2f}".format(f1 * 100))
+                    print("\tprecision: {:04.2f}".format(precision * 100))
+                    print("\trecall: {:04.2f}".format(recall * 100))
+
+                    report, report_as_map = classification_report(y_test, y_pred, digits=4)
+                    reports.append(report)
+                    reports_as_map.append(report_as_map)
 
                 if best_f1 < f1:
                     best_f1 = f1
@@ -247,6 +319,22 @@ class Sequence(object):
             macro_f1 = total_f1 / self.model_config.fold_number
             macro_precision = total_precision / self.model_config.fold_number
             macro_recall = total_recall / self.model_config.fold_number
+
+            '''
+            print("----------------------------------------------------------------------")
+            print("\naverage over", self.model_config.fold_number, "folds")
+
+            name_width = 0
+            for label in self.p.vocab_tag:
+                name_width = max(name_width, len(label))
+
+            width = max(name_width, 10)
+            digits = 4
+            headers = ["precision", "recall", "f1-score", "support"]
+            head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers) + "\n"
+            print(head_fmt.format(u'', *headers, width=width))
+            #print(u'\n')
+            '''
 
             macro_eval_block = {'f1': macro_f1, 'precision': macro_precision, 'recall': macro_recall}
             fold_average_evaluation['macro'] = macro_eval_block
@@ -288,16 +376,28 @@ class Sequence(object):
               fold_average_evaluation['labels'][label] = block_label
 
             print("----------------------------------------------------------------------")
-            print("\n** Worst ** model scores -")
+            print("\n** Worst ** model scores - run", str(worst_index))
             print(reports[worst_index])
 
-            self.model = self.models[best_index]
-            print("\n** Best ** model scores -")
+            print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
+
+            if 'bert' not in self.model_config.model_type.lower():
+                self.model = self.models[best_index]
+            else:
+                # copy best BERT model folder
+                best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
+                new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
+                # update new_model_dir if it already exists, keep its existing config content
+                merge_folders(best_model_dir, new_model_dir)
+                # clean other fold directory
+                for i in range(self.model_config.fold_number):
+                    shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
 
             print("----------------------------------------------------------------------")
             print("\nAverage over", self.model_config.fold_number, "folds")
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['macro']))
+
 
     def tag(self, texts, output_format):
         # annotate a list of sentences, return the list of annotations in the 
@@ -407,19 +507,25 @@ class Sequence(object):
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        self.p.save(os.path.join(directory, self.preprocessor_file))
-        print('preprocessor saved')
-
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
 
-        self.model.save(os.path.join(directory, self.weight_file))
+        self.p.save(os.path.join(directory, self.preprocessor_file))
+        print('preprocessor saved')
+
+        # bert model are always saved via training process steps as checkpoint
+        if self.model_config.model_type.lower().find("bert") == -1:
+            self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling/'):
+        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
 
-        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+        if self.model_config.model_type.lower().find("bert") != -1:
+             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+             self.model.load_model()
+             return
 
         # load embeddings
         self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT) 
@@ -427,7 +533,6 @@ class Sequence(object):
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
-
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]

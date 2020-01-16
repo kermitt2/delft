@@ -22,6 +22,9 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
 
     if use_ELMo:
         batch_size = 100
+    elif architecture.lower().find("bert") != -1:
+        batch_size = 32
+        max_sequence_length = 150
     else:
         batch_size = 20
 
@@ -53,6 +56,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -85,6 +89,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
     elif (lang == 'fr'):
@@ -108,6 +113,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
     else:
@@ -139,6 +145,7 @@ def train_eval(embedding_name,
                 use_BERT=False, 
                 data_path=None): 
 
+    max_sequence_length = 300
     if (architecture == "BidLSTM_CNN_CRF"):
         word_lstm_units = 200
         max_epoch = 30
@@ -150,6 +157,9 @@ def train_eval(embedding_name,
 
     if use_ELMo or use_BERT:
         batch_size = 120
+    elif architecture.lower().find("bert") != -1:
+        batch_size = 32
+        max_sequence_length = 150
     else:
         batch_size = 20
 
@@ -178,6 +188,7 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
                             use_BERT=use_BERT)
         else:
@@ -193,6 +204,7 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
                             use_BERT=use_BERT)
 
@@ -219,6 +231,7 @@ def train_eval(embedding_name,
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
 
@@ -247,6 +260,7 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
                             use_BERT=use_BERT)
         else:
@@ -262,12 +276,12 @@ def train_eval(embedding_name,
                             model_type=architecture,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
                             use_BERT=use_BERT)
 
-    elif (lang == 'fr'):
+    elif (lang == 'fr') and (dataset_type == 'ftb' or dataset_type is None):
         print('Loading data...')
-        dataset_type = 'lemonde'
         x_all, y_all = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml')
         x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
         x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
@@ -292,8 +306,103 @@ def train_eval(embedding_name,
                         model_type=architecture,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         use_BERT=use_BERT)
+    elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
+        print('Loading data...')
+        x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_train.conll')
+        x_valid, y_valid = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_dev.conll')
+        x_eval, y_eval = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_test.conll')
+        stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
+
+        model_name = 'ner-fr-lemonde-force-split'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+            # custom batch size for French ELMo
+            batch_size = 20
+        elif use_BERT:
+            # need to find a French BERT :/
+            model_name += '-with_BERT'
+        model_name += '-' + architecture
+
+        if not train_with_validation_set: 
+            # restrict training on train set, use validation set for early stop, as in most papers
+            model = Sequence(model_name, 
+                            max_epoch=60, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=True, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo,
+                            use_BERT=use_BERT)
+        else:
+            # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
+            # as (Chui & Nochols, 2016) and (Peters and al., 2017)
+            # this leads obviously to much higher results (~ +0.5 f1 score with CoNLL-2003)
+            model = Sequence(model_name, 
+                            max_epoch=max_epoch, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=False, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo,
+                            use_BERT=use_BERT)
+    elif (lang == 'fr') and (dataset_type == 'ftb_force_split_xml'):
+        print('Loading data...')
+        x_train, y_train = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.train.xml')
+        x_valid, y_valid = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.dev.xml')
+        x_eval, y_eval = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.test.xml')
+        stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
+
+        model_name = 'ner-fr-lemonde-force-split-xml'
+        if use_ELMo:
+            model_name += '-with_ELMo'
+            # custom batch size for French ELMo
+            batch_size = 20
+        elif use_BERT:
+            # need to find a French BERT :/
+            model_name += '-with_BERT'
+        model_name += '-' + architecture
+
+        if not train_with_validation_set: 
+            # restrict training on train set, use validation set for early stop, as in most papers
+            model = Sequence(model_name, 
+                            max_epoch=60, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=True, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo,
+                            use_BERT=use_BERT)
+        else:
+            # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
+            # as (Chui & Nochols, 2016) and (Peters and al., 2017)
+            # this leads obviously to much higher results (~ +0.5 f1 score with CoNLL-2003)
+            model = Sequence(model_name, 
+                            max_epoch=max_epoch, 
+                            recurrent_dropout=recurrent_dropout,
+                            embeddings_name=embedding_name, 
+                            early_stop=False, 
+                            fold_number=fold_count,
+                            model_type=architecture,
+                            word_lstm_units=word_lstm_units,
+                            batch_size=batch_size,
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo,
+                            use_BERT=use_BERT)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
@@ -306,11 +415,11 @@ def train_eval(embedding_name,
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
-    print("\nEvaluation on test set:")
-    model.eval(x_eval, y_eval)
-
     # saving the model
     model.save()
+
+    print("\nEvaluation on test set:")
+    model.eval(x_eval, y_eval)
 
 
 # usual eval on CoNLL 2003 eng.testb 
@@ -422,6 +531,10 @@ def annotate(output_format,
 
 
 if __name__ == "__main__":
+
+    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'bert-base-en', 'bert-large-en', 'scibert', 'biobert']
+
     parser = argparse.ArgumentParser(
         description = "Neural Named Entity Recognizers")
 
@@ -430,7 +543,7 @@ if __name__ == "__main__":
     parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code")
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of [BidLSTM_CRF, BidLSTM_CNN, BidLSTM_CNN_CRF, BidGRU-CRF]")
+    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument("--use-BERT", action="store_true", help="Use BERT extracted features (embeddings)") 
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
@@ -457,8 +570,8 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     use_BERT = args.use_BERT
     architecture = args.architecture
-    if architecture not in ('BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN'):
-        print('unknown model architecture, must be one of [BidLSTM_CRF, BidLSTM_CNN_CRF, BidLSTM_CNN_CRF, BidGRU_CRF, BidLSTM_CNN]')
+    if architecture not in architectures and architecture.lower().find("bert") == -1:
+        print('unknown model architecture, must be one of', architectures)
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
@@ -519,5 +632,10 @@ if __name__ == "__main__":
                 if file_out is None:
                     print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
             """
-    # see https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()
+
+    try:
+        # see https://github.com/tensorflow/tensorflow/issues/3388
+        K.clear_session()
+    except:
+        # TF could complain in some case
+        print("\nLeaving TensorFlow...")

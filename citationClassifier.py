@@ -48,7 +48,7 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
     elif use_BERT:
         batch_size = 50
 
-    maxlen = 120
+    maxlen = 150
     # default bert model parameters
     if architecture.find("bert") != -1:
         batch_size = 32

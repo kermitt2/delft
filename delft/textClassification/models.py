@@ -822,8 +822,9 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
             embeddings=embeddings, shuffle=False)
 
-        foldModel, best_score = train_model(getModel(model_config, training_config, callbacks=callbacks),
-                model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, class_weights, training_generator, validation_generator, val_y)
+        foldModel, best_score = train_model(getModel(model_config, training_config),
+                model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
+                class_weights, training_generator, validation_generator, val_y, callbacks=callbacks)
         models.append(foldModel)
 
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
@@ -1063,7 +1064,7 @@ class BERT_classifier():
     def eval(self, x_test=None, y_test=None, run_number=0):
         '''
         Train and eval the nb_runs classifier(s) against holdout set. If nb_runs>1, the final
-        score are averaged over the nb_runs models. The best model against holdout is saved.
+        score are averaged over the nb_runs models. 
         '''
         start = time.time()
         predict_examples, y_test = self.processor.get_test_examples(x_test=x_test, y_test=y_test)
@@ -1284,4 +1285,7 @@ def _get_description(name, path="./embedding-registry.json"):
     for emb in registry["embeddings-contextualized"]:
         if emb["name"] == name:
             return emb
+    for emb in registry["transformers"]:
+            if emb["name"] == name:
+                return emb
     return None

@@ -161,7 +161,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             self.tokens = []
             self.labels = []
             self.currentLabel = 'O'
-        if name == "ENAMEX":
+        if name == "ENAMEX" or name == "EX_ENAMEX":
             # beginning of entity
             if attrs.getLength() != 0:
                 #if attrs.getValue("type") != 'insult' and attrs.getValue("type") != 'threat':
@@ -199,7 +199,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             self.allLabels.append(self.labels)
             self.tokens = []
             self.labels = []
-        if name == "ENAMEX":
+        if name == "ENAMEX" or name == "EX_ENAMEX":
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
@@ -479,7 +479,10 @@ def load_data_and_labels_conll(filename):
                     labels.append(tags)
                     words, tags = [], []
             else:
-                word, tag = line.split('\t')
+                if len(line.split('\t')) == 2:
+                    word, tag = line.split('\t')
+                else:
+                    word, _, tag = line.split('\t')
                 words.append(word)
                 tags.append(tag)
 

@@ -4,11 +4,16 @@ import numpy as np
 from keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from delft.sequenceLabelling.data_generator import DataGenerator
+from keras.optimizers import Adam
+from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
+from keras.utils import plot_model
+
 # seqeval
 from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compute_metrics
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
+import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import tensorflow as tf
@@ -41,30 +46,41 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
 
-    """ train the instance self.model """
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
-        self.model.summary()
-        #print("self.model_config.use_crf:", self.model_config.use_crf)
+        """
+        Train the instance self.model
+        """
+        if 'bert' not in self.model_config.model_type.lower():
+            self.model.summary()
+            #print("self.model_config.use_crf:", self.model_config.use_crf)
 
-        if self.model_config.use_crf:
-            self.model.compile(loss=self.model.crf.loss,
-                           optimizer='adam')
-        else:
-            self.model.compile(loss='categorical_crossentropy',
-                           optimizer='adam')
-                           #optimizer=Adam(lr=self.training_config.learning_rate))
-        # uncomment to plot graph
-        #plot_model(self.model, 
-        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-        self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
+            if self.model_config.use_crf:
+                self.model.compile(loss=self.model.crf.loss,
+                               optimizer='adam')
+            else:
+                self.model.compile(loss='categorical_crossentropy',
+                               optimizer='adam')
+                               #optimizer=Adam(lr=self.training_config.learning_rate))
+            # uncomment to plot graph
+            #plot_model(self.model,
+            #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
+            self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
                                       f_train=features_train, f_valid=features_valid,
                                       max_epoch=self.training_config.max_epoch, callbacks=callbacks)
+        else:
+            # for BERT architectures, directly call the model trainer
+            if self.training_config.early_stop:
+                self.model.train(x_train, y_train)
+            else:
+                self.model.train(np.concatenate([x_train, x_valid]), np.concatenate([y_train,y_valid]))
 
-    """ parameter model local_model must be compiled before calling this method 
-        this model will be returned with trained weights """
     def train_model(self, local_model, x_train, y_train, f_train=None,
                     x_valid=None, y_valid=None, f_valid=None, max_epoch=50, callbacks=None):
-        # todo: if valid set if None, create it as random segment of the shuffled train set
+        """
+        The parameter model local_model must be compiled before calling this method.
+        This model will be returned with trained weights
+        """
+        # todo: if valid set is None, create it as random segment of the shuffled train set
 
         if self.training_config.early_stop:
             training_generator = DataGenerator(x_train, y_train, 
@@ -116,9 +132,19 @@ class Trainer(object):
 
         return local_model
 
-    """ n-fold training for the instance model 
-        the n models are stored in self.models, and self.model left unset at this stage """
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
+        """
+        n-fold training for the instance model
+        the n models are stored in self.models, and self.model left unset at this stage
+        """
+        if 'bert' in self.model_config.model_type.lower():
+            # for BERT architectures, directly call the model trainer which is managing n-fold training
+            # validation set is ignored, we suppose that the hyper-parameters are set with the validation set
+            # before
+            self.model.train(x_train, y_train)
+            # force config saving to ensure nothing is lost
+            return
+
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
         #roc_scores = []
@@ -153,6 +179,7 @@ class Trainer(object):
 
             foldModel = self.models[fold_id]
             foldModel.summary()
+
             if self.model_config.use_crf:
                 foldModel.compile(loss=foldModel.crf.loss,
                                optimizer='adam')
@@ -161,13 +188,13 @@ class Trainer(object):
                                optimizer='adam')
 
             foldModel = self.train_model(foldModel, 
-                                        train_x,
-                                        train_y,
-                                        x_valid=val_x,
-                                        y_valid=val_y,
-                                        f_train=train_f,
-                                        f_valid=val_f,
-                                        max_epoch=self.training_config.max_epoch,
+                                    train_x,
+                                    train_y,
+                                    x_valid=val_x,
+                                    y_valid=val_y,
+                                    f_train=train_f,
+                                    f_valid=val_f,
+                                    max_epoch=self.training_config.max_epoch,
                                     callbacks=callbacks)
             self.models[fold_id] = foldModel
 
