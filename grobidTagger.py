@@ -143,15 +143,15 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_eval, y_eval)
+
     # saving the model
     if (output_path):
         model.save(output_path)
     else:
         model.save()
-
-    # evaluation
-    print("\nEvaluation:")
-    model.eval(x_eval, y_eval)
 
 
 # split data, train a GROBID model and evaluate it
