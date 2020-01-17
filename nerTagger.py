@@ -415,12 +415,11 @@ def train_eval(embedding_name,
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
-    # saving the model
-    model.save()
-
     print("\nEvaluation on test set:")
     model.eval(x_eval, y_eval)
 
+    # saving the model
+    model.save()
 
 # usual eval on CoNLL 2003 eng.testb 
 def eval(dataset_type='conll2003', 

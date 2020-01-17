@@ -499,7 +499,10 @@ class Sequence(object):
 
         # bert model are always saved via training process steps as checkpoint
         if self.model_config.model_type.lower().find("bert") == -1:
-            self.model.save(os.path.join(directory, self.weight_file))
+            if self.model is None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
+                print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
+            else:
+               self.model.save(os.path.join(directory, self.weight_file))
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling/'):
