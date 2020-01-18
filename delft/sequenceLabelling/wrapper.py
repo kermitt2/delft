@@ -304,22 +304,6 @@ class Sequence(object):
             macro_precision = total_precision / self.model_config.fold_number
             macro_recall = total_recall / self.model_config.fold_number
 
-            '''
-            print("----------------------------------------------------------------------")
-            print("\naverage over", self.model_config.fold_number, "folds")
-
-            name_width = 0
-            for label in self.p.vocab_tag:
-                name_width = max(name_width, len(label))
-
-            width = max(name_width, 10)
-            digits = 4
-            headers = ["precision", "recall", "f1-score", "support"]
-            head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers) + "\n"
-            print(head_fmt.format(u'', *headers, width=width))
-            #print(u'\n')
-            '''
-
             macro_eval_block = {'f1': macro_f1, 'precision': macro_precision, 'recall': macro_recall}
             fold_average_evaluation['macro'] = macro_eval_block
 
@@ -369,7 +353,7 @@ class Sequence(object):
             if 'bert' not in self.model_config.model_type.lower():
                 self.model = self.models[best_index]
             else:
-                # copy best BERT model folder
+                # copy best BERT model fold_number
                 best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
                 new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
                 # update new_model_dir if it already exists, keep its existing config content
