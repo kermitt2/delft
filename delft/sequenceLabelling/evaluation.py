@@ -400,9 +400,9 @@ def get_report(evaluation, digits=2, include_avgs=['micro']):
     for average in include_avgs:
         avg = evaluation[average]
         report += row_fmt.format(last_line_heading[average],
-                                 np.average(avg['precision']),
-                                 np.average(avg['recall']),
-                                 np.average(avg['f1']),
+                                 avg['precision'],
+                                 avg['recall'],
+                                 avg['f1'],
                                  avg['support'] if 'support' in avg else "",
                                  width=width, digits=digits)
 
