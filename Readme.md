@@ -337,6 +337,10 @@ After training a model, for tagging some text, for instance in a file `data/test
 
 > python3 nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt tag
 
+For instance for tagging the text with a specific architecture: 
+
+> python3 nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt --architecture bert-base-en tag
+
 Note that, currently, the input text file must contain one sentence per line, so the text must be presegmented into sentences. To obtain the JSON annotations in a text file instead than in the standard output, use the parameter `--file-out`. Predictions work at around 7400 tokens per second for the BidLSTM_CRF architecture with a GeForce GTX 1080 Ti. 
 
 This produces a JSON output with entities, scores and character offsets like this:

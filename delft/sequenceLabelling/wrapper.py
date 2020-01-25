@@ -91,6 +91,8 @@ class Sequence(object):
         if embeddings_name is not None:
             self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
             word_emb_size = self.embeddings.embed_size
+        else:
+            self.embeddings = None
 
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
@@ -381,7 +383,7 @@ class Sequence(object):
             #    print("runtime: %s seconds " % (runtime))
             return annotations
         else:
-                raise (OSError('Could not find a model.' + str(self.model)))
+            raise (OSError('Could not find a model.' + str(self.model)))
 
     def tag_file(self, file_in, output_format, file_out):
         # Annotate a text file containing one sentence per line, the annotations are
