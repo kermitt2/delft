@@ -1,14 +1,10 @@
 import itertools
 import logging
 import re
-from functools import partial
 from typing import List, Iterable, Set
 
 import collections
 import numpy as np
-from sklearn.feature_extraction import DictVectorizer
-from sklearn.pipeline import Pipeline
-from sklearn.preprocessing import FunctionTransformer
 
 from delft.sequenceLabelling.config import ModelConfig
 
@@ -101,35 +97,6 @@ def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices
     return index_list, map_to_integers
 
 
-def reduce_features_vector_old(feature_vector, features_max_vector_size):
-    '''
-    Reduce the features vector.
-    First it calculates cardinalities for each value that each feature can assume, then
-    removes features with cardinality above features_max_vector_size.
-
-    :param feature_vector: feature vector to be reduced
-    :param features_max_vector_size maximum size of the one-hot-encoded values
-    :return:
-    '''
-
-    # Compute frequencies for each column
-    columns_length = calculate_cardinality(feature_vector)
-
-    # print("Column: " + str(index_column) + " Len:  " + str(len(values)))
-    index_list, val_to_int_list = cardinality_to_index_map(columns_length, features_max_vector_size)
-
-    # create a reduced vector feature value
-    reduced_features_vector = []
-    for index_document in range(0, len(feature_vector)):
-        # print(len(f_train[index_document]))
-        for index_row in range(0, len(feature_vector[index_document])):
-            reduced_features_vector.append([val_to_int_list[index][
-                                            feature_vector[index_document][index_row][index_column]] for
-                                        index, index_column in enumerate(index_list)])
-
-    return reduced_features_vector
-
-
 def reduce_features_vector(feature_vector, features_max_vector_size):
     '''
     Reduce the features vector.
@@ -187,7 +154,7 @@ def get_map_to_index(X, features_indices, features_vector_size):
 
 
 def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
-            features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE):
+            features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE):
 
     if not feature_indices:
         matrix = reduce_features_vector(value_list_batch, features_vector_size)
@@ -200,12 +167,12 @@ def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
 
 class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self, features_indices: Iterable[int] = None,
-                 features_vector_size=ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE,
+                 features_vocabulary_size=ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
                  features_map_to_index=None):
         # feature_indices_set = None
         if features_map_to_index is None:
             features_map_to_index = []
-        self.features_vector_size = features_vector_size
+        self.features_vocabulary_size = features_vocabulary_size
         self.features_indices = features_indices
 
         # List of mappings to integers (corresponding to each feature column) of features values
@@ -214,10 +181,10 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
     def fit(self, X):
         if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_vector_size)
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
         else:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_vector_size,
-                                                          indices= self.features_indices)
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size,
+                                                          indices=self.features_indices)
 
         self.features_map_to_index = mapping
         self.features_indices = indexes
@@ -241,34 +208,6 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
 
         return output, features_count
-
-
-class FeaturesPreprocessor2(BaseEstimator, TransformerMixin):
-    def __init__(self, feature_indices: Iterable[int] = None,
-                 features_vector_size = ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE):
-        feature_indices_set = None
-        self.features_vector_size = features_vector_size
-
-        if feature_indices:
-            feature_indices_set = set(feature_indices)
-        to_dict_fn = partial(to_dict, feature_indices=feature_indices_set, features_vector_size=features_vector_size)
-        self.pipeline = Pipeline(steps=[
-            ('to_dict', FunctionTransformer(to_dict_fn, validate=False)),
-            ('vectorize', DictVectorizer(sparse=False))
-        ])
-
-    def fit(self, X):
-        flattened_features = [word_features for sentence_features in X for word_features in sentence_features]
-        # LOGGER.debug('flattened_features: %s', flattened_features)
-        self.pipeline.fit(flattened_features)
-        return self
-
-    def transform(self, X):
-        # LOGGER.debug('transform, X: %s', X)
-        return np.asarray([
-            self.pipeline.transform(sentence_features)
-            for sentence_features in X
-        ])
 
 
 class WordPreprocessor(BaseEstimator, TransformerMixin):
@@ -363,6 +302,9 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         return (sents, y) if y is not None else sents
 
     def fit_features(self, features_batch):
+        if self.feature_preprocessor is None:
+            return
+
         return self.feature_preprocessor.fit(features_batch)
 
     def transform_features(self, features_batch, extend=False):
@@ -487,10 +429,10 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/5ceb89bdb9ae56c7f60d68b3aeb7e04dc34cd2be/sciencebeam_trainer_delft/sequence_labelling/preprocess.py#L81
     '''
     feature_preprocessor = None
-    if not model_config.ignore_features and features is not None:
+    if features is not None and str.endswith(model_config.model_type, "FEATURES"):
         feature_preprocessor = FeaturesPreprocessor(
             features_indices=model_config.features_indices,
-            features_vector_size=model_config.features_vector_size
+            features_vocabulary_size=model_config.features_vocabulary_size
         )
     preprocessor = WordPreprocessor(
         max_char_length=model_config.max_char_length,
@@ -499,12 +441,13 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     preprocessor.fit(X, y)
 
     # Compute features and store information in the model config
-    if not model_config.ignore_features and features is not None:
+    if feature_preprocessor is not None:
         preprocessor.fit_features(features)
         model_config.features_indices = preprocessor.feature_preprocessor.features_indices
         model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
 
     return preprocessor
+
 
 def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True):
     """
@@ -524,7 +467,7 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
             word = _lower(word)
         if num_norm:
             word = _normalize_num(word)
-        x[i,:] = embeddings.get_word_vector(word).astype('float32')
+        x[i, :] = embeddings.get_word_vector(word).astype('float32')
 
     return x
 

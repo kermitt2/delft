@@ -3,7 +3,8 @@ import json
 
 # Model parameters
 class ModelConfig(object):
-    DEFAULT_FEATURES_VECTOR_SIZE = 12
+    DEFAULT_FEATURES_VOCABULARY_SIZE = 12
+    DEFAULT_FEATURES_EMBEDDING_SIZE = 4
 
     def __init__(self, 
                  model_name="",
@@ -23,9 +24,9 @@ class ModelConfig(object):
                  batch_size=64,
                  use_ELMo=False,
                  use_BERT=False,
-                 features_vector_size=DEFAULT_FEATURES_VECTOR_SIZE,
-                 ignore_features=False,
-                 features_indices=None):
+                 features_vocabulary_size=DEFAULT_FEATURES_VOCABULARY_SIZE,
+                 features_indices=None,
+                 features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -39,10 +40,9 @@ class ModelConfig(object):
         self.max_char_length = max_char_length
 
         # Features
-        self.features_vector_size = features_vector_size    # maximum number of unique values per feature
-        self.ignore_features = ignore_features              # ignore features - might be useless
+        self.features_vocabulary_size = features_vocabulary_size    # maximum number of unique values per feature
         self.features_indices = features_indices
-        self.features_embedding_size = 4
+        self.features_embedding_size = features_embedding_size
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size

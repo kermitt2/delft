@@ -18,7 +18,7 @@ MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citatio
 
 # train a GROBID model with all available data
 def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
-          ignore_features=False, features_indices=None):
+          features_indices=None):
 
     print('Loading data...')
     if input_path is None:
@@ -26,12 +26,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
-    f_train = None
-    f_valid = None
-    if not ignore_features:
-        x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
-    else:
-        x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
+    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
@@ -67,8 +62,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
                      use_ELMo=use_ELMo,
                      batch_size=batch_size,
                      max_sequence_length=max_sequence_length,
-                     features_indices=features_indices,
-                     ignore_features=ignore_features)
+                     features_indices=features_indices)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -85,7 +79,6 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False,
                input_path=None, output_path=None, fold_count=1,
-               ignore_features=False,
                features_indices=None):
     print('Loading data...')
     if input_path is None:
@@ -93,15 +86,8 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
-    f_train = None
-    f_valid = None
-    f_eval = None
-    if not ignore_features:
-        x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1)
-        x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
-    else:
-        x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
-        x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
+    x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
@@ -140,8 +126,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
                     max_sequence_length=max_sequence_length,
                     batch_size=batch_size,
                     fold_number=fold_count,
-                    features_indices=features_indices,
-                    ignore_features=ignore_features)
+                    features_indices=features_indices)
 
     start_time = time.time()
 
@@ -155,7 +140,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_eval, y_eval)
+    model.eval(x_eval, y_eval, features=f_eval)
 
     # saving the model
     if (output_path):
@@ -223,17 +208,20 @@ class Tasks:
     EVAL = 'eval'
     TAG = 'tag'
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description = "Trainer for GROBID models")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
     architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name, BidLSTM_CRF_CASING.name,
+                     BidLSTM_CRF_FEATURES.name,
                      'bert-base-en', 'bert-large-en', 'scibert', 'biobert']
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
-    parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation.")
+    parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
+                                                                  "cross validation.")
     parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
                         help="Type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
@@ -247,8 +235,9 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and evaluation (train_eval action) or just for evaluation (eval action).")
-    parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
+    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and "
+                                        "evaluation (train_eval action) or just for evaluation (eval action).")
+    # parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
     parser.add_argument(
         "--feature-indices",
         type=parse_number_ranges,
@@ -269,15 +258,16 @@ if __name__ == "__main__":
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
-    ignore_features = args.ignore_features
+    # ignore_features = args.ignore_features
     feature_indices = args.feature_indices
 
     if action == Tasks.TRAIN:
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, ignore_features=ignore_features)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None:
-            print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use it in combination with " + str(Tasks.TRAIN_EVAL))
+            print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use "
+                  "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
         eval_(model, use_ELMo=use_ELMo, input_path=input_path)
@@ -285,7 +275,7 @@ if __name__ == "__main__":
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count, ignore_features=ignore_features)
+        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count)
 
     if action == Tasks.TAG:
         someTexts = []

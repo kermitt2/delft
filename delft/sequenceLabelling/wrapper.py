@@ -81,7 +81,6 @@ class Sequence(object):
                  use_BERT=False,
                  fold_number=1,
                  multiprocessing=True,
-                 ignore_features=False,
                  features_indices=None):
 
         self.model = None
@@ -112,7 +111,6 @@ class Sequence(object):
                                         batch_size=batch_size,
                                         use_ELMo=use_ELMo,
                                         use_BERT=use_BERT,
-                                        ignore_features=ignore_features,
                                         features_indices=features_indices)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
@@ -130,15 +128,15 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-        if f_train is not None:
+        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+        if self.p.return_features is not False:
             print('x_train.shape: ', x_train.shape)
             print('features_train.shape: ', f_train.shape)
             sample_transformed_features, _ = self.p.transform_features(f_train)
             self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
             print('max_feature_size: ', self.model_config.max_feature_size)
 
-        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
-        trainer = Trainer(self.model, 
+        trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
                           self.model_config,
@@ -187,9 +185,6 @@ class Sequence(object):
             self.save()
 
     def eval(self, x_test, y_test, features=None):
-        if self.model_config.ignore_features:
-            features = None
-
         if self.models and 1 < self.model_config.fold_number == len(self.models):
             self.eval_nfold(x_test, y_test, features=features)
         else:

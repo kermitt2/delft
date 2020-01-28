@@ -54,12 +54,13 @@ class DataGenerator(keras.utils.Sequence):
     def __getitem__(self, index):
         'Generate one batch of data'
         # generate data for the current batch index
+        batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
         if self.preprocessor.return_casing:
-            batch_x, batch_c, batch_a, batch_f, batch_l, batch_y = self.__data_generation(index)
-            return [batch_x, batch_c, batch_a, batch_f, batch_l], batch_y
-        else:
-            batch_x, batch_c, batch_f, batch_l, batch_y = self.__data_generation(index)
+            return [batch_x, batch_c, batch_a, batch_l], batch_y
+        elif self.preprocessor.return_features:
             return [batch_x, batch_c, batch_f, batch_l], batch_y
+        else:
+            return [batch_x, batch_c, batch_l], batch_y
 
     def _shuffle_dataset(self):
         arrays_to_shuffle = [self.x]
@@ -111,8 +112,7 @@ class DataGenerator(keras.utils.Sequence):
             extend = True
 
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
-        if self.preprocessor.return_casing:
-            batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
+        batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
 
         batch_y = None
         max_length_y = max_length_x
@@ -140,25 +140,26 @@ class DataGenerator(keras.utils.Sequence):
         if self.y is not None:
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
-        if self.features is not None:
+        if self.preprocessor.return_features:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
             batch_f_transformed, features_length = self.preprocessor.transform_features(sub_f, extend=extend)
             batch_f_padded, _ = pad_sequences(batch_f_transformed, [0]*features_length)
             batch_f_asarray = np.asarray(batch_f_padded)
-            batch_f_list_one_hot = [
-                dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in
-                batch_f_asarray]
-            batch_f_4dimentions = np.asarray(batch_f_list_one_hot)
-            batch_f_shape = batch_f_4dimentions.shape
-            batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1],
-                                                  batch_f_shape[2] * batch_f_shape[3])
+            # batch_f_list_one_hot = [
+            #     dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in
+            #     batch_f_asarray]
+            # batch_f_4dimentions = np.asarray(batch_f_list_one_hot)
+            # batch_f_shape = np.asarray(batch_f_padded).shape
+            # batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1],
+            #                                       batch_f_shape[2] * batch_f_shape[3])
 
+            batch_f = batch_f_asarray
             ## I obtain a vector that is 20 x token number (which is padded in line 138 with empty vectors) and number of features x number of one hot encode
             ## For a case where the number of features are 7, I got something like 20, num_tokens, (12x7) = 20, n, 84
 
         else:
-            batch_f_asarray = np.zeros((batch_x.shape[0:2]), dtype='int32')
-            batch_f = dense_to_one_hot(batch_f_asarray, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2)
+            batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
+            # batch_f = dense_to_one_hot(batch_f_asarray, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2)
             # batch_f_padded, _ = pad_sequences(batch_f_asarray, [0])
             # batch_f_asarray = np.asarray(batch_f_padded).reshape(max_iter, 1, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE)
 
@@ -171,7 +172,4 @@ class DataGenerator(keras.utils.Sequence):
         batch_c = np.asarray(batches[0])
         batch_l = batches[1]
 
-        if self.preprocessor.return_casing:
-            return batch_x, batch_c, batch_a, batch_f, batch_l, batch_y
-        else:
-            return batch_x, batch_c, batch_f, batch_l, batch_y
+        return batch_x, batch_c, batch_f, batch_a, batch_l, batch_y
