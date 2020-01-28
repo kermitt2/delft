@@ -26,7 +26,8 @@ class ModelConfig(object):
                  use_BERT=False,
                  features_vocabulary_size=DEFAULT_FEATURES_VOCABULARY_SIZE,
                  features_indices=None,
-                 features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE):
+                 features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
+                 features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -43,6 +44,7 @@ class ModelConfig(object):
         self.features_vocabulary_size = features_vocabulary_size    # maximum number of unique values per feature
         self.features_indices = features_indices
         self.features_embedding_size = features_embedding_size
+        self.features_lstm_units = features_lstm_units
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size
