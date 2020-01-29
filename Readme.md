@@ -174,6 +174,7 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 Results with BERT fine-tuning, including a final CRF activation layer, instead of a softmax (a CRF activation layer improves f-score in average by +0.30 for sequence labelling task): 
 
 | Architecture  | Implementation | f-score |
+| --- | --- | --- | 
 | bert-base-en-CRF    | DeLFT | 91.2 |  
 |               | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
 
