@@ -17,7 +17,6 @@ import json
 import time
 import os
 import shutil
-import collections
 import numpy as np
 np.random.seed(7)
 import tensorflow as tf
@@ -52,7 +51,7 @@ def get_model(config, preprocessor, ntags=None):
         return BidLSTM_CRF_CASING(config, ntags)
     elif 'bert' in config.model_type.lower():
         preprocessor.return_casing = False
-        # note that we could consider optionnaly in the future using a CRF 
+        # note that we could consider optionally in the future using a CRF
         # as activation layer for BERT e
         config.use_crf = False
         config.labels = preprocessor.vocab_tag
