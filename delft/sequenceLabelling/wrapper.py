@@ -302,12 +302,12 @@ class Sequence(object):
 
             fold_average_evaluation = {'labels': {}, 'micro': {}, 'macro': {}}
 
-            macro_f1 = total_f1 / self.model_config.fold_number
-            macro_precision = total_precision / self.model_config.fold_number
-            macro_recall = total_recall / self.model_config.fold_number
+            micro_f1 = total_f1 / self.model_config.fold_number
+            micro_precision = total_precision / self.model_config.fold_number
+            micro_recall = total_recall / self.model_config.fold_number
 
-            macro_eval_block = {'f1': macro_f1, 'precision': macro_precision, 'recall': macro_recall}
-            fold_average_evaluation['macro'] = macro_eval_block
+            micro_eval_block = {'f1': micro_f1, 'precision': micro_precision, 'recall': micro_recall}
+            fold_average_evaluation['micro'] = micro_eval_block
 
             # field-level average over the n folds
             labels = []
@@ -366,7 +366,7 @@ class Sequence(object):
         
             print("----------------------------------------------------------------------")
             print("\nAverage over", self.model_config.fold_number, "folds")
-            print(get_report(fold_average_evaluation, digits=4, include_avgs=['macro']))
+            print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
     def tag(self, texts, output_format):
