@@ -23,8 +23,9 @@ class DataGenerator(keras.utils.Sequence):
                 shuffle=True,
                 features=None):
         'Initialization'
-        self.x = x
-        self.y = y
+        # self.x and self.y are shuffled view of self.original_x and self.original_y
+        self.original_x = self.x = x
+        self.original_y = self.y = y
         # features here are optional additional features provided in the case of GROBID input for instance
         self.features = features
         self.preprocessor = preprocessor
@@ -41,12 +42,12 @@ class DataGenerator(keras.utils.Sequence):
     def __len__(self):
         'Denotes the number of batches per epoch'
         # The number of batches is set so that each training sample is seen at most once per epoch
-        if self.x is None:
+        if self.original_x is None:
             return 0
-        elif (len(self.x) % self.batch_size) == 0:
-            return int(np.floor(len(self.x) / self.batch_size))
+        elif (len(self.original_x) % self.batch_size) == 0:
+            return int(np.floor(len(self.original_x) / self.batch_size))
         else:
-            return int(np.floor(len(self.x) / self.batch_size) + 1)
+            return int(np.floor(len(self.original_x) / self.batch_size) + 1)
 
     def __getitem__(self, index):
         'Generate one batch of data'
@@ -60,19 +61,19 @@ class DataGenerator(keras.utils.Sequence):
 
     def on_epoch_end(self):
         # If we are predicting, we don't need to shuffle
-        if self.y is None:
+        if self.original_y is None:
             return
 
         # shuffle dataset at each epoch
         if self.shuffle:
-            self.x, self.y = shuffle_pair_with_view(self.x, self.y)
+            self.x, self.y = shuffle_pair_with_view(self.original_x, self.original_y)
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples'
-        max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
+        max_iter = min(self.batch_size, len(self.original_x)-self.batch_size*index)
 
         # restrict data to index window
-        sub_x = self.x[(index*self.batch_size):(index*self.batch_size)+max_iter]
+        sub_x = self.x[(index * self.batch_size):(index * self.batch_size) + max_iter]
 
         # tokenize texts in self.x if not already done
         max_length_x = 0
