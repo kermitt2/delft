@@ -1,5 +1,7 @@
 import numpy as np
 # seed is fixed for reproducibility
+from delft.utilities.numpy import shuffle_pair_with_view
+
 np.random.seed(7)
 import keras
 from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_elmo, to_vector_simple_with_elmo, to_vector_bert, to_vector_simple_with_bert
@@ -11,18 +13,19 @@ tf.set_random_seed(7)
 # generate batch of data to feed sequence labelling model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
-    def __init__(self, x, y, 
-                batch_size=24, 
-                preprocessor=None, 
-                char_embed_size=25, 
-                embeddings=None, 
+    def __init__(self, x, y,
+                batch_size=24,
+                preprocessor=None,
+                char_embed_size=25,
+                embeddings=None,
                 max_sequence_length=None,
-                tokenize=False, 
+                tokenize=False,
                 shuffle=True,
                 features=None):
         'Initialization'
-        self.x = x
-        self.y = y
+        # self.x and self.y are shuffled view of self.original_x and self.original_y
+        self.original_x = self.x = x
+        self.original_y = self.y = y
         # features here are optional additional features provided in the case of GROBID input for instance
         self.features = features
         self.preprocessor = preprocessor
@@ -39,12 +42,12 @@ class DataGenerator(keras.utils.Sequence):
     def __len__(self):
         'Denotes the number of batches per epoch'
         # The number of batches is set so that each training sample is seen at most once per epoch
-        if self.x is None:
+        if self.original_x is None:
             return 0
-        elif (len(self.x) % self.batch_size) == 0:
-            return int(np.floor(len(self.x) / self.batch_size))
+        elif (len(self.original_x) % self.batch_size) == 0:
+            return int(np.floor(len(self.original_x) / self.batch_size))
         else:
-            return int(np.floor(len(self.x) / self.batch_size) + 1)
+            return int(np.floor(len(self.original_x) / self.batch_size) + 1)
 
     def __getitem__(self, index):
         'Generate one batch of data'
@@ -52,30 +55,25 @@ class DataGenerator(keras.utils.Sequence):
         if self.preprocessor.return_casing:
             batch_x, batch_c, batch_a, batch_l, batch_y = self.__data_generation(index)
             return [batch_x, batch_c, batch_a, batch_l], batch_y
-        else:  
+        else:
             batch_x, batch_c, batch_l, batch_y = self.__data_generation(index)
             return [batch_x, batch_c, batch_l], batch_y
 
-    def shuffle_pair(self, a, b):
-        # generate permutation index array
-        permutation = np.random.permutation(a.shape[0])
-        # shuffle the two arrays
-        return a[permutation], b[permutation]
-
     def on_epoch_end(self):
+        # If we are predicting, we don't need to shuffle
+        if self.original_y is None:
+            return
+
         # shuffle dataset at each epoch
-        if self.shuffle == True:
-            if self.y is None:
-                np.random.shuffle(self.x)
-            else:      
-                self.shuffle_pair(self.x,self.y)
+        if self.shuffle:
+            self.x, self.y = shuffle_pair_with_view(self.original_x, self.original_y)
 
     def __data_generation(self, index):
-        'Generates data containing batch_size samples' 
-        max_iter = min(self.batch_size, len(self.x)-self.batch_size*index)
+        'Generates data containing batch_size samples'
+        max_iter = min(self.batch_size, len(self.original_x)-self.batch_size*index)
 
         # restrict data to index window
-        sub_x = self.x[(index*self.batch_size):(index*self.batch_size)+max_iter]
+        sub_x = self.x[(index * self.batch_size):(index * self.batch_size) + max_iter]
 
         # tokenize texts in self.x if not already done
         max_length_x = 0
@@ -112,17 +110,17 @@ class DataGenerator(keras.utils.Sequence):
             # note: tags are always already "tokenized",
             batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
 
-        if self.embeddings.use_ELMo:     
+        if self.embeddings.use_ELMo:
             #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
-        elif self.embeddings.use_BERT:     
+        elif self.embeddings.use_BERT:
             #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
             batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
-            
+
         # generate data
         for i in range(0, max_iter):
             # store sample embeddings
-            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:    
+            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:
                 batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
             if self.preprocessor.return_casing:
@@ -142,5 +140,5 @@ class DataGenerator(keras.utils.Sequence):
 
         if self.preprocessor.return_casing:
             return batch_x, batch_c, batch_a, batch_l, batch_y
-        else: 
+        else:
             return batch_x, batch_c, batch_l, batch_y
