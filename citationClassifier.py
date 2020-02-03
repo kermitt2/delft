@@ -14,17 +14,8 @@ class_weights = {0: 25.,
                  1: 1.,
                  2: 9.}
 
-def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
-    batch_size = 256
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
-
-    maxlen = 120
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
+def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"):
+    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
 
     model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
@@ -41,17 +32,22 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def configure(architecture, use_BERT=False, use_ELMo=False):
     batch_size = 256
     if use_ELMo:
         batch_size = 20
     elif use_BERT:
         batch_size = 50
-
-    maxlen = 150
+    maxlen = 120
     # default bert model parameters
     if architecture.find("bert") != -1:
         batch_size = 32
+    return batch_size, maxlen
+
+
+def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+    maxlen = 150
 
     model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
