@@ -91,7 +91,7 @@ class TestFeaturesPreprocessor:
         features_transformed, features_length = preprocessor.fit_transform(features_batch)
         assert features_length == 1
         assert len(features_transformed[0]) == 2
-        assert features_transformed == [[[1], [2]]]
+        assert np.array_equal(features_transformed, np.asarray([[[1], [2]]]))
 
     def test_should_fit_multiple_single_value_features(self):
         preprocessor = FeaturesPreprocessor()
