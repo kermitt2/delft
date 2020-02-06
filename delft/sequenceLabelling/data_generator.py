@@ -1,9 +1,7 @@
 import numpy as np
 # seed is fixed for reproducibility
 from delft.sequenceLabelling.config import ModelConfig
-from delft.utilities.numpy import shuffle_arrays
-
-from delft.utilities.numpy import shuffle_pair_with_view
+from delft.utilities.numpy import shuffle_arrays, shuffle_triple_with_view
 
 np.random.seed(7)
 import keras
@@ -32,7 +30,7 @@ class DataGenerator(keras.utils.Sequence):
         self.original_x = self.x = x
         self.original_y = self.y = y
         # features here are optional additional features provided in the case of GROBID input for instance
-        self.features = features
+        self.original_features = self.features = features
         self.preprocessor = preprocessor
         if preprocessor:
             self.labels = preprocessor.vocab_tag
@@ -72,7 +70,7 @@ class DataGenerator(keras.utils.Sequence):
 
         # shuffle dataset at each epoch
         if self.shuffle:
-            self.x, self.y = shuffle_pair_with_view(self.original_x, self.original_y)
+            self.x, self.y, self.features = shuffle_triple_with_view(self.original_x, self.original_y, self.original_features)
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples'

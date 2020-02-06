@@ -33,13 +33,27 @@ def shuffle_arrays(arrays: List[np.array], random_seed: int = None) -> List[np.a
         rstate.shuffle(arr)
 
 
-def shuffle_pair_with_view(a, b=None):
-    assert "Cannot shuffle with view if the two arrays have different dimensions: " + str(len(a)) + " vs " \
-           + str(len(b)), len(a) == len(b)
+def shuffle_triple_with_view(a, b=None, c=None):
+    """
+    Shuffle a pair/triple with view, without modifying the initial elements.
+    The assumption is that if b is None, c is also None.
+    """
+    if b is not None and c is not None:
+        assert "Cannot shuffle with view if the arrays have different dimensions: " + str(len(a)) + " vs " \
+               + str(len(b)), len(a) == len(b) == len(c)
+    elif b is None and c is None:
+        assert "Cannot shuffle with view if the arrays have different dimensions: " + str(len(a)) + " vs " \
+               + str(len(b)), len(a) == len(b)
+    elif c is not None and b is None:
+        raise Exception("b is None but c is not.")
+
     # generate permutation index array
     permutation = np.random.permutation(a.shape[0])
-    # shuffle the two arrays
-    if b is not None:
+
+    # shuffle the arrays
+    if c is not None and b is not None:
+        return a[permutation], b[permutation], c[permutation]
+    if b is not None and c is None:
         return a[permutation], b[permutation]
     else:
         return a[permutation]
