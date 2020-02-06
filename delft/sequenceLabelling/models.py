@@ -407,9 +407,10 @@ class BidLSTM_CRF_FEATURES(BaseModel):
                                        trainable=True,
                                        name='features_embedding'), name="features_embedding_td_1")(features_input)
 
-        features_embedding_out = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
+        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
                                                  name="features_embedding_td_2")(features_embedding)
 
+        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
         # length of sequence not used for the moment (but used for f1 communication)
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
