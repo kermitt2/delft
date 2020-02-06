@@ -31,3 +31,15 @@ def shuffle_arrays(arrays: List[np.array], random_seed: int = None) -> List[np.a
     for arr in arrays:
         rstate = np.random.RandomState(random_seed)  # pylint: disable=no-member
         rstate.shuffle(arr)
+
+
+def shuffle_pair_with_view(a, b=None):
+    assert "Cannot shuffle with view if the two arrays have different dimensions: " + str(len(a)) + " vs " \
+           + str(len(b)), len(a) == len(b)
+    # generate permutation index array
+    permutation = np.random.permutation(a.shape[0])
+    # shuffle the two arrays
+    if b is not None:
+        return a[permutation], b[permutation]
+    else:
+        return a[permutation]

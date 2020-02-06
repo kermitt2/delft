@@ -1,5 +1,7 @@
 import numpy as np
 # seed is fixed for reproducibility
+from delft.utilities.numpy import shuffle_pair_with_view
+
 np.random.seed(7)
 from tensorflow import set_random_seed
 set_random_seed(7)
@@ -32,19 +34,14 @@ class DataGenerator(keras.utils.Sequence):
         batch_x, batch_y = self.__data_generation(index)
         return batch_x, batch_y
 
-    def shuffle_pair(self, a, b):
-        # generate permutation index array
-        permutation = np.random.permutation(a.shape[0])
-        # shuffle the two arrays
-        return a[permutation], b[permutation]
-
     def on_epoch_end(self):
+        # If we are predicting, we don't need to shuffle
+        if self.y is None:
+            return
+
         # shuffle dataset at each epoch
-        if self.shuffle == True:
-            if self.y is None:
-                np.random.shuffle(self.x)
-            else:      
-                self.shuffle_pair(self.x,self.y)
+        if self.shuffle:
+            self.x, self.y = shuffle_pair_with_view(self.x, self.y)
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples' 
