@@ -74,7 +74,7 @@ class DataGenerator(keras.utils.Sequence):
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples'
-        max_iter = min(self.batch_size, len(self.original_x)-self.batch_size*index)
+        max_iter = min(self.batch_size, len(self.original_x)-self.batch_size * index)
 
         # restrict data to index window
         sub_x = self.x[(index * self.batch_size):(index * self.batch_size) + max_iter]
@@ -133,28 +133,11 @@ class DataGenerator(keras.utils.Sequence):
         if self.y is not None:
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
 
+        batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
+
         if self.preprocessor.return_features:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
-            batch_f_transformed, features_length = self.preprocessor.transform_features(sub_f, extend=extend)
-            batch_f_padded, _ = pad_sequences(batch_f_transformed, [0]*features_length)
-            batch_f_asarray = np.asarray(batch_f_padded)
-            # batch_f_list_one_hot = [
-            #     dense_to_one_hot(np.asarray(batch), ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2) for batch in
-            #     batch_f_asarray]
-            # batch_f_4dimentions = np.asarray(batch_f_list_one_hot)
-            # batch_f_shape = np.asarray(batch_f_padded).shape
-            # batch_f = batch_f_4dimentions.reshape(batch_f_shape[0], batch_f_shape[1],
-            #                                       batch_f_shape[2] * batch_f_shape[3])
-
-            batch_f = batch_f_asarray
-            ## I obtain a vector that is 20 x token number (which is padded in line 138 with empty vectors) and number of features x number of one hot encode
-            ## For a case where the number of features are 7, I got something like 20, num_tokens, (12x7) = 20, n, 84
-
-        else:
-            batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
-            # batch_f = dense_to_one_hot(batch_f_asarray, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE, nlevels=2)
-            # batch_f_padded, _ = pad_sequences(batch_f_asarray, [0])
-            # batch_f_asarray = np.asarray(batch_f_padded).reshape(max_iter, 1, ModelConfig.DEFAULT_FEATURES_VECTOR_SIZE)
+            batch_f, features_length = self.preprocessor.transform_features(sub_f, extend=extend)
 
         # batch_f = batch_f.reshape(batch_f.shape[0], batch_f.shape[1] * batch_f.shape[2])
         if self.y is not None:

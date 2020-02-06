@@ -196,16 +196,18 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
         :param extend: when set to true it's adding an additional empty feature list in the sequence.
         """
-        output = [[[self.features_map_to_index[index][value] if index in self.features_map_to_index and value in self.features_map_to_index[index] else 0
+        features_vector = [[[self.features_map_to_index[index][value] if index in self.features_map_to_index and value in self.features_map_to_index[index] else 0
                     for index, value in enumerate(value_list) if index in self.features_indices] for
                     value_list in document] for document in X]
 
         features_count = len(self.features_indices)
 
         if extend:
-            for out in output:
-                out.append([0]*features_count)
+            for out in features_vector:
+                out.append([0] * features_count)
 
+        features_vector_padded, _ = pad_sequences(features_vector, [0] * features_count)
+        output = np.asarray(features_vector_padded)
 
         return output, features_count
 
