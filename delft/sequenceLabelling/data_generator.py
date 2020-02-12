@@ -139,7 +139,6 @@ class DataGenerator(keras.utils.Sequence):
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
             batch_f, features_length = self.preprocessor.transform_features(sub_f, extend=extend)
 
-        # batch_f = batch_f.reshape(batch_f.shape[0], batch_f.shape[1] * batch_f.shape[2])
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:

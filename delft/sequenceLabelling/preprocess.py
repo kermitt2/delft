@@ -77,6 +77,7 @@ def calculate_cardinality(feature_vector, indices=None):
 
     return columns_length
 
+
 def cardinality_to_index_map(columns_length, features_max_vector_size):
     # Filter out the columns that are not fitting
     columns_index = []
@@ -84,10 +85,12 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
         if len(column_content_cardinality) <= features_max_vector_size:
             columns_index.append((index, column_content_cardinality))
     # print(columns_index)
-    index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
-    val_to_int_list = {value[0]: value[1] for value in columns_index}
+    max_index_value = features_max_vector_size * len(columns_index)
 
-    return index_list, val_to_int_list
+    index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
+    val_to_int_map = {value[0]: {val_features: idx_features + (index * 12) for val_features, idx_features in value[1].items()} for index, value in enumerate(columns_index)}
+
+    return index_list, val_to_int_map
 
 
 def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices=None):
@@ -100,8 +103,10 @@ def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices
 def reduce_features_vector(feature_vector, features_max_vector_size):
     '''
     Reduce the features vector.
-    First it calculates cardinalities for each value that each feature can assume, then
+    First it calculates the cardinality for each value that each feature can assume, then
     removes features with cardinality above features_max_vector_size.
+    Finally it assign indices values for each features, assuming 0 as padding (feature value out of bound or invalid),
+    and values from 1 to features_max_vector_size * number of features.
 
     :param feature_vector: feature vector to be reduced
     :param features_max_vector_size maximum size of the one-hot-encoded values
@@ -144,7 +149,7 @@ def reduce_features_vector(feature_vector, features_max_vector_size):
     reduced_features_vector = []
     for index_row in range(0, len(feature_vector)):
         reduced_features_vector.append(
-            [feature_vector[index_row][index_column]for index, index_column in enumerate(index_list)])
+            [feature_vector[index_row][index_column] for index, index_column in enumerate(index_list)])
 
     return reduced_features_vector
 

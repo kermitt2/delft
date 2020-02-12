@@ -401,11 +401,11 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         # layout features input and embeddings
         features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
 
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size,
+        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices),
                                        output_dim=config.features_embedding_size,
-                                       mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td_1")(features_input)
+                                       # mask_zero=True,
+                                       trainable=False,
+                                       name='features_embedding'), name="features_embedding_td")(features_input)
 
         features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
                                                  name="features_embedding_td_2")(features_embedding)
