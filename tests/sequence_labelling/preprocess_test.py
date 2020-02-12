@@ -98,7 +98,7 @@ class TestFeaturesPreprocessor:
         features_batch = [[[FEATURE_VALUE_1, FEATURE_VALUE_2]]]
         features_transformed, features_length = preprocessor.fit_transform(features_batch)
         assert features_length == 2
-        assert all_close(features_transformed, [[[1, 1]]])
+        assert all_close(features_transformed, [[[1, 13]]])
 
     def test_should_transform_unseen_to_zero(self):
         preprocessor = FeaturesPreprocessor()
