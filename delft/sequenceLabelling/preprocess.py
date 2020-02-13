@@ -85,10 +85,10 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
         if len(column_content_cardinality) <= features_max_vector_size:
             columns_index.append((index, column_content_cardinality))
     # print(columns_index)
-    max_index_value = features_max_vector_size * len(columns_index)
+    max_index_value = features_max_vector_size * len(columns_index) + 1
 
     index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
-    val_to_int_map = {value[0]: {val_features: idx_features + (index * 12) for val_features, idx_features in value[1].items()} for index, value in enumerate(columns_index)}
+    val_to_int_map = {value[0]: {val_features: idx_features + (index * features_max_vector_size) for val_features, idx_features in value[1].items()} for index, value in enumerate(columns_index)}
 
     return index_list, val_to_int_map
 
