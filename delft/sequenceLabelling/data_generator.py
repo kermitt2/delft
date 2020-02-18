@@ -77,22 +77,20 @@ class DataGenerator(keras.utils.Sequence):
 
         # tokenize texts in self.x if not already done
         max_length_x = 0
-        if self.tokenize:
-            x_tokenized = []
-            for i in range(0, max_iter):
+        x_tokenized = []
+        for i in range(0, max_iter):
+            if self.tokenize:
                 tokens = tokenizeAndFilterSimple(sub_x[i])
-                if len(tokens) > self.max_sequence_length:
-                    max_length_x = self.max_sequence_length
-                    # truncation of sequence at max_sequence_length
-                    tokens = tokens[:self.max_sequence_length]
-                elif len(tokens) > max_length_x:
-                    max_length_x = len(tokens)
-                x_tokenized.append(tokens)
-        else:
-            for tokens in sub_x:
-                if len(tokens) > max_length_x:
-                    max_length_x = len(tokens)
-            x_tokenized = sub_x
+            else:
+                tokens = sub_x[i]
+
+            if len(tokens) > self.max_sequence_length:
+                max_length_x = self.max_sequence_length
+                # truncation of sequence at max_sequence_length
+                tokens = tokens[:self.max_sequence_length]
+            elif len(tokens) > max_length_x:
+                max_length_x = len(tokens)
+            x_tokenized.append(tokens)
 
         # prevent sequence of length 1 alone in a batch (this causes an error in tf)
         extend = False
