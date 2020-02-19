@@ -114,13 +114,13 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
         return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for first level data type hierarchy
     #train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
-    train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    #train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
 def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('loading dataset type corpus...')
