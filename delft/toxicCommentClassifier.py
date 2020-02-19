@@ -27,7 +27,7 @@ def train(embeddings_name="fasttext-crawl", fold_count=1, use_ELMo=False, use_BE
         embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen)
 
     print('loading train dataset...')
-    xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
+    xtr, y = load_texts_and_classes_pandas("../data/textClassification/toxic/train.csv")
     if fold_count == 1:
         model.train(xtr, y)
     else:
@@ -42,7 +42,7 @@ def test(architecture="gru"):
     model.load()
 
     print('loading test dataset...')
-    xte = load_texts_pandas("data/textClassification/toxic/test.csv")
+    xte = load_texts_pandas("../data/textClassification/toxic/test.csv")
     print('number of texts to classify:', len(xte))
     start_time = time.time()
     result = model.predict(xte, output_format="csv")
@@ -106,7 +106,7 @@ if __name__ == "__main__":
         y_test = test()    
 
         # write test predictions as a submission file 
-        sample_submission = pd.read_csv("data/textClassification/toxic/sample_submission.csv")
+        sample_submission = pd.read_csv("../data/textClassification/toxic/sample_submission.csv")
         sample_submission[list_classes] = y_test
         sample_submission.to_csv("data/textClassification/toxic/result.csv", index=False)
 

@@ -31,7 +31,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         class_weights=class_weights)
 
     print('loading citation sentiment corpus...')
-    xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
+    xtr, y = load_citation_sentiment_corpus("../data/textClassification/citations/citation_sentiment_corpus.txt")
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -58,7 +58,7 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
         class_weights=class_weights)
 
     print('loading citation sentiment corpus...')
-    xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
+    xtr, y = load_citation_sentiment_corpus("../data/textClassification/citations/citation_sentiment_corpus.txt")
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
