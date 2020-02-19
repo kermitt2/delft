@@ -26,6 +26,12 @@ from xml.sax.saxutils import escape
 import argparse
 
 
+def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
+    return [
+        row[:max_sequence_length]
+        for row in batch_values
+    ]
+
 def dot_product(x, kernel):
     """
     Wrapper for dot product operation used inthe attention layers, in order to be compatible with both
