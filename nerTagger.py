@@ -11,14 +11,16 @@ import argparse
 import time
 
 # train a model with all available CoNLL 2003 data 
-def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, use_BERT=False, data_path=None): 
+def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, use_BERT=False, data_path=None):
 
-    if (architecture == "BidLSTM_CNN_CRF"):
+    max_sequence_length = 300
+
+    if architecture == "BidLSTM_CNN_CRF":
         word_lstm_units = 200
-        recurrent_dropout=0.5
+        recurrent_dropout = 0.5
     else:
         word_lstm_units = 100
-        recurrent_dropout=0.5
+        recurrent_dropout = 0.5
 
     if use_ELMo:
         batch_size = 100
@@ -126,7 +128,7 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
     #    model = sequenceLabelling.Sequence('ner-fr-lemonde', max_epoch=60, embeddings_name=embedding_name)
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid, y_valid)
+    model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -409,9 +411,9 @@ def train_eval(embedding_name,
 
     start_time = time.time()
     if fold_count == 1:
-        model.train(x_train, y_train, x_valid, y_valid)
+        model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     else:
-        model.train_nfold(x_train, y_train, x_valid, y_valid, fold_number=fold_count)
+        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid, fold_number=fold_count)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 

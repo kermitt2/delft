@@ -41,7 +41,7 @@ def shuffle_triple_with_view(a, b=None, c=None):
     if b is not None and c is not None:
         assert "Cannot shuffle with view if the arrays have different dimensions: " + str(len(a)) + " vs " \
                + str(len(b)), len(a) == len(b) == len(c)
-    elif b is None and c is None:
+    elif b is not None and c is None:
         assert "Cannot shuffle with view if the arrays have different dimensions: " + str(len(a)) + " vs " \
                + str(len(b)), len(a) == len(b)
     elif c is not None and b is None:
@@ -54,6 +54,6 @@ def shuffle_triple_with_view(a, b=None, c=None):
     if c is not None and b is not None:
         return a[permutation], b[permutation], c[permutation]
     if b is not None and c is None:
-        return a[permutation], b[permutation]
+        return a[permutation], b[permutation], None
     else:
-        return a[permutation]
+        return a[permutation], None, None
