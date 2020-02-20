@@ -43,19 +43,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 7
-
-    batch_size = 20
-    max_sequence_length = 3000
-
-    if model == "software":
-        # class are more unbalanced, so we need to extend the batch size  
-        batch_size = 50
-        max_sequence_length = 1500
-
-    if use_ELMo:
-        model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 5
+            #batch_size = 5
 
     if architecture.lower().find("bert") != -1:
         batch_size = 6
