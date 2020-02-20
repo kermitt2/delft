@@ -214,7 +214,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
         features_vector_padded, _ = pad_sequences(features_vector, [0] * features_count)
         output = np.asarray(features_vector_padded)
 
-        return output, features_count
+        return output
 
 
 class WordPreprocessor(BaseEstimator, TransformerMixin):
@@ -429,12 +429,13 @@ def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
     else:
         raise ValueError('nlevels can take 1 or 2, not take {}.'.format(nlevels))
 
+
 def prepare_preprocessor(X, y, model_config, features: np.array = None):
-    '''
+    """
     Prepare the preprocessor. If features are passed, configure the feature preprocessor
 
     From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/5ceb89bdb9ae56c7f60d68b3aeb7e04dc34cd2be/sciencebeam_trainer_delft/sequence_labelling/preprocess.py#L81
-    '''
+    """
     feature_preprocessor = None
     if features is not None and str.endswith(model_config.model_type, "FEATURES"):
         feature_preprocessor = FeaturesPreprocessor(

@@ -134,7 +134,7 @@ class Sequence(object):
         if self.p.return_features is not False:
             print('x_train.shape: ', x_train.shape)
             print('features_train.shape: ', f_train.shape)
-            sample_transformed_features, _ = self.p.transform_features(f_train)
+            sample_transformed_features = self.p.transform_features(f_train)
             self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
             print('max_feature_size: ', self.model_config.max_feature_size)
 

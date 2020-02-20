@@ -137,7 +137,7 @@ class DataGenerator(keras.utils.Sequence):
 
         if self.preprocessor.return_features:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
-            batch_f, features_length = self.preprocessor.transform_features(sub_f, extend=extend)
+            batch_f = self.preprocessor.transform_features(sub_f, extend=extend)
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)

@@ -81,14 +81,16 @@ class TestFeaturesPreprocessor:
     def test_should_fit_single_value_feature(self):
         preprocessor = FeaturesPreprocessor()
         features_batch = [[[FEATURE_VALUE_1]]]
-        features_transformed, features_length = preprocessor.fit_transform(features_batch)
+        features_transformed = preprocessor.fit_transform(features_batch)
+        features_length = len(preprocessor.features_indices)
         assert features_length == 1
         assert all_close(features_transformed, [[[1]]])
 
     def test_should_fit_single_multiple_value_features(self):
         preprocessor = FeaturesPreprocessor()
         features_batch = [[[FEATURE_VALUE_1], [FEATURE_VALUE_2]]]
-        features_transformed, features_length = preprocessor.fit_transform(features_batch)
+        features_transformed = preprocessor.fit_transform(features_batch)
+        features_length = len(preprocessor.features_indices)
         assert features_length == 1
         assert len(features_transformed[0]) == 2
         assert np.array_equal(features_transformed, np.asarray([[[1], [2]]]))
@@ -96,7 +98,8 @@ class TestFeaturesPreprocessor:
     def test_should_fit_multiple_single_value_features(self):
         preprocessor = FeaturesPreprocessor()
         features_batch = [[[FEATURE_VALUE_1, FEATURE_VALUE_2]]]
-        features_transformed, features_length = preprocessor.fit_transform(features_batch)
+        features_transformed = preprocessor.fit_transform(features_batch)
+        features_length = len(preprocessor.features_indices)
         assert features_length == 2
         assert all_close(features_transformed, [[[1, 13]]])
 
@@ -104,8 +107,7 @@ class TestFeaturesPreprocessor:
         preprocessor = FeaturesPreprocessor()
         features_batch = [[[FEATURE_VALUE_1]]]
         preprocessor.fit(features_batch)
-        features_transformed, features_length = preprocessor.transform([[[FEATURE_VALUE_2]]])
-        assert features_length == 1
+        features_transformed = preprocessor.transform([[[FEATURE_VALUE_2]]])
         assert all_close(features_transformed, [[[0]]])
 
     def test_should_select_features(self):
@@ -115,6 +117,7 @@ class TestFeaturesPreprocessor:
             [FEATURE_VALUE_1, FEATURE_VALUE_3],
             [FEATURE_VALUE_1, FEATURE_VALUE_4]
         ]]
-        features_transformed, features_length = preprocessor.fit_transform(features_batch)
+        features_transformed = preprocessor.fit_transform(features_batch)
+        features_length = len(preprocessor.features_indices)
         assert features_length == 1
         assert all_close(features_transformed, [[[1], [2], [3]]])
