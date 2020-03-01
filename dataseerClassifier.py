@@ -20,10 +20,10 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
+    model_name = 'dataseer-binary'
     class_weights = None
     batch_size = 256
     maxlen = 300
-    model_name = 'dataseer-binary'
     if use_ELMo:
         batch_size = 20
         model_name += '-with_ELMo'
@@ -37,9 +37,9 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size,
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
-
+    
     if fold_count == 1:
         model.train(xtr, y)
     else:
@@ -57,7 +57,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model_name += '-with_BERT'
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-    use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size,
+    use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
          class_weights=class_weights)
 
     if fold_count == 1:
@@ -66,7 +66,8 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
-
+    
+    '''
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
     # aggregate by class, we will have one training set per class
@@ -108,16 +109,17 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
             model.train_nfold(datatypes_xtr[the_class], datatypes_y[the_class])
         # saving the model
         model.save()
+    '''
 
 def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru", cascaded=False): 
     if cascaded:
         return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for first level data type hierarchy
-    #train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
