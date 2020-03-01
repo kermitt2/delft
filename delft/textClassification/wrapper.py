@@ -54,7 +54,8 @@ class Classifier(object):
                  use_ELMo=False,
                  use_BERT=False,
                  embeddings=(),
-                 class_weights=None):
+                 class_weights=None,
+                 multiprocessing=True):
         self.model = None
         self.models = None
         self.log_dir = log_dir
@@ -83,7 +84,7 @@ class Classifier(object):
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               patience, use_roc_auc,
-                                              class_weights=class_weights)
+                                              class_weights=class_weights, multiprocessing=multiprocessing)
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
@@ -110,7 +111,7 @@ class Classifier(object):
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.training_config.use_roc_auc, self.training_config.class_weights, 
             training_generator, validation_generator, val_y, use_ELMo=self.embeddings.use_ELMo, 
-            use_BERT=self.embeddings.use_BERT, callbacks=callbacks)
+            use_BERT=self.embeddings.use_BERT, multiprocessing=self.training_config.multiprocessing, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:

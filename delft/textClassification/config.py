@@ -66,7 +66,8 @@ class TrainingConfig(object):
                  max_epoch=50, 
                  patience=5,
                  use_roc_auc=True,
-                 class_weights=None):
+                 class_weights=None,
+                 multiprocessing=True):
 
         self.batch_size = batch_size # this is the batch size for training
         self.optimizer = optimizer
@@ -77,3 +78,4 @@ class TrainingConfig(object):
         self.patience = patience
         self.use_roc_auc = use_roc_auc
         self.class_weights = class_weights
+        self.multiprocessing = multiprocessing
