@@ -139,7 +139,7 @@
             "path-config": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_config.json",
             "path-weights": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_model.ckpt",
             "path-vocab": "/media/lopez/T5/embeddings/scibert_scivocab_cased/vocab.txt",
-            "path-cache": "/media/lopez/T5/cache/bert/",
+            "path-cache": "/media/lopez/T5/cache/scibert/",
             "cache-training": true,
             "lang": "en"
         },
@@ -148,7 +148,7 @@
             "path-config": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/bert_config.json",
             "path-weights": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/model.ckpt-1000000",
             "path-vocab": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/vocab.txt",
-            "path-cache": "/media/lopez/T5/cache/bert/",
+            "path-cache": "/media/lopez/T5/cache/biobert/",
             "cache-training": true,
             "lang": "en"
         }

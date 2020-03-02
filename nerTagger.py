@@ -13,6 +13,8 @@ import time
 # train a model with all available CoNLL 2003 data 
 def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', use_ELMo=False, use_BERT=False, data_path=None): 
 
+    max_sequence_length = 300
+
     if (architecture == "BidLSTM_CNN_CRF"):
         word_lstm_units = 200
         recurrent_dropout=0.5
@@ -149,14 +151,14 @@ def train_eval(embedding_name,
     if (architecture == "BidLSTM_CNN_CRF"):
         word_lstm_units = 200
         max_epoch = 30
-        recurrent_dropout=0.5
+        recurrent_dropout = 0.5
     else:        
         word_lstm_units = 100
         max_epoch = 25
-        recurrent_dropout=0.5
+        recurrent_dropout = 0.5
 
     if use_ELMo or use_BERT:
-        batch_size = 120
+        batch_size = 100
     elif architecture.lower().find("bert") != -1:
         batch_size = 32
         max_sequence_length = 150

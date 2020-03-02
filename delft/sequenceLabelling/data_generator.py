@@ -1,5 +1,6 @@
 import numpy as np
 # seed is fixed for reproducibility
+from delft.utilities.Utilities import truncate_batch_values
 from delft.utilities.numpy import shuffle_pair_with_view
 
 np.random.seed(7)
@@ -76,23 +77,21 @@ class DataGenerator(keras.utils.Sequence):
         sub_x = self.x[(index * self.batch_size):(index * self.batch_size) + max_iter]
 
         # tokenize texts in self.x if not already done
-        max_length_x = 0
+        # From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/c31f97433243a2b0a66671c0dd3e652dcd306362/sciencebeam_trainer_delft/sequence_labelling/data_generator.py#L102-L118
         if self.tokenize:
-            x_tokenized = []
-            for i in range(0, max_iter):
-                tokens = tokenizeAndFilterSimple(sub_x[i])
-                if len(tokens) > self.max_sequence_length:
-                    max_length_x = self.max_sequence_length
-                    # truncation of sequence at max_sequence_length
-                    tokens = tokens[:self.max_sequence_length]
-                elif len(tokens) > max_length_x:
-                    max_length_x = len(tokens)
-                x_tokenized.append(tokens)
+            x_tokenized = [
+                tokenizeAndFilterSimple(text)
+                for text in sub_x
+            ]
         else:
-            for tokens in sub_x:
-                if len(tokens) > max_length_x:
-                    max_length_x = len(tokens)
             x_tokenized = sub_x
+
+        max_length_x = max((len(tokens) for tokens in x_tokenized))
+
+        if self.max_sequence_length and max_length_x > self.max_sequence_length:
+            max_length_x = self.max_sequence_length
+            # truncation of sequence at max_sequence_length
+            x_tokenized = truncate_batch_values(x_tokenized, self.max_sequence_length)
 
         # prevent sequence of length 1 alone in a batch (this causes an error in tf)
         extend = False
@@ -100,35 +99,35 @@ class DataGenerator(keras.utils.Sequence):
             max_length_x += 1
             extend = True
 
-        batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
+        # generate data
+        if self.embeddings.use_ELMo:
+            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
+        elif self.embeddings.use_BERT:
+            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
+        else:
+            batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
+            # store sample embeddings
+            for i in range(0, max_iter):
+                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+
         if self.preprocessor.return_casing:
             batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
 
-        batch_y = None
-        max_length_y = max_length_x
-        if self.y is not None:
-            # note: tags are always already "tokenized",
-            batch_y = np.zeros((max_iter, max_length_y), dtype='float32')
-
-        if self.embeddings.use_ELMo:
-            #batch_x = to_vector_elmo(x_tokenized, self.embeddings, max_length_x)
-            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
-        elif self.embeddings.use_BERT:
-            #batch_x = to_vector_bert(x_tokenized, self.embeddings, max_length_x)
-            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
-
-        # generate data
-        for i in range(0, max_iter):
-            # store sample embeddings
-            if not self.embeddings.use_ELMo and not self.embeddings.use_BERT:
-                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
-
-            if self.preprocessor.return_casing:
+        if self.preprocessor.return_casing:
+            for i in range(0, max_iter):
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
 
+        batch_y = None
         # store tag embeddings
         if self.y is not None:
+            # note: tags are always already "tokenized",
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
+            max_length_y = max((len(y_row) for y_row in batch_y))
+
+            # From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/c31f97433243a2b0a66671c0dd3e652dcd306362/sciencebeam_trainer_delft/sequence_labelling/data_generator.py#L152
+            if self.max_sequence_length and max_length_y > self.max_sequence_length:
+                # truncation of sequence at max_sequence_length
+                batch_y = truncate_batch_values(batch_y, self.max_sequence_length)
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)

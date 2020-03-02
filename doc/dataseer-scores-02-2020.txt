@@ -1,0 +1,158 @@
+========================================================================================
+BINARY
+========================================================================================
+
+SciBERT 
+-------
+Evaluation on 3574 instances:
+                   precision        recall       f-score       support
+       dataset        0.8844        0.9428        0.9127          1136
+    no_dataset        0.9725        0.9426        0.9573          2438
+
+
+========================================================================================
+First level data type hierarchy
+========================================================================================
+
+SciBERT
+-------
+                   precision        recall       f-score       support
+   Calorimetry        0.0000        0.0000        0.0000             2
+Chromatography        0.6000        1.0000        0.7500             6
+Coulombimetry         0.0000        0.0000        0.0000             0
+  Densitometry        0.0000        0.0000        0.0000             0
+Electrocardiog        0.5000        0.5000        0.5000             4
+Electroencepha        0.0000        0.0000        0.0000             1
+Electromyograp        0.0000        0.0000        0.0000             1
+Electrooculogr        0.0000        0.0000        0.0000             0
+Electrophysiol        0.0000        0.0000        0.0000             0
+Electroretinog        0.0000        0.0000        0.0000             1
+Emission Flame        0.0000        0.0000        0.0000             0
+Flow Cytometry        0.9375        0.9375        0.9375            16
+  Genetic Data        0.6535        0.8354        0.7333            79
+         Image        0.7433        0.8968        0.8129           155
+Mass Spectrome        0.9048        0.9048        0.9048            21
+  Protein Data        0.0000        0.0000        0.0000             3
+    Sound Data        0.0000        0.0000        0.0000             2
+  Spectrometry        0.7021        0.8919        0.7857            37
+Spectrum Analy        0.0000        0.0000        0.0000             0
+Systematic Rev        0.0000        0.0000        0.0000             2
+  Tabular Data        0.8524        0.8620        0.8571           797
+Video Recordin        0.0000        0.0000        0.0000             5
+Voltammetry Da        0.0000        0.0000        0.0000             0
+X-Ray Diffract        0.0000        0.0000        0.0000             4
+    no_dataset        0.9685        0.9463        0.9573          2438
+
+
+========================================================================================
+Second level data type hierarchy
+========================================================================================
+
+SciBERT
+-------
+
+-----------------------------------------------
+training Chromatography
+subtypes to be classified: ['High Pressure Liquid Chromatography', 'Thin Layer Chromatography', 'Affinity Chromatography', 'Liquid Chromatography', 'Gel Chromatography', 'Gas Chromatography', 'Ion Exchange Chromatography', 'nan', 'Flame Ionization Chromatography', 'Flash Column Chromatography']
+
+Evaluation on 11 instances:
+
+                   precision        recall       f-score       support
+High Pressure         0.6364        1.0000        0.7778             7
+Thin Layer Chr        0.0000        0.0000        0.0000             0
+Affinity Chrom        0.0000        0.0000        0.0000             1
+Liquid Chromat        0.0000        0.0000        0.0000             0
+Gel Chromatogr        0.0000        0.0000        0.0000             0
+Gas Chromatogr        0.0000        0.0000        0.0000             1
+Ion Exchange C        0.0000        0.0000        0.0000             2
+           nan        0.0000        0.0000        0.0000             0
+Flame Ionizati        0.0000        0.0000        0.0000             0
+Flash Column C        0.0000        0.0000        0.0000             0
+
+-----------------------------------------------
+training Genetic Data
+subtypes to be classified: ['Real-Time Polymerase Chain Reaction', 'High-Throughput Nucleotide Sequencing', 'Sequence Analysis', 'Microsatellite Repeats', 'Microarray Analysis', 'Sequence Alignment', 'Molecular Sequence Annotation', 'Genotype', 'Polymorphism, Single Nucleotide', 'Read Counts', 'Amplified Fragment Length Polymorphism Analysis', 'Feature Table', 'Restriction Fragment Length Polymorphism', 'Digital Droplet PCR', 'Assembly', 'DNA Methylation']
+
+Evaluation on 80 instances:
+                   precision        recall       f-score       support
+Real-Time Poly        0.8333        1.0000        0.9091            30
+High-Throughpu        0.9286        0.8667        0.8966            15
+Sequence Analy        0.8235        0.7778        0.8000            18
+Microsatellite        0.0000        0.0000        0.0000             1
+Microarray Ana        0.0000        0.0000        0.0000             3
+Sequence Align        0.3846        0.8333        0.5263             6
+Molecular Sequ        0.0000        0.0000        0.0000             3
+      Genotype        0.0000        0.0000        0.0000             4
+Polymorphism,         0.0000        0.0000        0.0000             0
+   Read Counts        0.0000        0.0000        0.0000             0
+Amplified Frag        0.0000        0.0000        0.0000             0
+ Feature Table        0.0000        0.0000        0.0000             0
+Restriction Fr        0.0000        0.0000        0.0000             0
+Digital Drople        0.0000        0.0000        0.0000             0
+      Assembly        0.0000        0.0000        0.0000             0
+DNA Methylatio        0.0000        0.0000        0.0000             0
+
+-----------------------------------------------
+training Image
+subtypes to be classified: ['X-Ray Computed Tomography', 'Electrophoresis', 'Microscopy', ' Functional Magnetic Resonance Imaging', 'Magnetic Resonance Imaging', 'Diagnostic Imaging', 'Ultrasonography', 'Photography', 'nan', 'Radiography', 'Optical Coherence Tomography']
+
+Evaluation on 139 instances:
+                   precision        recall       f-score       support
+X-Ray Computed        0.8182        0.6923        0.7500            13
+Electrophoresi        0.9286        1.0000        0.9630            26
+    Microscopy        0.9200        0.9718        0.9452            71
+ Functional Ma        0.0000        0.0000        0.0000             4
+Magnetic Reson        0.2222        1.0000        0.3636             2
+Diagnostic Ima        0.0000        0.0000        0.0000             1
+Ultrasonograph        0.6000        0.6000        0.6000             5
+   Photography        1.0000        0.2000        0.3333            10
+           nan        0.3333        0.4286        0.3750             7
+   Radiography        0.0000        0.0000        0.0000             0
+Optical Cohere        0.0000        0.0000        0.0000             0
+
+-----------------------------------------------
+training Mass Spectrometry
+subtypes to be classified: ['Matrix-Assisted Laser Desorption-Ionization Mass Spectrometry', 'nan', 'Liquid Chromatography-Mass Spectrometry', 'Gas Chromatography-Mass Spectrometry', 'Thermal Ionization Mass Spectrometry']
+
+Evaluation on 11 instances:
+                   precision        recall       f-score       support
+Matrix-Assiste        0.0000        0.0000        0.0000             1
+           nan        0.0000        0.0000        0.0000             1
+Liquid Chromat        0.5455        1.0000        0.7059             6
+Gas Chromatogr        0.0000        0.0000        0.0000             3
+Thermal Ioniza        0.0000        0.0000        0.0000             0
+
+-----------------------------------------------
+training Spectrometry
+subtypes to be classified: ['Spectropolarimeter Data', 'Spectrophotometry', 'Biomolecular Nuclear Magnetic Resonance Spectroscopy', 'Atomic Spectrophotometry', 'Raman Spectrum Analysis', 'Fluorescence Spectrometry', 'X-Ray Fluorescence Spectrometry', 'Fourier Transform Infrared Spectroscopy', 'X-Ray Emission Spectrometry', 'Time Domain Spectrometry', 'Photon Correlation Spectroscopy', 'X-Ray Absorption Spectroscopy', 'Ion Mobility Spectrometry', 'Force Spectrometry']
+
+Evaluation on 39 instances:
+                   precision        recall       f-score       support
+Spectropolarim        0.0000        0.0000        0.0000             2
+Spectrophotome        0.5385        1.0000        0.7000            21
+Biomolecular N        0.0000        0.0000        0.0000             5
+Atomic Spectro        0.0000        0.0000        0.0000             0
+Raman Spectrum        0.0000        0.0000        0.0000             1
+Fluorescence S        0.0000        0.0000        0.0000             0
+X-Ray Fluoresc        0.0000        0.0000        0.0000             1
+Fourier Transf        0.0000        0.0000        0.0000             5
+X-Ray Emission        0.0000        0.0000        0.0000             4
+Time Domain Sp        0.0000        0.0000        0.0000             0
+Photon Correla        0.0000        0.0000        0.0000             0
+X-Ray Absorpti        0.0000        0.0000        0.0000             0
+Ion Mobility S        0.0000        0.0000        0.0000             0
+Force Spectrom        0.0000        0.0000        0.0000             0
+
+-----------------------------------------------
+training Tabular Data
+subtypes to be classified: ['nan', 'Assay', 'Fluorometry', 'Sample Table', 'Subject Data Table', 'Immunoassay', 'Surveys and Questionnaires']
+
+Evaluation on 847 instances:
+                   precision        recall       f-score       support
+           nan        0.8963        0.7840        0.8364           551
+         Assay        0.6477        0.7808        0.7081            73
+   Fluorometry        0.8125        0.8667        0.8387            15
+  Sample Table        0.4211        0.4444        0.4324            36
+Subject Data T        0.6054        0.8766        0.7162           154
+   Immunoassay        0.0000        0.0000        0.0000            15
+Surveys and Qu        0.0000        0.0000        0.0000             3

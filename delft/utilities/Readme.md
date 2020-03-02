@@ -20,7 +20,7 @@ This page provides some details and precisions about the CoNLL training data use
 
 `--output-path` is the path of the file converted into IOB2 format to be written 
 
-The resulting IOB2 files are very similar to these [one](https://github.com/Franck-Dernoncourt/NeuroNER/tree/master/data/conll2003/en) for example (but the NeuroNER version removes some document information).
+The resulting IOB2 files are very similar to these [one](https://github.com/Franck-Dernoncourt/NeuroNER/tree/4cbfc3a1b4c4a5242e1cfbaea48d6f7e972e8881/data/conll2003/en) for example (but the NeuroNER version removes some document information).
 
 ## CoNLL 2012
 
