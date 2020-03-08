@@ -26,29 +26,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    if output_path:
-        model_name = model
-    else:
-        model_name = 'grobid-'+model
-
-    batch_size = 20
-    max_sequence_length = 3000
-
-    if model == "software":
-        # class are more unbalanced, so we need to extend the batch size  
-        batch_size = 50
-        max_sequence_length = 1500
-    
-    if use_ELMo:
-        model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 7
-            #batch_size = 5
-
-    if architecture.lower().find("bert") != -1:
-        batch_size = 6
-        # 512 is the largest sequence for BERT input
-        max_sequence_length = 512
+    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo)
 
     model = Sequence(model_name,
                     max_epoch=100,
@@ -87,29 +65,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    if output_path:
-        model_name = model
-    else:
-        model_name = 'grobid-'+model
-
-    batch_size = 20
-    max_sequence_length = 3000
-
-    if model == "software":
-        # class are more unbalanced, so we need to extend the batch size  
-        batch_size = 50
-        max_sequence_length = 1500
-
-    if use_ELMo:
-        model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 7
-
-    if architecture.lower().find("bert") != -1:
-        batch_size = 6
-        # 512 is the largest sequence for BERT input
-        max_sequence_length = 512
-        model_name += '-' + architecture;
+    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo)
 
     model = Sequence(model_name,
                     max_epoch=100,
@@ -140,6 +96,37 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model.save(output_path)
     else:
         model.save()
+
+
+def configure(model, architecture, output_path=None, use_ELMo=False):
+    '''
+    Set up the default parameters based on the model type.
+    '''
+    if output_path:
+        model_name = model
+    else:
+        model_name = 'grobid-' + model
+
+    batch_size = 20
+    max_sequence_length = 3000
+
+    if model == "software":
+        # class are more unbalanced, so we need to extend the batch size
+        batch_size = 50
+        max_sequence_length = 1500
+
+    if use_ELMo:
+        model_name += '-with_ELMo'
+        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+            batch_size = 7
+
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
+        model_name += '-' + architecture;
+
+    return batch_size, max_sequence_length, model_name
 
 
 # split data, train a GROBID model and evaluate it
