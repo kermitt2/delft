@@ -67,7 +67,7 @@ class Tagger(object):
                 batch_size=self.model_config.batch_size, 
                 preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size,
-                max_sequence_length=self.model_config.max_sequence_length,
+                # max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, tokenize=tokeniz, shuffle=False, features=None)
 
             nb_workers = 6
