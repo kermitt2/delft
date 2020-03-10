@@ -158,7 +158,7 @@ class BidLSTM_CNN(BaseModel):
         char_embeddings = TimeDistributed(
                                 Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
+                                    mask_zero=False,
                                     name='char_embeddings'
                                     ))(char_input)
 
@@ -216,7 +216,7 @@ class BidLSTM_CNN_CRF(BaseModel):
         char_embeddings = TimeDistributed(
                                 Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    mask_zero=False,
                                     name='char_embeddings'
                                     ))(char_input)
 
