@@ -98,7 +98,7 @@ class Embeddings(object):
             self.embed_size = ELMo_embed_size + self.embed_size
             description = self._get_description('elmo-'+self.lang)
             self.env_ELMo = None
-            if description:
+            if description and description["cache-training"]:
                 self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
                 # clean possible remaining cache
                 self.clean_ELMo_cache()
