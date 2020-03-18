@@ -380,7 +380,8 @@ class Classifier(object):
              self.model.load()
 
         # load embeddings
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT) 
+        # Do not use cache in 'production' mode
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT, use_cache=False)
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = getModel(self.model_config, self.training_config)
