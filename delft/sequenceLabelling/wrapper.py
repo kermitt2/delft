@@ -89,7 +89,7 @@ class Sequence(object):
 
         word_emb_size = 0
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
+            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -501,7 +501,8 @@ class Sequence(object):
              return
 
         # load embeddings
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT) 
+        # Do not use cache in 'production' mode
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT, use_cache=False)
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
