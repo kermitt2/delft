@@ -45,7 +45,7 @@ class ModelConfig(object):
         self.use_char_feature = use_char_feature
         self.use_crf = use_crf
         self.fold_number = fold_number
-        self.batch_size = batch_size # this is the batch size for test and prediction
+        self.batch_size = batch_size # this is the batch size for prediction
 
         self.use_ELMo = use_ELMo
         self.use_BERT = use_BERT
@@ -79,7 +79,7 @@ class TrainingConfig(object):
                  max_checkpoints_to_keep=5,
                  multiprocessing=True):
 
-        self.batch_size = batch_size
+        self.batch_size = batch_size # this is the batch size for training
         self.optimizer = optimizer
         self.learning_rate = learning_rate
         self.lr_decay = lr_decay

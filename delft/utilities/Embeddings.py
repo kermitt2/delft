@@ -45,10 +45,10 @@ map_size = 100 * 1024 * 1024 * 1024
 ELMo_embed_size = 1024
 
 BERT_sentence_size = 512
+
 # BERT embedding size depends on the pooling method (one layer has a size of 768)
 #BERT_embed_size = 768
 BERT_embed_size = 3072
-
 
 
 def fetch_header_if_available(line):

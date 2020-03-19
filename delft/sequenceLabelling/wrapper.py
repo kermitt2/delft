@@ -186,7 +186,7 @@ class Sequence(object):
             if self.model:
                 # Prepare test data(steps, generator)
                 test_generator = DataGenerator(x_test, y_test, 
-                  batch_size=self.training_config.batch_size, preprocessor=self.p, 
+                  batch_size=self.model_config.batch_size, preprocessor=self.p, 
                   char_embed_size=self.model_config.char_embedding_size, 
                   max_sequence_length=self.model_config.max_sequence_length,
                   embeddings=self.embeddings, shuffle=False)
@@ -237,7 +237,7 @@ class Sequence(object):
                 if 'bert' not in self.model_config.model_type.lower():
                     # Prepare test data(steps, generator)
                     test_generator = DataGenerator(x_test, y_test, 
-                      batch_size=self.training_config.batch_size, preprocessor=self.p, 
+                      batch_size=self.model_config.batch_size, preprocessor=self.p, 
                       char_embed_size=self.model_config.char_embedding_size, 
                       max_sequence_length=self.model_config.max_sequence_length,
                       embeddings=self.embeddings, shuffle=False)

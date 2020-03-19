@@ -418,6 +418,8 @@ def train_eval(embedding_name,
     print("training runtime: %s seconds " % (runtime))
 
     print("\nEvaluation on test set:")
+    if use_ELMo or use_BERT:
+        model.model_config.batch_size = 80
     model.eval(x_eval, y_eval)
 
     # saving the model
