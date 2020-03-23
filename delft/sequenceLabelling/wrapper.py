@@ -91,7 +91,7 @@ class Sequence(object):
 
         word_emb_size = 0
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
+            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -197,7 +197,7 @@ class Sequence(object):
             if self.model:
                 # Prepare test data(steps, generator)
                 test_generator = DataGenerator(x_test, y_test,
-                  batch_size=self.training_config.batch_size, preprocessor=self.p,
+                  batch_size=self.model_config.batch_size, preprocessor=self.p,
                   char_embed_size=self.model_config.char_embedding_size,
                   max_sequence_length=self.model_config.max_sequence_length,
                   embeddings=self.embeddings, shuffle=False, features=features)
@@ -248,7 +248,7 @@ class Sequence(object):
                 if 'bert' not in self.model_config.model_type.lower():
                     # Prepare test data(steps, generator)
                     test_generator = DataGenerator(x_test, y_test,
-                      batch_size=self.training_config.batch_size, preprocessor=self.p,
+                      batch_size=self.model_config.batch_size, preprocessor=self.p,
                       char_embed_size=self.model_config.char_embedding_size,
                       max_sequence_length=self.model_config.max_sequence_length,
                       embeddings=self.embeddings, shuffle=False, features=features)
@@ -262,7 +262,7 @@ class Sequence(object):
                     recall = scorer.recall
                     reports.append(scorer.report)
                     reports_as_map.append(scorer.report_as_map)
-
+                    
                 else:
                     # BERT architecture model
                     dir_path = 'data/models/sequenceLabelling/'
@@ -270,7 +270,7 @@ class Sequence(object):
                     self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
                     self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
                     self.model.load_model(i)
-
+                    
                     y_pred = self.model.predict(x_test, fold_id=i)
 
                     nb_alignment_issues = 0
@@ -279,8 +279,8 @@ class Sequence(object):
                             nb_alignment_issues += 1
                             # BERT tokenizer appears to introduce some additional tokens without ## prefix,
                             # but this is normally handled when predicting.
-                            # To be very conservative, the following ensure the number of tokens always
-                            # match, but it should never be used in practice.
+                            # To be very conservative, the following ensure the number of tokens always 
+                            # match, but it should never be used in practice. 
                             if len(y_test[j]) < len(y_pred[j]):
                                 y_test[j] = y_test[j] + ["O"] * (len(y_pred[j]) - len(y_test[j]))
                             if len(y_test[j]) > len(y_pred[j]):
@@ -374,7 +374,7 @@ class Sequence(object):
                 # clean other fold directory
                 for i in range(self.model_config.fold_number):
                     shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
-
+        
             print("----------------------------------------------------------------------")
             print("\nAverage over", self.model_config.fold_number, "folds")
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
@@ -512,7 +512,8 @@ class Sequence(object):
              return
 
         # load embeddings
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT) 
+        # Do not use cache in 'production' mode
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT, use_cache=False)
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))

@@ -45,10 +45,10 @@ map_size = 100 * 1024 * 1024 * 1024
 ELMo_embed_size = 1024
 
 BERT_sentence_size = 512
+
 # BERT embedding size depends on the pooling method (one layer has a size of 768)
 #BERT_embed_size = 768
 BERT_embed_size = 3072
-
 
 
 def fetch_header_if_available(line):
@@ -74,7 +74,7 @@ def fetch_header_if_available(line):
 
 class Embeddings(object):
 
-    def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False, use_BERT=False):
+    def __init__(self, name, path='./embedding-registry.json', lang='en', extension='vec', use_ELMo=False, use_BERT=False, use_cache=True):
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
@@ -91,6 +91,7 @@ class Embeddings(object):
         self.static_embed_size = self.embed_size
         self.bilm = None
 
+        self.use_cache = use_cache
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
         if use_ELMo:
@@ -98,7 +99,7 @@ class Embeddings(object):
             self.embed_size = ELMo_embed_size + self.embed_size
             description = self._get_description('elmo-'+self.lang)
             self.env_ELMo = None
-            if description:
+            if description and description["cache-training"] and self.use_cache:
                 self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
                 # clean possible remaining cache
                 self.clean_ELMo_cache()
@@ -117,7 +118,7 @@ class Embeddings(object):
             self.embed_size = BERT_embed_size + self.embed_size
             description = self._get_description('bert-base-'+self.lang)
             self.env_BERT = None
-            if description and description["cache-training"]:
+            if description and description["cache-training"] and self.use_cache:
                 self.embedding_BERT_cache = os.path.join(description["path-cache"], "cache")
                 # clean possible remaining cache
                 self.clean_BERT_cache()
