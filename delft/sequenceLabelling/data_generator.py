@@ -136,6 +136,10 @@ class DataGenerator(keras.utils.Sequence):
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
             batch_f = self.preprocessor.transform_features(sub_f, extend=extend)
 
+            if self.max_sequence_length and max_length_x > self.max_sequence_length:
+                # truncation of sequence at max_sequence_length
+                batch_f = truncate_batch_values(batch_f, self.max_sequence_length)
+
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
         else:
