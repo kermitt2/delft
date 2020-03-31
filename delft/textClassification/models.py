@@ -726,7 +726,7 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_w
 
         # we distinguish 1-class and multiclass problems 
         if len(list_classes) is 1:
-            total_loss = log_loss(val_y, y_pred, labels=[0,1])
+            total_loss = log_loss(val_y, y_pred, labels=[0, 1])
             if len(np.unique(val_y)) == 1:
                 # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
                 # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)

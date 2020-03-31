@@ -1,13 +1,11 @@
-import json
-from delft.utilities.Embeddings import Embeddings
-from delft.utilities.Utilities import split_data_and_labels
-from delft.textClassification.reader import load_citation_sentiment_corpus
-import delft.textClassification
-from delft.textClassification import Classifier
 import argparse
-import keras.backend as K
+import json
 import time
+
+from delft.textClassification import Classifier
 from delft.textClassification.models import modelTypes
+from delft.textClassification.reader import load_citation_sentiment_corpus
+from delft.utilities.Utilities import split_data_and_labels
 
 list_classes = ["negative", "neutral", "positive"]
 class_weights = {0: 25.,
