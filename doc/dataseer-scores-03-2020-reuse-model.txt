@@ -17,13 +17,13 @@ BERT
 
 Evaluation on 1122 instances:
                    precision        recall       f-score       support
-      no_reuse        0.9844        0.9935        0.9890          1083
-         reuse        0.7586        0.5641        0.6471            39
+      no_reuse        0.9862        0.9889        0.9876          1083
+         reuse        0.6667        0.6154        0.6400            39
 
 
 SciBERT
 
 Evaluation on 1122 instances:
                    precision        recall       f-score       support
-      no_reuse        0.9908        0.9898        0.9903          1083
-         reuse        0.7250        0.7436        0.7342            39
+      no_reuse        0.9835        0.9898        0.9867          1083
+         reuse        0.6562        0.5385        0.5915            39
