@@ -1134,34 +1134,3 @@ Research Subje        0.6538        0.8242        0.7292           165
 Surveys and Qu        0.0000        0.0000        0.0000             5
 
 
-
-
-
-================
-reuse of dataset 
-================
-
-11364 training examples (3.6% reuse)
-
-BidGRU
-
-Evaluation on 1122 instances:
-                   precision        recall       f-score       support
-      no_reuse        0.9782        0.9954        0.9867          1083
-         reuse        0.7500        0.3846        0.5085            39
-
-
-BERT
-
-Evaluation on 1122 instances:
-                   precision        recall       f-score       support
-      no_reuse        0.9844        0.9935        0.9890          1083
-         reuse        0.7586        0.5641        0.6471            39
-
-
-SciBERT
-
-Evaluation on 1122 instances:
-                   precision        recall       f-score       support
-      no_reuse        0.9908        0.9898        0.9903          1083
-         reuse        0.7250        0.7436        0.7342            39
