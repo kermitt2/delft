@@ -116,8 +116,8 @@ class Embeddings(object):
             #self.session = tf.Session()
             self.graph = tf.get_default_graph()
             #self.session.run(tf.global_variables_initializer())
-            # self.make_BERT()
-            # self.embed_size = BERT_embed_size + self.embed_size
+            self.make_BERT()
+            self.embed_size = BERT_embed_size + self.embed_size
             description = self._get_description('bert-base-'+self.lang)
             self.env_BERT = None
             self.cache_training = description and description["cache-training"] and self.use_cache
