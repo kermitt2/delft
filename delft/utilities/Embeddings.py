@@ -335,12 +335,12 @@ class Embeddings(object):
             self.batcher = Batcher(vocab_file, 50)
 
             # Build the biLM graph.
-            self.bilm = BidirectionalLanguageModel(options_file, weight_file)
+            self.bilm = BidirectionalLanguageModel(self.lang, options_file, weight_file)
 
             # Input placeholders to the biLM.
             self.character_ids = tf.placeholder('int32', shape=(None, None, 50))
 
-            with tf.variable_scope('', reuse=tf.AUTO_REUSE):
+            with tf.variable_scope(self.lang, reuse=tf.AUTO_REUSE):
                 # the reuse=True scope reuses weights from the whole context 
                 self.embeddings_op = self.bilm(self.character_ids)
                 self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
