@@ -309,15 +309,8 @@ class BidGRU_CRF(BaseModel):
 
 class BidLSTM_CRF_CASING(BaseModel):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling.
-
-    References
-    --
-    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
-    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
-    https://arxiv.org/abs/1603.01360
-
-    In this architecture some casing features are added, just to see...
+    A Keras implementation of BidLSTM-CRF for sequence labelling with additinal features related to casing
+    (inferred from word forms).
     """
 
     name = 'BidLSTM_CRF_CASING'
@@ -369,13 +362,8 @@ class BidLSTM_CRF_CASING(BaseModel):
 
 class BidLSTM_CRF_FEATURES(BaseModel):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling of tokens with additional discrete features information.
-
-    References
-    --
-    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
-    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
-    https://arxiv.org/abs/1603.01360
+    A Keras implementation of BidLSTM-CRF for sequence labelling using tokens combined with 
+    additional generic discrete features information.
     """
 
     name = 'BidLSTM_CRF_FEATURES'
@@ -435,12 +423,13 @@ class BidLSTM_CRF_FEATURES(BaseModel):
 class BERT_Sequence(BaseModel):
     """
     This class allows to use a BERT TensorFlow architecture for sequence labelling. The architecture is
-    limited to the official Google TensorFlow implementation and cannot be mixed with Keras layers for 
+    build on the official Google TensorFlow implementation and cannot be mixed with Keras layers for 
     retraining. Training corresponds to a fine tuning only of a provided pre-trained model.
 
-    BERT sequence labelling model with fine-tuning.
+    BERT sequence labelling model with fine-tuning, using a CRF as activation layer. Replacing the usual 
+    softmax activation layer by a CRF activation always improves performance for sequence labelling.
 
-    Implementation is an adaptation of the official repository: 
+    The implementation is an adaptation of the official repository: 
     https://github.com/google-research/bert
 
     For reference:
