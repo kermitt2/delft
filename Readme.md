@@ -1061,8 +1061,24 @@ Note that we are focusing on sequence labelling/information extraction and text 
 
 * [FastPredict](https://github.com/marcsto/rl/blob/master/src/fast_predict2.py) from by Marc Stogaitis, adapted to our BERT usages. 
 
+
 ## License and contact
 
 Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.
 
 Contact: Patrice Lopez (<patrice.lopez@science-miner.com>)
+
+## How to cite
+
+If you want to this work, please refer to the present GitHub project, together with the [Software Heritage](https://www.softwareheritage.org/) project-level permanent identifier. For example, with BibTeX:
+
+```bibtex
+@misc{DeLFT,
+    title = {DeLFT},
+    howpublished = {\url{https://github.com/kermitt2/delft}},
+    publisher = {GitHub},
+    year = {2018--2020},
+    archivePrefix = {swh},
+    eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
+}
+```
