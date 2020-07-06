@@ -821,7 +821,7 @@ By default the Grobid data to be used are the ones available under the `data/seq
 
 or 
 
-> python3 grobidTagger.py *name-of-model* train_Eval --input *path-to-the-grobid-data-file-to-be-used-for-training_and_eval_with_random_split*
+> python3 grobidTagger.py *name-of-model* train_eval --input *path-to-the-grobid-data-file-to-be-used-for-training_and_eval_with_random_split*
 
 The evaluation of a model with a specific Grobid data file can be performed using the `eval` action and specifying the data file with `--input`: 
 

@@ -161,13 +161,35 @@ def load_dataseer_corpus_csv(filepath):
     """
     df = pd.read_csv(filepath)
     df = df[pd.notnull(df['text'])]
-    df = df[pd.notnull(df['datatype'])]
+    if 'datatype' in df.columns:
+        df = df[pd.notnull(df['datatype'])]
+    #if 'reuse' in df.columns:    
+    #    df = df[pd.notnull(df['reuse'])]
     df.iloc[:,1].fillna('NA', inplace=True)
+
+    # shuffle, note that this is important for the reuse prediction, the following shuffle in place
+    # and reset the index
+    df = df.sample(frac=1).reset_index(drop=True)
 
     texts_list = []
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
+    '''
+    if 'reuse' in df.columns:  
+        # we simply get the reuse boolean value for the examples
+        datareuses = df.iloc[:,2]
+        reuse_list = datareuses.values.tolist()
+        reuse_list = np.asarray(reuse_list)
+        # map boolean values to [0,1]
+        def map_boolean(x):
+            return 1 if x else 0
+        reuse_list = np.array(list(map(map_boolean, reuse_list)))
+        print(reuse_list)
+        return np.asarray(texts_list), reuse_list, None, None, ["not_reuse", "reuse"], None, None
+    '''
+
+    # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
     datatypes_list = np.asarray(datatypes_list)
