@@ -6,7 +6,7 @@ np.random.seed(7)
 #from tensorflow import set_random_seed
 #set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
-from sklearn.externals import joblib
+import joblib
 
 import delft.utilities.bert.tokenization as tokenization
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
