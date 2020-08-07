@@ -48,7 +48,8 @@ class Sequence(object):
 
     config_file = 'config.json'
     weight_file = 'model_weights.hdf5'
-    preprocessor_file = 'preprocessor.pkl'
+    preprocessor_file = 'preprocessor.json'
+    preprocessor_file_new = 'preprocessor.json'
 
     # number of parallel worker for the data generator when not using ELMo
     nb_workers = 6
@@ -480,7 +481,7 @@ class Sequence(object):
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
 
-        self.p.save(os.path.join(directory, self.preprocessor_file))
+        self.p.save(os.path.join(directory, self.preprocessor_file_new))
         print('preprocessor saved')
 
         # bert model are always saved via training process steps as checkpoint

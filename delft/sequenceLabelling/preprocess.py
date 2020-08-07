@@ -1,4 +1,5 @@
 import itertools
+import json
 import re
 import collections
 import numpy as np
@@ -134,12 +135,19 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             return labels
 
     def save(self, file_path):
-        joblib.dump(self, file_path)
+        output_dict = vars(self)
+        with open(file_path, 'w') as fp:
+            json.dump(output_dict, fp, sort_keys=False, indent=4)
 
     @classmethod
     def load(cls, file_path):
-        p = joblib.load(file_path)
-        return p
+        with open(file_path) as f:
+            variables = json.load(f)
+            self = cls()
+            for key, val in variables.items():
+                setattr(self, key, val)
+        return self
+
 
 
 def _pad_sequences(sequences, pad_tok, max_length):
