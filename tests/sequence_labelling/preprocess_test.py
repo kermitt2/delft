@@ -58,6 +58,17 @@ class TestWordPreprocessor:
         _, y_transformed = p.transform(X_test, y_test)
         assert y_transformed == [[1, 0]]
 
+    def test_load_example(self, preprocessor1):
+        p = WordPreprocessor.load(preprocessor1)
+
+        assert len(p.vocab_char) == 70
+
+    def test_load_withUmmappedVariable_shouldIgnore(self, preprocessor2: str):
+        p = WordPreprocessor.load(preprocessor2)
+
+        assert len(p.vocab_char) == 70
+
+
 
 def _to_dense(a: np.array):
     try:

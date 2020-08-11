@@ -17,7 +17,7 @@ def setup_logging():
     logging.root.handlers = []
     logging.basicConfig(level='INFO')
     logging.getLogger('tests').setLevel('DEBUG')
-    logging.getLogger('sciencebeam_trainer_delft').setLevel('DEBUG')
+    # logging.getLogger('sciencebeam_trainer_delft').setLevel('DEBUG')
 
 
 def _backport_assert_called(mock: MagicMock):
