@@ -23,7 +23,7 @@ def train(embeddings_name, architecture='BidLSTM_CRF'):
     print(len(x_valid), 'validation sequences')
 
     model = Sequence('insult', max_epoch=50, embeddings_name=embeddings_name)
-    model.train(x_train, y_train, x_valid, y_valid)
+    model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
     # saving the model

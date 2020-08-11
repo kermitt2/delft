@@ -1,9 +1,16 @@
 import collections
 import itertools
 import json
+import logging
 import re
+from typing import List, Iterable, Set
 
 import numpy as np
+
+from delft.sequenceLabelling.config import ModelConfig
+
+LOGGER = logging.getLogger(__name__)
+
 
 np.random.seed(7)
 # from tensorflow import set_random_seed
@@ -26,6 +33,193 @@ case_index = {'<PAD>': 0, 'numeric': 1, 'allLower': 2, 'allUpper': 3, 'initialUp
               'mainly_numeric': 6, 'contains_digit': 7}
 
 
+def calculate_cardinality(feature_vector, indices=None):
+    """
+    Calculate cardinality of each features
+
+    :param feature_vector: three dimensional vector with features
+    :param indices: list of indices of the features to be extracted
+    :return: a map where each key is the index of the feature and the value is a map feature_value,
+    value_index.
+    For example
+     [(0, {'feature1': 1, 'feature2': 2})]
+
+     indicates that the feature is at index 0 and has two values, features1 and features2 with two
+     unique index.
+
+     NOTE: the features are indexed from 1 to n + 1. The 0 value is reserved as padding
+    """
+    columns_length = []
+    index = 0
+    if not len(feature_vector) > 0:
+        return []
+
+    for index_column in range(index, len(feature_vector[0][0])):
+        if indices and index_column not in indices:
+            index += 1
+            continue
+
+        values = set()
+        for index_document in range(0, len(feature_vector)):
+            for index_row in range(0, len(feature_vector[index_document])):
+                value = feature_vector[index_document][index_row][index_column]
+                if value != " ":
+                    values.add(value)
+
+        values = sorted(values)
+        values_cardinality = len(values)
+
+        values_list = list(values)
+        values_to_int = {}
+        for val_num in range(0, values_cardinality):
+            # We reserve the 0 for the unseen features so the indexes will go from 1 to cardinality + 1
+            values_to_int[values_list[val_num]] = val_num + 1
+
+        columns_length.append((index, values_to_int))
+        index += 1
+
+    return columns_length
+
+
+def cardinality_to_index_map(columns_length, features_max_vector_size):
+    # Filter out the columns that are not fitting
+    columns_index = []
+    for index, column_content_cardinality in columns_length:
+        if len(column_content_cardinality) <= features_max_vector_size:
+            columns_index.append((index, column_content_cardinality))
+    # print(columns_index)
+    max_index_value = features_max_vector_size * len(columns_index) + 1
+
+    index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
+    val_to_int_map = {value[0]: {val_features: idx_features + (index * features_max_vector_size) for val_features, idx_features in value[1].items()} for index, value in enumerate(columns_index)}
+
+    return index_list, val_to_int_map
+
+
+def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices=None):
+    cardinality = calculate_cardinality(feature_vector, indices=indices)
+    index_list, map_to_integers = cardinality_to_index_map(cardinality, features_max_vector_size)
+
+    return index_list, map_to_integers
+
+
+def reduce_features_vector(feature_vector, features_max_vector_size):
+    '''
+    Reduce the features vector.
+    First it calculates the cardinality for each value that each feature can assume, then
+    removes features with cardinality above features_max_vector_size.
+    Finally it assign indices values for each features, assuming 0 as padding (feature value out of bound or invalid),
+    and values from 1 to features_max_vector_size * number of features.
+
+    :param feature_vector: feature vector to be reduced
+    :param features_max_vector_size maximum size of the one-hot-encoded values
+    :return:
+    '''
+
+    # Compute frequencies for each column
+    columns_length = []
+    index = 0
+    if not len(feature_vector) > 0:
+        return []
+
+    for index_column in range(index, len(feature_vector[0])):
+        values = set()
+        for index_row in range(0, len(feature_vector)):
+            value = feature_vector[index_row][index_column]
+            if value != " ":
+                values.add(value)
+
+        values_cardinality = len(values)
+
+        values_list = list(values)
+        values_to_int = {}
+        for val_num in range(0, values_cardinality):
+            values_to_int[values_list[val_num]] = val_num
+
+        columns_length.append((index, values_to_int))
+        index += 1
+        # print("Column: " + str(index_column) + " Len:  " + str(len(values)))
+
+    # Filter out the columns that are not fitting
+    columns_index = []
+    for index, column_content_cardinality in columns_length:
+        if len(column_content_cardinality) <= features_max_vector_size:
+            columns_index.append((index, column_content_cardinality))
+    # print(columns_index)
+    index_list = [ind[0] for ind in columns_index if ind[0]]
+
+    # Assign indexes to each feature value
+    reduced_features_vector = []
+    for index_row in range(0, len(feature_vector)):
+        reduced_features_vector.append(
+            [feature_vector[index_row][index_column] for index, index_column in enumerate(index_list)])
+
+    return reduced_features_vector
+
+
+def get_map_to_index(X, features_indices, features_vector_size):
+    pass
+
+
+def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
+            features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE):
+
+    if not feature_indices:
+        matrix = reduce_features_vector(value_list_batch, features_vector_size)
+
+        return [{index: value for index, value in enumerate(value_list)} for value_list in matrix]
+    else:
+        return [{index: value for index, value in enumerate(value_list) if index in feature_indices} for value_list
+                in value_list_batch]
+
+
+class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
+    def __init__(self, features_indices: Iterable[int] = None,
+                 features_vocabulary_size=ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
+                 features_map_to_index=None):
+        # feature_indices_set = None
+        if features_map_to_index is None:
+            features_map_to_index = []
+        self.features_vocabulary_size = features_vocabulary_size
+        self.features_indices = features_indices
+
+        # List of mappings to integers (corresponding to each feature column) of features values
+        # This value could be provided (model has been loaded) or not (first-time-training)
+        self.features_map_to_index = features_map_to_index
+
+    def fit(self, X):
+        if not self.features_indices:
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
+        else:
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size,
+                                                          indices=self.features_indices)
+
+        self.features_map_to_index = mapping
+        self.features_indices = indexes
+        return self
+
+    def transform(self, X, extend=False):
+        """
+        Transform the features into a vector, return the vector and the extracted number of features
+
+        :param extend: when set to true it's adding an additional empty feature list in the sequence.
+        """
+        features_vector = [[[self.features_map_to_index[index][value] if index in self.features_map_to_index and value in self.features_map_to_index[index] else 0
+                    for index, value in enumerate(value_list) if index in self.features_indices] for
+                    value_list in document] for document in X]
+
+        features_count = len(self.features_indices)
+
+        if extend:
+            for out in features_vector:
+                out.append([0] * features_count)
+
+        features_vector_padded, _ = pad_sequences(features_vector, [0] * features_count)
+        output = np.asarray(features_vector_padded)
+
+        return output
+
+
 class WordPreprocessor(BaseEstimator, TransformerMixin):
 
     def __init__(self,
@@ -34,7 +228,8 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
                  return_lengths=True,
                  return_casing=False,
                  return_features=False,
-                 max_char_length=30
+                 max_char_length=30,
+                 feature_preprocessor: FeaturesPreprocessor = None
                  ):
 
         self.use_char_feature = use_char_feature
@@ -46,6 +241,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         self.vocab_tag = None
         self.vocab_case = [k for k, v in case_index.items()]
         self.max_char_length = max_char_length
+        self.feature_preprocessor = feature_preprocessor
 
     def fit(self, X, y):
         chars = {PAD: 0, UNK: 1}
@@ -104,16 +300,17 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
                 chars.append(char_ids)
 
         if y is not None:
-            y = [[self.vocab_tag[t] for t in sent] for sent in y]
+            pad_index = self.vocab_tag[PAD]
+            LOGGER.debug('vocab_tag: %s', self.vocab_tag)
+            y = [[self.vocab_tag.get(t, pad_index) for t in sent] for sent in y]
             if extend:
-                y[0].append(self.vocab_tag[PAD])
+                y[0].append(pad_index)
 
         if self.padding:
             sents, y = self.pad_sequence(chars, y)
         else:
             sents = [chars]
 
-        # optional additional information
         # lengths
         if self.return_lengths:
             lengths = np.asarray(lengths, dtype=np.int32)
@@ -121,6 +318,15 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             sents.append(lengths)
 
         return (sents, y) if y is not None else sents
+
+    def fit_features(self, features_batch):
+        if self.feature_preprocessor is None:
+            return
+
+        return self.feature_preprocessor.fit(features_batch)
+
+    def transform_features(self, features_batch, extend=False):
+        return self.feature_preprocessor.transform(features_batch, extend=extend)
 
     def inverse_transform(self, y):
         """
@@ -133,17 +339,18 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]
 
     def pad_sequence(self, char_ids, labels=None):
+        labels_one_hot = None
         if labels:
-            labels, _ = pad_sequences(labels, 0)
-            labels = np.asarray(labels)
-            labels = dense_to_one_hot(labels, len(self.vocab_tag), nlevels=2)
+            labels_padded, _ = pad_sequences(labels, 0)
+            labels_asarray = np.asarray(labels_padded)
+            labels_one_hot = dense_to_one_hot(labels_asarray, len(self.vocab_tag), nlevels=2)
 
         if self.use_char_feature:
             char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
             char_ids = np.asarray(char_ids)
-            return [char_ids], labels
+            return [char_ids], labels_one_hot
         else:
-            return labels
+            return labels_one_hot
 
     def save(self, file_path):
         output_dict = vars(self)
@@ -213,6 +420,11 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
 def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
     """
     Convert class labels from scalars to one-hot vectors
+
+    Args:
+        labels_dense: a dense set of values
+        num_classes: the number of classes in output
+        nlevels: the number of levels (??)
     """
     if nlevels == 1:
         num_labels = labels_dense.shape[0]
@@ -235,11 +447,31 @@ def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
         raise ValueError('nlevels can take 1 or 2, not take {}.'.format(nlevels))
 
 
-def prepare_preprocessor(X, y, model_config):
-    p = WordPreprocessor(max_char_length=model_config.max_char_length)
-    p.fit(X, y)
+def prepare_preprocessor(X, y, model_config, features: np.array = None):
+    """
+    Prepare the preprocessor. If features are passed, configure the feature preprocessor
 
-    return p
+    From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/5ceb89bdb9ae56c7f60d68b3aeb7e04dc34cd2be/sciencebeam_trainer_delft/sequence_labelling/preprocess.py#L81
+    """
+    feature_preprocessor = None
+    if features is not None and str.endswith(model_config.model_type, "FEATURES"):
+        feature_preprocessor = FeaturesPreprocessor(
+            features_indices=model_config.features_indices,
+            features_vocabulary_size=model_config.features_vocabulary_size
+        )
+    preprocessor = WordPreprocessor(
+        max_char_length=model_config.max_char_length,
+        feature_preprocessor=feature_preprocessor
+    )
+    preprocessor.fit(X, y)
+
+    # Compute features and store information in the model config
+    if feature_preprocessor is not None:
+        preprocessor.fit_features(features)
+        model_config.features_indices = preprocessor.feature_preprocessor.features_indices
+        model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
+
+    return preprocessor
 
 
 def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True):
@@ -426,8 +658,8 @@ class InputFeatures(object):
 class NERProcessor(object):
     """
     General BERT processor for a sequence labelling data set.
-    This is simply feed by the DeLFT sequence labelling data obtained by the 
-    custom DeLFT readers. 
+    This is simply feed by the DeLFT sequence labelling data obtained by the
+    custom DeLFT readers.
     """
 
     def __init__(self,
@@ -500,7 +732,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     """
     Converts a single BERT `InputExample` into a single BERT `InputFeatures`.
 
-    The BERT tokenization is introduced which will modify sentence and labels as 
+    The BERT tokenization is introduced which will modify sentence and labels as
     follow:
     tokens: [Jim,Hen,##son,was,a,puppet,##eer]
     labels: [I-PER,I-PER,X,O,O,O,X]
@@ -508,7 +740,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     text_tokens = example.tokens
     tokens = []
-    # the following is to better keep track of additional tokens added by BERT tokenizer, 
+    # the following is to better keep track of additional tokens added by BERT tokenizer,
     # only some of them has a prefix ## that allows to identify them downstream in the process
     tokens_marked = []
     label_tokens = example.labels
@@ -551,9 +783,8 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     #  tokens:   [CLS] the dog is hairy . [SEP]
     #  type_ids: 0     0   0   0  0     0 0
     #
-    # Where "type_ids" are used to indicate whether this is the first sequence 
-    # or the second sequence. 
-
+    # Where "type_ids" are used to indicate whether this is the first sequence
+    # or the second sequence.
     input_tokens.append("[CLS]")
     input_tokens_marked.append("[CLS]")
     segment_ids.append(0)
@@ -567,7 +798,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     for token in tokens_marked:
         input_tokens_marked.append(token)
 
-    # note: do we really need to add "[SEP]" for single sequence? 
+    # note: do we really need to add "[SEP]" for single sequence?
     input_tokens.append("[SEP]")
     input_tokens_marked.append("[SEP]")
     segment_ids.append(0)
@@ -623,7 +854,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
         """Decodes a record to a TensorFlow example."""
         example = tf.parse_single_example(record, name_to_features)
 
-        # int32 cast 
+        # int32 cast
         for name in list(example.keys()):
             t = example[name]
             if t.dtype == tf.int64:
@@ -683,7 +914,7 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
     """
     Convert a list of `InputExample` to a list of bert `InputFeatures` in a file.
     This is used when training to avoid re-doing this conversion other multiple epochs.
-    For prediction, we don't want to use a file. 
+    For prediction, we don't want to use a file.
     """
     writer = tf.python_io.TFRecordWriter(output_file)
     for (ex_index, example) in enumerate(examples):

@@ -1,7 +1,6 @@
 from keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout
 from keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from keras.layers.merge import Concatenate
-from keras.initializers import RandomUniform
 from keras.models import Model
 from keras.models import clone_model
 
@@ -18,7 +17,6 @@ import json
 import time
 import os
 import shutil
-import collections
 import numpy as np
 np.random.seed(7)
 import tensorflow as tf
@@ -42,13 +40,18 @@ def get_model(config, preprocessor, ntags=None):
         preprocessor.return_casing = False
         config.use_crf = True
         return BidGRU_CRF(config, ntags)
+    elif config.model_type == BidLSTM_CRF_FEATURES.name:
+        preprocessor.return_casing = False
+        preprocessor.return_features = True
+        config.use_crf = True
+        return BidLSTM_CRF_FEATURES(config, ntags)
     elif config.model_type == BidLSTM_CRF_CASING.name:
         preprocessor.return_casing = True
         config.use_crf = True
         return BidLSTM_CRF_CASING(config, ntags)
     elif 'bert' in config.model_type.lower():
         preprocessor.return_casing = False
-        # note that we could consider optionnaly in the future using a CRF 
+        # note that we could consider optionally in the future using a CRF
         # as activation layer for BERT e
         config.use_crf = False
         config.labels = preprocessor.vocab_tag
@@ -123,8 +126,8 @@ class BidLSTM_CRF(BaseModel):
         x = Concatenate()([word_input, chars])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
-                               return_sequences=True, 
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
@@ -170,7 +173,7 @@ class BidLSTM_CNN(BaseModel):
 
         # custom features input and embeddings
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
-        casing_embedding = Embedding(input_dim=config.case_vocab_size, 
+        casing_embedding = Embedding(input_dim=config.case_vocab_size,
                            output_dim=config.case_embedding_size,
                            #mask_zero=True,
                            trainable=False,
@@ -288,12 +291,12 @@ class BidGRU_CRF(BaseModel):
         x = Concatenate()([word_input, chars])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(GRU(units=config.num_word_lstm_units, 
-                               return_sequences=True, 
+        x = Bidirectional(GRU(units=config.num_word_lstm_units,
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
-        x = Bidirectional(GRU(units=config.num_word_lstm_units, 
-                               return_sequences=True, 
+        x = Bidirectional(GRU(units=config.num_word_lstm_units,
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
         x = Dense(ntags)(x)
@@ -306,15 +309,8 @@ class BidGRU_CRF(BaseModel):
 
 class BidLSTM_CRF_CASING(BaseModel):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling.
-
-    References
-    --
-    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
-    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
-    https://arxiv.org/abs/1603.01360
-
-    In this architecture some casing features are added, just to see...
+    A Keras implementation of BidLSTM-CRF for sequence labelling with additinal features related to casing
+    (inferred from word forms).
     """
 
     name = 'BidLSTM_CRF_CASING'
@@ -352,7 +348,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         x = Concatenate()([word_input, casing_embedding, chars])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                return_sequences=True, 
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
@@ -364,16 +360,76 @@ class BidLSTM_CRF_CASING(BaseModel):
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
         self.config = config
 
+class BidLSTM_CRF_FEATURES(BaseModel):
+    """
+    A Keras implementation of BidLSTM-CRF for sequence labelling using tokens combined with 
+    additional generic discrete features information.
+    """
+
+    name = 'BidLSTM_CRF_FEATURES'
+
+    def __init__(self, config, ntags=None):
+
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
+                                                   return_sequences=False)))(char_embeddings)
+
+        # layout features input and embeddings
+        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
+
+        # The input dimension is calculated by
+        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
+        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
+                                       output_dim=config.features_embedding_size,
+                                       # mask_zero=True,
+                                       trainable=False,
+                                       name='features_embedding'), name="features_embedding_td")(features_input)
+
+        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
+                                                 name="features_embedding_td_2")(features_embedding)
+
+        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
+        # length of sequence not used for the moment (but used for f1 communication)
+        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        # combine characters and word embeddings
+        x = Concatenate()([word_input, chars, features_embedding_out])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        x = Dense(ntags)(x)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
+        self.config = config
+
 
 class BERT_Sequence(BaseModel):
     """
     This class allows to use a BERT TensorFlow architecture for sequence labelling. The architecture is
-    limited to the official Google TensorFlow implementation and cannot be mixed with Keras layers for 
+    build on the official Google TensorFlow implementation and cannot be mixed with Keras layers for 
     retraining. Training corresponds to a fine tuning only of a provided pre-trained model.
 
-    BERT sequence labelling model with fine-tuning.
+    BERT sequence labelling model with fine-tuning, using a CRF as activation layer. Replacing the usual 
+    softmax activation layer by a CRF activation always improves performance for sequence labelling.
 
-    Implementation is an adaptation of the official repository: 
+    The implementation is an adaptation of the official repository: 
     https://github.com/google-research/bert
 
     For reference:
