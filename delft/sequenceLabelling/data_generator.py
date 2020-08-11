@@ -93,7 +93,7 @@ class DataGenerator(keras.utils.Sequence):
         if self.max_sequence_length and max_length_x > self.max_sequence_length:
             max_length_x = self.max_sequence_length
             # truncation of sequence at max_sequence_length
-            x_tokenized = truncate_batch_values(x_tokenized, self.max_sequence_length)
+            x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length))
 
         # prevent sequence of length 1 alone in a batch (this causes an error in tf)
         extend = False
@@ -128,7 +128,7 @@ class DataGenerator(keras.utils.Sequence):
             # From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/c31f97433243a2b0a66671c0dd3e652dcd306362/sciencebeam_trainer_delft/sequence_labelling/data_generator.py#L152
             if self.max_sequence_length and max_length_y > self.max_sequence_length:
                 # truncation of sequence at max_sequence_length
-                 batch_y = truncate_batch_values(batch_y, self.max_sequence_length)
+                 batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length))
 
         batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
 
