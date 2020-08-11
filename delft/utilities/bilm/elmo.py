@@ -90,11 +90,12 @@ def weight_layers(name, bilm_ops, l2_coef=None,
                     pieces.append(w * tf.squeeze(t, squeeze_dims=1))
             sum_pieces = tf.add_n(pieces)
     
-            # get the regularizer 
+            # get the regularizer
+            scope = tf.get_variable_scope().name
             reg = [
                 r for r in tf.get_collection(
                                 tf.GraphKeys.REGULARIZATION_LOSSES)
-                if r.name.find('{}_ELMo_W/'.format(name)) >= 0
+                if r.name.find('{}/{}_ELMo_W/'.format(scope, name)) >= 0
             ]
             if len(reg) != 1:
                 raise ValueError
