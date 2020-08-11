@@ -1,17 +1,20 @@
-import itertools
-import re
 import collections
+import itertools
+import json
+import re
+
 import numpy as np
+
 np.random.seed(7)
-#from tensorflow import set_random_seed
-#set_random_seed(7)
+# from tensorflow import set_random_seed
+# set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
-import joblib
 
 import delft.utilities.bert.tokenization as tokenization
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 import tensorflow as tf
+
 tf.set_random_seed(7)
 
 # this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
@@ -19,7 +22,8 @@ tf.set_random_seed(7)
 UNK = '<UNK>'
 PAD = '<PAD>'
 
-case_index = {'<PAD>': 0, 'numeric': 1, 'allLower':2, 'allUpper':3, 'initialUpper':4, 'other':5, 'mainly_numeric':6, 'contains_digit': 7}
+case_index = {'<PAD>': 0, 'numeric': 1, 'allLower': 2, 'allUpper': 3, 'initialUpper': 4, 'other': 5,
+              'mainly_numeric': 6, 'contains_digit': 7}
 
 
 class WordPreprocessor(BaseEstimator, TransformerMixin):
@@ -27,9 +31,9 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
     def __init__(self,
                  use_char_feature=True,
                  padding=True,
-                 return_lengths=True, 
-                 return_casing=False, 
-                 return_features=False, 
+                 return_lengths=True,
+                 return_casing=False,
+                 return_features=False,
                  max_char_length=30
                  ):
 
@@ -39,27 +43,35 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         self.return_casing = return_casing
         self.return_features = return_features
         self.vocab_char = None
-        self.vocab_tag  = None
+        self.vocab_tag = None
         self.vocab_case = [k for k, v in case_index.items()]
         self.max_char_length = max_char_length
 
     def fit(self, X, y):
         chars = {PAD: 0, UNK: 1}
-        tags  = {PAD: 0}
+        tags = {PAD: 0}
 
-        for w in set(itertools.chain(*X)): 
-            if not self.use_char_feature:
-                continue
-            for c in w:
-                if c not in chars:
-                    chars[c] = len(chars)
+        if self.use_char_feature:
+            temp_chars = set()
+            for w in set(itertools.chain(*X)):
+                for c in w:
+                    temp_chars.add(c)
 
+            sorted_chars = sorted(temp_chars)
+            sorted_chars = {sorted_chars[idx]: len(list(sorted_chars)[0:idx]) + 2 for idx in
+                            range(0, len(sorted_chars))}
+            chars = {**chars, **sorted_chars}
+
+        temp_tags = set()
         for t in itertools.chain(*y):
-            if t not in tags:
-                tags[t] = len(tags)
+            temp_tags.add(t)
+            sorted_tags = sorted(temp_tags)
+            sorted_tags = {sorted_tags[idx]: len(list(sorted_tags)[0:idx]) + 1 for idx in
+                            range(0, len(sorted_tags))}
+            tags = {**tags, **sorted_tags}
 
         self.vocab_char = chars
-        self.vocab_tag  = tags
+        self.vocab_tag = tags
 
         return self
 
@@ -134,12 +146,18 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             return labels
 
     def save(self, file_path):
-        joblib.dump(self, file_path)
+        output_dict = vars(self)
+        with open(file_path, 'w') as fp:
+            json.dump(output_dict, fp, sort_keys=False, indent=4)
 
     @classmethod
     def load(cls, file_path):
-        p = joblib.load(file_path)
-        return p
+        with open(file_path) as f:
+            variables = json.load(f)
+            self = cls()
+            for key, val in variables.items():
+                setattr(self, key, val)
+        return self
 
 
 def _pad_sequences(sequences, pad_tok, max_length):
@@ -242,7 +260,7 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
             word = _lower(word)
         if num_norm:
             word = _normalize_num(word)
-        x[i,:] = embeddings.get_word_vector(word).astype('float32')
+        x[i, :] = embeddings.get_word_vector(word).astype('float32')
 
     return x
 
@@ -335,42 +353,44 @@ def to_casing_single(tokens, maxlen):
     return x
 
 
-def _casing(word):   
-        casing = 'other'
+def _casing(word):
+    casing = 'other'
 
-        numDigits = 0
-        for char in word:
-            if char.isdigit():
-                numDigits += 1
-        digitFraction = numDigits / float(len(word))
+    numDigits = 0
+    for char in word:
+        if char.isdigit():
+            numDigits += 1
+    digitFraction = numDigits / float(len(word))
 
-        if word.isdigit():
-            casing = 'numeric'
-        elif digitFraction > 0.5:
-            casing = 'mainly_numeric'
-        elif word.islower(): 
-            casing = 'allLower'
-        elif word.isupper(): 
-            casing = 'allUpper'
-        elif word[0].isupper(): 
-            casing = 'initialUpper'
-        elif numDigits > 0:
-            casing = 'contains_digit'
+    if word.isdigit():
+        casing = 'numeric'
+    elif digitFraction > 0.5:
+        casing = 'mainly_numeric'
+    elif word.islower():
+        casing = 'allLower'
+    elif word.isupper():
+        casing = 'allUpper'
+    elif word[0].isupper():
+        casing = 'initialUpper'
+    elif numDigits > 0:
+        casing = 'contains_digit'
 
-        return case_index[casing]
+    return case_index[casing]
 
 
 def _lower(word):
-    return word.lower() 
+    return word.lower()
 
 
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
 
+
 class InputExample(object):
     """
     A single training/test example for simple BERT sequence classification.
     """
+
     def __init__(self,
                  guid,
                  tokens,
@@ -386,10 +406,12 @@ class InputExample(object):
         self.tokens = tokens
         self.labels = labels
 
+
 class InputFeatures(object):
     """
     A single BERT set of features of data.
     """
+
     def __init__(self,
                  input_ids,
                  input_mask,
@@ -398,7 +420,8 @@ class InputFeatures(object):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
-        self.label_ids = label_ids     
+        self.label_ids = label_ids
+
 
 class NERProcessor(object):
     """
@@ -406,28 +429,29 @@ class NERProcessor(object):
     This is simply feed by the DeLFT sequence labelling data obtained by the 
     custom DeLFT readers. 
     """
+
     def __init__(self,
-                labels):
+                 labels):
         self.labels = labels
-    
+
     def get_train_examples(self, x, y):
         """
         Gets a collection of `InputExample`s for the train set
         """
         return self._get_example(x, y)
-    
+
     def get_dev_examples(self, x, y):
         """
         Gets a collection of `InputExample`s for the dev set
         """
         return self._get_example(x, y)
-    
+
     def get_test_examples(self, x, y):
         """
         Gets a collection of `InputExample`s for the test set
         """
         return self._get_example(x, y)
-    
+
     def get_labels(self):
         """
         Gets the list of labels for this data set
@@ -464,7 +488,7 @@ class NERProcessor(object):
             if isinstance(x, list):
                 simple_tokens = x
             else:
-                simple_tokens = tokenizeAndFilterSimple(x)                
+                simple_tokens = tokenizeAndFilterSimple(x)
             for j in range(len(simple_tokens)):
                 tokens.append(tokenization.convert_to_unicode(simple_tokens[j]))
                 labels.append(tokenization.convert_to_unicode(dummy_label))
@@ -488,11 +512,11 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     # only some of them has a prefix ## that allows to identify them downstream in the process
     tokens_marked = []
     label_tokens = example.labels
-    labels = []    
+    labels = []
 
     label_map = {}
-    #here start with zero this means that "[PAD]" is zero
-    for (i,label) in enumerate(label_list):
+    # here start with zero this means that "[PAD]" is zero
+    for (i, label) in enumerate(label_list):
         label_map[label] = i
 
     for text_token, label_token in zip(text_tokens, label_tokens):
@@ -529,7 +553,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     #
     # Where "type_ids" are used to indicate whether this is the first sequence 
     # or the second sequence. 
-    
+
     input_tokens.append("[CLS]")
     input_tokens_marked.append("[CLS]")
     segment_ids.append(0)
@@ -553,7 +577,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
 
     # The mask has 1 for real tokens and 0 for padding tokens
     input_mask = [1] * len(input_ids)
-    
+
     # Zero-pad up to the sequence length.
     while len(input_ids) < max_seq_length:
         input_ids.append(0)
@@ -565,7 +589,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
     assert len(input_mask) == max_seq_length
     assert len(segment_ids) == max_seq_length
     assert len(label_ids) == max_seq_length
-    
+
     if ex_index < 5:
         tf.logging.info("*** Example ***")
         tf.logging.info("guid: %s" % (example.guid))
@@ -582,6 +606,7 @@ def convert_single_example(ex_index, example, label_list, max_seq_length, tokeni
         label_ids=label_ids)
 
     return feature, input_tokens_marked
+
 
 def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remainder, batch_size):
     """
@@ -604,7 +629,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
             if t.dtype == tf.int64:
                 t = tf.to_int32(t)
             example[name] = t
-        
+
         return example
 
     def input_fn(params):
@@ -619,7 +644,7 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
             d = d.shuffle(buffer_size=100)
 
         d = d.apply(
-          tf.data.experimental.map_and_batch(
+            tf.data.experimental.map_and_batch(
                 lambda record: _decode_record(record, name_to_features),
                 batch_size=batch_size,
                 drop_remainder=drop_remainder))
@@ -628,28 +653,31 @@ def file_based_input_fn_builder(input_file, seq_length, is_training, drop_remain
 
     return input_fn
 
+
 def input_fn_generator(generator, seq_length, batch_size):
     """
     Creates an `input_fn` closure to be passed to the estimator
     """
+
     def input_fn(params):
         output_types = {
-          "input_ids": tf.int64,
-          "input_mask": tf.int64,
-          "segment_ids": tf.int64,
-          "label_ids": tf.int64
+            "input_ids": tf.int64,
+            "input_mask": tf.int64,
+            "segment_ids": tf.int64,
+            "label_ids": tf.int64
         }
 
         output_shapes = {
-          "input_ids": tf.TensorShape([None, seq_length]),
-          "input_mask": tf.TensorShape([None, seq_length]),
-          "segment_ids": tf.TensorShape([None, seq_length]),
-          "label_ids": tf.TensorShape([None, seq_length])
+            "input_ids": tf.TensorShape([None, seq_length]),
+            "input_mask": tf.TensorShape([None, seq_length]),
+            "segment_ids": tf.TensorShape([None, seq_length]),
+            "label_ids": tf.TensorShape([None, seq_length])
         }
 
         return tf.data.Dataset.from_generator(generator, output_types=output_types, output_shapes=output_shapes)
 
     return input_fn
+
 
 def file_based_convert_examples_to_features(examples, label_list, max_seq_length, tokenizer, output_file):
     """
@@ -661,7 +689,7 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
     for (ex_index, example) in enumerate(examples):
         if ex_index % 5000 == 0:
             tf.logging.info("Writing example %d of %d" % (ex_index, len(examples)))
-        feature,_ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
+        feature, _ = convert_single_example(ex_index, example, label_list, max_seq_length, tokenizer)
 
         def create_int_feature(values):
             f = tf.train.Feature(int64_list=tf.train.Int64List(value=list(values)))
@@ -678,6 +706,7 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
     # sentence token in each batch
     writer.close()
 
+
 def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer):
     """
     Convert a list of `InputExample` to be labelled into a list of bert `InputFeatures`
@@ -686,7 +715,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length, tokenizer
     input_tokens = []
     for (ex_index, example) in enumerate(examples):
         feature, tokens = convert_single_example(ex_index, example, label_list,
-                                         max_seq_length, tokenizer)
+                                                 max_seq_length, tokenizer)
         features.append(feature)
         input_tokens.append(tokens)
     return features, input_tokens
