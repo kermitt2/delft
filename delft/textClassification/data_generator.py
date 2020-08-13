@@ -1,6 +1,6 @@
 import numpy as np
 # seed is fixed for reproducibility
-from delft.utilities.numpy import shuffle_pair_with_view
+from delft.utilities.numpy import shuffle_triple_with_view
 
 np.random.seed(7)
 from tensorflow import set_random_seed
