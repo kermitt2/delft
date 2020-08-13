@@ -9,8 +9,6 @@
 
 # DeLFT
 
-__Work in continuous progress !__
-
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, covering sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing. We are focusing on sequence labelling/information extraction and text classification tasks, which are our main applications, and not on text understanding and machine translation which are the object of already many other Open Source frameworks. 
 
 From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment. The benefits of DeLFT are:
@@ -50,7 +48,7 @@ Install the dependencies:
 pip3 install -r requirements.txt
 ```
 
-DeLFT uses tensorflow 1.7 as backend, and will exploit your available GPU with the condition that CUDA (>=8.0) is properly installed. 
+DeLFT uses tensorflow 1.12 as backend, and will exploit your available GPU with the condition that CUDA (>=8.0) is properly installed. 
 
 You need then to download some pre-trained word embeddings and notify their path into the embedding registry. We suggest for exploiting the provided models:
 
@@ -117,33 +115,33 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 The following DL architectures are supported by DeLFT:
 
-* _BidLSTM-CRF_ with words and characters input following:
+* __BidLSTM-CRF__ with words and characters input following:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
-* _BidLSTM-CNN_ with words, characters and custom casing features input, see:
+* __BidLSTM-CNN__ with words, characters and custom casing features input, see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
 
-* _BidLSTM-CNN-CRF_ with words, characters and custom casing features input following:
+* __BidLSTM-CNN-CRF__ with words, characters and custom casing features input following:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labelling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
 
-* _BidGRU-CRF_, similar to: 
+* __BidGRU-CRF__, similar to: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Waleed Ammar, Chandra Bhagavatula, Russell Power. "Semi-supervised sequence tagging with bidirectional language models". 2017. https://arxiv.org/pdf/1705.00108  
 
-* _BERT_ transformer architecture, which can be used for sequence labelling. A BERT transformer architecture (with fine-tuning) is used as alternative to the above RNN architectures for sequence labeling. Any pre-trained TensorFlow BERT models can be used (e.g. SciBERT or BioBERT for scientific and medical texts). 
+* __BERT__ transformer architecture, with fine-tuning and a CRF as activation layer, adapted to sequence labeling. Any pre-trained TensorFlow BERT models can be used (e.g. SciBERT or BioBERT for scientific and medical texts). 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
-In addition, the following contextual embeddings can be used in combination to the previous RNN architectures: 
+In addition, the following contextual embeddings can be used in combination to the RNN architectures: 
 
-* the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualised embeddings, see:
+* [ELMo](https://allennlp.org/elmo) contextualised embeddings, which lead to the state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), when combined with _BidLSTM-CRF_ with , see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
-* Feature extraction to be used as contextual embeddings can also be obtained from _BERT_, as ELMo alternative, as explained in section 5.4 of: 
+* _BERT_ feature extraction to be used as contextual embeddings (as ELMo alternative), as explained in section 5.4 of: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
