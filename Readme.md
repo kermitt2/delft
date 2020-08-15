@@ -145,11 +145,11 @@ The following DL architectures are supported by DeLFT:
 
 In addition, the following contextual embeddings can be used in combination to the RNN architectures: 
 
-* [ELMo](https://allennlp.org/elmo) contextualised embeddings, which lead to the state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), when combined with _BidLSTM-CRF_ with , see:
+* [__ELMo__](https://allennlp.org/elmo) contextualised embeddings, which lead to the state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), when combined with _BidLSTM-CRF_ with , see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
-* _BERT_ feature extraction to be used as contextual embeddings (as ELMo alternative), as explained in section 5.4 of: 
+* __BERT__ feature extraction to be used as contextual embeddings (as ELMo alternative), as explained in section 5.4 of: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
