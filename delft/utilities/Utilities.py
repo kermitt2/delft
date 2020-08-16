@@ -24,7 +24,7 @@ from textblob.translate import NotTranslated
 from xml.sax.saxutils import escape
 
 import argparse
-
+import truecase
 
 def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
     return [
@@ -562,6 +562,26 @@ def merge_folders(root_src_dir, root_dst_dir):
             if os.path.exists(dst_file):
                 os.remove(dst_file)
             shutil.copy(src_file, dst_dir)
+
+
+def truecase_sentence(tokens):
+    """
+    from https://github.com/ghaddarAbs
+    for experimenting with CoNLL-2003 casing
+    """
+    word_lst = [(w, idx) for idx, w in enumerate(tokens) if all(c.isalpha() for c in w)]
+    lst = [w for w, _ in word_lst if re.match(r'\b[A-Z\.\-]+\b', w)]
+
+    if len(lst) and len(lst) == len(word_lst):
+        parts = truecase.get_true_case(' '.join(lst)).split()
+
+        # the trucaser have its own tokenization ...
+        # skip if the number of word doesn't match
+        if len(parts) != len(word_lst): return tokens
+
+        for (w, idx), nw in zip(word_lst, parts):
+            tokens[idx] = nw
+    return tokens
 
 
 if __name__ == "__main__":
