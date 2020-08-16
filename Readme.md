@@ -127,6 +127,8 @@ The following DL architectures are supported by DeLFT:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
+* __BidLSTM_CRF_FEATURES__ same as above, with generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format).
+
 * __BidLSTM-CNN__ with words, characters and custom casing features input, see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
@@ -226,9 +228,10 @@ optional arguments:
                         training set
   --architecture ARCHITECTURE
                         type of model architecture to be used, one of
-                        ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF',
-                        'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING',
-                        'bert-base-en', 'bert-base-en', 'scibert', 'biobert']
+                        ['BidLSTM_CRF', 'BidLSTM_CRF_FEATURES', 'BidLSTM_CNN_CRF', 
+                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 
+                        'BidLSTM_CRF_CASING', 'bert-base-en', 'bert-base-en', 
+                        'scibert', 'biobert']
   --use-ELMo            Use ELMo contextual embeddings
   --use-BERT            Use BERT extracted features (embeddings)
   --data-path DATA_PATH
