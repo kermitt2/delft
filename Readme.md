@@ -9,25 +9,31 @@
 
 # DeLFT
 
-__Work in continuous progress !__
+__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, focusing on sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
 
-__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, covering sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing. We are focusing on sequence labelling/information extraction and text classification tasks, which are our main applications, and not on text understanding and machine translation which are the object of already many other Open Source frameworks. 
+DeLFT has three main purposes: 
 
-From the observation that most of the open source implementations using Keras are toy examples, our motivation is to develop a framework that can be efficient, scalable and more usable in a production environment. The benefits of DeLFT are:
+1. __Usefulness__, by targeting the most common textual content used by humans to communicate, which is not just simple text as considered usually by existing Deep Learning works in NLP, but _rich text_ where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. Such rich text is also usually coming from large documents like PDF or HTML, and not just text segments like sentences or paragraphs.
 
-* Re-implement a variety of state-of-the-art deep learning architectures for both sequence labelling and text classification problems, including the usage of [ELMo](https://allennlp.org/elmo) contextualised embeddings and [BERT](https://github.com/google-research/bert) transformer architecture, which can all be used within the same environment. For instance, this allows to reproduce under similar conditions the performance of all recent NER systems, and even improve most of them.
+2. __Reproducibility and benchmarking__, by implementing several state-of-the-art algorithms for both sequence labelling and text classification tasks, including the usage of ELMo contextualised embeddings and BERT transformer architecture, offering the capacity to validate reported results and to benchmark several methods under the same conditions and criteria.
 
-* Implement generic support of features. Most of the actual text to process in real world is not simple text as considered by existing Deep Learning works in NLP, but rich text where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. 
+3. __Production level__, by offering optimzed performance, robustness and integration possibilities, which can support better engineering decisions and successful production-level applications. 
 
-* Reduce model size for the RNN models, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
+Some key elements include: 
 
-* Use dynamic data generator so that the training data do not need to stand completely in memory.
+* Reduction of the size of RNN models, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
-* Load and manage efficiently an unlimited volume of pre-trained embeddings: instead of loading pre-trained embeddings in memory - which is horribly slow in Python and limits the number of embeddings to be used simultaneously - the pre-trained embeddings are compiled the first time they are accessed and stored efficiently in a LMDB database. This permits to have the pre-trained embeddings immediately "warm" (no load time), to free memory and to use any number of embeddings with a very negligible impact on runtime when using SSD.
+* Implementation of a generic support of features. 
 
-The medium term goal is then to provide good performance (accuracy, runtime, compactness) models also to productions stack such as Java/Scala and C++. A native Java integration of these deep learning models has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
+* Usage of dynamic data generator so that the training data do not need to stand completely in memory.
 
-DeLFT has been tested with python 3.5, Keras 2.1 and Tensorflow 1.7+ as backend. At this stage, we do not guarantee that DeLFT will run with other different versions of these libraries or other Keras backend versions. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely fine without ELMo contextual embeddings. Using ELMo or BERT Base model is fine with a GeForce GTX 1080 Ti.
+* Efficiently loading and management of an unlimited volume of pre-trained embeddings.
+
+* A comprehensive evaluation framework with the standard metrics for sequence labeling and classification tasks, including n-fold cross validation. 
+
+A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
+
+DeLFT has been tested with python 3.5 and 3.6, Keras 2.2 and Tensorflow 1.7+ as backend. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely fine without ELMo contextual embeddings. Using ELMo or BERT Base model is fine with a GeForce GTX 1080 Ti.
 
 ## Install
 
@@ -50,7 +56,7 @@ Install the dependencies:
 pip3 install -r requirements.txt
 ```
 
-DeLFT uses tensorflow 1.7 as backend, and will exploit your available GPU with the condition that CUDA (>=8.0) is properly installed. 
+DeLFT uses tensorflow 1.12 as backend, and will exploit your available GPU with the condition that CUDA (>=8.0) is properly installed. 
 
 You need then to download some pre-trained word embeddings and notify their path into the embedding registry. We suggest for exploiting the provided models:
 
@@ -91,7 +97,7 @@ You're ready to use DeLFT.
 
 ## Management of embeddings
 
-The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialised and stored in a LMDB database, a very efficient embedded database using memory page (already used in the Machine Learning world by Caffe and Torch for managing large training data). The next time these embeddings will be accessed, they will be immediately available.
+The first time DeLFT starts and accesses pre-trained embeddings, these embeddings are serialised and stored in a LMDB database, a very efficient embedded database using memory-mapped file (already used in the Machine Learning world by Caffe and Torch for managing large training data). The next time these embeddings will be accessed, they will be immediately available.
 
 Our approach solves the bottleneck problem pointed for instance [here](https://spenai.org/bravepineapple/faster_em/) in a much better way than quantising+compression or pruning. After being compiled and stored at the first access, any volume of embeddings vectors can be used immediately without any loading, with a negligible usage of memory, without any accuracy loss and with a negligible impact on runtime when using SSD. In practice, we can exploit for instance embeddings for dozen languages simultaneously, without any memory and runtime issues - a requirement for any ambitious industrial deployment of a neural NLP system. 
 
@@ -117,33 +123,33 @@ Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `embedd
 
 The following DL architectures are supported by DeLFT:
 
-* _BidLSTM-CRF_ with words and characters input following:
+* __BidLSTM-CRF__ with words and characters input following:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 
-* _BidLSTM-CNN_ with words, characters and custom casing features input, see:
+* __BidLSTM-CNN__ with words, characters and custom casing features input, see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [2] Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. https://arxiv.org/abs/1511.08308
 
-* _BidLSTM-CNN-CRF_ with words, characters and custom casing features input following:
+* __BidLSTM-CNN-CRF__ with words, characters and custom casing features input following:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [3] Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labelling via Bi-directional LSTM-CNNs-CRF". 2016. https://arxiv.org/abs/1603.01354
 
-* _BidGRU-CRF_, similar to: 
+* __BidGRU-CRF__, similar to: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [4] Matthew E. Peters, Waleed Ammar, Chandra Bhagavatula, Russell Power. "Semi-supervised sequence tagging with bidirectional language models". 2017. https://arxiv.org/pdf/1705.00108  
 
-* _BERT_ transformer architecture, which can be used for sequence labelling. A BERT transformer architecture (with fine-tuning) is used as alternative to the above RNN architectures for sequence labeling. Any pre-trained TensorFlow BERT models can be used (e.g. SciBERT or BioBERT for scientific and medical texts). 
+* __BERT__ transformer architecture, with fine-tuning and a CRF as activation layer, adapted to sequence labeling. Any pre-trained TensorFlow BERT models can be used (e.g. SciBERT or BioBERT for scientific and medical texts). 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
-In addition, the following contextual embeddings can be used in combination to the previous RNN architectures: 
+In addition, the following contextual embeddings can be used in combination to the RNN architectures: 
 
-* the current state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), _BidLSTM-CRF_ with [ELMo](https://allennlp.org/elmo) contextualised embeddings, see:
+* [__ELMo__](https://allennlp.org/elmo) contextualised embeddings, which lead to the state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), when combined with _BidLSTM-CRF_ with , see:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
 
-* Feature extraction to be used as contextual embeddings can also be obtained from _BERT_, as ELMo alternative, as explained in section 5.4 of: 
+* __BERT__ feature extraction to be used as contextual embeddings (as ELMo alternative), as explained in section 5.4 of: 
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
@@ -155,9 +161,9 @@ Note that all our annotation data for sequence labelling follows the [IOB2](http
 
 ##### Overview
 
-We have reimplemented in DeLFT the main neural architectures for NER of the last two years and performed a reproducibility analysis of the these systems with comparable evaluation criterias. Unfortunaltely, in publications, systems are usually compared directly with reported results obtained in different settings, which can bias scores by more than 1.0 points and completely invalidate both comparison and interpretation of results.  
+We have reimplemented in DeLFT the main neural architectures for NER of the last four years and performed a reproducibility analysis of the these systems with comparable evaluation criterias. Unfortunaltely, in publications, systems are usually compared directly with reported results obtained in different settings, which can bias scores by more than 1.0 point and completely invalidate both comparison and interpretation of results.  
 
-You can read more about our reproducibility study of neural NER in this [blog article](http://science-miner.com/a-reproducibility-study-on-neural-ner/).
+You can read more about our reproducibility study of neural NER in this [blog article](http://science-miner.com/a-reproducibility-study-on-neural-ner/). This effort is very similar to the work of [(Yang and Zhang, 2018)](https://arxiv.org/pdf/1806.04470.pdf) (see also [NCRFpp](https://github.com/jiesutd/NCRFpp)) for a fair comparison of RNN for sequence labeling, but has also been extended to BERT. 
 
 All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We report first the f-score averaged over 10 training runs, and second the best f-score over these 10 training runs. All the DeLFT trained models are included in this repository. 
 
@@ -243,7 +249,7 @@ More explanations and examples are presented in the following sections.
 
 ##### CONLL 2003
 
-DeLFT comes with various pre-trained models with the CoNLL-2003 NER dataset.
+DeLFT comes with various trained models for the CoNLL-2003 NER dataset.
 
 By default, the BidLSTM-CRF architecture is used. With this available model, glove-840B word embeddings, and optimisation of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (best run over 10 training, using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1], or __90.75__ when averaged over 10 training. Best model f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training (best run over 10 training), as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
 

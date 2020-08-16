@@ -1,6 +1,6 @@
 import numpy as np
 # seed is fixed for reproducibility
-from delft.utilities.numpy import shuffle_pair_with_view
+from delft.utilities.numpy import shuffle_triple_with_view
 
 np.random.seed(7)
 from tensorflow import set_random_seed
@@ -41,7 +41,7 @@ class DataGenerator(keras.utils.Sequence):
 
         # shuffle dataset at each epoch
         if self.shuffle:
-            self.x, self.y = shuffle_pair_with_view(self.x, self.y)
+            self.x, self.y = shuffle_triple_with_view(self.x, self.y)
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples' 
