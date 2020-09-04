@@ -148,22 +148,23 @@ class Classifier(object):
                     result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
-        else:
-            if self.models is not None:
-                # bert model?
-                if self.model_config.model_type.find("bert") != -1:
-                    # we don't support n classifiers for BERT (would be too large)
-                    # be sure the input processor is instanciated
-                    self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
-                    result = self.models[0].predict(texts)
-                else:    
+        else:            
+            # bert model?
+            if self.model_config.model_type.find("bert") != -1:
+                # we don't support n classifiers for BERT (would be too large and too slow if loaded 10 times from file for each batch)
+                # be sure the input processor is instanciated
+                self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
+                #result = self.models[0].predict(texts)
+                result = self.model.predict(texts)
+            else:
+                if self.models is not None: 
                     predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
                     result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
-            else:
-                raise (OSError('Could not find nfolds models.'))
+                else:
+                    raise (OSError('Could not find nfolds models.'))
         if output_format is 'json':
             res = {
                 "software": "DeLFT",
@@ -188,7 +189,7 @@ class Classifier(object):
             return result
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
-        if self.model_config.fold_number is 1:
+        if self.model_config.fold_number == 1:
             if self.model is not None:
                 # bert model?
                 if self.model_config.model_type.find("bert") != -1:
@@ -378,6 +379,7 @@ class Classifier(object):
         if self.model_config.model_type.find("bert") != -1:
              self.model = getModel(self.model_config, self.training_config)
              self.model.load()
+             return
 
         # load embeddings
         # Do not use cache in 'production' mode

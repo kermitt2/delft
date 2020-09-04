@@ -178,8 +178,6 @@ class BERT_classifier_processor(DataProcessor):
             if the_class not in self.list_classes:
                 #the_class = 'other'
                 continue
-            #if the_class not in self.list_classes:
-            #    continue
             label = tokenization.convert_to_unicode(the_class)
             examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
             valid_classes[accumul] = y
