@@ -6,6 +6,9 @@ np.random.seed(7)
 from tensorflow import set_random_seed
 set_random_seed(7)
 
+# ask tensorflow to be quiet and not print hundred lines of logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+
 import datetime
 
 from delft.textClassification.config import ModelConfig, TrainingConfig
@@ -24,7 +27,6 @@ from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r
 from sklearn.model_selection import train_test_split
 
 from keras.utils import plot_model
-
 
 class Classifier(object):
 

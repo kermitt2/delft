@@ -721,8 +721,7 @@ def train_model(model,
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
-        print("nb_workers", nb_workers)
-        print("multiprocessing", multiprocessing)
+
         model.fit_generator(
             generator=training_generator,
             use_multiprocessing=multiprocessing,
