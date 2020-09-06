@@ -1,6 +1,6 @@
 {
     "model_name": "software_use",
-    "model_type": "scibert",
+    "model_type": "gru",
     "embeddings_name": "glove-840B",
     "use_ELMo": false,
     "use_BERT": false,
@@ -8,12 +8,12 @@
     "word_embedding_size": 300,
     "dropout": 0.5,
     "recurrent_dropout": 0.25,
-    "maxlen": 100,
+    "maxlen": 300,
     "use_char_feature": false,
     "list_classes": [
         "not_used",
         "used"
     ],
-    "fold_number": 10,
-    "batch_size": 32
+    "fold_number": 1,
+    "batch_size": 256
 }
