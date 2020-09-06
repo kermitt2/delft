@@ -1,7 +1,10 @@
 import numpy as np
 import xml
+import gzip
+import json
 from xml.sax import make_parser, handler
 import pandas as pd
+from delft.utilities.numpy import shuffle_triple_with_view
 
 
 def load_texts_and_classes(filepath):
@@ -144,7 +147,6 @@ def load_citation_sentiment_corpus(filepath):
     return np.asarray(texts), np.asarray(polarities)
 
 
-
 def load_dataseer_corpus_csv(filepath):
     """
     Load texts from the Dataseer dataset type corpus in csv format:
@@ -218,6 +220,49 @@ def load_dataseer_corpus_csv(filepath):
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
     else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
+
+
+def load_software_use_corpus_json(json_gz_file_path):
+    """
+    Load texts and classes from the corresponding Softcite corpus export in gzipped json format
+
+    Classification of the software usage is binary
+
+    Returns:
+        tuple(numpy array, numpy array): 
+            texts, binary class (used/not_used)
+
+    """
+
+    texts_list = []
+    classes_list = []
+
+    with gzip.GzipFile(json_gz_file_path, 'r') as fin:
+        data = json.loads(fin.read().decode('utf-8'))
+        if not "documents" in data:
+            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            return None, None 
+        for document in data["documents"]:
+            for segment in document["texts"]:
+                if "entity_spans" in segment:
+                    if not "text" in segment:
+                        continue
+                    text = segment["text"]
+                    for entity_span in segment["entity_spans"]:
+                        if entity_span["type"] == "software":
+                            texts_list.append(text)
+                            if "used" in entity_span and entity_span["used"]:
+                                classes_list.append("used")
+                            else:
+                                classes_list.append("not_used")
+    list_possible_classes = np.unique(classes_list)
+    classes_list_final = normalize_classes(classes_list, list_possible_classes)
+
+    texts_list_final = np.asarray(texts_list)
+
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+
+    return texts_list_final, classes_list_final
 
 
 def normalize_classes(y, list_classes):
