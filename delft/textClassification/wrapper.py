@@ -153,7 +153,9 @@ class Classifier(object):
         else:            
             # bert model?
             if self.model_config.model_type.find("bert") != -1:
-                # we don't support n classifiers for BERT (would be too large and too slow if loaded 10 times from file for each batch)
+                # we don't support n classifiers for BERT for prediction currently 
+                # (it would be too large and too slow if loaded 10 times from file for each batch)
+                # (however it is done for eval, models are loaded 1 time for the complete dataset, not each time per batch, and we should do the same here) 
                 # be sure the input processor is instanciated
                 self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
                 #result = self.models[0].predict(texts)

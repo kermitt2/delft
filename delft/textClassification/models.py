@@ -1038,8 +1038,6 @@ class BERT_classifier():
         
         train_file = os.path.join(self.model_dir+str(fold_number), "train.tf_record")
 
-        print(self.labels)
-
         file_based_convert_examples_to_features(train_examples, self.labels, 
             self.max_seq_length, self.tokenizer, train_file)
 
