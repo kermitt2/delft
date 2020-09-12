@@ -694,7 +694,19 @@ def getModel(model_config, training_config):
     return model
 
 
-def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_weights, training_generator, validation_generator, val_y, use_ELMo=False, use_BERT=False, multiprocessing=True, callbacks=None):
+def train_model(model, 
+                list_classes, 
+                batch_size, 
+                max_epoch, 
+                use_roc_auc, 
+                class_weights, 
+                training_generator, 
+                validation_generator, 
+                val_y, 
+                use_ELMo=False, 
+                use_BERT=False, 
+                multiprocessing=True, 
+                callbacks=None):
     best_loss = -1
     best_roc_auc = -1
     best_weights = None
@@ -709,6 +721,7 @@ def train_model(model, list_classes, batch_size, max_epoch, use_roc_auc, class_w
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
+
         model.fit_generator(
             generator=training_generator,
             use_multiprocessing=multiprocessing,
@@ -823,7 +836,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
 
         foldModel, best_score = train_model(getModel(model_config, training_config),
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
-                class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, callbacks=callbacks)
+                class_weights, training_generator, validation_generator, val_y, 
+                model_config.use_ELMo, 
+                model_config.use_BERT,
+                multiprocessing=training_config.multiprocessing, callbacks=callbacks)
         models.append(foldModel)
 
         #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
