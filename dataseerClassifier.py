@@ -394,7 +394,7 @@ def classify(texts, output_format, architecture="gru", cascaded=False):
         Classify a list of texts with an existing model
     '''
     # load model
-    model = Classifier('dataseer', model_type=architecture)
+    model = Classifier('dataseer-first', model_type=architecture)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
