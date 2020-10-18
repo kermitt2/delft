@@ -150,11 +150,11 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
 
     model_name = 'grobid-' + model
 
-    if use_ELMo and not 'bert' in model.lower():
-        model_name += '-with_ELMo'
-
     if architecture != 'BidLSTM_CRF':
         model_name += '-'+architecture
+
+    if use_ELMo and not 'bert' in model.lower():
+        model_name += '-with_ELMo'
 
     start_time = time.time()
 
@@ -172,13 +172,18 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, use_ELMo=False):
+def annotate_text(texts, model, output_format, use_ELMo=False, architecture=None):
     annotations = []
 
     # load model
     model_name = 'grobid-'+model
-    if use_ELMo:
+
+    if architecture != 'BidLSTM_CRF':
+        model_name += '-'+architecture
+
+    if use_ELMo and not 'bert' in model.lower():
         model_name += '-with_ELMo'
+
     model = Sequence(model_name)
     model.load()
 
@@ -288,7 +293,7 @@ if __name__ == "__main__":
             someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
-        result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo)
+        result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     try:
