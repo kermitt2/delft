@@ -138,7 +138,7 @@ def configure(model, architecture, output_path=None, use_ELMo=False):
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None):
+def eval_(model, use_ELMo=False, input_path=None, architecture=None):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -150,8 +150,11 @@ def eval_(model, use_ELMo=False, input_path=None):
 
     model_name = 'grobid-' + model
 
-    if use_ELMo:
+    if use_ELMo and not 'bert' in model.lower():
         model_name += '-with_ELMo'
+
+    if architecture != 'BidLSTM_CRF':
+        model_name += '-'+architecture
 
     start_time = time.time()
 
@@ -258,7 +261,7 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
-        eval_(model, use_ELMo=use_ELMo, input_path=input_path)
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
