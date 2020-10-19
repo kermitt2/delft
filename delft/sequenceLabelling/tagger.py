@@ -30,13 +30,12 @@ class Tagger(object):
         else:
            list_of_tags = []
 
-        tokeniz = False
+        to_tokeniz = False
         if (len(texts)>0 and isinstance(texts[0], str)):
-            tokeniz = True
+            to_tokeniz = True
 
         if 'bert' in self.model_config.model_type.lower():
             preds = self.model.predict(texts, fold_id=-1)
-
             for i in range(0,len(preds)):
                 pred = preds[i]
                 text = texts[i]
@@ -62,13 +61,12 @@ class Tagger(object):
                     list_of_tags.append(the_tags)
 
         else:
-
             predict_generator = DataGenerator(texts, None, 
                 batch_size=self.model_config.batch_size, 
                 preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size,
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, tokenize=tokeniz, shuffle=False, features=None)
+                embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, features=None)
 
             nb_workers = 6
             multiprocessing = True
@@ -90,7 +88,8 @@ class Tagger(object):
                     pred = [preds[i]]
                     text = texts[i+(steps_done*self.model_config.batch_size)]
 
-                    if (isinstance(text, str)):
+                    #if (isinstance(text, str)):
+                    if to_tokeniz:
                        tokens, offsets = tokenizeAndFilter(text)
                     else:
                         # it is a list of string, so a string already tokenized

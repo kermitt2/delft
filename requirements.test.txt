@@ -15,3 +15,4 @@ pydot==1.2.4
 lmdb==0.94
 keras-bert==0.39.0
 truecase
+jep==3.9.1

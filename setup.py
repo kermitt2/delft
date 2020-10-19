@@ -28,7 +28,8 @@ setuptools.setup(
         'unidecode>=1.0.22',
         'pydot>=1.2.4',
         'lmdb>=0.94',
-        'keras-bert==0.80.0'
+        'keras-bert==0.80.0',
+        'jep==3.9.1'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.5",

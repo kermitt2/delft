@@ -508,7 +508,7 @@ class Sequence(object):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
 
         if self.model_config.model_type.lower().find("bert") != -1:
-             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag), dir_path=dir_path)
              self.model.load_model()
              return
 

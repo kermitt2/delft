@@ -23,7 +23,7 @@ import tensorflow as tf
 tf.set_random_seed(7)
 
 
-def get_model(config, preprocessor, ntags=None):
+def get_model(config, preprocessor, ntags=None, dir_path=None):
     if config.model_type == BidLSTM_CRF.name:
         preprocessor.return_casing = False
         config.use_crf = True
@@ -55,7 +55,7 @@ def get_model(config, preprocessor, ntags=None):
         # as activation layer for BERT e
         config.use_crf = False
         config.labels = preprocessor.vocab_tag
-        return BERT_Sequence(config, ntags)
+        return BERT_Sequence(config, ntags, dir_path)
     else:
         raise (OSError('Model name does exist: ' + config.model_type))
 
@@ -442,7 +442,7 @@ class BERT_Sequence(BaseModel):
     }
     """
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config, ntags=None, dir_path=None):
         self.graph = tf.get_default_graph()
 
         self.model_name = config.model_name
@@ -491,8 +491,12 @@ class BERT_Sequence(BaseModel):
         self.processor = NERProcessor(self.labels)
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
-        self.model_dir = 'data/models/sequenceLabelling/' + self.model_name    
-
+        if dir_path is None:
+            self.model_dir = 'data/models/sequenceLabelling/' + self.model_name    
+        else:
+            if not dir_path.endswith("/"):
+                dir_path += "/"
+            self.model_dir = dir_path + self.model_name 
         self.loaded_estimator = None
 
     def train(self, x_train=None, y_train=None):

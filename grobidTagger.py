@@ -9,6 +9,7 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.models import *
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+from delft.sequenceLabelling.reader import load_data_crf_string
 
 import keras.backend as K
 
@@ -142,7 +143,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
-        print("A Grobid evaluation data file must be specified to evaluate a grobid model for the eval action")
+        print("A Grobid evaluation data file must be specified for evaluating a grobid model for the eval action, use parameter --input ")
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -295,6 +296,13 @@ if __name__ == "__main__":
 
         result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
+
+        # test with the use input file with features
+        with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
+            input_crf_string = file.read()
+        x_all, f_all = load_data_crf_string(input_crf_string)
+        result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture)
+        print(result)
 
     try:
         # see https://github.com/tensorflow/tensorflow/issues/3388
