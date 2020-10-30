@@ -69,7 +69,6 @@ class TestWordPreprocessor:
         assert len(p.vocab_char) == 70
 
 
-
 def _to_dense(a: np.array):
     try:
         return a.todense()
@@ -132,3 +131,24 @@ class TestFeaturesPreprocessor:
         features_length = len(preprocessor.features_indices)
         assert features_length == 1
         assert all_close(features_transformed, [[[1], [2], [3]]])
+
+    def test_serialize_to_json(self):
+        preprocessor = FeaturesPreprocessor(features_indices=[1])
+        word_preprocessor = WordPreprocessor(feature_preprocessor=preprocessor)
+
+        import tempfile
+        f = tempfile.NamedTemporaryFile(delete=True)
+        word_preprocessor.save(file_path=f.name)
+
+        back = WordPreprocessor.load(f.name)
+
+        assert back is not None
+        assert back.feature_preprocessor is not None
+        original_as_dict = word_preprocessor.__dict__
+        back_as_dict = back.__dict__
+        for key in back_as_dict.keys():
+            if key == 'feature_preprocessor':
+                for sub_key in back_as_dict[key].__dict__.keys():
+                    assert back_as_dict[key].__dict__[sub_key] == original_as_dict[key].__dict__[sub_key]
+            else:
+                assert back_as_dict[key] == original_as_dict[key]
