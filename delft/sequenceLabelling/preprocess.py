@@ -373,9 +373,8 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             self = cls()
             for key, val in variables.items():
                 if key == 'feature_preprocessor' and val is not None:
-                    preprocessor = FeaturesPreprocessor(features_indices=val['features_indices'],
-                                                        features_vocabulary_size=val['features_vocabulary_size'],
-                                                        features_map_to_index=val['features_map_to_index'])
+                    preprocessor = FeaturesPreprocessor()
+                    preprocessor.__dict__ = val
                     setattr(self, key, preprocessor)
                 else:
                     setattr(self, key, val)
