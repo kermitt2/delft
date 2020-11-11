@@ -203,7 +203,7 @@ def load_dataseer_corpus_csv(filepath):
 
     if df.shape[1] > 3:
         # remove possible row with 'no_dataset'
-        df = df[~df.datatype.str.contains("_no_dataset")]
+        df = df[~df.datatype.str.contains("no_dataset")]
         datasubtypes = df.iloc[:,3]
         datasubtypes_list = datasubtypes.values.tolist()
         datasubtypes_list = np.asarray(datasubtypes_list)
