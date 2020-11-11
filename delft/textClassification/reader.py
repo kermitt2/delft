@@ -195,32 +195,43 @@ def load_dataseer_corpus_csv(filepath):
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
     datatypes_list = np.asarray(datatypes_list)
-    list_classes_datatypes = np.unique(datatypes_list)
-    datatypes_final = normalize_classes(datatypes_list, list_classes_datatypes)
+    datatypes_list_lower = np.char.lower(datatypes_list)
+    list_classes_datatypes = np.unique(datatypes_list_lower)    
+    datatypes_final = normalize_classes(datatypes_list_lower, list_classes_datatypes)
 
     print(df.shape, df.shape[0], df.shape[1])
 
     if df.shape[1] > 3:
+        # remove possible row with 'no_dataset'
+        df = df[~df.datatype.str.contains("_no_dataset")]
         datasubtypes = df.iloc[:,3]
         datasubtypes_list = datasubtypes.values.tolist()
         datasubtypes_list = np.asarray(datasubtypes_list)
-        list_classes_datasubtypes = np.unique(datasubtypes_list)
-        datasubtypes_final = normalize_classes(datasubtypes_list, list_classes_datasubtypes)
+        datasubtypes_list_lower = np.char.lower(datasubtypes_list)
+        list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
+        datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
 
+    '''
     if df.shape[1] > 4:
         leafdatatypes = df.iloc[:,4]
         leafdatatypes_list = leafdatatypes.values.tolist()
         leafdatatypes_list = np.asarray(leafdatatypes_list)
-        list_classes_leafdatatypes = np.unique(leafdatatypes_list)
-        leafdatatypes_final = normalize_classes(leafdatatypes_list, list_classes_leafdatatypes)
+        #leafdatatypes_list_lower = np.char.lower(leafdatatypes_list)
+        leafdatatypes_list_lower = leafdatatypes_list
+        list_classes_leafdatatypes = np.unique(leafdatatypes_list_lower)  
+        print(list_classes_leafdatatypes)
+        leafdatatypes_final = normalize_classes(leafdatatypes_list_lower, list_classes_leafdatatypes)
+    '''
 
     if df.shape[1] == 3:
         return np.asarray(texts_list), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
-    elif df.shape[1] == 4:
+    #elif df.shape[1] == 4:
+    else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
+    '''
     else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
-
+    '''
 
 def load_software_use_corpus_json(json_gz_file_path):
     """
@@ -267,7 +278,7 @@ def load_software_use_corpus_json(json_gz_file_path):
 
 def normalize_classes(y, list_classes):
     '''
-        Replace string values of classes by their index in the list of classes
+    Replace string values of classes by their index in the list of classes
     '''
     def f(x):
         return np.where(list_classes == x)
