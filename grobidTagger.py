@@ -295,12 +295,13 @@ if __name__ == "__main__":
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
         # test with the use input file with features
+        '''
         with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
             input_crf_string = file.read()
         x_all, f_all = load_data_crf_string(input_crf_string)
         result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture)
         print(result)
-
+        '''
     try:
         # see https://github.com/tensorflow/tensorflow/issues/3388
         K.clear_session()

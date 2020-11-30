@@ -1,8 +1,8 @@
 {
-    "model_name": "grobid-date-BidLSTM_CRF_FEATURES",
+    "model_name": "grobid-affiliation-address-BidLSTM_CRF_FEATURES",
     "model_type": "BidLSTM_CRF_FEATURES",
     "embeddings_name": "glove-840B",
-    "char_vocab_size": 70,
+    "char_vocab_size": 152,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
     "num_char_lstm_units": 25,
@@ -15,7 +15,10 @@
         12,
         13,
         14,
-        15
+        15,
+        16,
+        17,
+        18
     ],
     "features_embedding_size": 4,
     "features_lstm_units": 4,
@@ -38,13 +41,13 @@
             "LINESTART": 3
         },
         "10": {
-            "ALLCAP": 13,
+            "ALLCAPS": 13,
             "INITCAP": 14,
             "NOCAPS": 15
         },
         "11": {
             "ALLDIGIT": 25,
-            "CONTAINSDIGITS": 26,
+            "CONTAINDIGIT": 26,
             "NODIGIT": 27
         },
         "12": {
@@ -60,14 +63,26 @@
             "1": 62
         },
         "15": {
-            "COMMA": 73,
-            "DOT": 74,
-            "ENDBRACKET": 75,
-            "HYPHEN": 76,
-            "NOPUNCT": 77,
-            "OPENBRACKET": 78,
-            "PUNCT": 79
+            "0": 73
+        },
+        "16": {
+            "0": 85,
+            "1": 86
+        },
+        "17": {
+            "0": 97,
+            "1": 98
+        },
+        "18": {
+            "COMMA": 109,
+            "DOT": 110,
+            "ENDBRACKET": 111,
+            "HYPHEN": 112,
+            "NOPUNCT": 113,
+            "OPENBRACKET": 114,
+            "PUNCT": 115,
+            "QUOTE": 116
         }
     },
-    "max_feature_size": 7
+    "max_feature_size": 10
 }
