@@ -358,7 +358,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         variables = vars(self)
         output_dict = {}
         for var in variables.keys():
-            if var == 'feature_preprocessor':
+            if var == 'feature_preprocessor' and variables['feature_preprocessor'] is not None:
                 output_dict[var] = variables[var].__dict__
             else:
                 output_dict[var] = variables[var]

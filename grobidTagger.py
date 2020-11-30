@@ -124,22 +124,23 @@ def configure(model, architecture, output_path=None, use_ELMo=False):
         batch_size = 50
         max_sequence_length = 1500
 
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
+        
+    model_name += '-' + architecture;
+
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 7
 
-    if architecture.lower().find("bert") != -1:
-        batch_size = 6
-        # 512 is the largest sequence for BERT input
-        max_sequence_length = 512
-        model_name += '-' + architecture;
-
     return batch_size, max_sequence_length, model_name
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, architecture=None):
+def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -150,9 +151,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
     print(len(x_all), 'evaluation sequences')
 
     model_name = 'grobid-' + model
-
-    if architecture != 'BidLSTM_CRF':
-        model_name += '-'+architecture
+    model_name += '-'+architecture
 
     if use_ELMo and not 'bert' in model.lower():
         model_name += '-with_ELMo'
@@ -173,14 +172,12 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, use_ELMo=False, architecture=None):
+def annotate_text(texts, model, output_format, use_ELMo=False, architecture='BidLSTM_CRF'):
     annotations = []
 
     # load model
     model_name = 'grobid-'+model
-
-    if architecture != 'BidLSTM_CRF':
-        model_name += '-'+architecture
+    model_name += '-'+architecture
 
     if use_ELMo and not 'bert' in model.lower():
         model_name += '-with_ELMo'
