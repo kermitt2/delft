@@ -172,7 +172,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, use_ELMo=False, architecture='BidLSTM_CRF'):
+def annotate_text(texts, model, output_format, use_ELMo=False, architecture='BidLSTM_CRF', features=None):
     annotations = []
 
     # load model
@@ -187,7 +187,7 @@ def annotate_text(texts, model, output_format, use_ELMo=False, architecture='Bid
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format)
+    annotations = model.tag(texts, output_format, features=features)
     runtime = round(time.time() - start_time, 3)
 
     if output_format is 'json':
@@ -291,17 +291,18 @@ if __name__ == "__main__":
             someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
-        result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
-        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
+        if architecture.find("FEATURE") == -1:
+            result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
+            print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
         # test with the use input file with features
-        '''
-        with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
-            input_crf_string = file.read()
-        x_all, f_all = load_data_crf_string(input_crf_string)
-        result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture)
-        print(result)
-        '''
+        if model == 'software':
+            with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
+                input_crf_string = file.read()
+            x_all, f_all = load_data_crf_string(input_crf_string)
+            result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture, features=f_all)
+            print(result)
+        
     try:
         # see https://github.com/tensorflow/tensorflow/issues/3388
         K.clear_session()
