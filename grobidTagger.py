@@ -294,6 +294,9 @@ if __name__ == "__main__":
         if architecture.find("FEATURE") == -1:
             result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
+        else:
+            print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
+                                                "Please supply an architecture without features. ")
 
         # test with the use input file with features
         if model == 'software':
