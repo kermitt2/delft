@@ -1,4 +1,5 @@
 import logging
+import os
 
 import numpy as np
 import pytest
@@ -133,8 +134,7 @@ class TestFeaturesPreprocessor:
         assert features_length == 1
         assert all_close(features_transformed, [[[1], [2], [3]]])
 
-    @pytest.fixture(scope="function")
-    def test_serialize_to_json(self, tmpdir_factory):
+    def test_serialize_to_json(self, tmp_path):
         preprocessor = FeaturesPreprocessor(features_indices=[1])
         features_batch = [[
             [FEATURE_VALUE_1, FEATURE_VALUE_2],
@@ -144,11 +144,10 @@ class TestFeaturesPreprocessor:
         preprocessor.fit(features_batch)
         word_preprocessor = WordPreprocessor(feature_preprocessor=preprocessor)
 
-        import tempfile
-        f = tmpdir_factory.mktemp("data").join("serialised.json")
-        word_preprocessor.save(file_path=f.name)
+        serialised_file_path = os.path.join(tmp_path, "serialised.json")
+        word_preprocessor.save(file_path=serialised_file_path)
 
-        back = WordPreprocessor.load(f.name)
+        back = WordPreprocessor.load(serialised_file_path)
 
         assert back is not None
         assert back.feature_preprocessor is not None
