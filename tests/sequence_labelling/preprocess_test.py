@@ -1,6 +1,7 @@
 import logging
 
 import numpy as np
+import pytest
 
 from delft.sequenceLabelling.preprocess import WordPreprocessor, FeaturesPreprocessor
 
@@ -132,7 +133,8 @@ class TestFeaturesPreprocessor:
         assert features_length == 1
         assert all_close(features_transformed, [[[1], [2], [3]]])
 
-    def test_serialize_to_json(self):
+    @pytest.fixture(scope="function")
+    def test_serialize_to_json(self, tmpdir_factory):
         preprocessor = FeaturesPreprocessor(features_indices=[1])
         features_batch = [[
             [FEATURE_VALUE_1, FEATURE_VALUE_2],
@@ -143,7 +145,7 @@ class TestFeaturesPreprocessor:
         word_preprocessor = WordPreprocessor(feature_preprocessor=preprocessor)
 
         import tempfile
-        f = tempfile.NamedTemporaryFile(delete=True)
+        f = tmpdir_factory.mktemp("data").join("serialised.json")
         word_preprocessor.save(file_path=f.name)
 
         back = WordPreprocessor.load(f.name)
