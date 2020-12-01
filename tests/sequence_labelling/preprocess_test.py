@@ -134,6 +134,12 @@ class TestFeaturesPreprocessor:
 
     def test_serialize_to_json(self):
         preprocessor = FeaturesPreprocessor(features_indices=[1])
+        features_batch = [[
+            [FEATURE_VALUE_1, FEATURE_VALUE_2],
+            [FEATURE_VALUE_1, FEATURE_VALUE_3],
+            [FEATURE_VALUE_1, FEATURE_VALUE_4]
+        ]]
+        preprocessor.fit(features_batch)
         word_preprocessor = WordPreprocessor(feature_preprocessor=preprocessor)
 
         import tempfile

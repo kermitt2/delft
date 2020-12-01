@@ -179,7 +179,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
                  features_map_to_index=None):
         # feature_indices_set = None
         if features_map_to_index is None:
-            features_map_to_index = []
+            features_map_to_index = {}
         self.features_vocabulary_size = features_vocabulary_size
         self.features_indices = features_indices
 
@@ -374,7 +374,11 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             for key, val in variables.items():
                 if key == 'feature_preprocessor' and val is not None:
                     preprocessor = FeaturesPreprocessor()
-                    preprocessor.__dict__ = val
+                    preprocessor.__dict__.update(val)
+                    if 'features_map_to_index' in preprocessor.__dict__:
+                        preprocessor.__dict__['features_map_to_index'] = {int(key): val for key, val in
+                                                                          preprocessor.__dict__[
+                                                                              'features_map_to_index'].items()}
                     setattr(self, key, preprocessor)
                 else:
                     setattr(self, key, val)
