@@ -27,6 +27,8 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
+    print(len(x_all), 'total sequences')
+
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -252,7 +254,6 @@ if __name__ == "__main__":
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
-    # ignore_features = args.ignore_features
     feature_indices = args.feature_indices
 
     if action == Tasks.TRAIN:

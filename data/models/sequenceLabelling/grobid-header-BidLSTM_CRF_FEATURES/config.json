@@ -145,5 +145,6 @@
             "0": 253
         }
     },
+    "require_features": true,
     "max_feature_size": 22
 }
