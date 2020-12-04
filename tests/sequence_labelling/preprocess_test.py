@@ -144,7 +144,7 @@ class TestFeaturesPreprocessor:
         preprocessor.fit(features_batch)
         word_preprocessor = WordPreprocessor(feature_preprocessor=preprocessor)
 
-        serialised_file_path = os.path.join(tmp_path, "serialised.json")
+        serialised_file_path = os.path.join(str(tmp_path), "serialised.json")
         word_preprocessor.save(file_path=serialised_file_path)
 
         back = WordPreprocessor.load(serialised_file_path)
