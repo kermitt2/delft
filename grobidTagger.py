@@ -27,6 +27,8 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
+    print(len(x_all), 'total sequences')
+
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -124,22 +126,23 @@ def configure(model, architecture, output_path=None, use_ELMo=False):
         batch_size = 50
         max_sequence_length = 1500
 
+    if architecture.lower().find("bert") != -1:
+        batch_size = 6
+        # 512 is the largest sequence for BERT input
+        max_sequence_length = 512
+        
+    model_name += '-' + architecture;
+
     if use_ELMo:
         model_name += '-with_ELMo'
         if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
             batch_size = 7
 
-    if architecture.lower().find("bert") != -1:
-        batch_size = 6
-        # 512 is the largest sequence for BERT input
-        max_sequence_length = 512
-        model_name += '-' + architecture;
-
     return batch_size, max_sequence_length, model_name
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, architecture=None):
+def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -150,9 +153,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
     print(len(x_all), 'evaluation sequences')
 
     model_name = 'grobid-' + model
-
-    if architecture != 'BidLSTM_CRF':
-        model_name += '-'+architecture
+    model_name += '-'+architecture
 
     if use_ELMo and not 'bert' in model.lower():
         model_name += '-with_ELMo'
@@ -173,14 +174,12 @@ def eval_(model, use_ELMo=False, input_path=None, architecture=None):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, use_ELMo=False, architecture=None):
+def annotate_text(texts, model, output_format, use_ELMo=False, architecture='BidLSTM_CRF', features=None):
     annotations = []
 
     # load model
     model_name = 'grobid-'+model
-
-    if architecture != 'BidLSTM_CRF':
-        model_name += '-'+architecture
+    model_name += '-'+architecture
 
     if use_ELMo and not 'bert' in model.lower():
         model_name += '-with_ELMo'
@@ -190,7 +189,7 @@ def annotate_text(texts, model, output_format, use_ELMo=False, architecture=None
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format)
+    annotations = model.tag(texts, output_format, features=features)
     runtime = round(time.time() - start_time, 3)
 
     if output_format is 'json':
@@ -255,7 +254,6 @@ if __name__ == "__main__":
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
-    # ignore_features = args.ignore_features
     feature_indices = args.feature_indices
 
     if action == Tasks.TRAIN:
@@ -294,16 +292,21 @@ if __name__ == "__main__":
             someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
-        result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
-        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
+        if architecture.find("FEATURE") == -1:
+            result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
+            print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
+        else:
+            print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
+                                                "Please supply an architecture without features. ")
 
         # test with the use input file with features
-        with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
-            input_crf_string = file.read()
-        x_all, f_all = load_data_crf_string(input_crf_string)
-        result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture)
-        print(result)
-
+        if model == 'software':
+            with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
+                input_crf_string = file.read()
+            x_all, f_all = load_data_crf_string(input_crf_string)
+            result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture, features=f_all)
+            print(result)
+        
     try:
         # see https://github.com/tensorflow/tensorflow/issues/3388
         K.clear_session()

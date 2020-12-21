@@ -78,7 +78,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     model.save()
 
     print('loading first-level dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     model_name = 'dataseer-first'
     if use_ELMo:
@@ -99,7 +99,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     
     '''
     print('training second-level dataset subtype corpus...')
-    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # aggregate by class, we will have one training set per class
     datatypes_y = {}
     datatypes_xtr = {}
@@ -146,13 +146,13 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
         return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    #train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for first level data type hierarchy
-    #train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
@@ -251,7 +251,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
     
 def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('loading dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     # distinct values of classes
     print(list_classes)
@@ -297,7 +297,7 @@ def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT
 
 def train_and_eval_secondary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('training second-level dataset subtype corpus...')
-    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # aggregate by class, we will have one training set per class
 
     print(list_classes)
@@ -442,7 +442,7 @@ def train_eval_cascaded(embeddings_name, fold_count, use_ELMo=False, use_BERT=Fa
     y_test_binary = y_test
 
     # second, the first level datatype taxonomy for sentences classified as dataset
-    xtr, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # ignore the no_dataset, ignore the first eval set, build first level classifier
     
     ind = list_classes.index('no_dataset')
@@ -494,7 +494,7 @@ def build_prior_class_distribution():
     """
     Inject count from the training data to the classification taxonomy of data types
     """
-    _, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    _, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     with open('data/textClassification/dataseer/DataTypes.json') as json_file:
         distribution = json.load(json_file)
@@ -594,4 +594,4 @@ if __name__ == "__main__":
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))  
 
     # See https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()
+    #K.clear_session()

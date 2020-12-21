@@ -1,0 +1,60 @@
+-----------------------------------------------
+All SciBERT fine-tuned models
+-----------------------------------------------
+
+========================================================================================
+BINARY
+========================================================================================
+
+Total 59188 instances, including for no_dataset "application predicted" but explicitely deleted sentences (5577), completed by negative sampling
+
+Evaluation on 5988 instances:
+                   precision        recall       f-score       support
+       dataset        0.7755        0.9067        0.8359          2293
+    no_dataset        0.9353        0.8371        0.8835          3695
+
+-----------------------------------------------
+
+binary: total 59405 instances, only negative sampling for no_dataset
+
+Evaluation on 5993 instances:
+                   precision        recall       f-score       support
+       dataset        0.9166        0.9664        0.9408          2320
+    no_dataset        0.9780        0.9445        0.9609          3673
+
+-----------------------------------------------
+
+========================================================================================
+First level data type hierarchy
+========================================================================================
+
+Total 47669 instances
+
+                   precision        recall       f-score       support
+   calorimetry        0.0000        0.0000        0.0000             1
+chromatography        0.7532        0.8056        0.7785            72
+coulombimetry         0.0000        0.0000        0.0000             0
+  densitometry        0.0000        0.0000        0.0000             0
+electrocardiog        0.0000        0.0000        0.0000             5
+electroencepha        0.8000        0.8000        0.8000             5
+electromyograp        0.0000        0.0000        0.0000             0
+electrooculogr        0.0000        0.0000        0.0000             0
+electrophysiol        0.0000        0.0000        0.0000             1
+electroretinog        0.0000        0.0000        0.0000             1
+emission flame        0.0000        0.0000        0.0000             0
+flow cytometry        0.8971        0.8841        0.8905            69
+  genetic data        0.8259        0.9022        0.8623           184
+         image        0.8041        0.9105        0.8540           257
+mass spectrome        0.6667        0.6562        0.6614            64
+  protein data        0.0000        0.0000        0.0000             0
+    sound data        1.0000        0.2500        0.4000             4
+  spectrometry        0.7544        0.8866        0.8152            97
+spectrum analy        0.0000        0.0000        0.0000             0
+systematic rev        0.0000        0.0000        0.0000             1
+  tabular data        0.8772        0.9087        0.8927          1588
+video recordin        0.0000        0.0000        0.0000             3
+voltammetry da        0.0000        0.0000        0.0000             1
+x-ray diffract        0.0000        0.0000        0.0000             8
+
+-----------------------------------------------
+

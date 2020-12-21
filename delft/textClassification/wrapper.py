@@ -64,7 +64,7 @@ class Classifier(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
-        if embeddings_name is not None:
+        if embeddings_name is not None and model_type.find("bert") == -1:
             self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
             word_emb_size = self.embeddings.embed_size
 

@@ -11,7 +11,6 @@ from delft.sequenceLabelling.config import ModelConfig
 
 LOGGER = logging.getLogger(__name__)
 
-
 np.random.seed(7)
 # from tensorflow import set_random_seed
 # set_random_seed(7)
@@ -91,7 +90,9 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
     max_index_value = features_max_vector_size * len(columns_index) + 1
 
     index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
-    val_to_int_map = {value[0]: {val_features: idx_features + (index * features_max_vector_size) for val_features, idx_features in value[1].items()} for index, value in enumerate(columns_index)}
+    val_to_int_map = {
+        value[0]: {val_features: idx_features + (index * features_max_vector_size) for val_features, idx_features in
+                   value[1].items()} for index, value in enumerate(columns_index)}
 
     return index_list, val_to_int_map
 
@@ -163,7 +164,6 @@ def get_map_to_index(X, features_indices, features_vector_size):
 
 def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
             features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE):
-
     if not feature_indices:
         matrix = reduce_features_vector(value_list_batch, features_vector_size)
 
@@ -179,7 +179,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
                  features_map_to_index=None):
         # feature_indices_set = None
         if features_map_to_index is None:
-            features_map_to_index = []
+            features_map_to_index = {}
         self.features_vocabulary_size = features_vocabulary_size
         self.features_indices = features_indices
 
@@ -204,9 +204,11 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
         :param extend: when set to true it's adding an additional empty feature list in the sequence.
         """
-        features_vector = [[[self.features_map_to_index[index][value] if index in self.features_map_to_index and value in self.features_map_to_index[index] else 0
-                    for index, value in enumerate(value_list) if index in self.features_indices] for
-                    value_list in document] for document in X]
+        features_vector = [[[self.features_map_to_index[index][
+                                 value] if index in self.features_map_to_index and value in self.features_map_to_index[
+            index] else 0
+                             for index, value in enumerate(value_list) if index in self.features_indices] for
+                            value_list in document] for document in X]
 
         features_count = len(self.features_indices)
 
@@ -263,7 +265,7 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             temp_tags.add(t)
             sorted_tags = sorted(temp_tags)
             sorted_tags = {sorted_tags[idx]: len(list(sorted_tags)[0:idx]) + 1 for idx in
-                            range(0, len(sorted_tags))}
+                           range(0, len(sorted_tags))}
             tags = {**tags, **sorted_tags}
 
         self.vocab_char = chars
@@ -353,7 +355,14 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             return labels_one_hot
 
     def save(self, file_path):
-        output_dict = vars(self)
+        variables = vars(self)
+        output_dict = {}
+        for var in variables.keys():
+            if var == 'feature_preprocessor' and variables['feature_preprocessor'] is not None:
+                output_dict[var] = variables[var].__dict__
+            else:
+                output_dict[var] = variables[var]
+
         with open(file_path, 'w') as fp:
             json.dump(output_dict, fp, sort_keys=False, indent=4)
 
@@ -363,7 +372,16 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
             variables = json.load(f)
             self = cls()
             for key, val in variables.items():
-                setattr(self, key, val)
+                if key == 'feature_preprocessor' and val is not None:
+                    preprocessor = FeaturesPreprocessor()
+                    preprocessor.__dict__.update(val)
+                    if 'features_map_to_index' in preprocessor.__dict__:
+                        preprocessor.__dict__['features_map_to_index'] = {int(key): val for key, val in
+                                                                          preprocessor.__dict__[
+                                                                              'features_map_to_index'].items()}
+                    setattr(self, key, preprocessor)
+                else:
+                    setattr(self, key, val)
         return self
 
 
