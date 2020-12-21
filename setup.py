@@ -20,7 +20,7 @@ setuptools.setup(
         'regex>=2018.2.21',
         'scikit-learn>=0.19.1',
         'tqdm>=4.21',
-        'tensorflow_gpu==1.12.0',
+        'tensorflow_gpu>=1.15.4,<2.0.0',
         'gensim>=3.4.0',
         'langdetect>=1.0.7',
         'textblob>=0.15.1',
@@ -29,7 +29,7 @@ setuptools.setup(
         'pydot>=1.2.4',
         'lmdb>=0.94',
         'keras-bert==0.80.0',
-        'jep==3.9.1'
+        'truecase'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.5",
