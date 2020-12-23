@@ -8,6 +8,8 @@ import os.path
 import json
 import lmdb
 import io
+import zipfile
+import gzip
 import pickle
 import hashlib, struct
 from tqdm import tqdm
@@ -29,6 +31,7 @@ from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_em
 from delft.utilities.bilm.elmo import weight_layers
 
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Utilities import download_file
 
 # for BERT extraction of word embeddings (not the fine tuning, this realized by a specific model)
 from keras_bert import load_trained_model_from_checkpoint, Tokenizer
@@ -49,28 +52,6 @@ BERT_sentence_size = 512
 # BERT embedding size depends on the pooling method (one layer has a size of 768)
 #BERT_embed_size = 768
 BERT_embed_size = 3072
-
-
-def fetch_header_if_available(line):
-    """
-    Fetch the header if the line is just composed by two elements the number of workds and the embedding size
-
-    :param line: a splitted line (if not split, tried to split by spaces)
-    :return: the number of words and the embedding size, if there is no header, they will be set to -1
-    """
-    if type(line) == 'str':
-        line = line.split(" ")
-
-    nb_words = -1
-    embed_size = -1
-
-    if len(line) == 2:
-        # first line gives the nb of words and the embedding size
-        nb_words = int(line[0])
-        embed_size = int(line[1].replace("\n", ""))
-
-    return nb_words, embed_size
-
 
 class Embeddings(object):
 
@@ -144,7 +125,6 @@ class Embeddings(object):
         description = self._get_description(name)
         if description is not None:
             embeddings_path = description["path"]
-            embeddings_type = description["type"]
             self.lang = description["lang"]
             print("path:", embeddings_path)
             if self.extension == 'bin':
@@ -158,7 +138,7 @@ class Embeddings(object):
                         line = line.split(' ')
                         if begin:
                             begin = False
-                            nb_words, embed_size = fetch_header_if_available(line)
+                            nb_words, embed_size = _fetch_header_if_available(line)
 
                             # we parse the header
                             if nb_words > 0 and embed_size > 0:
@@ -167,7 +147,6 @@ class Embeddings(object):
                                 continue
 
                         word = line[0]
-                        #if embeddings_type == 'glove':
                         vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
                         #else:
                         #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
@@ -178,75 +157,79 @@ class Embeddings(object):
                     nbWords = len(self.model)
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
 
-    '''
-    def make_embeddings_fasttext_bin(self, name="wiki.en.bin"):
-        nbWords = 0
-        print('loading embeddings...')
-        description = self._get_description(name)
-        if description is not None:
-            embeddings_path = description["path"]
-            print("path:", embeddings_path)
-
-        self.model = load_fasttext_format(embeddings_path)
-    '''
-
     def make_embeddings_lmdb(self, name="fasttext-crawl"):
         nbWords = 0
-        print('\nCompiling embeddings... (this is done only one time per embeddings at first launch)')
+        print('\nCompiling embeddings... (this is done only one time per embeddings at first usage)')
         begin = True
         description = self._get_description(name)
+
+        if description is None:
+            print('\nNo description found in embeddings registry for embeddings', name)
+            return
+
         if description is not None:
-            embeddings_path = description["path"]
-            embeddings_type = description["type"]
-            self.lang = description["lang"]
-            print("path:", embeddings_path)
+            # the following method will possibly download the mebedding file if not available locally
+            embeddings_path = self.get_embedding_path(description)
+            if embeddings_path is None:
+                print('\nCould not locate a usable resource for embeddings', name)
+                return
 
             txn = self.env.begin(write=True)
             # batch_size = 1024
             i = 0
             nb_lines = 0
-            with open(embeddings_path, encoding='utf8') as f:
-                for line in f:
-                    nb_lines += 1
 
-            with open(embeddings_path, encoding='utf8') as f:
-                for line in tqdm(f, total=nb_lines):
-                    line = line.split(' ')
-                    if begin:
-                        begin = False
-                        nb_words, embed_size = fetch_header_if_available(line)
+            # read number of lines first
+            embedding_file = _open_embedding_file(embeddings_path)
+            if embedding_file is None:
+                print("Error: could not open embeddings file", embeddings_path)
+                return
 
-                        if nb_words > 0 and embed_size > 0:
-                            nbWords = nb_words
-                            self.embed_size = embed_size
-                            continue
+            for line in embedding_file:
+                nb_lines += 1
+            embedding_file.close()
 
-                    word = line[0]
-                    #if embeddings_type == 'glove':
-                    try:
-                        if line[len(line)-1] == '\n':
-                            vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
-                        else:
-                            vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
-                    
-                        #vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
-                    except:
-                        print(len(line))
-                        print(line[1:len(line)])
-                    #else:
-                    #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
-                    if self.embed_size == 0:
-                        self.embed_size = len(vector)
+            embedding_file = _open_embedding_file(embeddings_path)
+            #with open(embeddings_path, encoding='utf8') as f:
+            for line in tqdm(embedding_file, total=nb_lines):
+                line = line.decode()
+                line = line.split(' ')
+                if begin:
+                    begin = False
+                    nb_words, embed_size = _fetch_header_if_available(line)
 
-                    if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():   
-                        txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))  
-                        #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
-                        i += 1
+                    if nb_words > 0 and embed_size > 0:
+                        nbWords = nb_words
+                        self.embed_size = embed_size
+                        continue
 
-                    # commit batch
-                    # if i % batch_size == 0:
-                    #     txn.commit()
-                    #     txn = self.env.begin(write=True)
+                word = line[0]
+                try:
+                    if line[len(line)-1] == '\n':
+                        vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                    else:
+                        vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                
+                    #vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                except:
+                    print(len(line))
+                    print(line[1:len(line)])
+                #else:
+                #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                if self.embed_size == 0:
+                    self.embed_size = len(vector)
+
+                if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():   
+                    txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))  
+                    #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
+                    i += 1
+
+                # commit batch
+                # if i % batch_size == 0:
+                #     txn.commit()
+                #     txn = self.env.begin(write=True)
+
+            embedding_file.close()
 
             #if i % batch_size != 0:
             txn.commit()   
@@ -254,6 +237,18 @@ class Embeddings(object):
                 nbWords = i
             self.vocab_size = nbWords
             print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+
+            # cleaning possible downloaded embeddings
+            for filename in os.listdir(self.registry['embedding-download-path']):
+                file_path = os.path.join(self.registry['embedding-download-path'], filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+
 
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self._get_description(name)
@@ -305,7 +300,8 @@ class Embeddings(object):
                             break
                         cursor.close()
 
-                    if self.vocab_size != 0 and self.embed_size != 0:
+                    if self.vocab_size > 100 and self.embed_size > 10:
+                        # lmdb database exists and looks valid
                         load_db = False
 
                         # no idea why, but we need to close and reopen the environment to avoid
@@ -766,6 +762,31 @@ class Embeddings(object):
             #return np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
             # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
+    def get_embedding_path(self, description):
+        embeddings_path = None
+        if "path" in description:
+            embeddings_path = description["path"]    
+        self.lang = description["lang"]
+        
+        if embeddings_path is None or not os.path.isfile(embeddings_path):
+            print("error: embedding path for", description['name'], "is not valid", embeddings_path)
+            if "url" in description and len(description["url"])>0:
+                url = description["url"]
+                download_path = self.registry['embedding-download-path']
+                # if the download path does not exist, we create it
+                if not os.path.isdir(download_path):
+                    try:
+                        os.mkdir(download_path)
+                    except OSError:
+                        print ("Creation of the download directory", download_path, "failed")
+
+                print("Downloading resource file for", description['name'], "...")
+                embeddings_path = download_file(url, download_path)
+                if embeddings_path != None and os.path.isfile(embeddings_path):
+                    print("Download sucessful:", embeddings_path)
+            else:
+                print("no download url available for this embeddings resource, please review the embedding registry for", description['name'])
+        return embeddings_path
 
 def _serialize_byteio(array):
     memfile = io.BytesIO()
@@ -788,6 +809,19 @@ def _serialize_pickle(a):
 def _deserialize_pickle(serialized):
     return pickle.loads(serialized)
 
+def _open_embedding_file(embeddings_path):
+    # embeddings can be uncompressed or compressed with gzip or zip
+    if embeddings_path.endswith(".gz"):
+        embedding_file = gzip.open(embeddings_path, mode="rt")
+    elif embeddings_path.endswith(".zip"):
+        zip_file = zipfile.ZipFile(embeddings_path, 'r')
+        for filename in zip_file.namelist():
+            print(filename)
+            if filename.endswith("vec") or filename.endswith("txt"):
+                embedding_file = zip_file.open(filename)
+    else:
+        embedding_file = open(embeddings_path, encoding='utf8')
+    return embedding_file
 
 def _get_num_lines(file_path):
     fp = open(file_path, "r+")
@@ -795,8 +829,8 @@ def _get_num_lines(file_path):
     lines = 0
     while buf.readline():
         lines += 1
+    fp.close()
     return lines
-
 
 def list_digest(strings):
     hash = hashlib.sha1()
@@ -805,14 +839,12 @@ def list_digest(strings):
         hash.update(s.encode(encoding='UTF-8'))
     return hash.hexdigest()
 
-
 def is_int(s):
     try: 
         int(s)
         return True
     except ValueError:
         return False
-
 
 def is_float(s):
     try:
@@ -821,6 +853,25 @@ def is_float(s):
     except ValueError:
         return False
 
+def _fetch_header_if_available(line):
+    """
+    Fetch the header if the line is just composed by two elements the number of workds and the embedding size
+
+    :param line: a splitted line (if not split, tried to split by spaces)
+    :return: the number of words and the embedding size, if there is no header, they will be set to -1
+    """
+    if type(line) == 'str':
+        line = line.split(" ")
+
+    nb_words = -1
+    embed_size = -1
+
+    if len(line) == 2:
+        # first line gives the nb of words and the embedding size
+        nb_words = int(line[0])
+        embed_size = int(line[1].replace("\n", ""))
+
+    return nb_words, embed_size
 
 def test():
     '''

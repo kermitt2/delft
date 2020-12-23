@@ -8,6 +8,8 @@ import pandas as pd
 import sys
 import os.path
 import shutil
+import requests
+from urllib.parse import urlparse
 
 from keras.preprocessing import text
 from keras import backend as K
@@ -16,8 +18,8 @@ from keras import backend as K
 #from nltk.stem.snowball import EnglishStemmer
 
 from tqdm import tqdm 
-from gensim.models import FastText
-from gensim.models import KeyedVectors
+#from gensim.models import FastText
+#from gensim.models import KeyedVectors
 import langdetect
 from textblob import TextBlob
 from textblob.translate import NotTranslated
@@ -583,6 +585,50 @@ def truecase_sentence(tokens):
             tokens[idx] = nw
     return tokens
 
+
+def download_file(url, path, filename=None):
+    """ 
+    Download with Python requests which handle well compression
+    """
+    # check path
+    if path is None or not os.path.isdir(path):
+        print("Invalid destination directory:", path)
+    HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0"""}
+    result = "fail"
+    print("downloading", url) 
+    
+    if filename is None:
+        # we use the actual server file name
+        a = urlparse(url)
+        filename = os.path.basename(a.path)
+    destination = os.path.join(path, filename)    
+    try:
+        resp = requests.get(url, stream=True, allow_redirects=True, headers=HEADERS)
+        total_length = resp.headers.get('content-length')
+
+        if total_length is None and resp.status_code == 200: 
+            # no content length header available, can't have a progress bar :(
+            with open(destination, 'wb') as f_out:
+                f_out.write(resp.content)
+        elif resp.status_code == 200:
+            total = int(total_length)
+            with open(destination, 'wb') as f_out, tqdm(
+                desc=destination,
+                total=total,
+                unit='iB',
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as bar:
+                for data in resp.iter_content(chunk_size=1024):
+                    size = f_out.write(data)
+                    bar.update(size)
+            result = "success"
+    except Exception:
+        print("Download failed for {0} with requests".format(url))
+    if result == "success":
+        return destination
+    else:
+        return None
 
 if __name__ == "__main__":
     # usage example - for CoNLL-2003, indicate the eng.* file to be converted:
