@@ -10,6 +10,7 @@ import lmdb
 import io
 import zipfile
 import gzip
+import shutil
 import pickle
 import hashlib, struct
 from tqdm import tqdm
