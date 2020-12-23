@@ -206,8 +206,7 @@ class Tasks:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description = "Trainer for GROBID models")
+    parser = argparse.ArgumentParser(description = "Trainer for GROBID models")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
     architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name, BidLSTM_CRF_CASING.name,
@@ -220,8 +219,7 @@ if __name__ == "__main__":
                                                                   "cross validation.")
     parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
                         help="Type of model architecture to be used, one of "+str(architectures))
-    parser.add_argument(
-        "--embedding", default='glove-840B',
+    parser.add_argument("--embedding", default='glove-840B',
         help=(
             "The desired pre-trained word embeddings using their descriptions in the file"
             " embedding-registry.json."
@@ -233,7 +231,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
-    # parser.add_argument("--ignore-features", default=False, action="store_true", help="Ignore layout features")
     parser.add_argument(
         "--feature-indices",
         type=parse_number_ranges,
@@ -243,14 +240,9 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     model = args.model
-    #if not model in models:
-    #    print('invalid model, should be one of', models)
-
     action = args.action
-
     use_ELMo = args.use_ELMo
     architecture = args.architecture
-
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
