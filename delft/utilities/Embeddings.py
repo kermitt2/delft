@@ -827,15 +827,15 @@ def _deserialize_pickle(serialized):
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip
     if embeddings_path.endswith(".gz"):
-        embedding_file = gzip.open(embeddings_path, mode="rt")
+        embedding_file = gzip.open(embeddings_path, mode="rb")
     elif embeddings_path.endswith(".zip"):
         zip_file = zipfile.ZipFile(embeddings_path, 'r')
         for filename in zip_file.namelist():
             print(filename)
             if filename.endswith("vec") or filename.endswith("txt"):
-                embedding_file = zip_file.open(filename)
+                embedding_file = zip_file.open(filename, mode="r")
     else:
-        embedding_file = open(embeddings_path, encoding='utf8')
+        embedding_file = open(embeddings_path, mode="rb")
     return embedding_file
 
 def _get_num_lines(file_path):
