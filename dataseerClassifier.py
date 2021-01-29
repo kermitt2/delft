@@ -20,6 +20,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
+    '''
     model_name = 'dataseer-binary'
     class_weights = None
     batch_size = 256
@@ -47,11 +48,13 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     # saving the model
     model.save()
 
+    '''
+    
     print('loading reuse dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
     model_name = 'dataseer-reuse'
-    class_weights = None
+    class_weights = {0: 1.5, 1: 1.}
     batch_size = 256
     maxlen = 300
     if use_ELMo:
@@ -76,6 +79,8 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
+    
+    '''
 
     print('loading first-level dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -96,7 +101,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
-    
+    '''
     '''
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -146,13 +151,13 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
         return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    #train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for first level data type hierarchy
-    train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    #train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
@@ -214,7 +219,6 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
     print(len(xtr), "texts")
     print(len(y), "classes")
 
-    class_weights = None
     batch_size = 256
     maxlen = 300
     if use_ELMo:
@@ -226,6 +230,8 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
     if architecture.find("bert") != -1:
         batch_size = 32
         maxlen = 100
+
+    class_weights = {0: 1.5, 1: 1.}
 
     model = Classifier('dataseer-reuse', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
@@ -552,7 +558,7 @@ if __name__ == "__main__":
     parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings") 
     parser.add_argument("--cascaded", action="store_true", help="Use models in cascade (train, eval, predict)") 
     parser.add_argument(
-        "--embedding", default='word2vec',
+        "--embedding", default='glove-840B',
         help=(
             "The desired pre-trained word embeddings using their descriptions in the file"
             " embedding-registry.json."
