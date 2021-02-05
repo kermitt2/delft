@@ -49,7 +49,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     model.save()
 
     '''
-    
+    '''
     print('loading reuse dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
@@ -91,6 +91,21 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     elif use_BERT:
         model_name += '-with_BERT'
 
+    class_weights = None
+    batch_size = 256
+    maxlen = 300
+    if use_ELMo:
+        batch_size = 20
+        model_name += '-with_ELMo'
+    elif use_BERT:
+        batch_size = 50
+        model_name += '-with_BERT'
+
+    # default bert model parameters
+    if architecture.lower().find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
     use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
          class_weights=class_weights)
@@ -101,7 +116,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
-    '''
+    
     '''
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -154,10 +169,10 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
     #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    #train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for first level data type hierarchy
-    #train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
@@ -257,7 +272,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
     
 def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('loading dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel-filtered.csv")
 
     # distinct values of classes
     print(list_classes)

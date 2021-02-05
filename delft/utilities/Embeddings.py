@@ -255,15 +255,16 @@ class Embeddings(object):
 
     def clean_downloads(self):
         # cleaning possible downloaded embeddings
-        for filename in os.listdir(self.registry['embedding-download-path']):
-            file_path = os.path.join(self.registry['embedding-download-path'], filename)
-            try:
-                if os.path.isfile(file_path) or os.path.islink(file_path):
-                    os.unlink(file_path)
-                elif os.path.isdir(file_path):
-                    shutil.rmtree(file_path)
-            except Exception as e:
-                print('Failed to delete %s. Reason: %s' % (file_path, e))
+        if 'embedding-download-path' in self.registry and os.path.exists(self.registry['embedding-download-path']) and os.path.isdir(self.registry['embedding-download-path']):
+            for filename in os.listdir(self.registry['embedding-download-path']):
+                file_path = os.path.join(self.registry['embedding-download-path'], filename)
+                try:
+                    if os.path.isfile(file_path) or os.path.islink(file_path):
+                        os.unlink(file_path)
+                    elif os.path.isdir(file_path):
+                        shutil.rmtree(file_path)
+                except Exception as e:
+                    print('Failed to delete %s. Reason: %s' % (file_path, e))
 
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
