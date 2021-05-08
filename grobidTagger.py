@@ -29,7 +29,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 
     print(len(x_all), 'total sequences')
 
-    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1, shuffle=True)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
@@ -68,7 +68,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
-    x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1, shuffle=True)
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
@@ -135,7 +135,7 @@ def configure(model, architecture, output_path=None, use_ELMo=False):
 
     if use_ELMo:
         model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
+        if model_name.startswith('software') or model_name.startswith('grobid-software'):
             batch_size = 7
 
     return batch_size, max_sequence_length, model_name
