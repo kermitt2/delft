@@ -121,30 +121,36 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
     if max_sequence_length == -1:
         max_sequence_length = 3000
 
-    if batch_size == -1:
-        batch_size = 20
-
-    if model == "software":
-        if batch_size == -1:
-            # class are more unbalanced, so we need to extend the batch size
-            batch_size = 50
-        if max_sequence_length == -1:
-            max_sequence_length = 1500
-
     if architecture.lower().find("bert") != -1:
         if batch_size == -1:
             batch_size = 6
         if max_sequence_length == -1 or max_sequence_length > 512:
             # 512 is the largest sequence for BERT input
             max_sequence_length = 512
-        
+
+    if model == "software":
+        if use_ELMo:
+            if batch_size == -1:
+                batch_size = 7
+        elif batch_size == -1:
+            # class are more unbalanced, so we need to extend the batch size
+            batch_size = 50
+        if max_sequence_length == -1:
+            max_sequence_length = 1500
+
     model_name += '-' + architecture;
 
     if use_ELMo:
         model_name += '-with_ELMo'
+    
+    '''
         if model_name.startswith('software') or model_name.startswith('grobid-software'):
             if batch_size == -1:
                 batch_size = 7
+    '''
+
+    if batch_size == -1:
+        batch_size = 20
 
     return batch_size, max_sequence_length, model_name
 
