@@ -306,8 +306,6 @@ def load_data_and_labels_crf_file(filepath):
     else:
         with open(filepath) as f:
             sents, labels, featureSets = load_data_and_labels_crf_content(f)
-    
-    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(tags) == len(features)
 
     return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
 
@@ -339,6 +337,8 @@ def load_data_and_labels_crf_content(the_file):
         labels.append(tags)
         featureSets.append(features)
         print("Adding the final items from the input file. ")
+
+    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(tags) == len(features)
 
     return sents, labels, featureSets
 
