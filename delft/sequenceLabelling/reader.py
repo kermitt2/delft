@@ -4,6 +4,7 @@ from xml.sax import make_parser, handler
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import re
 import os
+import gzip
 from tqdm import tqdm
 
 
@@ -289,6 +290,7 @@ def load_data_and_labels_crf_file(filepath):
     token_m fm_0 fm_1 ... fm_n label_m
 
     field separator can be either space or tab
+    input file can be gzipped or not
 
     Returns:
         tuple(numpy array, numpy array, numpy array): tokens, labels, features
@@ -298,35 +300,47 @@ def load_data_and_labels_crf_file(filepath):
     labels = []
     featureSets = []
 
-    with open(filepath) as f:
-        tokens, tags, features = [], [], []
-        for line in f:
-            line = line.strip()
-            if len(line) == 0:
-                if len(tokens) != 0: 
-                    sents.append(tokens)
-                    labels.append(tags)
-                    featureSets.append(features)
-                    tokens, tags, features = [], [], []
-            else:
-                #pieces = line.split('\t')
-                pieces = re.split(' |\t', line)
-                token = pieces[0]
-                tag = pieces[len(pieces)-1]
-                localFeatures = pieces[1:len(pieces)-1]
-                tokens.append(token)
-                tags.append(_translate_tags_grobid_to_IOB(tag))
-                features.append(localFeatures)
-
-        if len(tokens) == len(tags) == len(localFeatures) > 0:
-            sents.append(tokens)
-            labels.append(tags)
-            featureSets.append(features)
-            print("Adding the final items from the input file. ")
-
+    if filepath.endswith(".gz"):
+        with gzip.open(filepath, 'rt') as f:
+            sents, labels, featureSets = load_data_and_labels_crf_content(f)
+    else:
+        with open(filepath) as f:
+            sents, labels, featureSets = load_data_and_labels_crf_content(f)
+    
     assert "Tokens, tags and features haven't got the same size", len(tokens) == len(tags) == len(features)
 
     return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
+
+def load_data_and_labels_crf_content(the_file):
+    sents = []
+    labels = []
+    featureSets = []
+
+    tokens, tags, features = [], [], []
+    for line in the_file:
+        line = line.strip()
+        if len(line) == 0:
+            if len(tokens) != 0: 
+                sents.append(tokens)
+                labels.append(tags)
+                featureSets.append(features)
+                tokens, tags, features = [], [], []
+        else:
+            pieces = re.split(' |\t', line)
+            token = pieces[0]
+            tag = pieces[len(pieces)-1]
+            localFeatures = pieces[1:len(pieces)-1]
+            tokens.append(token)
+            tags.append(_translate_tags_grobid_to_IOB(tag))
+            features.append(localFeatures)
+
+    if len(tokens) == len(tags) == len(localFeatures) > 0:
+        sents.append(tokens)
+        labels.append(tags)
+        featureSets.append(features)
+        print("Adding the final items from the input file. ")
+
+    return sents, labels, featureSets
 
 
 def load_data_and_labels_crf_string(crfString):
