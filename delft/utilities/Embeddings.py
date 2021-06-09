@@ -22,7 +22,7 @@ import keras.backend as K
 # for fasttext binary embeddings
 fasttext_support = True
 try:
-    import fastText
+    import fasttext
 except ImportError as e:
     fasttext_support = False
 
@@ -137,7 +137,7 @@ class Embeddings(object):
             self.lang = description["lang"]
             print("path:", embeddings_path)
             if self.extension == 'bin':
-                self.model = fastText.load_model(embeddings_path)
+                self.model = fasttext.load_model(embeddings_path)
                 nbWords = len(self.model.get_words())
                 self.embed_size = self.model.get_dimension()
             else:
