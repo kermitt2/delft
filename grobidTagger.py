@@ -19,7 +19,7 @@ MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citatio
 
 # train a GROBID model with all available data
 def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
-          features_indices=None):
+          features_indices=None, max_sequence_length=-1, batch_size=-1):
 
     print('Loading data...')
     if input_path is None:
@@ -29,12 +29,12 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 
     print(len(x_all), 'total sequences')
 
-    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1, shuffle=True)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo)
+    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo, max_sequence_length, batch_size)
 
     model = Sequence(model_name,
                      max_epoch=100,
@@ -61,21 +61,21 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None):
+               features_indices=None, max_sequence_length=-1, batch_size=-1):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
-    x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1, shuffle=True)
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo)
+    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo, max_sequence_length, batch_size)
 
     model = Sequence(model_name,
                     max_epoch=100,
@@ -109,7 +109,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model.save()
 
 
-def configure(model, architecture, output_path=None, use_ELMo=False):
+def configure(model, architecture, output_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1):
     '''
     Set up the default parameters based on the model type.
     '''
@@ -118,25 +118,39 @@ def configure(model, architecture, output_path=None, use_ELMo=False):
     else:
         model_name = 'grobid-' + model
 
-    batch_size = 20
-    max_sequence_length = 3000
-
-    if model == "software":
-        # class are more unbalanced, so we need to extend the batch size
-        batch_size = 50
-        max_sequence_length = 1500
+    if max_sequence_length == -1:
+        max_sequence_length = 3000
 
     if architecture.lower().find("bert") != -1:
-        batch_size = 6
-        # 512 is the largest sequence for BERT input
-        max_sequence_length = 512
-        
+        if batch_size == -1:
+            batch_size = 6
+        if max_sequence_length == -1 or max_sequence_length > 512:
+            # 512 is the largest sequence for BERT input
+            max_sequence_length = 512
+
+    if model == "software":
+        if use_ELMo:
+            if batch_size == -1:
+                batch_size = 7
+        elif batch_size == -1:
+            # class are more unbalanced, so we need to extend the batch size
+            batch_size = 50
+        if max_sequence_length == -1:
+            max_sequence_length = 1500
+
     model_name += '-' + architecture;
 
     if use_ELMo:
         model_name += '-with_ELMo'
-        if model_name == 'software-with_ELMo' or model_name == 'grobid-software-with_ELMo':
-            batch_size = 7
+    
+    '''
+        if model_name.startswith('software') or model_name.startswith('grobid-software'):
+            if batch_size == -1:
+                batch_size = 7
+    '''
+
+    if batch_size == -1:
+        batch_size = 20
 
     return batch_size, max_sequence_length, model_name
 
@@ -147,6 +161,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
     if input_path is None:
         # it should never be the case
         print("A Grobid evaluation data file must be specified for evaluating a grobid model for the eval action, use parameter --input ")
+        return
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -229,13 +244,16 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and "
+    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument(
         "--feature-indices",
         type=parse_number_ranges,
         help="The feature indices to use. e.g. 7:10. If blank, all of the features will be used."
     )
+
+    parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
 
     args = parser.parse_args()
 
@@ -247,9 +265,18 @@ if __name__ == "__main__":
     input_path = args.input
     embeddings_name = args.embedding
     feature_indices = args.feature_indices
+    max_sequence_length = args.max_sequence_length
+    batch_size = args.batch_size
 
     if action == Tasks.TRAIN:
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+        train(model, 
+            embeddings_name, 
+            architecture=architecture, 
+            use_ELMo=use_ELMo, 
+            input_path=input_path, 
+            output_path=output,
+            max_sequence_length=max_sequence_length,
+            batch_size=batch_size)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None:
@@ -262,7 +289,15 @@ if __name__ == "__main__":
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, fold_count=args.fold_count)
+        train_eval(model, 
+                embeddings_name, 
+                architecture=architecture, 
+                use_ELMo=use_ELMo, 
+                input_path=input_path, 
+                output_path=output, 
+                fold_count=args.fold_count,
+                max_sequence_length=max_sequence_length,
+                batch_size=batch_size)
 
     if action == Tasks.TAG:
         someTexts = []

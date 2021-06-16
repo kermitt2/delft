@@ -250,23 +250,26 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         tags = {PAD: 0}
 
         if self.use_char_feature:
-            temp_chars = set()
-            for w in set(itertools.chain(*X)):
-                for c in w:
-                    temp_chars.add(c)
+            temp_chars = {
+                c
+                for w in set(itertools.chain(*X))
+                for c in w
+            }
 
             sorted_chars = sorted(temp_chars)
-            sorted_chars = {sorted_chars[idx]: len(list(sorted_chars)[0:idx]) + 2 for idx in
-                            range(0, len(sorted_chars))}
-            chars = {**chars, **sorted_chars}
+            sorted_chars_dict = {
+                c: idx + 2
+                for idx, c in enumerate(sorted_chars)
+            }
+            chars = {**chars, **sorted_chars_dict}
 
-        temp_tags = set()
-        for t in itertools.chain(*y):
-            temp_tags.add(t)
-            sorted_tags = sorted(temp_tags)
-            sorted_tags = {sorted_tags[idx]: len(list(sorted_tags)[0:idx]) + 1 for idx in
-                           range(0, len(sorted_tags))}
-            tags = {**tags, **sorted_tags}
+        temp_tags = set(itertools.chain(*y))
+        sorted_tags = sorted(temp_tags)
+        sorted_tags_dict = {
+            tag: idx + 1
+            for idx, tag in enumerate(sorted_tags)
+        }
+        tags = {**tags, **sorted_tags_dict}
 
         self.vocab_char = chars
         self.vocab_tag = tags
