@@ -19,7 +19,7 @@ MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citatio
 
 # train a GROBID model with all available data
 def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
-          features_indices=None):
+          features_indices=None, validation_path=None):
 
     print('Loading data...')
     if input_path is None:
@@ -29,7 +29,13 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 
     print(len(x_all), 'total sequences')
 
-    x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
+    if validation_path:
+        x_train = x_all
+        y_train = y_all
+        f_train = f_all
+        x_valid, y_valid, f_valid = load_data_and_labels_crf_file(validation_path)
+    else:
+        x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_all, y_all, f_all, test_size=0.1)
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
@@ -231,6 +237,8 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
+    parser.add_argument("--validation", help="Grobid data file to be used for batch validation (train action).", default=None)
+
     parser.add_argument(
         "--feature-indices",
         type=parse_number_ranges,
@@ -247,9 +255,13 @@ if __name__ == "__main__":
     input_path = args.input
     embeddings_name = args.embedding
     feature_indices = args.feature_indices
+    validation_path = args.validation
 
     if action == Tasks.TRAIN:
-        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output)
+        train(model, embeddings_name, architecture=architecture, use_ELMo=use_ELMo, input_path=input_path, output_path=output, validation_path=validation_path)
+    else:
+        if validation_path:
+            print("The validation path (--validation) can only be used for the 'train' action and will be ignored. ")
 
     if action == Tasks.EVAL:
         if args.fold_count is not None:
