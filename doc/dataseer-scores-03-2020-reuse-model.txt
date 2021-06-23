@@ -1,0 +1,71 @@
+
+================
+reuse of dataset 
+================
+
+11364 training examples (3.6% reuse)
+
+BidGRU
+
+Evaluation on 1122 instances:
+                   precision        recall       f-score       support
+      no_reuse        0.9818        0.9945        0.9881          1083
+         reuse        0.7600        0.4872        0.5938            39
+
+
+BERT
+
+Evaluation on 1122 instances:
+                   precision        recall       f-score       support
+      no_reuse        0.9862        0.9889        0.9876          1083
+         reuse        0.6667        0.6154        0.6400            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9853        0.9935        0.9894          1083
+         reuse        0.7667        0.5897        0.6667            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9889        0.9908        0.9899          1083
+         reuse        0.7297        0.6923        0.7105            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9844        0.9880        0.9862          1083
+         reuse        0.6286        0.5641        0.5946            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9872        0.9935        0.9903          1083
+         reuse        0.7812        0.6410        0.7042            39
+
+
+SciBERT (10-folds each time)
+
+Evaluation on 1122 instances:
+                   precision        recall       f-score       support
+      no_reuse        0.9835        0.9898        0.9867          1083
+         reuse        0.6562        0.5385        0.5915            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9889        0.9889        0.9889          1083
+         reuse        0.6923        0.6923        0.6923            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9844        0.9935        0.9890          1083
+         reuse        0.7586        0.5641        0.6471            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9863        0.9945        0.9903          1083
+         reuse        0.8000        0.6154        0.6957            39
+
+                   precision        recall       f-score       support
+      no_reuse        0.9880        0.9889        0.9885          1083
+         reuse        0.6842        0.6667        0.6753            39
+
+
+29.01.2021
+
+class_weights = {0: 1.5, 1: 1.}, averaged 5
+
+Evaluation on 1122 instances:
+                   precision        recall       f-score       support
+      no_reuse        0.9907        0.9871        0.9889          1083
+         reuse        0.6744        0.7436        0.7073            39

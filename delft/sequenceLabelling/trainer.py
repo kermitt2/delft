@@ -1,4 +1,8 @@
 import os
+
+import numpy as np
+from keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
+
 from delft.sequenceLabelling.data_generator import DataGenerator
 from keras.optimizers import Adam
 from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
@@ -41,10 +45,10 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-    
-    def train(self, x_train, y_train, x_valid, y_valid, callbacks=None):
-        """ 
-        Train the instance self.model 
+
+    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
+        """
+        Train the instance self.model
         """
         if 'bert' not in self.model_config.model_type.lower():
             self.model.summary()
@@ -58,37 +62,38 @@ class Trainer(object):
                                optimizer='adam')
                                #optimizer=Adam(lr=self.training_config.learning_rate))
             # uncomment to plot graph
-            #plot_model(self.model, 
+            #plot_model(self.model,
             #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-            self.model = self.train_model(self.model, x_train, y_train, x_valid, y_valid, 
-                                                  self.training_config.max_epoch, callbacks=callbacks)
+            self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
+                                      f_train=features_train, f_valid=features_valid,
+                                      max_epoch=self.training_config.max_epoch, callbacks=callbacks)
         else:
             # for BERT architectures, directly call the model trainer
             if self.training_config.early_stop:
-                self.model.train(x_train,y_train)
+                self.model.train(x_train, y_train)
             else:
-                self.model.train(np.concatenate([x_train,x_valid]), np.concatenate([y_train,y_valid]))
+                self.model.train(np.concatenate([x_train, x_valid]), np.concatenate([y_train,y_valid]))
 
-    
-    def train_model(self, local_model, x_train, y_train, x_valid=None, y_valid=None, max_epoch=50, callbacks=None):
-        """ 
-        The parameter model local_model must be compiled before calling this method.
-        This model will be returned with trained weights 
+    def train_model(self, local_model, x_train, y_train, f_train=None,
+                    x_valid=None, y_valid=None, f_valid=None, max_epoch=50, callbacks=None):
         """
-        # todo: if valid set is None, create it as random segment of the shuffled train set 
+        The parameter model local_model must be compiled before calling this method.
+        This model will be returned with trained weights
+        """
+        # todo: if valid set is None, create it as random segment of the shuffled train set
 
         if self.training_config.early_stop:
             training_generator = DataGenerator(x_train, y_train, 
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True)
+                embeddings=self.embeddings, shuffle=True, features=f_train)
 
             validation_generator = DataGenerator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False)
+                embeddings=self.embeddings, shuffle=False, features=f_valid)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
@@ -97,11 +102,15 @@ class Trainer(object):
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
-            training_generator = DataGenerator(x_train, y_train, 
+            feature_all = None
+            if f_train is not None:
+                feature_all = np.concatenate((f_train, f_valid), axis=0)
+
+            training_generator = DataGenerator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True)
+                embeddings=self.embeddings, shuffle=True, features=feature_all)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
@@ -123,18 +132,17 @@ class Trainer(object):
 
         return local_model
 
-    
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, callbacks=None):
-        """ 
-        n-fold training for the instance model 
-        the n models are stored in self.models, and self.model left unset at this stage 
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
+        """
+        n-fold training for the instance model
+        the n models are stored in self.models, and self.model left unset at this stage
         """
         if 'bert' in self.model_config.model_type.lower():
             # for BERT architectures, directly call the model trainer which is managing n-fold training
             # validation set is ignored, we suppose that the hyper-parameters are set with the validation set
             # before
             self.model.train(x_train, y_train)
-            # force config saving to ensure nothing is lost 
+            # force config saving to ensure nothing is lost
             return
 
         fold_count = len(self.models)
@@ -154,16 +162,20 @@ class Trainer(object):
 
                 train_x = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
                 train_y = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
+                train_f = np.concatenate([f_train[:fold_start], f_train[fold_end:]])
 
                 val_x = x_train[fold_start:fold_end]
                 val_y = y_train[fold_start:fold_end]
+                val_f = f_train[fold_start:fold_end]
             else:
                 # reuse given segmentation
                 train_x = x_train
                 train_y = y_train
+                train_f = f_train
 
                 val_x = x_valid
                 val_y = y_valid
+                val_f = f_valid
 
             foldModel = self.models[fold_id]
             foldModel.summary()
@@ -176,10 +188,12 @@ class Trainer(object):
                                optimizer='adam')
 
             foldModel = self.train_model(foldModel, 
-                                    train_x, 
-                                    train_y, 
-                                    val_x, 
-                                    val_y,
+                                    train_x,
+                                    train_y,
+                                    x_valid=val_x,
+                                    y_valid=val_y,
+                                    f_train=train_f,
+                                    f_valid=val_f,
                                     max_epoch=self.training_config.max_epoch,
                                     callbacks=callbacks)
             self.models[fold_id] = foldModel

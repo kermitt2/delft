@@ -54,8 +54,8 @@ C 1 0 1 0 NOPUNCT 0 <base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<base>
 i 0 0 0 0 NOPUNCT 0 <base>
@@ -87,8 +87,8 @@ l 0 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
@@ -97,8 +97,8 @@ M 1 0 1 1 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 % 1 0 0 0 NOPUNCT 0 I-<base>
 
@@ -116,8 +116,8 @@ C 1 0 1 0 NOPUNCT 0 <base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
@@ -128,8 +128,8 @@ l 0 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
@@ -140,8 +140,8 @@ C 1 0 1 0 NOPUNCT 0 <base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 % 1 0 0 0 NOPUNCT 0 I-<base>
 
@@ -167,14 +167,14 @@ l 0 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 % 1 0 0 0 NOPUNCT 0 I-<base>
 
@@ -209,8 +209,8 @@ l 0 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
@@ -227,8 +227,8 @@ M 1 0 1 1 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 g 0 0 1 0 NOPUNCT 0 I-<base>
@@ -250,16 +250,16 @@ l 0 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 µ 0 0 1 1 NOPUNCT 0 I-<prefix>
 l 0 0 1 0 NOPUNCT 0 I-<base>
 
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 % 1 0 0 0 NOPUNCT 0 I-<base>
 
@@ -268,8 +268,8 @@ K 1 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 c 0 0 1 1 NOPUNCT 0 I-<prefix>
 m 0 0 1 1 NOPUNCT 0 I-<base>
@@ -289,8 +289,8 @@ M 1 0 1 1 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 h 0 0 1 1 NOPUNCT 0 I-<base>
 
@@ -332,8 +332,8 @@ M 1 0 1 1 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 n 0 0 1 1 NOPUNCT 0 I-<prefix>
 m 0 0 1 1 NOPUNCT 0 I-<base>
@@ -383,8 +383,8 @@ C 1 0 1 0 NOPUNCT 0 <base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 M 1 0 1 1 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 n 0 0 1 1 NOPUNCT 0 I-<prefix>
 m 0 0 1 1 NOPUNCT 0 I-<base>
@@ -4225,8 +4225,8 @@ g 0 0 1 0 NOPUNCT 0 I-<base>
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 L 1 0 1 0 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 m 0 0 1 1 NOPUNCT 0 I-<prefix>
 g 0 0 1 0 NOPUNCT 0 I-<base>
@@ -7196,17 +7196,17 @@ g 0 0 1 0 NOPUNCT 0 I-<base>
 μ 0 0 0 0 NOPUNCT 0 I-<prefix>
 l 0 0 1 0 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 μ 0 0 0 0 NOPUNCT 0 I-<prefix>
 g 0 0 1 0 NOPUNCT 0 I-<base>
@@ -7214,17 +7214,17 @@ g 0 0 1 0 NOPUNCT 0 I-<base>
 μ 0 0 0 0 NOPUNCT 0 I-<prefix>
 l 0 0 1 0 NOPUNCT 0 I-<base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
-p 0 0 1 1 NOPUNCT 0 I-<base>
-H 1 0 1 0 NOPUNCT 0 <base>
+p 0 0 1 1 NOPUNCT 1 I-<base>
+H 1 0 1 0 NOPUNCT 1 <base>
 
 % 1 0 0 0 NOPUNCT 0 I-<base>
 

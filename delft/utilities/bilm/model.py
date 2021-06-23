@@ -15,6 +15,7 @@ DTYPE_INT = 'int64'
 class BidirectionalLanguageModel(object):
     def __init__(
             self,
+            lang,
             options_file: str,
             weight_file: str,
             use_character_inputs=True,
@@ -50,7 +51,7 @@ class BidirectionalLanguageModel(object):
                     "embedding_weight_file is required input with "
                     "not use_character_inputs"
                 )
-
+        self._lang = lang
         self._options = options
         self._weight_file = weight_file
         self._embedding_weight_file = embedding_weight_file
@@ -89,7 +90,7 @@ class BidirectionalLanguageModel(object):
             # need to create the graph
             if len(self._ops) == 0:
                 # first time creating the graph, don't reuse variables
-                lm_graph = BidirectionalLanguageModelGraph(
+                lm_graph = BidirectionalLanguageModelGraph(self._lang,
                     self._options,
                     self._weight_file,
                     ids_placeholder,
@@ -97,8 +98,8 @@ class BidirectionalLanguageModel(object):
                     use_character_inputs=self._use_character_inputs,
                     max_batch_size=self._max_batch_size)
             else:
-                with tf.variable_scope('', reuse=True):
-                    lm_graph = BidirectionalLanguageModelGraph(
+                with tf.variable_scope(self._lang, reuse=True):
+                    lm_graph = BidirectionalLanguageModelGraph(self._lang,
                         self._options,
                         self._weight_file,
                         ids_placeholder,
@@ -201,7 +202,7 @@ def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
                 root + '/LSTMCell/W_P_0'
 
     # convert the graph name to that in the checkpoint
-    varname_in_file = varname[5:]
+    varname_in_file = varname[8:]
     if varname_in_file.startswith('RNN'):
         varname_in_file = weight_name_map[varname_in_file]
 
@@ -248,10 +249,11 @@ class BidirectionalLanguageModelGraph(object):
     Creates the computational graph and holds the ops necessary for runnint
     a bidirectional language model
     '''
-    def __init__(self, options, weight_file, ids_placeholder,
+    def __init__(self, lang, options, weight_file, ids_placeholder,
                  use_character_inputs=True, embedding_weight_file=None,
                  max_batch_size=128):
 
+        self.lang = lang
         self.options = options
         self._max_batch_size = max_batch_size
         self.ids_placeholder = ids_placeholder

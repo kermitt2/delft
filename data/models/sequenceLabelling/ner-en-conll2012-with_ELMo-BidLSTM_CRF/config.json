@@ -8,7 +8,7 @@
     "model_name": "ner-en-conll2012-with_ELMo-BidLSTM_CRF",
     "use_char_feature": true,
     "char_embedding_size": 25,
-    "batch_size": 150,
+    "batch_size": 20,
     "case_embedding_size": 5,
     "model_type": "BidLSTM_CRF",
     "word_embedding_size": 1324,

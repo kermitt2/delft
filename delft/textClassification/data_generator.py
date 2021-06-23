@@ -1,6 +1,6 @@
 import numpy as np
 # seed is fixed for reproducibility
-from delft.utilities.numpy import shuffle_pair_with_view
+from delft.utilities.numpy import shuffle_triple_with_view
 
 np.random.seed(7)
 from tensorflow import set_random_seed
@@ -14,8 +14,8 @@ class DataGenerator(keras.utils.Sequence):
     'Generates data for Keras'
     def __init__(self, x, y, batch_size=256, maxlen=300, list_classes=[], embeddings=(), shuffle=True):
         'Initialization'
-        self.original_x = self.x = x
-        self.original_y = self.y = y
+        self.x = x
+        self.y = y
         self.batch_size = batch_size
         self.maxlen = maxlen
         self.embeddings = embeddings
@@ -36,12 +36,12 @@ class DataGenerator(keras.utils.Sequence):
 
     def on_epoch_end(self):
         # If we are predicting, we don't need to shuffle
-        if self.original_y is None:
+        if self.y is None:
             return
 
         # shuffle dataset at each epoch
         if self.shuffle:
-            self.x, self.y = shuffle_pair_with_view(self.original_x, self.original_y)
+            self.x, self.y, _ = shuffle_triple_with_view(self.x, self.y)
 
     def __data_generation(self, index):
         'Generates data containing batch_size samples' 

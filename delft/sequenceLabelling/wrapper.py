@@ -8,9 +8,10 @@ import math
 import shutil
 
 import numpy as np
-# seed is fixed for reproducibility
 from delft.sequenceLabelling.evaluation import get_report
+from delft.utilities.numpy import concatenate_or_none
 
+# seed is fixed for reproducibility
 np.random.seed(7)
 
 # ask tensorflow to be quiet and not print hundred lines of logs
@@ -48,7 +49,8 @@ class Sequence(object):
 
     config_file = 'config.json'
     weight_file = 'model_weights.hdf5'
-    preprocessor_file = 'preprocessor.pkl'
+    preprocessor_file = 'preprocessor.json'
+    #preprocessor_file_new = 'preprocessor.json'
 
     # number of parallel worker for the data generator when not using ELMo
     nb_workers = 6
@@ -79,7 +81,8 @@ class Sequence(object):
                  use_ELMo=False,
                  use_BERT=False,
                  fold_number=1,
-                 multiprocessing=True):
+                 multiprocessing=True,
+                 features_indices=None):
 
         self.model = None
         self.models = None
@@ -110,23 +113,33 @@ class Sequence(object):
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
                                         use_ELMo=use_ELMo,
-                                        use_BERT=use_BERT)
+                                        use_BERT=use_BERT,
+                                        features_indices=features_indices)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
                                               early_stop, patience, 
                                               max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, x_valid=None, y_valid=None, callbacks=None):
+    def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None, callbacks=None):
         # TBD if valid is None, segment train to get one
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
-        self.p = prepare_preprocessor(x_all, y_all, self.model_config)
+        features_all = concatenate_or_none((f_train, f_valid), axis=0)
+
+        self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
-        trainer = Trainer(self.model, 
+        if self.p.return_features is not False:
+            print('x_train.shape: ', x_train.shape)
+            print('features_train.shape: ', f_train.shape)
+            sample_transformed_features = self.p.transform_features(f_train)
+            self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
+            print('max_feature_size: ', self.model_config.max_feature_size)
+
+        trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
                           self.model_config,
@@ -134,19 +147,18 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train(x_train, y_train, x_valid, y_valid, callbacks=callbacks)
+        trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, fold_number=10, callbacks=None):
-        if x_valid is not None and y_valid is not None:
-            x_all = np.concatenate((x_train, x_valid), axis=0)
-            y_all = np.concatenate((y_train, y_valid), axis=0)
-            self.p = prepare_preprocessor(x_all, y_all, self.model_config)
-        else:
-            self.p = prepare_preprocessor(x_train, y_train, self.model_config)
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train: np.array = None, f_valid: np.array = None, fold_number=10, callbacks=None):
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
+        features_all = concatenate_or_none((f_train, f_valid), axis=0)
+
+        self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
@@ -167,7 +179,7 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p
                           )
-        trainer.train_nfold(x_train, y_train, x_valid, y_valid, callbacks=callbacks)
+        trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
         if self.embeddings.use_BERT:
@@ -175,29 +187,29 @@ class Sequence(object):
         if 'bert' in self.model_config.model_type.lower():
             self.save()
 
-    def eval(self, x_test, y_test):
-        if self.model_config.fold_number > 1 and self.models and len(self.models) == self.model_config.fold_number:
-            self.eval_nfold(x_test, y_test)
+    def eval(self, x_test, y_test, features=None):
+        if self.models and 1 < self.model_config.fold_number == len(self.models):
+            self.eval_nfold(x_test, y_test, features=features)
         else:
-            self.eval_single(x_test, y_test)
+            self.eval_single(x_test, y_test, features=features)
 
-    def eval_single(self, x_test, y_test):   
+    def eval_single(self, x_test, y_test, features=None):
         if 'bert' not in self.model_config.model_type.lower():
             if self.model:
                 # Prepare test data(steps, generator)
-                test_generator = DataGenerator(x_test, y_test, 
-                  batch_size=self.model_config.batch_size, preprocessor=self.p, 
-                  char_embed_size=self.model_config.char_embedding_size, 
+                test_generator = DataGenerator(x_test, y_test,
+                  batch_size=self.model_config.batch_size, preprocessor=self.p,
+                  char_embed_size=self.model_config.char_embedding_size,
                   max_sequence_length=self.model_config.max_sequence_length,
-                  embeddings=self.embeddings, shuffle=False)
+                  embeddings=self.embeddings, shuffle=False, features=features)
 
                 # Build the evaluator and evaluate the model
                 scorer = Scorer(test_generator, self.p, evaluation=True)
                 scorer.model = self.model
-                scorer.on_epoch_end(epoch=-1) 
+                scorer.on_epoch_end(epoch=-1)
             else:
                 raise (OSError('Could not find a model.'))
-        else: 
+        else:
             # BERT architecture model
             y_pred = self.model.predict(x_test, fold_id=-1)
 
@@ -207,8 +219,8 @@ class Sequence(object):
                     nb_alignment_issues += 1
                     # BERT tokenizer appears to introduce some additional tokens without ## prefix,
                     # but this is normally handled when predicting.
-                    # To be very conservative, the following ensure the number of tokens always 
-                    # match, but it should never be used in practice. 
+                    # To be very conservative, the following ensure the number of tokens always
+                    # match, but it should never be used in practice.
                     if len(y_test[i]) < len(y_pred[i]):
                         y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
                     if len(y_test[i]) > len(y_pred[i]):
@@ -220,7 +232,7 @@ class Sequence(object):
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
             print(report)
 
-    def eval_nfold(self, x_test, y_test):
+    def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
             total_f1 = 0
             best_f1 = 0
@@ -236,16 +248,16 @@ class Sequence(object):
 
                 if 'bert' not in self.model_config.model_type.lower():
                     # Prepare test data(steps, generator)
-                    test_generator = DataGenerator(x_test, y_test, 
-                      batch_size=self.model_config.batch_size, preprocessor=self.p, 
-                      char_embed_size=self.model_config.char_embedding_size, 
+                    test_generator = DataGenerator(x_test, y_test,
+                      batch_size=self.model_config.batch_size, preprocessor=self.p,
+                      char_embed_size=self.model_config.char_embedding_size,
                       max_sequence_length=self.model_config.max_sequence_length,
-                      embeddings=self.embeddings, shuffle=False)
+                      embeddings=self.embeddings, shuffle=False, features=features)
 
                     # Build the evaluator and evaluate the model
                     scorer = Scorer(test_generator, self.p, evaluation=True)
                     scorer.model = self.models[i]
-                    scorer.on_epoch_end(epoch=-1) 
+                    scorer.on_epoch_end(epoch=-1)
                     f1 = scorer.f1
                     precision = scorer.precision
                     recall = scorer.recall
@@ -369,13 +381,13 @@ class Sequence(object):
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
-    def tag(self, texts, output_format):
+    def tag(self, texts, output_format, features=None):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
         if self.model:
             tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
             start_time = time.time()
-            annotations = tagger.tag(texts, output_format)
+            annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
             if output_format is 'json':
                 annotations["runtime"] = runtime
@@ -496,7 +508,7 @@ class Sequence(object):
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
 
         if self.model_config.model_type.lower().find("bert") != -1:
-             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag), dir_path=dir_path)
              self.model.load_model()
              return
 

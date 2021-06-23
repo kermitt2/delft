@@ -30,13 +30,12 @@ class Tagger(object):
         else:
            list_of_tags = []
 
-        tokeniz = False
+        to_tokeniz = False
         if (len(texts)>0 and isinstance(texts[0], str)):
-            tokeniz = True
+            to_tokeniz = True
 
         if 'bert' in self.model_config.model_type.lower():
             preds = self.model.predict(texts, fold_id=-1)
-
             for i in range(0,len(preds)):
                 pred = preds[i]
                 text = texts[i]
@@ -55,20 +54,19 @@ class Tagger(object):
                 if output_format is 'json':
                     piece = {}
                     piece["text"] = text
-                    piece["entities"] = self._build_json_response(tokens, tags, prob, offsets)["entities"]
+                    piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
                     res["texts"].append(piece)
                 else:
                     the_tags = list(zip(tokens, tags))
                     list_of_tags.append(the_tags)
 
         else:
-
             predict_generator = DataGenerator(texts, None, 
                 batch_size=self.model_config.batch_size, 
                 preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size,
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, tokenize=tokeniz, shuffle=False, features=None)
+                embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, features=features)
 
             nb_workers = 6
             multiprocessing = True
@@ -86,11 +84,12 @@ class Tagger(object):
                     break
                 preds = self.model.predict_on_batch(generator_output[0])
 
-                for i in range(0,len(preds)):
+                for i in range(0, len(preds)):
                     pred = [preds[i]]
                     text = texts[i+(steps_done*self.model_config.batch_size)]
 
-                    if (isinstance(text, str)):
+                    #if (isinstance(text, str)):
+                    if to_tokeniz:
                        tokens, offsets = tokenizeAndFilter(text)
                     else:
                         # it is a list of string, so a string already tokenized
@@ -104,7 +103,7 @@ class Tagger(object):
                     if output_format is 'json':
                         piece = {}
                         piece["text"] = text
-                        piece["entities"] = self._build_json_response(tokens, tags, prob, offsets)["entities"]
+                        piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
                         res["texts"].append(piece)
                     else:
                         the_tags = list(zip(tokens, tags))
@@ -127,19 +126,28 @@ class Tagger(object):
 
         return prob
 
-    def _build_json_response(self, tokens, tags, prob, offsets):
+    def _build_json_response(self, original_text, tokens, tags, prob, offsets):
         res = {
             "entities": []
         }
         chunks = get_entities_with_offsets(tags, offsets)
+        # LF: This could be combined with line 145, however currently the output list of spaces has one element missing
+        # spaces = [offsets[offsetIndex-1][1] != offsets[offsetIndex][0] for offsetIndex in range(1, len(offsets))]
+
         for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
-            # TODO: get the original string rather than regenerating it from tokens
             if prob is not None:
                 score = float(np.average(prob[chunk_start:chunk_end]))
             else:
                 score = 1.0
+
+            # LF: reconstruct the text considering initial spaces - remove space a the end of the entity
+            # text_from_tokens = ''.join([tokens[idx] + (' ' if spaces[idx] else '') for idx in range(chunk_start, chunk_end)])
+            # if text_from_tokens.endswith(' '):
+            #     text_from_tokens = text_from_tokens[0:-1]
+            entity_text = original_text[pos_start: pos_end+1]
+
             entity = {
-                "text": ' '.join(tokens[chunk_start: chunk_end]),
+                "text": entity_text,
                 "class": chunk_type,
                 "score": score,
                 "beginOffset": pos_start,
@@ -174,10 +182,10 @@ def get_entities_with_offsets(seq, offsets):
     max_length = min(len(seq)-1, len(offsets))
     while i < max_length:
         if seq[i].startswith('B'):
-            # if we are at the end of the offsets, we can stop immediatly
+            # if we are at the end of the offsets, we can stop immediately
             j = max_length
             if i+2 != max_length:
-                for j in range(i+1, max_length):
+                for j in range(i+1, max_length+1):
                     if seq[j].startswith('I') and types[j] == types[i]:
                         continue
                     break

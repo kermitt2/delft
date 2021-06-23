@@ -43,6 +43,7 @@ data/models/sequenceLabelling/*scibert*
 data/models/sequenceLabelling/*biobert*
 data/models/sequenceLabelling/*-bert-*-en/
 data/models/textClassification/citations*
+
 data/models/sequenceLabelling/*0
 data/models/sequenceLabelling/*1
 data/models/sequenceLabelling/*2
@@ -53,3 +54,14 @@ data/models/sequenceLabelling/*6
 data/models/sequenceLabelling/*7
 data/models/sequenceLabelling/*8
 data/models/sequenceLabelling/*9
+
+data/models/textClassification/*0
+data/models/textClassification/*1
+data/models/textClassification/*2
+data/models/textClassification/*3
+data/models/textClassification/*4
+data/models/textClassification/*5
+data/models/textClassification/*6
+data/models/textClassification/*7
+data/models/textClassification/*8
+data/models/textClassification/*9

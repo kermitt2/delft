@@ -47,14 +47,61 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     # saving the model
     model.save()
     
+
+    print('loading reuse dataset type corpus...')
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
+
+    model_name = 'dataseer-reuse'
+    class_weights = {0: 1.5, 1: 1.}
+    batch_size = 256
+    maxlen = 300
+    if use_ELMo:
+        batch_size = 20
+        model_name += '-with_ELMo'
+    elif use_BERT:
+        batch_size = 50
+        model_name += '-with_BERT'
+
+    # default bert model parameters
+    if architecture.lower().find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+
+    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        class_weights=class_weights)
+    
+    if fold_count == 1:
+        model.train(xtr, y)
+    else:
+        model.train_nfold(xtr, y)
+    # saving the model
+    model.save()
+
+
     print('loading first-level dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     model_name = 'dataseer-first'
     if use_ELMo:
         model_name += '-with_ELMo'
     elif use_BERT:
         model_name += '-with_BERT'
+
+    class_weights = None
+    batch_size = 256
+    maxlen = 300
+    if use_ELMo:
+        batch_size = 20
+        model_name += '-with_ELMo'
+    elif use_BERT:
+        batch_size = 50
+        model_name += '-with_BERT'
+
+    # default bert model parameters
+    if architecture.lower().find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
     use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
@@ -69,7 +116,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     
     '''
     print('training second-level dataset subtype corpus...')
-    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # aggregate by class, we will have one training set per class
     datatypes_y = {}
     datatypes_xtr = {}
@@ -116,13 +163,16 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
         return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    #train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+
+    # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
+    train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for first level data type hierarchy
     train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
-    #train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
 
 def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('loading dataset type corpus...')
@@ -169,10 +219,57 @@ def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=
 
     # saving the model
     model.save()
+
+def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+    print('loading dataset type corpus...')
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
+
+    # distinct values of classes
+    print(list_classes)
+    print(len(list_classes), "classes")
+
+    print(len(xtr), "texts")
+    print(len(y), "classes")
+
+    batch_size = 256
+    maxlen = 300
+    if use_ELMo:
+        batch_size = 20
+    elif use_BERT:
+        batch_size = 50
+
+    # default bert model parameters
+    if architecture.find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+
+    class_weights = {0: 1.5, 1: 1.}
+
+    model = Classifier('dataseer-reuse', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
+        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        class_weights=class_weights)
+
+    # segment train and eval sets
+    x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
+
+    print(len(x_train), "train texts")
+    print(len(y_train), "train classes")
+
+    print(len(x_test), "eval texts")
+    print(len(y_test), "eval classes")
+
+    if fold_count == 1:
+        model.train(x_train, y_train)
+    else:
+        model.train_nfold(x_train, y_train)
+    model.eval(x_test, y_test)
+
+    # saving the model
+    model.save()
     
 def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('loading dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     # distinct values of classes
     print(list_classes)
@@ -218,7 +315,7 @@ def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT
 
 def train_and_eval_secondary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
     print('training second-level dataset subtype corpus...')
-    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # aggregate by class, we will have one training set per class
 
     print(list_classes)
@@ -315,7 +412,7 @@ def classify(texts, output_format, architecture="gru", cascaded=False):
         Classify a list of texts with an existing model
     '''
     # load model
-    model = Classifier('dataseer', model_type=architecture)
+    model = Classifier('dataseer-first', model_type=architecture)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -363,7 +460,7 @@ def train_eval_cascaded(embeddings_name, fold_count, use_ELMo=False, use_BERT=Fa
     y_test_binary = y_test
 
     # second, the first level datatype taxonomy for sentences classified as dataset
-    xtr, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # ignore the no_dataset, ignore the first eval set, build first level classifier
     
     ind = list_classes.index('no_dataset')
@@ -415,7 +512,7 @@ def build_prior_class_distribution():
     """
     Inject count from the training data to the classification taxonomy of data types
     """
-    _, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    _, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     with open('data/textClassification/dataseer/DataTypes.json') as json_file:
         distribution = json.load(json_file)
@@ -515,4 +612,4 @@ if __name__ == "__main__":
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))  
 
     # See https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()
+    #K.clear_session()

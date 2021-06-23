@@ -1,7 +1,10 @@
 import numpy as np
 import xml
+import gzip
+import json
 from xml.sax import make_parser, handler
 import pandas as pd
+from delft.utilities.numpy import shuffle_triple_with_view
 
 
 def load_texts_and_classes(filepath):
@@ -144,7 +147,6 @@ def load_citation_sentiment_corpus(filepath):
     return np.asarray(texts), np.asarray(polarities)
 
 
-
 def load_dataseer_corpus_csv(filepath):
     """
     Load texts from the Dataseer dataset type corpus in csv format:
@@ -161,46 +163,122 @@ def load_dataseer_corpus_csv(filepath):
     """
     df = pd.read_csv(filepath)
     df = df[pd.notnull(df['text'])]
-    df = df[pd.notnull(df['datatype'])]
+    if 'datatype' in df.columns:
+        df = df[pd.notnull(df['datatype'])]
+    #if 'reuse' in df.columns:    
+    #    df = df[pd.notnull(df['reuse'])]
     df.iloc[:,1].fillna('NA', inplace=True)
+
+    # shuffle, note that this is important for the reuse prediction, the following shuffle in place
+    # and reset the index
+    df = df.sample(frac=1).reset_index(drop=True)
 
     texts_list = []
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
+    '''
+    if 'reuse' in df.columns:  
+        # we simply get the reuse boolean value for the examples
+        datareuses = df.iloc[:,2]
+        reuse_list = datareuses.values.tolist()
+        reuse_list = np.asarray(reuse_list)
+        # map boolean values to [0,1]
+        def map_boolean(x):
+            return 1 if x else 0
+        reuse_list = np.array(list(map(map_boolean, reuse_list)))
+        print(reuse_list)
+        return np.asarray(texts_list), reuse_list, None, None, ["not_reuse", "reuse"], None, None
+    '''
+
+    # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
     datatypes_list = np.asarray(datatypes_list)
-    list_classes_datatypes = np.unique(datatypes_list)
-    datatypes_final = normalize_classes(datatypes_list, list_classes_datatypes)
+    datatypes_list_lower = np.char.lower(datatypes_list)
+    list_classes_datatypes = np.unique(datatypes_list_lower)    
+    datatypes_final = normalize_classes(datatypes_list_lower, list_classes_datatypes)
 
     print(df.shape, df.shape[0], df.shape[1])
 
     if df.shape[1] > 3:
+        # remove possible row with 'no_dataset'
+        df = df[~df.datatype.str.contains("no_dataset")]
         datasubtypes = df.iloc[:,3]
         datasubtypes_list = datasubtypes.values.tolist()
         datasubtypes_list = np.asarray(datasubtypes_list)
-        list_classes_datasubtypes = np.unique(datasubtypes_list)
-        datasubtypes_final = normalize_classes(datasubtypes_list, list_classes_datasubtypes)
+        datasubtypes_list_lower = np.char.lower(datasubtypes_list)
+        list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
+        datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
 
+    '''
     if df.shape[1] > 4:
         leafdatatypes = df.iloc[:,4]
         leafdatatypes_list = leafdatatypes.values.tolist()
         leafdatatypes_list = np.asarray(leafdatatypes_list)
-        list_classes_leafdatatypes = np.unique(leafdatatypes_list)
-        leafdatatypes_final = normalize_classes(leafdatatypes_list, list_classes_leafdatatypes)
+        #leafdatatypes_list_lower = np.char.lower(leafdatatypes_list)
+        leafdatatypes_list_lower = leafdatatypes_list
+        list_classes_leafdatatypes = np.unique(leafdatatypes_list_lower)  
+        print(list_classes_leafdatatypes)
+        leafdatatypes_final = normalize_classes(leafdatatypes_list_lower, list_classes_leafdatatypes)
+    '''
 
     if df.shape[1] == 3:
         return np.asarray(texts_list), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
-    elif df.shape[1] == 4:
+    #elif df.shape[1] == 4:
+    else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
+    '''
     else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
+    '''
+
+def load_software_use_corpus_json(json_gz_file_path):
+    """
+    Load texts and classes from the corresponding Softcite corpus export in gzipped json format
+
+    Classification of the software usage is binary
+
+    Returns:
+        tuple(numpy array, numpy array): 
+            texts, binary class (used/not_used)
+
+    """
+
+    texts_list = []
+    classes_list = []
+
+    with gzip.GzipFile(json_gz_file_path, 'r') as fin:
+        data = json.loads(fin.read().decode('utf-8'))
+        if not "documents" in data:
+            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            return None, None 
+        for document in data["documents"]:
+            for segment in document["texts"]:
+                if "entity_spans" in segment:
+                    if not "text" in segment:
+                        continue
+                    text = segment["text"]
+                    for entity_span in segment["entity_spans"]:
+                        if entity_span["type"] == "software":
+                            texts_list.append(text)
+                            if "used" in entity_span and entity_span["used"]:
+                                classes_list.append("used")
+                            else:
+                                classes_list.append("not_used")
+    list_possible_classes = np.unique(classes_list)
+    classes_list_final = normalize_classes(classes_list, list_possible_classes)
+
+    texts_list_final = np.asarray(texts_list)
+
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+
+    return texts_list_final, classes_list_final
 
 
 def normalize_classes(y, list_classes):
     '''
-        Replace string values of classes by their index in the list of classes
+    Replace string values of classes by their index in the list of classes
     '''
     def f(x):
         return np.where(list_classes == x)
