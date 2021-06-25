@@ -118,9 +118,6 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
     else:
         model_name = 'grobid-' + model
 
-    if max_sequence_length == -1:
-        max_sequence_length = 3000
-
     if architecture.lower().find("bert") != -1:
         if batch_size == -1:
             batch_size = 6
@@ -134,7 +131,7 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
                 batch_size = 7
         elif batch_size == -1:
             # class are more unbalanced, so we need to extend the batch size
-            batch_size = 50
+            batch_size = 30
         if max_sequence_length == -1:
             max_sequence_length = 1500
 
@@ -143,14 +140,11 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
     if use_ELMo:
         model_name += '-with_ELMo'
     
-    '''
-        if model_name.startswith('software') or model_name.startswith('grobid-software'):
-            if batch_size == -1:
-                batch_size = 7
-    '''
-
     if batch_size == -1:
         batch_size = 20
+
+    if max_sequence_length == -1:
+        max_sequence_length = 3000
 
     return batch_size, max_sequence_length, model_name
 

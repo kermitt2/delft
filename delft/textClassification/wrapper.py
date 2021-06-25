@@ -1,13 +1,15 @@
 import os
 
+# ask tensorflow to be quiet and not print hundred lines of logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+
 import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
 
-# ask tensorflow to be quiet and not print hundred lines of logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+import tensorflow as tf
+tf.set_random_seed(7)
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 import datetime
 

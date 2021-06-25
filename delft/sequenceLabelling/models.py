@@ -22,7 +22,6 @@ np.random.seed(7)
 import tensorflow as tf
 tf.set_random_seed(7)
 
-
 def get_model(config, preprocessor, ntags=None, dir_path=None):
     if config.model_type == BidLSTM_CRF.name:
         preprocessor.return_casing = False
@@ -451,14 +450,24 @@ class BERT_Sequence(BaseModel):
         # we get the BERT pretrained files from the embeddings registry
         description = _get_description(self.model_type)
 
-        if description is None:
-            raise Exception('no embeddings description found for ' + self.model_type)
+        #if description is None:
+        #    raise Exception('no embeddings description found for ' + self.model_type)
 
         self.fold_count = config.fold_number
 
-        self.config_file = description["path-config"]
-        self.weight_file = description["path-weights"] # init_checkpoint
-        self.vocab_file = description["path-vocab"]
+        # note: postpone the instanciation if not available, it normally means that 
+        # we load a fine-tuned model and we don't need to look at the original
+        # pre-trained resources (this is mandatory for the vocabulary when predicting)
+        self.config_file = None
+        self.weight_file = None
+        self.vocab_file = None
+        if description != None:
+            if "path-config" in description and os.path.isfile(description["path-config"]):
+                self.config_file = description["path-config"]
+            if "path-weights" in description and os.path.isfile(description["path-weights"]+".data-00000-of-00001"):
+                self.weight_file = description["path-weights"] 
+            if "path-vocab" in description and os.path.isfile(description["path-vocab"]):
+                self.vocab_file = description["path-vocab"]
 
         self.labels = []
 
@@ -487,16 +496,26 @@ class BERT_Sequence(BaseModel):
         self.save_checkpoints_steps = 99999999 # <----- don't want to save any checkpoints
         self.iterations_per_loop = 1000
 
-        self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
-        self.processor = NERProcessor(self.labels)
-
-        self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
         if dir_path is None:
-            self.model_dir = 'data/models/sequenceLabelling/' + self.model_name    
+            self.model_dir = 'data/models/sequenceLabelling/' + self.model_name
         else:
             if not dir_path.endswith("/"):
                 dir_path += "/"
             self.model_dir = dir_path + self.model_name 
+
+        # defaulting to fine-tuned model if available
+        if not self.model_dir is None:
+            if self.config_file is None:
+                self.config_file = os.path.join(self.model_dir, 'bert_config.json')
+            if self.weight_file is None:
+                self.weight_file = os.path.join(self.model_dir, 'model.ckpt') 
+            if self.vocab_file is None: 
+                self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
+
+        self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
+        self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
+        self.processor = NERProcessor(self.labels)
+
         self.loaded_estimator = None
 
     def train(self, x_train=None, y_train=None):
@@ -603,6 +622,48 @@ class BERT_Sequence(BaseModel):
         if os.path.exists(garbage):
             os.remove(garbage)
 
+        # we need to save the vocab file and bert config files from the initial pre-trained model
+        if not self.config_file is None:
+            destination = os.path.join(self.model_dir+suffix, "bert_config.json")
+            shutil.copyfile(self.config_file, destination)
+
+        if not self.vocab_file is None: 
+            destination = os.path.join(self.model_dir+suffix, "vocab.txt")
+            shutil.copyfile(self.vocab_file, destination)
+
+        # we need to rename the fine-tune weight and related files as default checkpoint
+        for f in os.listdir(self.model_dir):
+            if f.endswith(".data-00000-of-00001"):
+                # get the checkpoint number
+                ind = f.find("-")
+                if ind == -1:
+                    print("warning: invalid weight file name, " + f)
+                    continue
+                ind2 = f.find(".", ind+1)
+                if ind2 == -1:
+                    print("warning: invalid weight file name, " + f)
+                    continue
+                ckpt_num = f[ind+1:ind2]
+
+                # rename weight file
+                new_name = f.replace("-"+ckpt_num, "")
+                os.rename(os.path.join(self.model_dir+suffix, f), os.path.join(self.model_dir+suffix, new_name))
+
+                # rename index and meta file
+                new_name = f.replace("-"+ckpt_num, "")
+                new_name = new_name.replace(".data-00000-of-00001", ".meta")
+                os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".meta")), 
+                    os.path.join(self.model_dir+suffix, new_name))
+                new_name = f.replace("-"+ckpt_num, "")
+                new_name = new_name.replace(".data-00000-of-00001", ".index")
+                os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".index")), 
+                    os.path.join(self.model_dir+suffix, new_name))
+                break
+
+        # finally we save the checkpoint file to point to this default checkpoint
+        destination = os.path.join(self.model_dir+suffix, "checkpoint")
+        with open(destination, "w") as f:
+            f.write('model_checkpoint_path: "model.ckpt"\nall_model_checkpoint_paths: "model.ckpt-0"\n"all_model_checkpoint_paths: "model.ckpt"\n')
 
     def predict(self, texts, fold_id=-1):
         if self.loaded_estimator is None:

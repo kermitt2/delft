@@ -19,6 +19,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import tensorflow as tf
 tf.set_random_seed(7)
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 import keras.backend as K
 # Initialize Keras session
