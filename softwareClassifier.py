@@ -143,7 +143,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.action not in ('train', 'train_eval', 'classify'):
-        print('action not specifed, must be one of [train,train_eval,classify]')
+        print('action not specified, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
     use_ELMo = args.use_ELMo

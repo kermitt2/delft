@@ -155,6 +155,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
     if input_path is None:
         # it should never be the case
         print("A Grobid evaluation data file must be specified for evaluating a grobid model for the eval action, use parameter --input ")
+        return
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -237,7 +238,7 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for trainng and "
+    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument(
         "--feature-indices",
