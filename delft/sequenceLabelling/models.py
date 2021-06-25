@@ -632,7 +632,7 @@ class BERT_Sequence(BaseModel):
             shutil.copyfile(self.vocab_file, destination)
 
         # we need to rename the fine-tune weight and related files as default checkpoint
-        for f in os.listdir(self.model_dir):
+        for f in os.listdir(self.model_dir+suffix):
             if f.endswith(".data-00000-of-00001"):
                 # get the checkpoint number
                 ind = f.find("-")
