@@ -2,6 +2,7 @@ import argparse
 import json
 import time
 
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 from delft.textClassification import Classifier
@@ -75,7 +76,7 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count, use_ELMo
                        class_weights=None)
 
     # segment train and eval sets
-    x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_one_hot, 0.9)
+    x_train, x_test, y_train, y_test = train_test_split(xtr, y_one_hot, test_size=0.1)
 
     if fold_count == 1:
         model.train(x_train, y_train)
