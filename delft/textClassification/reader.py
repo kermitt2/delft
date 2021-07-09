@@ -1,3 +1,5 @@
+import csv
+
 import numpy as np
 import xml
 import gzip
@@ -26,15 +28,14 @@ def load_texts_and_classes(filepath):
     classes = []
 
     with open(filepath) as f:
-        for line in f:
-            line = line.strip()
-            if (len(line) is 0):
+        tsvreader = csv.reader(f, delimiter="\t")
+        for line in tsvreader:
+            if len(line) is 0:
                 continue
-            pieces = line.split('\t')
-            if (len(pieces) < 3):
+            if len(line) < 3:
                 print("Warning: number of fields in the data file too low for line:", line)
-            texts.append(pieces[1])
-            classes.append(pieces[2:])
+            texts.append(line[1])
+            classes.append(line[2:])
 
     return np.asarray(texts), np.asarray(classes)
 
