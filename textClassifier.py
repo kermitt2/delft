@@ -11,6 +11,29 @@ from delft.textClassification.reader import load_texts_and_classes
 from delft.utilities.Utilities import split_data_and_labels
 
 
+
+def get_one_hot(y):
+    label_encoder = LabelEncoder()
+    integer_encoded = label_encoder.fit_transform(y)
+    onehot_encoder = OneHotEncoder(sparse=False)
+    integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
+    y2 = onehot_encoder.fit_transform(integer_encoded)
+    return y2
+
+
+def configure(architecture, use_BERT=False, use_ELMo=False):
+    batch_size = 256
+    if use_ELMo:
+        batch_size = 20
+    elif use_BERT:
+        batch_size = 50
+    maxlen = 300
+    # default bert model parameters
+    if architecture.find("bert") != -1:
+        batch_size = 32
+        maxlen = 300
+    return batch_size, maxlen
+
 def train(model_name, input_file, embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"):
     batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
 
@@ -35,32 +58,9 @@ def train(model_name, input_file, embeddings_name, fold_count, use_ELMo=False, u
     model.save()
 
 
-def get_one_hot(y):
-    label_encoder = LabelEncoder()
-    integer_encoded = label_encoder.fit_transform(y)
-    onehot_encoder = OneHotEncoder(sparse=False)
-    integer_encoded = integer_encoded.reshape(len(integer_encoded), 1)
-    y2 = onehot_encoder.fit_transform(integer_encoded)
-    return y2
-
-
-def configure(architecture, use_BERT=False, use_ELMo=False):
-    batch_size = 256
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
-    maxlen = 120
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-    return batch_size, maxlen
-
-
 def train_and_eval(model_name, input_file, embeddings_name, fold_count, use_ELMo=False, use_BERT=False,
                    architecture="gru"):
     batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
-    maxlen = 150
 
     print('loading ' + model_name + ' corpus...')
     xtr, y = load_texts_and_classes(input_file)
@@ -105,7 +105,7 @@ def classify(model_name, texts, output_format, architecture="gru"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Sentiment classification of citation passages")
+        description="General classification of text ")
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
