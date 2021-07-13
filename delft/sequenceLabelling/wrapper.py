@@ -122,7 +122,8 @@ class Sequence(object):
                                               early_stop, patience, 
                                               max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None, callbacks=None):
+    def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None,
+              f_valid: np.array = None, callbacks=None):
         # TBD if valid is None, segment train to get one
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
@@ -154,7 +155,8 @@ class Sequence(object):
         if self.embeddings.use_BERT:
             self.embeddings.clean_BERT_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train: np.array = None, f_valid: np.array = None, fold_number=10, callbacks=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None,
+                    f_train: np.array = None, f_valid: np.array = None, fold_number=10, callbacks=None):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
@@ -188,13 +190,13 @@ class Sequence(object):
         if 'bert' in self.model_config.model_type.lower():
             self.save()
 
-    def eval(self, x_test, y_test, features=None):
+    def eval(self, x_test, y_test, features=None, verbose=False):
         if self.models and 1 < self.model_config.fold_number == len(self.models):
-            self.eval_nfold(x_test, y_test, features=features)
+            self.eval_nfold(x_test, y_test, features=features, verbose=verbose)
         else:
-            self.eval_single(x_test, y_test, features=features)
+            self.eval_single(x_test, y_test, features=features, verbose=verbose)
 
-    def eval_single(self, x_test, y_test, features=None):
+    def eval_single(self, x_test, y_test, features=None, verbose=False):
         if 'bert' not in self.model_config.model_type.lower():
             if self.model:
                 # Prepare test data(steps, generator)
@@ -207,7 +209,14 @@ class Sequence(object):
                 # Build the evaluator and evaluate the model
                 scorer = Scorer(test_generator, self.p, evaluation=True)
                 scorer.model = self.model
-                scorer.on_epoch_end(epoch=-1)
+                # scorer.on_epoch_end(epoch=-1)
+                y_pred, y_true = scorer.collect_output(test_generator)
+
+                if verbose:
+                    self.print_raw_data(x_test, y_pred, y_true, features)
+
+                scorer.compute_evaluation(y_pred, y_true, logs={})
+
             else:
                 raise (OSError('Could not find a model.'))
         else:
@@ -233,7 +242,18 @@ class Sequence(object):
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
             print(report)
 
-    def eval_nfold(self, x_test, y_test, features=None):
+    def print_raw_data(self, x, y_pred, y_true, features=None):
+        for idx_example, example in enumerate(x):
+            for idx_token, token in enumerate(example):
+                if features is not None and features.any():
+                    print(token, " ".join(features[idx_example][idx_token]), y_true[idx_example][idx_token],
+                      y_pred[idx_example][idx_token])
+                else:
+                    print(token, y_true[idx_example][idx_token], y_pred[idx_example][idx_token])
+
+            print("")
+
+    def eval_nfold(self, x_test, y_test, features=None, verbose=False):
         if self.models is not None:
             total_f1 = 0
             best_f1 = 0
@@ -258,7 +278,14 @@ class Sequence(object):
                     # Build the evaluator and evaluate the model
                     scorer = Scorer(test_generator, self.p, evaluation=True)
                     scorer.model = self.models[i]
-                    scorer.on_epoch_end(epoch=-1)
+                    # scorer.on_epoch_end(epoch=-1)
+                    y_pred, y_true = scorer.collect_output(test_generator)
+
+                    if verbose:
+                        self.print_raw_data(x_test, y_pred, y_true, features)
+
+                    scorer.compute_evaluation(y_pred, y_true, logs={})
+
                     f1 = scorer.f1
                     precision = scorer.precision
                     recall = scorer.recall

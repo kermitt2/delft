@@ -235,7 +235,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):
 
 class Scorer(Callback):
 
-    def __init__(self, validation_generator, preprocessor=None, evaluation=False):
+    def __init__(self, validation_generator, preprocessor=None, evaluation=False, verbose=True):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
         validation step and we will simply produce f1 score
@@ -254,14 +254,36 @@ class Scorer(Callback):
         self.evaluation = evaluation
 
     def on_epoch_end(self, epoch, logs={}):
+        y_pred, y_true = self.collect_output(self.valid_batches)
+        #    print("pred", y_pred[i])
+        #    print("true", y_true[i])
+        self.compute_evaluation(y_pred, y_true, logs)
+
+    def compute_evaluation(self, y_pred, y_true, logs):
+        has_data = y_true is not None and y_pred is not None
+        f1 = f1_score(y_true, y_pred) if has_data else 0.0
+        print("\tf1 (micro): {:04.2f}".format(f1 * 100))
+        if self.evaluation:
+            self.accuracy = accuracy_score(y_true, y_pred) if has_data else 0.0
+            self.precision = precision_score(y_true, y_pred) if has_data else 0.0
+            self.recall = recall_score(y_true, y_pred) if has_data else 0.0
+            self.report_as_map = compute_metrics(y_true, y_pred) if has_data else compute_metrics([], [])
+            self.report = get_report(self.report_as_map, digits=4)
+            print(self.report)
+
+        # save eval
+        logs['f1'] = f1
+        self.f1 = f1
+
+    def collect_output(self, validation_batches):
         y_pred = None
         y_true = None
-        for i, (data, label) in enumerate(self.valid_batches):
+        for i, (data, label) in enumerate(validation_batches):
             if i == self.valid_steps:
                 break
             y_true_batch = label
             y_true_batch = np.argmax(y_true_batch, -1)
-            sequence_lengths = data[-1] # shape of (batch_size, 1)
+            sequence_lengths = data[-1]  # shape of (batch_size, 1)
             sequence_lengths = np.reshape(sequence_lengths, (-1,))
 
             y_pred_batch = self.model.predict_on_batch(data)
@@ -273,27 +295,9 @@ class Scorer(Callback):
             if i == 0:
                 y_pred = y_pred_batch
                 y_true = y_true_batch
-            else:    
+            else:
                 y_pred = y_pred + y_pred_batch
-                y_true = y_true + y_true_batch 
+                y_true = y_true + y_true_batch
 
-
-        #for i in range(0,len(y_pred)):
-        #    print("pred", y_pred[i])
-        #    print("true", y_true[i])
-        has_data = y_true is not None and y_pred is not None
-        f1 = f1_score(y_true, y_pred) if has_data else 0.0
-        print("\tf1 (micro): {:04.2f}".format(f1 * 100))
-
-        if self.evaluation:
-            self.accuracy = accuracy_score(y_true, y_pred) if has_data else 0.0
-            self.precision = precision_score(y_true, y_pred) if has_data else 0.0
-            self.recall = recall_score(y_true, y_pred) if has_data else 0.0
-            self.report_as_map = compute_metrics(y_true, y_pred) if has_data else compute_metrics([], [])
-            self.report = get_report(self.report_as_map, digits=4)
-            print(self.report)
-
-
-        # save eval
-        logs['f1'] = f1
-        self.f1 = f1
+                # for i in range(0,len(y_pred)):
+        return y_pred, y_true

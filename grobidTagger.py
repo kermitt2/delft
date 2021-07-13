@@ -61,7 +61,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1):
+               features_indices=None, max_sequence_length=-1, batch_size=-1, verbose=False):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -91,16 +91,19 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid,
+                    f_valid=f_valid)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, fold_number=fold_count)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid,
+                          f_valid=f_valid,
+                          fold_number=fold_count)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_eval, y_eval, features=f_eval)
+    model.eval(x_eval, y_eval, features=f_eval, verbose=verbose)
 
     # saving the model
     if (output_path):
@@ -150,7 +153,7 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
+def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF', verbose=False):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -175,7 +178,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_all, y_all, features=f_all)
+    model.eval(x_all, y_all, features=f_all, verbose=verbose)
 
     runtime = round(time.time() - start_time, 3)
     print("Evaluation runtime: %s seconds " % (runtime))
@@ -238,6 +241,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--verbose", help="Output the evaluation raw data. Applicable only when action is eval "
+                                                "or train_eval", action="store_true", default=False)
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument(
@@ -261,6 +266,7 @@ if __name__ == "__main__":
     feature_indices = args.feature_indices
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
+    verbose = args.verbose
 
     if action == Tasks.TRAIN:
         train(model, 
@@ -278,7 +284,7 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
-        eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture)
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture, verbose=verbose)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
@@ -291,7 +297,8 @@ if __name__ == "__main__":
                 output_path=output, 
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
-                batch_size=batch_size)
+                batch_size=batch_size,
+                verbose=verbose)
 
     if action == Tasks.TAG:
         someTexts = []
