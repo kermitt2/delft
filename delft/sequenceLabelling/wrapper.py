@@ -190,13 +190,13 @@ class Sequence(object):
         if 'bert' in self.model_config.model_type.lower():
             self.save()
 
-    def eval(self, x_test, y_test, features=None, verbose=False):
+    def eval(self, x_test, y_test, features=None, output_eval_raw_data=None):
         if self.models and 1 < self.model_config.fold_number == len(self.models):
-            self.eval_nfold(x_test, y_test, features=features, verbose=verbose)
+            self.eval_nfold(x_test, y_test, features=features, output_eval_raw_data=output_eval_raw_data)
         else:
-            self.eval_single(x_test, y_test, features=features, verbose=verbose)
+            self.eval_single(x_test, y_test, features=features, output_eval_raw_data=output_eval_raw_data)
 
-    def eval_single(self, x_test, y_test, features=None, verbose=False):
+    def eval_single(self, x_test, y_test, features=None, output_eval_raw_data=None):
         if 'bert' not in self.model_config.model_type.lower():
             if self.model:
                 # Prepare test data(steps, generator)
@@ -212,10 +212,11 @@ class Sequence(object):
                 # scorer.on_epoch_end(epoch=-1)
                 y_pred, y_true = scorer.collect_output(test_generator)
 
-                if verbose:
-                    self.print_raw_data(x_test, y_pred, y_true, features)
+                # self.stream_generic_data(output_eval_raw_data, self.model.summary())
+                self.stream_raw_data(output_eval_raw_data, x_test, y_pred, y_true, features)
 
                 scorer.compute_evaluation(y_pred, y_true, logs={})
+                self.stream_generic_data(output_eval_raw_data, scorer.report)
 
             else:
                 raise (OSError('Could not find a model.'))
@@ -242,18 +243,32 @@ class Sequence(object):
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
             print(report)
 
-    def print_raw_data(self, x, y_pred, y_true, features=None):
-        for idx_example, example in enumerate(x):
-            for idx_token, token in enumerate(example):
-                if features is not None and features.any():
-                    print(token, " ".join(features[idx_example][idx_token]), y_true[idx_example][idx_token],
-                      y_pred[idx_example][idx_token])
-                else:
-                    print(token, y_true[idx_example][idx_token], y_pred[idx_example][idx_token])
+    def stream_raw_data(self, output_file_path, x, y_pred, y_true, features=None):
+        if output_file_path is None:
+            return
 
-            print("")
+        with open(output_file_path, 'a') as f:
+            for idx_example, example in enumerate(x):
+                for idx_token, token in enumerate(example):
+                    if features is not None and features.any():
+                        f.write(str(token) + " " + " ".join(features[idx_example][idx_token])+" "
+                                + str(y_true[idx_example][idx_token])
+                                + str(" " + y_pred[idx_example][idx_token]))
+                        f.write("\n")
+                    else:
+                        f.write(str(token)+ " "+ str(y_true[idx_example][idx_token])+" " +str(y_pred[idx_example][idx_token]))
+                        f.write("\n")
 
-    def eval_nfold(self, x_test, y_test, features=None, verbose=False):
+                f.write("\n")
+
+    def stream_generic_data(self, output_file_path, data):
+        if output_file_path is None:
+            return
+
+        with open(output_file_path, 'a') as f:
+            f.write(str(data) + "\n")
+
+    def eval_nfold(self, x_test, y_test, features=None, output_eval_raw_data=None):
         if self.models is not None:
             total_f1 = 0
             best_f1 = 0
@@ -265,7 +280,10 @@ class Sequence(object):
             total_precision = 0
             total_recall = 0
             for i in range(self.model_config.fold_number):
-                print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
+                fold_title = '\n------------------------ fold ' + str(i) + ' --------------------------------------'
+                print(fold_title)
+                self.stream_generic_data(output_eval_raw_data, fold_title)
+                # self.stream_raw_data(output_eval_raw_data, self.model.summary())
 
                 if 'bert' not in self.model_config.model_type.lower():
                     # Prepare test data(steps, generator)
@@ -281,10 +299,10 @@ class Sequence(object):
                     # scorer.on_epoch_end(epoch=-1)
                     y_pred, y_true = scorer.collect_output(test_generator)
 
-                    if verbose:
-                        self.print_raw_data(x_test, y_pred, y_true, features)
+                    self.stream_raw_data(output_eval_raw_data, x_test, y_pred, y_true, features)
 
                     scorer.compute_evaluation(y_pred, y_true, logs={})
+                    self.stream_generic_data(output_eval_raw_data, scorer.report)
 
                     f1 = scorer.f1
                     precision = scorer.precision
@@ -385,12 +403,20 @@ class Sequence(object):
               block_label = {'precision': avg_p, 'recall': avg_r, 'support': avg_support, 'f1': avg_f1}
               fold_average_evaluation['labels'][label] = block_label
 
-            print("----------------------------------------------------------------------")
-            print("\n** Worst ** model scores - run", str(worst_index))
+            separator = "----------------------------------------------------------------------"
+            print(separator)
+            self.stream_generic_data(output_eval_raw_data, separator)
+            worst_score_title = "\n** Worst ** model scores - run " + str(worst_index)
+            print(worst_score_title)
             print(reports[worst_index])
+            self.stream_generic_data(output_eval_raw_data, worst_score_title)
+            self.stream_generic_data(output_eval_raw_data, reports[worst_index])
 
-            print("\n** Best ** model scores - run", str(best_index))
+            best_score_title = "\n** Best ** model scores - run " + str(best_index)
+            print(best_score_title)
             print(reports[best_index])
+            self.stream_generic_data(output_eval_raw_data, best_score_title)
+            self.stream_generic_data(output_eval_raw_data, reports[best_index])
 
             if 'bert' not in self.model_config.model_type.lower():
                 self.model = self.models[best_index]
@@ -404,9 +430,13 @@ class Sequence(object):
                 for i in range(self.model_config.fold_number):
                     shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
         
-            print("----------------------------------------------------------------------")
-            print("\nAverage over", self.model_config.fold_number, "folds")
+            print(separator)
+            average_title = "\nAverage over " + str(self.model_config.fold_number) + " folds"
+            print(average_title)
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
+            self.stream_generic_data(output_eval_raw_data, separator)
+            self.stream_generic_data(output_eval_raw_data, average_title)
+            self.stream_generic_data(output_eval_raw_data, get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
     def tag(self, texts, output_format, features=None):

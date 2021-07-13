@@ -61,7 +61,8 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, verbose=False):
+               features_indices=None, max_sequence_length=-1, batch_size=-1, output_eval_raw_data=None):
+
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -103,7 +104,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_eval, y_eval, features=f_eval, verbose=verbose)
+    model.eval(x_eval, y_eval, features=f_eval, output_eval_raw_data=output_eval_raw_data)
 
     # saving the model
     if (output_path):
@@ -153,7 +154,7 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF', verbose=False):
+def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF', output_eval_raw_data=None):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -178,7 +179,7 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF', ve
 
     # evaluation
     print("\nEvaluation:")
-    model.eval(x_all, y_all, features=f_all, verbose=verbose)
+    model.eval(x_all, y_all, features=f_all, output_eval_raw_data=output_eval_raw_data)
 
     runtime = round(time.time() - start_time, 3)
     print("Evaluation runtime: %s seconds " % (runtime))
@@ -217,6 +218,22 @@ class Tasks:
     TAG = 'tag'
 
 
+def dir_path(path):
+    if os.path.isdir(path):
+        file_path = os.path.join(path, "raw-data-evaluation-123456.txt")
+    elif os.path.isfile(path):
+        file_path = path
+    else:
+        raise argparse.ArgumentTypeError(f"readable_dir:{path} is not a valid path")
+
+    if os.path.exists(file_path):
+        print("The evaluation file", file_path, "exists. Will be re-created. ")
+        os.remove(file_path)
+
+    print("Evaluation raw data will be streamed to ", file_path)
+    return file_path
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Trainer for GROBID models")
 
@@ -241,8 +258,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--verbose", help="Output the evaluation raw data. Applicable only when action is eval "
-                                                "or train_eval", action="store_true", default=False)
+    parser.add_argument("--output-eval-raw-data", type=dir_path,
+                        help="Output the evaluation raw data in the specified directory with a automatically "
+                             "created filename, or using the specified filename "
+                           "Applicable only when action is eval or train_eval.", default=None)
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument(
@@ -266,10 +285,13 @@ if __name__ == "__main__":
     feature_indices = args.feature_indices
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
-    verbose = args.verbose
+    output_eval_raw_data = args.output_eval_raw_data
 
     if action == Tasks.TRAIN:
-        train(model, 
+        if output_eval_raw_data:
+            print("The parameter --output-eval-raw-data is valid only for eval and train_eval. "
+              "The value will be ignored. ")
+        train(model,
             embeddings_name, 
             architecture=architecture, 
             use_ELMo=use_ELMo, 
@@ -284,7 +306,7 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
-        eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture, verbose=verbose)
+        eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture, output_eval_raw_data=output_eval_raw_data)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
@@ -298,7 +320,7 @@ if __name__ == "__main__":
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
-                verbose=verbose)
+                output_eval_raw_data=output_eval_raw_data)
 
     if action == Tasks.TAG:
         someTexts = []
