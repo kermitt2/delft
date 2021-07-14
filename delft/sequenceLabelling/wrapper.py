@@ -280,9 +280,9 @@ class Sequence(object):
             total_precision = 0
             total_recall = 0
             for i in range(self.model_config.fold_number):
-                fold_title = '\n------------------------ fold ' + str(i) + ' --------------------------------------'
-                print(fold_title)
-                self.stream_generic_data(output_eval_raw_data, fold_title)
+                fold_title_start = '\n------------------------ fold ' + str(i) + ' --------------------------------------'
+                print(fold_title_start)
+                self.stream_generic_data(output_eval_raw_data, fold_title_start)
                 # self.stream_raw_data(output_eval_raw_data, self.model.summary())
 
                 if 'bert' not in self.model_config.model_type.lower():
@@ -300,6 +300,8 @@ class Sequence(object):
                     y_pred, y_true = scorer.collect_output(test_generator)
 
                     self.stream_raw_data(output_eval_raw_data, x_test, y_pred, y_true, features)
+                    fold_title_end = '\n----------------------------------------------------------------------------------'
+                    self.stream_generic_data(output_eval_raw_data, fold_title_end)
 
                     scorer.compute_evaluation(y_pred, y_true, logs={})
                     self.stream_generic_data(output_eval_raw_data, scorer.report)

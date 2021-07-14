@@ -2,7 +2,9 @@
 
 import argparse
 import json
+import re
 import time
+from datetime import datetime
 
 from sklearn.model_selection import train_test_split
 
@@ -143,7 +145,7 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
 
     if use_ELMo:
         model_name += '-with_ELMo'
-    
+
     if batch_size == -1:
         batch_size = 20
 
@@ -220,7 +222,8 @@ class Tasks:
 
 def dir_path(path):
     if os.path.isdir(path):
-        file_path = os.path.join(path, "raw-data-evaluation-123456.txt")
+        date = datetime.now()
+        file_path = os.path.join(path, "raw_data-ACTION-"+date.strftime("%Y%m%d")+".txt")
     elif os.path.isfile(path):
         file_path = path
     else:
@@ -291,11 +294,12 @@ if __name__ == "__main__":
         if output_eval_raw_data:
             print("The parameter --output-eval-raw-data is valid only for eval and train_eval. "
               "The value will be ignored. ")
+
         train(model,
-            embeddings_name, 
-            architecture=architecture, 
-            use_ELMo=use_ELMo, 
-            input_path=input_path, 
+            embeddings_name,
+            architecture=architecture,
+            use_ELMo=use_ELMo,
+            input_path=input_path,
             output_path=output,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size)
@@ -306,17 +310,22 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
+        output_eval_raw_data=re.sub(r'-ACTION-(\d{8}\.txt)', '-'+action + r'-\1', output_eval_raw_data)
         eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture, output_eval_raw_data=output_eval_raw_data)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(model, 
-                embeddings_name, 
-                architecture=architecture, 
-                use_ELMo=use_ELMo, 
-                input_path=input_path, 
-                output_path=output, 
+
+        output_eval_raw_data = re.sub(r'-ACTION-(\d{8}\.txt)', '-' + action +'_'+ str(args.fold_count) +
+                                      r'-\1', output_eval_raw_data)
+
+        train_eval(model,
+                embeddings_name,
+                architecture=architecture,
+                use_ELMo=use_ELMo,
+                input_path=input_path,
+                output_path=output,
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
@@ -356,7 +365,7 @@ if __name__ == "__main__":
             x_all, f_all = load_data_crf_string(input_crf_string)
             result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture, features=f_all)
             print(result)
-        
+
     try:
         # see https://github.com/tensorflow/tensorflow/issues/3388
         K.clear_session()
