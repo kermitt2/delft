@@ -217,7 +217,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
                 out.append([0] * features_count)
 
         features_vector_padded, _ = pad_sequences(features_vector, [0] * features_count)
-        output = np.asarray(features_vector_padded)
+        output = np.asarray(features_vector_padded, dtype='object')
 
         return output
 
@@ -347,12 +347,12 @@ class WordPreprocessor(BaseEstimator, TransformerMixin):
         labels_one_hot = None
         if labels:
             labels_padded, _ = pad_sequences(labels, 0)
-            labels_asarray = np.asarray(labels_padded)
+            labels_asarray = np.asarray(labels_padded, dtype='object')
             labels_one_hot = dense_to_one_hot(labels_asarray, len(self.vocab_tag), nlevels=2)
 
         if self.use_char_feature:
             char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
-            char_ids = np.asarray(char_ids)
+            char_ids = np.asarray(char_ids, dtype='object')
             return [char_ids], labels_one_hot
         else:
             return labels_one_hot

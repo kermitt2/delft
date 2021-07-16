@@ -146,7 +146,7 @@ class DataGenerator(keras.utils.Sequence):
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
-        batch_c = np.asarray(batches[0])
+        batch_c = np.asarray(batches[0], dtype='object')
         batch_l = batches[1]
 
         return batch_x, batch_c, batch_f, batch_a, batch_l, batch_y

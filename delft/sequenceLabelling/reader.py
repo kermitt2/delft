@@ -87,10 +87,10 @@ class TEIContentHandler(xml.sax.ContentHandler):
         self.accumulated += content
 
     def getSents(self):
-        return np.asarray(self.sents)
+        return np.asarray(self.sents, dtype='object')
 
     def getAllLabels(self):
-        return np.asarray(self.allLabels)
+        return np.asarray(self.allLabels, dtype='object')
 
     def clear(self): # clear the accumulator for re-use
         self.accumulated = ""
@@ -220,10 +220,10 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
         self.accumulated += content
 
     def getSents(self):
-        return np.asarray(self.sents)
+        return np.asarray(self.sents, dtype='object')
 
     def getAllLabels(self):
-        return np.asarray(self.allLabels)
+        return np.asarray(self.allLabels, dtype='object')
 
     def clear(self): # clear the accumulator for re-use
         self.accumulated = ""
@@ -307,7 +307,7 @@ def load_data_and_labels_crf_file(filepath):
         with open(filepath) as f:
             sents, labels, featureSets = load_data_and_labels_crf_content(f)
 
-    return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
+    return np.asarray(sents, dtype='object'), np.asarray(labels, dtype='object'), np.asarray(featureSets, dtype='object')
 
 def load_data_and_labels_crf_content(the_file):
     sents = []
@@ -363,7 +363,7 @@ def load_data_and_labels_crf_string(crfString):
     labels = []
     featureSets = []
     tokens, tags, features = [], [], []
-    for line in crfString.splitlines():    
+    for line in crfString.splitlines():
         line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
@@ -428,7 +428,10 @@ def load_data_crf_string(crfString):
 
     #print('sents:', len(sents))
     #print('featureSets:', len(featureSets))
-    return sents, featureSets
+    return (
+        np.asarray(sents, dtype='object'),
+        np.asarray(featureSets, dtype='object')
+    )
 
 
 def _translate_tags_grobid_to_IOB(tag):
@@ -500,7 +503,7 @@ def load_data_and_labels_conll(filename):
                 words.append(word)
                 tags.append(tag)
 
-    return np.asarray(sents), np.asarray(labels)
+    return np.asarray(sents, dtype='object'), np.asarray(labels, dtype='object')
 
 
 def load_data_and_labels_lemonde(filepathXml):
@@ -598,8 +601,8 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
         total_tokens += len(sentence)
     print('nb total tokens:', total_tokens)    
 
-    final_tokens = np.asarray(tokens)
-    final_label = np.asarray(labels)
+    final_tokens = np.asarray(tokens, dtype='object')
+    final_label = np.asarray(labels, dtype='object')
 
     return final_tokens, final_label
 

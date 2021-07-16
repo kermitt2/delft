@@ -37,7 +37,7 @@ def load_texts_and_classes(filepath):
             texts.append(line[1])
             classes.append(line[2:])
 
-    return np.asarray(texts), np.asarray(classes)
+    return np.asarray(texts, dtype='object'), np.asarray(classes, dtype='object')
 
 
 def load_texts_and_classes_pandas(filepath):
@@ -67,7 +67,7 @@ def load_texts_and_classes_pandas(filepath):
     classes = df.iloc[:,2:]
     classes_list = classes.values.tolist()
 
-    return np.asarray(texts_list), np.asarray(classes_list)
+    return np.asarray(texts_list, dtype='object'), np.asarray(classes_list, dtype='object')
 
 
 def load_texts_pandas(filepath):
@@ -94,7 +94,7 @@ def load_texts_pandas(filepath):
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
-    return np.asarray(texts_list)
+    return np.asarray(texts_list, dtype='object')
 
 
 def load_citation_sentiment_corpus(filepath):
@@ -145,7 +145,7 @@ def load_citation_sentiment_corpus(filepath):
                 polarity.append(0)
             polarities.append(polarity)
 
-    return np.asarray(texts), np.asarray(polarities)
+    return np.asarray(texts, dtype='object'), np.asarray(polarities, dtype='object')
 
 
 def load_dataseer_corpus_csv(filepath):
@@ -195,7 +195,7 @@ def load_dataseer_corpus_csv(filepath):
     # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
-    datatypes_list = np.asarray(datatypes_list)
+    datatypes_list = np.asarray(datatypes_list, dtype='object')
     datatypes_list_lower = np.char.lower(datatypes_list)
     list_classes_datatypes = np.unique(datatypes_list_lower)    
     datatypes_final = normalize_classes(datatypes_list_lower, list_classes_datatypes)
@@ -207,7 +207,7 @@ def load_dataseer_corpus_csv(filepath):
         df = df[~df.datatype.str.contains("no_dataset")]
         datasubtypes = df.iloc[:,3]
         datasubtypes_list = datasubtypes.values.tolist()
-        datasubtypes_list = np.asarray(datasubtypes_list)
+        datasubtypes_list = np.asarray(datasubtypes_list, dtype='object')
         datasubtypes_list_lower = np.char.lower(datasubtypes_list)
         list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
         datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
@@ -225,10 +225,10 @@ def load_dataseer_corpus_csv(filepath):
     '''
 
     if df.shape[1] == 3:
-        return np.asarray(texts_list), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
+        return np.asarray(texts_list, dtype='object'), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
     #elif df.shape[1] == 4:
     else:
-        return np.asarray(texts_list), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
+        return np.asarray(texts_list, dtype='object'), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
     '''
     else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
@@ -270,7 +270,7 @@ def load_software_use_corpus_json(json_gz_file_path):
     list_possible_classes = np.unique(classes_list)
     classes_list_final = normalize_classes(classes_list, list_possible_classes)
 
-    texts_list_final = np.asarray(texts_list)
+    texts_list_final = np.asarray(texts_list, dtype='object')
 
     texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 

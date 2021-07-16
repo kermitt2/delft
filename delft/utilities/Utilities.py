@@ -105,7 +105,10 @@ def split_data_and_labels(x, y, ratio):
         else:
             x2.append(x[i])
             y2.append(y[i])
-    return np.asarray(x1),np.asarray(y1),np.asarray(x2),np.asarray(y2)    
+    return np.asarray(x1, dtype='object'),\
+           np.asarray(y1, dtype='object'),\
+           np.asarray(x2, dtype='object'),\
+           np.asarray(y2, dtype='object')
 
 
 url_regex = re.compile(r"https?:\/\/[a-zA-Z0-9_\-\.]+(?:com|org|fr|de|uk|se|net|edu|gov|int|mil|biz|info|br|ca|cn|in|jp|ru|au|us|ch|it|nl|no|es|pl|ir|cz|kr|co|gr|za|tw|hu|vn|be|mx|at|tr|dk|me|ar|fi|nz)\/?\b")
