@@ -65,3 +65,5 @@ data/models/textClassification/*6
 data/models/textClassification/*7
 data/models/textClassification/*8
 data/models/textClassification/*9
+
+.pytest_cache
