@@ -28,7 +28,8 @@ def load_texts_and_classes(filepath):
     classes = []
 
     with open(filepath) as f:
-        tsvreader = csv.reader(f, delimiter="\t")
+	# TODO not in the original - need to revert it or add an option
+        tsvreader = csv.reader(f, delimiter="\t", quoting=csv.QUOTE_ALL)
         for line in tsvreader:
             if len(line) is 0:
                 continue
