@@ -78,12 +78,12 @@
     },
     "vocab_tag": {
         "<PAD>": 0,
-        "B-<month>": 2,
         "B-<day>": 1,
-        "O": 6,
+        "B-<month>": 2,
         "B-<year>": 3,
+        "I-<day>": 4,
         "I-<year>": 5,
-        "I-<day>": 4
+        "O": 6
     },
     "vocab_case": [
         "<PAD>",

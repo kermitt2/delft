@@ -6,8 +6,7 @@ from delft.utilities.numpy import shuffle_triple_with_view
 np.random.seed(7)
 
 import tensorflow.keras as keras
-from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_simple_with_elmo, \
-    to_vector_simple_with_bert
+from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 
@@ -103,15 +102,17 @@ class DataGenerator(keras.utils.Sequence):
         # generate data
         batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
 
+        '''
         if self.embeddings.use_ELMo:
             batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
         elif self.embeddings.use_BERT:
             batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
         else:
-            batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
-            # store sample embeddings
-            for i in range(0, max_iter):
-                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+        '''
+        batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
+        # store sample embeddings
+        for i in range(0, max_iter):
+            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
         if self.preprocessor.return_casing:
             for i in range(0, max_iter):

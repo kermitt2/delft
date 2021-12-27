@@ -15,11 +15,11 @@ from delft.utilities.misc import parse_number_ranges
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 # train a GROBID model with all available data
-def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, input_path=None, output_path=None,
+def train(model, embeddings_name, architecture='BidLSTM_CRF', input_path=None, output_path=None,
           features_indices=None, max_sequence_length=-1, batch_size=-1):
 
     print('Loading data...')
-    if input_path is None:
+    if input_path == None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
@@ -31,14 +31,13 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo, max_sequence_length, batch_size)
+    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
 
     model = Sequence(model_name,
                      max_epoch=100,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
                      model_type=architecture,
-                     use_ELMo=use_ELMo,
                      batch_size=batch_size,
                      max_sequence_length=max_sequence_length,
                      features_indices=features_indices)
@@ -56,11 +55,11 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False, in
 
 
 # split data, train a GROBID model and evaluate it
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=False,
+def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', 
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1):
     print('Loading data...')
-    if input_path is None:
+    if input_path == None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
@@ -72,14 +71,13 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, use_ELMo, max_sequence_length, batch_size)
+    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
 
     model = Sequence(model_name,
                     max_epoch=100,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
                     model_type=architecture,
-                    use_ELMo=use_ELMo,
                     max_sequence_length=max_sequence_length,
                     batch_size=batch_size,
                     fold_number=fold_count,
@@ -106,7 +104,7 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', use_ELMo=Fals
         model.save()
 
 
-def configure(model, architecture, output_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1):
+def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1):
     '''
     Set up the default parameters based on the model type.
     '''
@@ -123,19 +121,13 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
             max_sequence_length = 512
 
     if model == "software":
-        if use_ELMo:
-            if batch_size == -1:
-                batch_size = 7
-        elif batch_size == -1:
+        if batch_size == -1:
             # class are more unbalanced, so we need to extend the batch size
             batch_size = 30
         if max_sequence_length == -1:
             max_sequence_length = 1500
 
     model_name += '-' + architecture;
-
-    if use_ELMo:
-        model_name += '-with_ELMo'
     
     if batch_size == -1:
         batch_size = 20
@@ -147,9 +139,9 @@ def configure(model, architecture, output_path=None, use_ELMo=False, max_sequenc
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
+def eval_(model, input_path=None, architecture='BidLSTM_CRF'):
     print('Loading data...')
-    if input_path is None:
+    if input_path == None:
         # it should never be the case
         print("A Grobid evaluation data file must be specified for evaluating a grobid model for the eval action, use parameter --input ")
         return
@@ -160,9 +152,6 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
 
     model_name = 'grobid-' + model
     model_name += '-'+architecture
-
-    if use_ELMo and not 'bert' in model.lower():
-        model_name += '-with_ELMo'
 
     start_time = time.time()
 
@@ -180,15 +169,12 @@ def eval_(model, use_ELMo=False, input_path=None, architecture='BidLSTM_CRF'):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, use_ELMo=False, architecture='BidLSTM_CRF', features=None):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None):
     annotations = []
 
     # load model
     model_name = 'grobid-'+model
     model_name += '-'+architecture
-
-    if use_ELMo and not 'bert' in model.lower():
-        model_name += '-with_ELMo'
 
     model = Sequence(model_name)
     model.load()
@@ -198,7 +184,7 @@ def annotate_text(texts, model, output_format, use_ELMo=False, architecture='Bid
     annotations = model.tag(texts, output_format, features=features)
     runtime = round(time.time() - start_time, 3)
 
-    if output_format is 'json':
+    if output_format == 'json':
         annotations["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -233,7 +219,6 @@ if __name__ == "__main__":
             " and that the path in the registry to the embedding file is correct on your system."
         )
     )
-    parser.add_argument("--use-ELMo", action="store_true", default=False, help="Use ELMo contextual embeddings.")
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and "
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
@@ -250,7 +235,6 @@ if __name__ == "__main__":
 
     model = args.model
     action = args.action
-    use_ELMo = args.use_ELMo
     architecture = args.architecture
     output = args.output
     input_path = args.input
@@ -263,7 +247,6 @@ if __name__ == "__main__":
         train(model, 
             embeddings_name, 
             architecture=architecture, 
-            use_ELMo=use_ELMo, 
             input_path=input_path, 
             output_path=output,
             max_sequence_length=max_sequence_length,
@@ -275,7 +258,7 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
-        eval_(model, use_ELMo=use_ELMo, input_path=input_path, architecture=architecture)
+        eval_(model, input_path=input_path, architecture=architecture)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
@@ -283,7 +266,6 @@ if __name__ == "__main__":
         train_eval(model, 
                 embeddings_name, 
                 architecture=architecture, 
-                use_ELMo=use_ELMo, 
                 input_path=input_path, 
                 output_path=output, 
                 fold_count=args.fold_count,
@@ -311,7 +293,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", use_ELMo=use_ELMo, architecture=architecture)
+            result = annotate_text(someTexts, model, "json", architecture=architecture)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
@@ -322,5 +304,5 @@ if __name__ == "__main__":
             with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
                 input_crf_string = file.read()
             x_all, f_all = load_data_crf_string(input_crf_string)
-            result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture, features=f_all)
+            result = annotate_text(x_all, model, None, architecture=architecture, features=f_all)
             print(result)

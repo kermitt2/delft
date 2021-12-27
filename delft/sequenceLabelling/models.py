@@ -1,12 +1,19 @@
 from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
-from tensorflow.keras.layers.merge import Concatenate
+from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
+'''
 from delft.utilities.bert import modeling
 from delft.utilities.bert import optimization
 from delft.utilities.bert import tokenization
+'''
+
+import bert
+from bert import BertModelLayer
+from bert.loader import StockBertConfig, map_stock_config_to_params, load_stock_weights
+from bert.tokenization.bert_tokenization import FullTokenizer
 
 from delft.utilities.layers import ChainCRF
 
@@ -20,7 +27,6 @@ import shutil
 import numpy as np
 np.random.seed(7)
 import tensorflow as tf
-tf.set_random_seed(7)
 
 def get_model(config, preprocessor, ntags=None, dir_path=None):
     if config.model_type == BidLSTM_CRF.name:
@@ -513,7 +519,7 @@ class BERT_Sequence(BaseModel):
                 self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
-        self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
+        self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
         self.processor = NERProcessor(self.labels)
 
         self.loaded_estimator = None

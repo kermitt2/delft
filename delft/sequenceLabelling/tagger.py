@@ -20,7 +20,7 @@ class Tagger(object):
     def tag(self, texts, output_format, features=None):
         assert isinstance(texts, list)
 
-        if output_format is 'json':
+        if output_format == 'json':
             res = {
                 "software": "DeLFT",
                 "date": datetime.datetime.now().isoformat(),
@@ -51,7 +51,7 @@ class Tagger(object):
                 tags = pred
                 prob = None
 
-                if output_format is 'json':
+                if output_format == 'json':
                     piece = {}
                     piece["text"] = text
                     piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
@@ -100,7 +100,7 @@ class Tagger(object):
                     tags = self._get_tags(pred)
                     prob = self._get_prob(pred)
 
-                    if output_format is 'json':
+                    if output_format == 'json':
                         piece = {}
                         piece["text"] = text
                         piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
@@ -110,7 +110,7 @@ class Tagger(object):
                         list_of_tags.append(the_tags)
                 steps_done += 1
 
-        if output_format is 'json':
+        if output_format == 'json':
             return res
         else:
             return list_of_tags
@@ -135,7 +135,7 @@ class Tagger(object):
         # spaces = [offsets[offsetIndex-1][1] != offsets[offsetIndex][0] for offsetIndex in range(1, len(offsets))]
 
         for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
-            if prob is not None:
+            if prob != None:
                 score = float(np.average(prob[chunk_start:chunk_end]))
             else:
                 score = 1.0

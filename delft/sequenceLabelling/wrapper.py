@@ -48,7 +48,7 @@ class Sequence(object):
     preprocessor_file = 'preprocessor.json'
     #preprocessor_file_new = 'preprocessor.json'
 
-    # number of parallel worker for the data generator when not using ELMo
+    # number of parallel worker for the data generator 
     nb_workers = 6
 
     def __init__(self, 
@@ -74,8 +74,6 @@ class Sequence(object):
                  patience=5,
                  max_checkpoints_to_keep=5, 
                  log_dir=None,
-                 use_ELMo=False,
-                 use_BERT=False,
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None):
@@ -108,8 +106,6 @@ class Sequence(object):
                                         use_crf=use_crf, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
-                                        use_ELMo=use_ELMo,
-                                        use_BERT=use_BERT,
                                         features_indices=features_indices)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
@@ -117,10 +113,18 @@ class Sequence(object):
                                               early_stop, patience, 
                                               max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None, callbacks=None):
+    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):
         # TBD if valid is None, segment train to get one
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid != None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid != None else y_train
+        if not x_valid is None:
+            x_all = np.concatenate((x_train, x_valid), axis=0)
+        else:
+            x_all = x_train
+
+        if not y_valid is None:
+            y_all = np.concatenate((y_train, y_valid), axis=0)
+        else: 
+            y_all = y_train
+
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
@@ -144,12 +148,8 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
-        if self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
-        if self.embeddings.use_BERT:
-            self.embeddings.clean_BERT_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train: np.array = None, f_valid: np.array = None, fold_number=10, callbacks=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10, callbacks=None):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid != None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid != None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
@@ -176,10 +176,6 @@ class Sequence(object):
                           preprocessor=self.p
                           )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
-        if self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
-        if self.embeddings.use_BERT:
-            self.embeddings.clean_BERT_cache()
         if 'bert' in self.model_config.model_type.lower():
             self.save()
 
@@ -510,7 +506,7 @@ class Sequence(object):
 
         # load embeddings
         # Do not use cache in 'production' mode
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT, use_cache=False)
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))

@@ -17,7 +17,6 @@ import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
 import tensorflow as tf
-tf.set_random_seed(7)
 
 
 class Trainer(object):
@@ -118,13 +117,16 @@ class Trainer(object):
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
+        
+        '''
         if self.embeddings.use_ELMo or self.embeddings.use_BERT:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
             # dump token context independent data for train set, done once for the training
+        '''
 
-        local_model.fit_generator(generator=training_generator,
+        local_model.fit(training_generator,
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,
                                 workers=nb_workers,
@@ -292,7 +294,6 @@ class Scorer(Callback):
             self.report_as_map = compute_metrics(y_true, y_pred) if has_data else compute_metrics([], [])
             self.report = get_report(self.report_as_map, digits=4)
             print(self.report)
-
 
         # save eval
         logs['f1'] = f1
