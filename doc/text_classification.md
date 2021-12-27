@@ -18,8 +18,6 @@ also available (via TensorFlow):
 
 Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 Ti with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
 
-For all these RNN architectures, it is possible to use ELMo contextual embeddings (`--use-ELMo`) or BERT extracted features as embeddings (`--use-BERT`). The integration of BERT as an additional non-RNN architecture is done via TensorFlow, we do not mix Keras and TensorFlow layers. 
-
 ### Examples
 
 #### Toxic comment classification

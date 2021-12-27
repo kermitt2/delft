@@ -15,7 +15,7 @@ import numpy as np
     dataset type. 
 """
 
-def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru", cascaded=False): 
+def train(embeddings_name, fold_count, architecture="gru", cascaded=False): 
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
@@ -23,12 +23,6 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     class_weights = None
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-        model_name += '-with_ELMo'
-    elif use_BERT:
-        batch_size = 50
-        model_name += '-with_BERT'
 
     # default bert model parameters
     if architecture.lower().find("bert") != -1:
@@ -36,7 +30,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
     
     if fold_count == 1:
@@ -54,12 +48,6 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     class_weights = {0: 1.5, 1: 1.}
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-        model_name += '-with_ELMo'
-    elif use_BERT:
-        batch_size = 50
-        model_name += '-with_BERT'
 
     # default bert model parameters
     if architecture.lower().find("bert") != -1:
@@ -67,7 +55,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
     
     if fold_count == 1:
@@ -82,20 +70,10 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     model_name = 'dataseer-first'
-    if use_ELMo:
-        model_name += '-with_ELMo'
-    elif use_BERT:
-        model_name += '-with_BERT'
 
     class_weights = None
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-        model_name += '-with_ELMo'
-    elif use_BERT:
-        batch_size = 50
-        model_name += '-with_BERT'
 
     # default bert model parameters
     if architecture.lower().find("bert") != -1:
@@ -103,7 +81,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-    use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+    use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
          class_weights=class_weights)
 
     if fold_count == 1:
@@ -140,14 +118,10 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         print('training', the_class)
 
         model_name = 'dataseer-' + the_class
-        if use_ELMo:
-            model_name += '-with_ELMo'
-        elif use_BERT:
-            model_name += '-with_BERT'
 
         model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
-            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, 
-            use_BERT=use_BERT, batch_size=batch_size, class_weights=class_weights)
+            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, 
+            batch_size=batch_size, class_weights=class_weights)
 
         if fold_count == 1:
             model.train(datatypes_xtr[the_class], datatypes_y[the_class])
@@ -157,23 +131,23 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
         model.save()
     '''
 
-def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru", cascaded=False): 
+def train_and_eval(embeddings_name, fold_count, architecture="gru", cascaded=False): 
     if cascaded:
-        return train_eval_cascaded(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+        return train_eval_cascaded(embeddings_name, fold_count, architecture)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_binary(embeddings_name, fold_count, architecture)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    train_and_eval_reuse(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_reuse(embeddings_name, fold_count, architecture)
 
     # classifier for first level data type hierarchy
-    train_and_eval_primary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_primary(embeddings_name, fold_count, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
-    train_and_eval_secondary(embeddings_name, fold_count, use_ELMo, use_BERT, architecture)
+    train_and_eval_secondary(embeddings_name, fold_count, architecture)
 
-def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru"): 
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
@@ -187,10 +161,6 @@ def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=
     class_weights = None
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
 
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -198,7 +168,7 @@ def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=
         maxlen = 100
 
     model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     # segment train and eval sets
@@ -219,7 +189,7 @@ def train_and_eval_binary(embeddings_name, fold_count, use_ELMo=False, use_BERT=
     # saving the model
     model.save()
 
-def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru"): 
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
@@ -232,10 +202,6 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
 
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
 
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -245,7 +211,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
     class_weights = {0: 1.5, 1: 1.}
 
     model = Classifier('dataseer-reuse', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     # segment train and eval sets
@@ -266,7 +232,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, use_ELMo=False, use_BERT=F
     # saving the model
     model.save()
     
-def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def train_and_eval_primary(embeddings_name, fold_count, architecture="gru"): 
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
@@ -280,10 +246,6 @@ def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT
     class_weights = None
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
 
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -291,7 +253,7 @@ def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT
         maxlen = 100
 
     model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     # segment train and eval sets
@@ -312,7 +274,7 @@ def train_and_eval_primary(embeddings_name, fold_count, use_ELMo=False, use_BERT
     # saving the model
     model.save()
 
-def train_and_eval_secondary(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru"): 
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # aggregate by class, we will have one training set per class
@@ -325,10 +287,6 @@ def train_and_eval_secondary(embeddings_name, fold_count, use_ELMo=False, use_BE
     class_weights = None
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
 
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -380,14 +338,10 @@ def train_and_eval_secondary(embeddings_name, fold_count, use_ELMo=False, use_BE
         print('subtypes to be classified:', datatypes_list_subclasses[the_class])
 
         model_name = 'dataseer-' + the_class
-        if use_ELMo:
-            model_name += '-with_ELMo'
-        elif use_BERT:
-            model_name += '-with_BERT'
 
         model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
-            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, 
-            use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen, class_weights=class_weights)
+            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, 
+            batch_size=batch_size, maxlen=maxlen, class_weights=class_weights)
 
         # we need to vectorize the y according to the actual list of classes
         local_y = []
@@ -422,15 +376,11 @@ def classify(texts, output_format, architecture="gru", cascaded=False):
         print("runtime: %s seconds " % (runtime))
     return result
 
-def train_eval_cascaded(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"):
+def train_eval_cascaded(embeddings_name, fold_count, architecture="gru"):
     # general setting of parameters
     class_weights = None
     batch_size = 256
     maxlen = 300
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
 
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -443,7 +393,7 @@ def train_eval_cascaded(embeddings_name, fold_count, use_ELMo=False, use_BERT=Fa
     print(list_classes)
 
     model_binary = Classifier('dataseer-binary', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     # segment train and eval sets
@@ -474,7 +424,7 @@ def train_eval_cascaded(embeddings_name, fold_count, use_ELMo=False, use_BERT=Fa
     list_classes.remove('no_dataset')
 
     model_first = Classifier('dataseer-first', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     if fold_count == 1:
@@ -565,8 +515,6 @@ if __name__ == "__main__":
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings") 
     parser.add_argument("--cascaded", action="store_true", help="Use models in cascade (train, eval, predict)") 
     parser.add_argument(
         "--embedding", default='word2vec',
@@ -584,8 +532,6 @@ if __name__ == "__main__":
         print('action not specifed, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
-    use_ELMo = args.use_ELMo
-    use_BERT = args.use_BERT
     cascaded = args.cascaded
 
     architecture = args.architecture
@@ -596,12 +542,12 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT, architecture=architecture, cascaded=cascaded)
+        train(embeddings_name, args.fold_count, architecture=architecture, cascaded=cascaded)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        y_test = train_and_eval(embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT, architecture=architecture, cascaded=cascaded)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, cascaded=cascaded)    
 
     if args.action == 'classify':
         someTexts = ['Labeling yield and radiochemical purity was analyzed by instant thin layered chromatography (ITLC).', 

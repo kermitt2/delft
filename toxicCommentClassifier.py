@@ -19,11 +19,11 @@ class_weights = {0: 1.,
                  4: 1.,
                  5: 1.}
 
-def train(embeddings_name="fasttext-crawl", fold_count=1, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"): 
     batch_size = 256
     maxlen = 300
     model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=30, fold_number=fold_count, class_weights=class_weights,
-        embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen)
+        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
@@ -65,8 +65,6 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings") 
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
     parser.add_argument(
         "--embedding", default='fasttext-crawl',
@@ -85,8 +83,6 @@ if __name__ == "__main__":
         print('action not specifed, must be one of [train,test,classify]')
 
     embeddings_name = args.embedding
-    use_ELMo = args.use_ELMo
-    use_BERT = args.use_BERT
 
     architecture = args.architecture
     if architecture not in modelTypes:
@@ -99,7 +95,7 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, use_ELMo=use_ELMo, use_BERT=use_BERT)
+        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture)
 
     if action == 'test':
         y_test = test()    

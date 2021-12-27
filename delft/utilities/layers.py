@@ -6,23 +6,27 @@ Originally from Philipp Gross, https://github.com/phipleg/keras/blob/crf/keras/l
 Migrated to Keras/tensorflow 2 by your DeLFT servitor.
 
 Note: there are still a few tensorflow.keras.backend function usages, but it's probably fine.
-If tensorflow drops the support of this keras.backend API, we would need to move the compatibility API behavior here. 
+If tensorflow drops the support of this keras.backend API, we would need to move some of the 
+compatibility API behavior here for the few functions still using it. 
 """
 
-#from tensorflow.keras import backend as K
 from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.keras.layers import Layer, InputSpec
 import tensorflow as tf
 
 def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
-    """Calculates the energy of a tag path y for a given input x (with mask),
-    transition energies U and boundary energies b_start, b_end."""
+    """
+    Calculates the energy of a tag path y for a given input x (with mask),
+    transition energies U and boundary energies b_start, b_end.
+    """
     x = add_boundary_energy(x, b_start, b_end, mask)
     return path_energy0(y, x, U, mask)
 
 
 def path_energy0(y, x, U, mask=None):
-    """Path energy without boundary potential handling."""
+    """
+    Path energy without boundary potential handling.
+    """
     n_classes = tf.shape(x)[2]
     y_one_hot = tf.one_hot(y, n_classes)
 
@@ -50,7 +54,8 @@ def path_energy0(y, x, U, mask=None):
 
 
 def sparse_chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
-    """Given the true sparsely encoded tag sequence y, input x (with mask),
+    """
+    Given the true sparsely encoded tag sequence y, input x (with mask),
     transition energies U, boundary energies b_start and b_end, it computes
     the loss function of a Linear Chain Conditional Random Field:
     loss(y, x) = NNL(P(y|x)), where P(y|x) = exp(E(y, x)) / Z.
@@ -65,16 +70,20 @@ def sparse_chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
 
 
 def chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
-    """Variant of sparse_chain_crf_loss but with one-hot encoded tags y."""
+    """
+    Variant of sparse_chain_crf_loss but with one-hot encoded tags y.
+    """
     y_sparse = tf.math.argmax(y, -1)
     y_sparse = tf.cast(y_sparse, 'int32')
     return sparse_chain_crf_loss(y_sparse, x, U, b_start, b_end, mask)
 
 
 def add_boundary_energy(x, b_start=None, b_end=None, mask=None):
-    """Given the observations x, it adds the start boundary energy b_start (resp.
+    """
+    Given the observations x, it adds the start boundary energy b_start (resp.
     end boundary energy b_end on the start (resp. end) elements and multiplies
-    the mask."""
+    the mask.
+    """
     if mask is None:
         if b_start is not None:
             x = tf.keras.backend.concatenate([x[:, :1, :] + b_start, x[:, 1:, :]], axis=1)
@@ -96,8 +105,10 @@ def add_boundary_energy(x, b_start=None, b_end=None, mask=None):
 
 
 def viterbi_decode(x, U, b_start=None, b_end=None, mask=None):
-    """Computes the best tag sequence y for a given input x, i.e. the one that
-    maximizes the value of path_energy."""
+    """
+    Computes the best tag sequence y for a given input x, i.e. the one that
+    maximizes the value of path_energy.
+    """
     x = add_boundary_energy(x, b_start, b_end, mask)
 
     alpha_0 = x[:, 0, :]
@@ -113,17 +124,20 @@ def viterbi_decode(x, U, b_start=None, b_end=None, mask=None):
 
 
 def free_energy(x, U, b_start=None, b_end=None, mask=None):
-    """Computes efficiently the sum of all path energies for input x, when
-    runs over all possible tag sequences."""
+    """
+    Computes efficiently the sum of all path energies for input x, when
+    runs over all possible tag sequences.
+    """
     x = add_boundary_energy(x, b_start, b_end, mask)
     return free_energy0(x, U, mask)
 
 
 def free_energy0(x, U, mask=None):
-    """Free energy without boundary potential handling."""
+    """
+    Free energy without boundary potential handling.
+    """
     initial_states = [x[:, 0, :]]
     last_alpha, _ = _forward(x,
-                             #lambda B: [K.logsumexp(B, axis=1)],
                              lambda B: [tf.math.reduce_logsumexp(B, axis=1)],
                              initial_states,
                              U,
@@ -132,7 +146,9 @@ def free_energy0(x, U, mask=None):
 
 
 def _forward(x, reduce_step, initial_states, U, mask=None):
-    """Forward recurrence of the linear chain crf."""
+    """
+    Forward recurrence of the linear chain crf.
+    """
 
     def _forward_step(energy_matrix_t, states):
         alpha_tm1 = states[-1]
@@ -162,7 +178,9 @@ def batch_gather(reference, indices):
 
 
 def _backward(gamma, mask):
-    """Backward recurrence of the linear chain crf."""
+    """
+    Backward recurrence of the linear chain crf.
+    """
     gamma = tf.cast(gamma, 'int32')
 
     def _backward_step(gamma_t, states):
@@ -188,7 +206,8 @@ def _backward(gamma, mask):
 
 
 class ChainCRF(Layer):
-    """A Linear Chain Conditional Random Field output layer.
+    """
+    A Linear Chain Conditional Random Field output layer.
     It carries the loss function and its weights for computing
     the global tag sequence scores. While training it acts as
     the identity function that passes the inputs to the subsequently
@@ -324,13 +343,15 @@ class ChainCRF(Layer):
         return tf.keras.backend.in_train_phase(x, y_pred_one_hot)
 
     def loss(self, y_true, y_pred):
-        """Linear Chain Conditional Random Field loss function.
+        """
+        Linear Chain Conditional Random Field loss function.
         """
         mask = self._fetch_mask()
         return chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
     def sparse_loss(self, y_true, y_pred):
-        """Linear Chain Conditional Random Field loss function with sparse
+        """
+        Linear Chain Conditional Random Field loss function with sparse
         tag sequences.
         """
         y_true = tf.cast(y_true, 'int32')
@@ -353,7 +374,9 @@ class ChainCRF(Layer):
 
 
 def create_custom_objects():
-    """Returns the custom objects, needed for loading a persisted model."""
+    """
+    Returns the custom objects, needed for loading a persisted model.
+    """
     instanceHolder = {'instance': None}
 
     class ClassWrapper(ChainCRF):

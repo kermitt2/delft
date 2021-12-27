@@ -26,12 +26,8 @@ list_classes = ["not_used", "used"]
 class_weights = {0: 1.,
                  1: 4.}
 
-def configure(architecture, use_BERT=False, use_ELMo=False):
+def configure(architecture):
     batch_size = 256
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
     maxlen = 300
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -39,21 +35,17 @@ def configure(architecture, use_BERT=False, use_ELMo=False):
         maxlen = 100
     return batch_size, maxlen
 
-def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"):
+def train(embeddings_name, fold_count, architecture="gru"):
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
     model_name = 'software_use'
     class_weights = None
-    if use_ELMo:
-        model_name += '-with_ELMo'
-    elif use_BERT:
-        model_name += '-with_BERT'
 
-    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+    batch_size, maxlen = configure(architecture)
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     if fold_count == 1:
@@ -64,7 +56,7 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
+def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
@@ -79,20 +71,16 @@ def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, 
 
     model_name = 'software_use'
     class_weights = None
-    if use_ELMo:
-        model_name += '-with_ELMo'
-    elif use_BERT:
-        model_name += '-with_BERT'
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
 
-    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+    batch_size, maxlen = configure(architecture)
 
     print(list_classes)
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     if fold_count == 1:
@@ -127,8 +115,6 @@ if __name__ == "__main__":
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings") 
     parser.add_argument(
         "--embedding", default='glove-840B',
         help=(
@@ -145,8 +131,6 @@ if __name__ == "__main__":
         print('action not specified, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
-    use_ELMo = args.use_ELMo
-    use_BERT = args.use_BERT
 
     architecture = args.architecture
     if architecture not in modelTypes:
@@ -156,13 +140,13 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT, architecture=architecture)
+        train(embeddings_name, args.fold_count, architecture=architecture)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT, architecture=architecture)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture)    
 
     if args.action == 'classify':
         someTexts = ['Radiographic errors were recorded on individual tick sheets and the information was captured in an Excel spreadsheet (Microsoft, Redmond, WA).', 

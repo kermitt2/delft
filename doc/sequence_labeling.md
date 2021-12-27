@@ -26,16 +26,6 @@ The following DL architectures are supported by DeLFT:
 
 &nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 
-In addition, the following contextual embeddings can be used in combination to the RNN architectures: 
-
-* [__ELMo__](https://allennlp.org/elmo) contextualised embeddings, which lead to the state of the art (92.22% F1 on CoNLL2003 NER dataset, averaged over five runs), when combined with _BidLSTM-CRF_ with , see:
-
-&nbsp;&nbsp;&nbsp;&nbsp; [5] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
-
-* __BERT__ feature extraction to be used as contextual embeddings (as ELMo alternative), as explained in section 5.4 of: 
-
-&nbsp;&nbsp;&nbsp;&nbsp; [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
-
 Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme and we did not find any advantages to add alternative labelling scheme after experiments.
 
 ### Examples
@@ -87,7 +77,7 @@ Different datasets and languages are supported. They can be specified by the com
 usage: nerTagger.py [-h] [--fold-count FOLD_COUNT] [--lang LANG]
                     [--dataset-type DATASET_TYPE]
                     [--train-with-validation-set]
-                    [--architecture ARCHITECTURE] [--use-ELMo] [--use-BERT]
+                    [--architecture ARCHITECTURE] 
                     [--data-path DATA_PATH] [--file-in FILE_IN]
                     [--file-out FILE_OUT]
                     action
@@ -113,8 +103,6 @@ optional arguments:
                         'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 
                         'BidLSTM_CRF_CASING', 'bert-base-en', 'bert-base-en', 
                         'scibert', 'biobert']
-  --use-ELMo            Use ELMo contextual embeddings
-  --use-BERT            Use BERT extracted features (embeddings)
   --data-path DATA_PATH
                         path to the corpus of documents for training (only use
                         currently with Ontonotes corpus in orginal XML format)
@@ -144,10 +132,6 @@ For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `
 For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
 > python3 nerTagger.py --dataset-type conll2003 train_eval
-
-To use ELMo contextual embeddings, add the parameter `--use-ELMo`. This will slow down considerably (30 times) the first epoch of the training, then the contextual embeddings will be cached and the rest of the training will be similar to usual embeddings in term of training time. Alternatively add `--use-BERT` to use BERT extracted features as contextual embeddings to the RNN architecture. 
-
-> python3 nerTagger.py --dataset-type conll2003 --use-ELMo train_eval
 
 Some recent works like (Chiu & Nichols, 2016) and (Peters and al., 2017) also train with the validation set, leading obviously to a better accuracy (still they compare their scores with scores previously reported trained differently, which is arguably a bit unfair - this aspect is mentioned in (Ma & Hovy, 2016)). To train with both train and validation sets, use the parameter `--train-with-validation-set`:
 
@@ -295,10 +279,6 @@ This produces a JSON output with entities, scores and character offsets like thi
 
 ```
 
-If you have trained the model with ELMo, you need to indicate to use ELMo-based model when annotating with the parameter `--use-ELMo` (note that the runtime impact is important as compared to traditional embeddings): 
-
-> python3 nerTagger.py --dataset-type conll2003 --use-ELMo --file-in data/test/test.ner.en.txt tag
-
 For English NER tagging, the default static embeddings is Glove (`glove-840B`). Other static embeddings can be specified with the parameter `--embedding`, for instance:
 
 > python3 nerTagger.py --dataset-type conll2003 --embedding word2vec train_eval
@@ -372,10 +352,6 @@ Evaluation on test set:
 all (micro avg.)     0.8939    0.8864    0.8901     11257
 ```
 
-For ten model training with average, worst and best model with ELMo embeddings, use:
-
-> python3 nerTagger.py --dataset-type conll2012 --use-ELMo --fold-count 10 train_eval
-
 ##### French model (based on Le Monde corpus)
 
 Note that Le Monde corpus is subject to copyrights and is limited to research usage only, it is usually referred to as "corpus FTB". The corpus file `ftb6_ALL.EN.docs.relinked.xml` must be located under `delft/data/sequenceLabelling/leMonde/`. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type ftb`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
@@ -424,8 +400,6 @@ all (micro avg.)     0.9090    0.9242    0.9166      1254
 ```
 
 With frELMo:
-
-> python3 nerTagger.py --lang fr --dataset-type ftb --fold-count 10 --use-ELMo train_eval
 
 ```text
 average over 10 folds
@@ -511,8 +485,6 @@ all (micro avg.)     0.8767    0.8722    0.8745      1158
 ```
 
 With frELMo:
-
-> python3 nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 --use-ELMo train_eval
 
 ```
 average over 10 folds
@@ -702,12 +674,6 @@ As usual, the architecture to be used for the indicated model can be specified w
 > python3 grobidTagger.py citation train_eval --architecture BidLSTM_CRF_FEATURES
 
 With the architectures having a feature channel, the categorial features (as generated by GROBID) will be automatically selected (typically the layout and lexical class features). The models not having a feature channel will only use the tokens as input (as the usual Deep Learning models for text). 
-
-Similarly to the NER models, to use ELMo contextual embeddings, add the parameter `--use-ELMo`, e.g.:
-
-> python3 grobidTagger.py citation --use-ELMo train_eval
-
-Add the parameter `--use-BERT` to use BERT extracted features as contextual embeddings for the RNN architecture. 
 
 Similarly to the NER models, for n-fold training (action `train_eval` only), specify the value of `n` with the parameter `--fold-count`, e.g.:
 

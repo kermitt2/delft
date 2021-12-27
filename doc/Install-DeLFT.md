@@ -31,8 +31,6 @@ You need then to download some pre-trained word embeddings and notify their path
 
 * _fasttext_wiki_fr_ (1.1M, NOT cased, 300 dim. vectors) for French: [wiki.fr](https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.fr.vec)
 
-* _ELMo_ trained on 5.5B word corpus (will produce 1024 dim. vectors) for English: [options](https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json) and [weights](https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5)
-
 * _BERT_ for English, we are using BERT-Base, Cased, 12-layer, 768-hidden, 12-heads , 110M parameters: available [here](https://storage.googleapis.com/bert_models/2018_10_18/cased_L-12_H-768_A-12.zip)
 
 * _SciBERT_ for English and scientific content: [SciBERT-cased](https://s3-us-west-2.amazonaws.com/ai2-s2-research/scibert/tensorflow_models/scibert_scivocab_cased.tar.gz)
