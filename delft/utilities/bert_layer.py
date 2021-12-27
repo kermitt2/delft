@@ -46,6 +46,8 @@ class BERT_layer():
                 self.weight_file = description["path-weights"] 
             if "path-vocab" in description and os.path.isfile(description["path-vocab"]):
                 self.vocab_file = description["path-vocab"]
+            if "model_dir" in description:
+                self.model_dir = description["model_dir"]
 
         # defaulting to fine-tuned model if available
         '''
@@ -58,7 +60,7 @@ class BERT_layer():
         '''
 
         self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=False)
-        self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
+        #self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
 
         bert_params = bert.params_from_pretrained_ckpt(self.model_dir)
         self.l_bert = bert.BertModelLayer.from_params(bert_params, name="bert")

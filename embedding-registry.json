@@ -129,12 +129,14 @@
     "transformers": [
         {
             "name": "bert-base-en",
-            "path-config": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_config.json",
-            "path-weights": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/bert_model.ckpt",
-            "path-vocab": "/media/lopez/T5/embeddings/cased_L-12_H-768_A-12/vocab.txt",
-            "path-cache": "/media/lopez/T5/cache/bert/",
+            "model_dir": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12",
+            "path-config": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/bert_config.json",
+            "path-weights": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/vocab.txt",
+            "path-cache": "/media/lopez/T51/cache/bert/",
             "cache-training": true,
-            "lang": "en"
+            "lang": "en",
+            "url": "https://storage.googleapis.com/bert_models/2018_10_18/cased_L-12_H-768_A-12.zip"
         },
         {
             "name": "bert-large-en",
@@ -143,7 +145,8 @@
             "path-vocab": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/vocab.txt",
             "path-cache": "/media/lopez/T5/cache/bert/",
             "cache-training": true,
-            "lang": "en"
+            "lang": "en",
+            "url": "https://storage.googleapis.com/bert_models/2019_05_30/wwm_cased_L-24_H-1024_A-16.zip"
         },
         {
             "name": "bert-base-multi",
@@ -152,7 +155,8 @@
             "path-vocab": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/vocab.txt",
             "path-cache": "/media/lopez/T5/cache/bert/",
             "cache-training": true,
-            "lang": "multi"
+            "lang": "multi",
+            "url": "https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip"
         },
         {
             "name": "scibert",

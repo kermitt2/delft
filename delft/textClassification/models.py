@@ -18,7 +18,7 @@ from delft.utilities.bert_layer import BERT_layer
 from tensorflow.keras import backend as K
 from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, Embedding, Input, concatenate
+from tensorflow.keras.layers import Dense, Embedding, Input, InputLayer, concatenate
 from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, SpatialDropout1D, AveragePooling1D, GlobalAveragePooling1D, TimeDistributed, Masking, Lambda 
 from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten, BatchNormalization
 from tensorflow.keras.optimizers import RMSprop, Adam, Nadam
@@ -33,8 +33,6 @@ from sklearn.metrics import precision_score, precision_recall_fscore_support
 #import delft.utilities.bert.modeling as modeling
 #import delft.utilities.bert.optimization as optimization
 #import delft.utilities.bert.tokenization as tokenization
-
-
 
 # seed is fixed for reproducibility
 from numpy.random import seed
@@ -462,10 +460,11 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
 
 # simple BERT classifier
 def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en"):
-    bert_layer = BERT_layer(bert_type)
+    bert_l = BERT_layer(bert_type)
 
-    input_ids = keras.layers.Input(shape=(self.max_seq_length,), dtype='int32', name="input_ids")
-    bert_output = bert(input_ids)
+    input_ids = Input(shape=(max_seq_len,), dtype='int32', name="input_ids")
+    bert_layer = bert_l.get_layer()
+    bert_output = bert_layer(input_ids)
 
     print("bert shape", bert_output.shape)
     cls_out1 = Lambda(lambda seq: seq[:, 0, :])(bert_output)
@@ -474,7 +473,7 @@ def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en"):
     #logits2 = Dropout(0.1)(logits1)
     logits3 = Dense(units=nb_classes, activation="softmax")(cls_out2)
 
-    model = keras.Model(inputs=input_ids, outputs=logits3)
+    model = Model(inputs=input_ids, outputs=logits3)
     model.build(input_shape=(None, max_seq_len))
 
     # load the pre-trained model weights
@@ -835,7 +834,7 @@ class BERT_classifier():
         bert_params = bert.params_from_pretrained_ckpt(self.model_dir)
         self.l_bert = bert.BertModelLayer.from_params(bert_params, name="bert")
 
-        input_ids = keras.layers.Input(shape=(self.max_seq_length,), dtype='int32', name="input_ids")
+        input_ids = Input(shape=(self.max_seq_length,), dtype='int32', name="input_ids")
         # token_type_ids = keras.layers.Input(shape=(max_seq_len,), dtype='int32', name="token_type_ids")
         # output         = bert([input_ids, token_type_ids])
         output = bert(input_ids)
