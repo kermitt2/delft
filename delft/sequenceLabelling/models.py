@@ -5,17 +5,14 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
 '''
-from delft.utilities.bert import modeling
-from delft.utilities.bert import optimization
-from delft.utilities.bert import tokenization
-'''
-
 import bert
 from bert import BertModelLayer
 from bert.loader import StockBertConfig, map_stock_config_to_params, load_stock_weights
 from bert.tokenization.bert_tokenization import FullTokenizer
+'''
 
-from delft.utilities.layers import ChainCRF
+from delft.utilities.crf_layer import ChainCRF
+from delft.utilities.bert_layer import BERT_layer
 
 from delft.sequenceLabelling.preprocess import NERProcessor, convert_single_example, input_fn_generator, convert_examples_to_features
 from delft.sequenceLabelling.preprocess import file_based_input_fn_builder, file_based_convert_examples_to_features

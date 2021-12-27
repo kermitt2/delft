@@ -7,7 +7,8 @@ np.random.seed(7)
 from unidecode import unidecode
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 #from delft.utilities.bert.run_classifier_delft import DataProcessor
-import delft.utilities.bert.tokenization as tokenization
+#import delft.utilities.bert.tokenization as tokenization
+import bert.tokenization.bert_tokenization as tokenization
 #from delft.utilities.bert.run_classifier_delft import InputExample
 
 special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]',re.IGNORECASE)

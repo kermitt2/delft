@@ -8,6 +8,7 @@ from typing import List, Iterable, Set
 import numpy as np
 
 from delft.sequenceLabelling.config import ModelConfig
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 LOGGER = logging.getLogger(__name__)
 
@@ -16,9 +17,7 @@ np.random.seed(7)
 # set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
 
-import delft.utilities.bert.tokenization as tokenization
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-
+import bert.tokenization.bert_tokenization as tokenization
 import tensorflow as tf
 
 # this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py

@@ -15,7 +15,9 @@ class ModelConfig(object):
                  use_char_feature=False,
                  maxlen=300,
                  fold_number=1,
-                 batch_size=64
+                 batch_size=64,
+                 dense_size=32,
+                 bert_type="bert-base-en"
                  ):
 
         self.model_name = model_name
@@ -30,11 +32,14 @@ class ModelConfig(object):
         self.dropout = dropout
         self.recurrent_dropout = recurrent_dropout
         self.maxlen = maxlen
+        self.dense_size = dense_size
 
         self.use_char_feature = use_char_feature
         self.list_classes = list_classes
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for test and prediction
+
+        self.bert_type = bert_type
 
     def save(self, file):
         with open(file, 'w') as f:

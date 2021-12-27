@@ -13,6 +13,7 @@ import time
 import shutil
 
 from delft.textClassification.data_generator import DataGenerator
+from delft.utilities.bert_layer import BERT_layer
 
 from tensorflow.keras import backend as K
 from tensorflow.keras import initializers, regularizers, constraints
@@ -33,10 +34,7 @@ from sklearn.metrics import precision_score, precision_recall_fscore_support
 #import delft.utilities.bert.optimization as optimization
 #import delft.utilities.bert.tokenization as tokenization
 
-import bert
-from bert import BertModelLayer
-from bert.loader import StockBertConfig, map_stock_config_to_params, load_stock_weights
-from bert.tokenization.bert_tokenization import FullTokenizer
+
 
 # seed is fixed for reproducibility
 from numpy.random import seed
@@ -55,6 +53,7 @@ modelTypes = [
     "gru_simple", 
     'lstm_cnn', 
     'han', 
+    'bert',
     'bert-base-en', 
     'scibert', 
     'biobert'
@@ -157,18 +156,6 @@ parameters_gru = {
     'dense_size': 32
 }
 
-parameters_gru_old = {
-    'max_features': 200000,
-    'maxlen': 300,
-    'embed_size': 300,
-    'epoch': 30,
-    'batch_size': 512,
-    'dropout_rate': 0.3,
-    'recurrent_dropout_rate': 0.3,
-    'recurrent_units': 64,
-    'dense_size': 32
-}
-
 parameters_gru_simple = {
     'max_features': 200000,
     'maxlen': 300,
@@ -205,6 +192,14 @@ parameters_dpcnn = {
     'dense_size': 32
 }
 
+parameters_bert = {
+    'dense_size': 512,
+    'max_seq_len': 512,
+    'dropout_rate': 0.1,
+    'batch_size': 10,
+    'bert_type': 'bert-base-en'
+}
+
 parametersMap = { 
     'lstm' : parameters_lstm, 
     'bidLstm_simple' : parameters_bidLstm_simple, 
@@ -216,24 +211,19 @@ parametersMap = {
     'gru': parameters_gru, 
     'gru_simple': parameters_gru_simple, 
     'dpcnn': parameters_dpcnn, 
-    'conv': parameters_conv
+    'conv': parameters_conv,
+    'bert': parameters_bert
 }
 
 # basic LSTM
 def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix],
-    #              trainable=False)(inp)
     x = LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate)(input_layer)
     #x = CuDNNLSTM(recurrent_units, return_sequences=True)(x)
     x = Dropout(dropout_rate)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
-    #x_c = AttentionWeightedAverage()(x)
-    #x_a = MaxPooling1D(pool_size=2)(x)
-    #x_b = AveragePooling1D(pool_size=2)(x)
     x = concatenate([x_a,x_b])
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
@@ -248,17 +238,12 @@ def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
 
 # bidirectional LSTM 
 def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
-    #x_c = AttentionWeightedAverage()(x)
-    #x_a = MaxPooling1D(pool_size=2)(x)
-    #x_b = AveragePooling1D(pool_size=2)(x)
     x = concatenate([x_a,x_b])
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
@@ -273,9 +258,7 @@ def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_
 
 # conv+GRU with embeddings
 def cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Dropout(dropout_rate)(input_layer) 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
     x = MaxPooling1D(pool_size=2)(x)
@@ -292,43 +275,14 @@ def cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rat
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
-
-def cnn2_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
-    input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
-    x = Dropout(dropout_rate)(input_layer) 
-    x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
-    #x = MaxPooling1D(pool_size=2)(x)
-    x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
-    #x = MaxPooling1D(pool_size=2)(x)
-    x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
-    #x = MaxPooling1D(pool_size=2)(x)
-    x = GRU(recurrent_units, return_sequences=False, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate)(x)
-    #x = Dropout(dropout_rate)(x)
-    x = Dense(dense_size, activation="relu")(x)
-    x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=input_layer, outputs=x)
-    model.summary()  
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
-
-
 def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = Dropout(dropout_rate)(input_layer) 
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
-    #x = MaxPooling1D(pool_size=2)(x)
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
-    #x = MaxPooling1D(pool_size=2)(x)
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
-    #x = MaxPooling1D(pool_size=2)(x)
     x = GRU(recurrent_units, return_sequences=False, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate)(x)
-    #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=input_layer, outputs=x)
@@ -338,13 +292,9 @@ def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
 
 
 def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     x = GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate)(input_layer)
-    #x = Dropout(dropout_rate)(x) 
-
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
     x = MaxPooling1D(pool_size=2)(x)
     x = Conv1D(filters=recurrent_units, kernel_size=2, padding='same', activation='relu')(x)
@@ -353,11 +303,7 @@ def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     x = MaxPooling1D(pool_size=2)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
-    #x_c = AttentionWeightedAverage()(x)
-    #x_a = MaxPooling1D(pool_size=2)(x)
-    #x_b = AveragePooling1D(pool_size=2)(x)
     x = concatenate([x_a,x_b])
-    #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
     model = Model(inputs=input_layer, outputs=x)
@@ -368,9 +314,7 @@ def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
 
 def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     filter_kernels = [7, 7, 5, 5, 3, 3]
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
     conv = Conv1D(nb_filter=recurrent_units, filter_length=filter_kernels[0], border_mode='valid', activation='relu')(input_layer)
     conv = MaxPooling1D(pool_length=3)(conv)
     conv1 = Conv1D(nb_filter=recurrent_units, filter_length=filter_kernels[1], border_mode='valid', activation='relu')(conv)
@@ -382,7 +326,6 @@ def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     conv5 = MaxPooling1D(pool_length=3)(conv5)
     conv5 = Flatten()(conv5)
     z = Dropout(0.5)(Dense(dense_size, activation='relu')(conv5))
-    #x = GlobalMaxPool1D()(x)
     x = Dense(nb_classes, activation="sigmoid")(z)
     model = Model(inputs=input_layer, outputs=x)
     model.summary()  
@@ -392,10 +335,7 @@ def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
 
 # LSTM + conv
 def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix],
-    #              trainable=False)(inp)
     x = LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate)(input_layer)
     x = Dropout(dropout_rate)(x)
@@ -406,25 +346,9 @@ def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropou
                        padding='valid',
                        activation='tanh',
                        strides=1)(x)
-    #x = MaxPooling1D(pool_size=2)(x)
-
-    #x = Conv1D(filters=300,
-    #                   kernel_size=5,
-    #                   padding='valid',
-    #                   activation='tanh',
-    #                   strides=1)(x)
-    #x = MaxPooling1D(pool_size=2)(x)
-
-    #x = Conv1D(filters=300,
-    #                   kernel_size=3,
-    #                   padding='valid',
-    #                   activation='tanh',
-    #                   strides=1)(x)
-
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
     x = concatenate([x_a,x_b])
-
     x = Dense(dense_size, activation="relu")(x)
     x = Dropout(dropout_rate)(x)
     x = Dense(nb_classes, activation="sigmoid")(x)
@@ -438,27 +362,17 @@ def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropou
 
 # 2 bid. GRU 
 def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #input_layer = Input(shape=(maxlen,))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #embedding_layer = Embedding(max_features, embed_size, 
-    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(x)
-    #x = AttentionWeightedAverage(maxlen)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
-    #x_c = AttentionWeightedAverage()(x)
-    #x_a = MaxPooling1D(pool_size=2)(x)
-    #x_b = AveragePooling1D(pool_size=2)(x)
     x = concatenate([x_a,x_b], axis=1)
-    #x = Dense(dense_size, activation="relu")(x)
-    #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     output_layer = Dense(nb_classes, activation="sigmoid")(x)
-
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
     model.compile(loss='binary_crossentropy',
@@ -468,54 +382,14 @@ def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rat
     return model
 
 
-def gru_best(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #input_layer = Input(shape=(maxlen,))
-    input_layer = Input(shape=(maxlen, embed_size), )
-    #embedding_layer = Embedding(max_features, embed_size,
-    #                            weights=[embedding_matrix], trainable=False)(input_layer)
-    x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(input_layer)
-    x = Dropout(dropout_rate)(x)
-    x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(x)
-    #x = AttentionWeightedAverage(maxlen)(x)
-    x_a = GlobalMaxPool1D()(x)
-    x_b = GlobalAveragePooling1D()(x)
-    #x_c = AttentionWeightedAverage()(x)
-    #x_a = MaxPooling1D(pool_size=2)(x)
-    #x_b = AveragePooling1D(pool_size=2)(x)
-    x = concatenate([x_a,x_b], axis=1)
-    #x = Dense(dense_size, activation="relu")(x)
-    #x = Dropout(dropout_rate)(x)
-    x = Dense(dense_size, activation="relu")(x)
-    output_layer = Dense(nb_classes, activation="sigmoid")(x)
-
-    model = Model(inputs=input_layer, outputs=output_layer)
-    model.summary()
-    model.compile(loss='binary_crossentropy',
-                  #optimizer=RMSprop(clipvalue=1, clipnorm=1),
-                  optimizer='adam',
-                  metrics=['accuracy'])
-    return model
-
-
 # 1 layer bid GRU
 def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #input_layer = Input(shape=(maxlen,))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #embedding_layer = Embedding(max_features, embed_size,
-    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate))(input_layer)
-    #x = AttentionWeightedAverage(maxlen)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
-    #x_c = AttentionWeightedAverage()(x)
-    #x_a = MaxPooling1D(pool_size=2)(x)
-    #x_b = AveragePooling1D(pool_size=2)(x)
     x = concatenate([x_a,x_b], axis=1)
-    #x = Dense(dense_size, activation="relu")(x)
-    #x = Dropout(dropout_rate)(x)
     x = Dense(dense_size, activation="relu")(x)
     output_layer = Dense(nb_classes, activation="sigmoid")(x)
 
@@ -530,23 +404,17 @@ def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_drop
 
 # bid GRU + bid LSTM
 def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #input_layer = Input(shape=(maxlen,))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #embedding_layer = Embedding(max_features, embed_size,
-    #                            weights=[embedding_matrix], trainable=False)(input_layer)
     x = Bidirectional(GRU(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(input_layer)
     x = Dropout(dropout_rate)(x)
     x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=recurrent_dropout_rate))(x)
-
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
     x = concatenate([x_a,x_b])
-
     x = Dense(dense_size, activation="relu")(x)
     output_layer = Dense(nb_classes, activation="sigmoid")(x)
-
     model = Model(inputs=input_layer, outputs=output_layer)
     model.summary()
     model.compile(loss='binary_crossentropy',
@@ -558,10 +426,7 @@ def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
 
 # DPCNN
 def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #input_layer = Input(shape=(maxlen, ))
     input_layer = Input(shape=(maxlen, embed_size), )
-    #X = Embedding(max_features, embed_size, weights=[embedding_matrix], 
-    #              trainable=False)(input_layer)
     # first block
     X_shortcut1 = input_layer
     X = Conv1D(filters=recurrent_units, kernel_size=2, strides=3)(X_shortcut1)
@@ -595,12 +460,33 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
+# simple BERT classifier
+def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en"):
+    bert_layer = BERT_layer(bert_type)
+
+    input_ids = keras.layers.Input(shape=(self.max_seq_length,), dtype='int32', name="input_ids")
+    bert_output = bert(input_ids)
+
+    print("bert shape", bert_output.shape)
+    cls_out1 = Lambda(lambda seq: seq[:, 0, :])(bert_output)
+    cls_out2 = Dropout(0.1)(cls_out1)
+    #logits1 = Dense(units=512, activation="tanh")(cls_out2)
+    #logits2 = Dropout(0.1)(logits1)
+    logits3 = Dense(units=nb_classes, activation="softmax")(cls_out2)
+
+    model = keras.Model(inputs=input_ids, outputs=logits3)
+    model.build(input_shape=(None, max_seq_len))
+
+    # load the pre-trained model weights
+    bert_layer.load_weights()
+    return model
 
 def getModel(model_config, training_config):
     model_type = model_config.model_type
     fold_count = model_config.fold_number
 
     # for BERT models, parameters are set at class level
+    '''
     if model_config.model_type.find('bert') != -1:
         print("model_config.maxlen: " + str(model_config.maxlen))
         print("model_config.batch_size: " + str(model_config.batch_size))
@@ -611,16 +497,23 @@ def getModel(model_config, training_config):
         # the following will ensuring that the model stays warm/available
         model.load()
         return model
+    '''
 
     # default model parameters
     parameters = parametersMap[model_type]
-    embed_size = parameters['embed_size']
-    maxlen = parameters['maxlen']
+    if 'embed_size' in parameters:
+        embed_size = parameters['embed_size']
+    if 'maxlen' in parameters:
+        maxlen = parameters['maxlen']
     batch_size = parameters['batch_size']
-    recurrent_units = parameters['recurrent_units']
+    if 'recurrent_units' in parameters:
+        recurrent_units = parameters['recurrent_units']
     dropout_rate = parameters['dropout_rate']
-    recurrent_dropout_rate = parameters['recurrent_dropout_rate']
+    if 'recurrent_dropout_rate' in parameters:
+        recurrent_dropout_rate = parameters['recurrent_dropout_rate']
     dense_size = parameters['dense_size']
+    if 'bert_type' in parameters:
+        bert_type = parameters['bert_type']
 
     # overwrite with config paramters 
     embed_size = model_config.word_embedding_size
@@ -629,9 +522,10 @@ def getModel(model_config, training_config):
     max_epoch = training_config.max_epoch
     model_type = model_config.model_type
     use_roc_auc = training_config.use_roc_auc
-    nb_classes = len(model_config.list_classes)    
+    nb_classes = len(model_config.list_classes)
     dropout_rate = model_config.dropout
     recurrent_dropout_rate = model_config.recurrent_dropout
+    bert_type = model_config.bert_type
 
     # awww Python has no case/switch statement :D
     if (model_type == 'bidLstm_simple'):
@@ -656,6 +550,8 @@ def getModel(model_config, training_config):
         model = gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'gru_simple'):
         model = gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
+    elif (model_type == 'bert'):
+        model = bert(dense_size, nb_classes, max_seq_len=512, bert_type=bert_type)
     else:
         raise (OSError('The model type '+model_type+' is unknown'))
     return model
@@ -680,14 +576,7 @@ def train_model(model,
 
     while current_epoch <= max_epoch:
 
-        #model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
         nb_workers = 6
-        '''
-        if use_ELMo or use_BERT:
-            # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0 
-            multiprocessing = False
-        '''
         model.fit(
             training_generator,
             use_multiprocessing=multiprocessing,
@@ -716,10 +605,6 @@ def train_model(model,
                 total_roc_auc = roc_auc_score(val_y, y_pred)
         else:
             for j in range(0, len(list_classes)):
-                #for n in range(0, len(val_y[:, j])):
-                #    print(val_y[n, j])
-                #print(val_y[:, j])
-                #print(y_pred[:, j])
                 loss = log_loss(val_y[:, j], y_pred[:, j], labels=[0,1])
                 total_loss += loss
                 if len(np.unique(val_y[:, j])) == 1:
@@ -968,7 +853,6 @@ class BERT_classifier():
         model.build(input_shape=(None, max_seq_len))
 
         # load the pre-trained model weights
-        #load_stock_weights(bert, bert_ckpt_file)
         bert.load_bert_weights(self.l_bert, self.weight_file)  
         
     def train(self, x_train=None, y_train=None):
