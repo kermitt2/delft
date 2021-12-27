@@ -5,12 +5,11 @@ from delft.utilities.numpy import shuffle_triple_with_view
 # seed is fixed for reproducibility
 np.random.seed(7)
 
-import keras
+import tensorflow.keras as keras
 from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_simple_with_elmo, \
     to_vector_simple_with_bert
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
-tf.set_random_seed(7)
 
 # generate batch of data to feed sequence labelling model, both for training and prediction
 class DataGenerator(keras.utils.Sequence):

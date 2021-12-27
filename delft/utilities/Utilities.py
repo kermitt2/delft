@@ -4,22 +4,15 @@ import numpy as np
 # seed is fixed for reproducibility
 from numpy.random import seed
 seed(7)
-import pandas as pd
 import sys
 import os.path
 import shutil
 import requests
 from urllib.parse import urlparse
 
-from keras.preprocessing import text
-from keras import backend as K
-
-#from nltk.tokenize import wordpunct_tokenize
-#from nltk.stem.snowball import EnglishStemmer
+from tensorflow.keras.preprocessing import text
 
 from tqdm import tqdm 
-#from gensim.models import FastText
-#from gensim.models import KeyedVectors
 import langdetect
 from textblob import TextBlob
 from textblob.translate import NotTranslated
@@ -36,19 +29,13 @@ def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
 
 def dot_product(x, kernel):
     """
-    Wrapper for dot product operation used inthe attention layers, in order to be compatible with both
-    Theano and Tensorflow
+    Wrapper for dot product operation used in the attention layers
     Args:
         x (): input
         kernel (): weights
     Returns:
     """
-    if K.backend() == 'tensorflow':
-        # todo: check that this is correct
-        return K.squeeze(K.dot(x, K.expand_dims(kernel)), axis=-1)
-    else:
-        return K.dot(x, kernel)
-
+    return K.squeeze(K.dot(x, K.expand_dims(kernel)), axis=-1)
 
 # read list of words (one per line), e.g. stopwords, badwords
 def read_words(words_file):
@@ -134,13 +121,13 @@ def translate(comment):
     if hasattr(comment, "decode"):
         comment = comment.decode("utf-8")
 
-    text = TextBlob(comment)
+    text_blob = TextBlob(comment)
     try:
-        text = text.translate(to="en")
+        text_blob = text_blob.translate(to="en")
     except NotTranslated:
         pass
 
-    return str(text)
+    return str(text_blob)
 
 
 # produce some statistics

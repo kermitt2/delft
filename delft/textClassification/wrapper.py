@@ -8,8 +8,8 @@ import numpy as np
 np.random.seed(7)
 
 import tensorflow as tf
-tf.set_random_seed(7)
-tf.logging.set_verbosity(tf.logging.ERROR)
+tf.random.set_seed(7)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import datetime
 
@@ -28,7 +28,7 @@ from delft.utilities.Embeddings import Embeddings
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
-from keras.utils import plot_model
+from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
 
@@ -67,7 +67,7 @@ class Classifier(object):
 
         word_emb_size = 0
         if embeddings_name is not None and model_type.find("bert") == -1:
-            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
+            self.embeddings = Embeddings(embeddings_name) 
             word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(model_name=model_name, 

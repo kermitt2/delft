@@ -3,16 +3,35 @@ import regex as re
 import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
 
 from unidecode import unidecode
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-from delft.utilities.bert.run_classifier_delft import DataProcessor
+#from delft.utilities.bert.run_classifier_delft import DataProcessor
 import delft.utilities.bert.tokenization as tokenization
-from delft.utilities.bert.run_classifier_delft import InputExample
+#from delft.utilities.bert.run_classifier_delft import InputExample
 
 special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]',re.IGNORECASE)
+
+
+class InputExample(object):
+  """A single training/test example for simple sequence classification."""
+
+  def __init__(self, guid, text_a, text_b=None, label=None):
+    """Constructs a InputExample.
+
+    Args:
+      guid: Unique id for the example.
+      text_a: string. The untokenized text of the first sequence. For single
+        sequence tasks, only this sequence must be specified.
+      text_b: (Optional) string. The untokenized text of the second sequence.
+        Only must be specified for sequence pair tasks.
+      label: (Optional) string. The label of the example. This should be
+        specified for train and dev examples, but not for test examples.
+    """
+    self.guid = guid
+    self.text_a = text_a
+    self.text_b = text_b
+    self.label = label
 
 
 def to_vector_single(text, embeddings, maxlen=300):
@@ -34,6 +53,7 @@ def to_vector_single(text, embeddings, maxlen=300):
 
     return x
 
+'''
 def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
@@ -53,7 +73,9 @@ def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
     if use_token_dump:
         return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
     """
+'''
 
+'''
 def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
@@ -71,7 +93,9 @@ def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=Fal
         subtokens.append(local_tokens)
     vector = embeddings.get_sentence_vector_only_BERT(subtokens)
     return vector
+'''
 
+'''
 def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
@@ -92,7 +116,9 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, 
                 local_tokens.append(" ")
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
+'''
 
+'''
 def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
     """
     Given a list of tokens convert it to a sequence of word embedding 
@@ -113,20 +139,48 @@ def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, 
                 local_tokens.append(" ")
         subtokens.append(local_tokens)
     return embeddings.get_sentence_vector_with_BERT(subtokens)
+'''
 
 def clean_text(text):
     x_ascii = unidecode(text)
     x_clean = special_character_removal.sub('',x_ascii)
     return x_clean
 
-
 def lower(word):
     return word.lower() 
-
 
 def normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
 
+
+class DataProcessor(object):
+  """Base class for data converters for sequence classification data sets."""
+
+  def get_train_examples(self, data_dir):
+    """Gets a collection of `InputExample`s for the train set."""
+    raise NotImplementedError()
+
+  def get_dev_examples(self, data_dir):
+    """Gets a collection of `InputExample`s for the dev set."""
+    raise NotImplementedError()
+
+  def get_test_examples(self, data_dir):
+    """Gets a collection of `InputExample`s for prediction."""
+    raise NotImplementedError()
+
+  def get_labels(self):
+    """Gets the list of labels for this data set."""
+    raise NotImplementedError()
+
+  @classmethod
+  def _read_tsv(cls, input_file, quotechar=None):
+    """Reads a tab separated value file."""
+    with tf.gfile.Open(input_file, "r") as f:
+      reader = csv.reader(f, delimiter="\t", quotechar=quotechar)
+      lines = []
+      for line in reader:
+        lines.append(line)
+      return lines
 
 class BERT_classifier_processor(DataProcessor):
     """

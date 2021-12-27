@@ -6,9 +6,7 @@ from delft.sequenceLabelling import Sequence
 from delft.utilities.Tokenizer import tokenizeAndFilter
 from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
 import argparse
-import keras.backend as K
 import time
-
 
 def train(embeddings_name, architecture='BidLSTM_CRF'): 
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
@@ -90,5 +88,3 @@ if __name__ == "__main__":
         result = annotate(someTexts, "json", architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
-    # see https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()

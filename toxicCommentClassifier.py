@@ -6,7 +6,6 @@ from delft.textClassification.reader import load_texts_pandas
 import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
-import keras.backend as K
 import pandas as pd
 import time
 import sys
@@ -114,6 +113,3 @@ if __name__ == "__main__":
         someTexts = ['This is a gentle test.', 'This is a fucking test!', 'With all due respects, I think you\'re a moron.']
         result = classify(someTexts, "json", architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
-
-    # See https://github.com/tensorflow/tensorflow/issues/3388
-    K.clear_session()

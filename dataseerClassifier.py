@@ -6,7 +6,6 @@ from delft.textClassification.reader import vectorize as vectorizer
 import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
-import keras.backend as K
 import time
 from delft.textClassification.models import modelTypes
 import numpy as np
@@ -610,6 +609,3 @@ if __name__ == "__main__":
             'The concentrations of Cd and Pb in feathers were measured by furnace atomic absorption spectrometry (VARIAN 240Z).']
         result = classify(someTexts, "json", architecture=architecture, cascaded=cascaded)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))  
-
-    # See https://github.com/tensorflow/tensorflow/issues/3388
-    #K.clear_session()

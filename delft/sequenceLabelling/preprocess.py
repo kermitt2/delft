@@ -21,8 +21,6 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 import tensorflow as tf
 
-tf.set_random_seed(7)
-
 # this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
 
 UNK = '<UNK>'

@@ -6,7 +6,6 @@ from delft.utilities.Embeddings import Embeddings,test
 from delft.utilities.Utilities import stats
 from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
-import keras.backend as K
 import argparse
 import time
 
@@ -635,10 +634,3 @@ if __name__ == "__main__":
                 if file_out is None:
                     print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
             """
-
-    try:
-        # see https://github.com/tensorflow/tensorflow/issues/3388
-        K.clear_session()
-    except:
-        # TF could complain in some case
-        print("\nLeaving TensorFlow...")

@@ -1,12 +1,10 @@
 # Class for experimenting various single input DL models at word level
 #
-#   model_type      type of the model to be used into ['lstm', 'bidLstm', 'cnn', 'cudnngru', 'cudnnlstm']
+#   model_type      type of the model to be used
 #   fold_count      number of folds for k-fold training (default is 1)
 #
 
-import pandas as pd
 import numpy as np
-import pandas as pd
 import sys, os
 import argparse
 import math
@@ -16,39 +14,38 @@ import shutil
 
 from delft.textClassification.data_generator import DataGenerator
 
-from keras import backend as K
-from keras.engine.topology import Layer
-from keras import initializers, regularizers, constraints
-from keras.models import Model, load_model
-from keras.layers import Dense, Embedding, Input, concatenate
-from keras.layers import LSTM, Bidirectional, Dropout, SpatialDropout1D, AveragePooling1D, GlobalAveragePooling1D, TimeDistributed, Masking, Lambda 
-from keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten, BatchNormalization
-from keras.layers import CuDNNGRU, CuDNNLSTM
-from keras.optimizers import RMSprop, Adam, Nadam
-from keras.preprocessing import text, sequence
-from keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras import backend as K
+#from tensorflow.keras.engine.topology import Layer
+from tensorflow.keras import initializers, regularizers, constraints
+from tensorflow.keras.models import Model, load_model
+from tensorflow.keras.layers import Dense, Embedding, Input, concatenate
+from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, SpatialDropout1D, AveragePooling1D, GlobalAveragePooling1D, TimeDistributed, Masking, Lambda 
+from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten, BatchNormalization
+from tensorflow.keras.optimizers import RMSprop, Adam, Nadam
+from tensorflow.keras.preprocessing import text, sequence
+from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
 
 #import utilities.Attention
-from delft.utilities.Attention import Attention
-#from ToxicAttentionAlternative import AttentionAlternative
-#from ToxicAttentionWeightedAverage import AttentionWeightedAverage
+#from delft.utilities.Attention import Attention
+#from delft.textClassification.preprocess import BERT_classifier_processor
 
-from delft.textClassification.preprocess import BERT_classifier_processor
+#from delft.utilities.bert.run_classifier_delft import *
+#import delft.utilities.bert.modeling as modeling
+#import delft.utilities.bert.optimization as optimization
+#import delft.utilities.bert.tokenization as tokenization
 
-from delft.utilities.bert.run_classifier_delft import *
-import delft.utilities.bert.modeling as modeling
-import delft.utilities.bert.optimization as optimization
-import delft.utilities.bert.tokenization as tokenization
+import bert
+from bert import BertModelLayer
+from bert.loader import StockBertConfig, map_stock_config_to_params, load_stock_weights
+from bert.tokenization.bert_tokenization import FullTokenizer
 
 # seed is fixed for reproducibility
 from numpy.random import seed
 seed(7)
-from tensorflow import set_random_seed
-set_random_seed(8)
 
 modelTypes = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 
             'conv', "gru", "gru_simple", 'lstm_cnn', 'han', 'bert-base-en', 'scibert', 'biobert']
@@ -223,11 +220,19 @@ parameters_dpcnn = {
     'resultFile': 'dpcnn.csv'
 }
 
-parametersMap = { 'lstm' : parameters_lstm, 'bidLstm_simple' : parameters_bidLstm_simple, 'bidLstm': parameters_bidLstm, 
-                  'cnn': parameters_cnn, 'cnn2': parameters_cnn2, 'cnn3': parameters_cnn3, 'lstm_cnn': parameters_lstm_cnn,
-                  'mix1': parameters_mix1, 'gru': parameters_gru, 'gru_simple': parameters_gru_simple, 
-                  'dpcnn': parameters_dpcnn, 'conv': parameters_conv }
-
+parametersMap = { 'lstm' : parameters_lstm, 
+                  'bidLstm_simple' : parameters_bidLstm_simple, 
+                  'bidLstm': parameters_bidLstm, 
+                  'cnn': parameters_cnn, 
+                  'cnn2': parameters_cnn2, 
+                  'cnn3': parameters_cnn3, 
+                  'lstm_cnn': parameters_lstm_cnn,
+                  'mix1': parameters_mix1, 
+                  'gru': parameters_gru, 
+                  'gru_simple': parameters_gru_simple, 
+                  'dpcnn': parameters_dpcnn, 
+                  'conv': parameters_conv
+                }
 
 # basic LSTM
 def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -956,7 +961,7 @@ class BERT_classifier():
         self.labels = labels
 
         self.do_lower_case = False
-        self.max_seq_length= config.maxlen
+        self.max_seq_length = config.maxlen
         self.train_batch_size = config.batch_size
         self.predict_batch_size = config.batch_size
         self.learning_rate = 2e-5 
@@ -976,10 +981,32 @@ class BERT_classifier():
         if self.vocab_file is None: 
             self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
 
-        self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
-        #self.processor = BERT_classifier_processor(labels=labels)
-
+        self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
+
+        bert_params = bert.params_from_pretrained_ckpt(self.model_dir)
+        self.l_bert = bert.BertModelLayer.from_params(bert_params, name="bert")
+
+        input_ids = keras.layers.Input(shape=(self.max_seq_length,), dtype='int32', name="input_ids")
+        # token_type_ids = keras.layers.Input(shape=(max_seq_len,), dtype='int32', name="token_type_ids")
+        # output         = bert([input_ids, token_type_ids])
+        output = bert(input_ids)
+
+        print("bert shape", output.shape)
+        cls_out = keras.layers.Lambda(lambda seq: seq[:, 0, :])(output)
+        cls_out = keras.layers.Dropout(0.5)(cls_out)
+        logits = keras.layers.Dense(units=768, activation="tanh")(cls_out)
+        logits = keras.layers.Dropout(0.5)(logits)
+        logits = keras.layers.Dense(units=2, activation="softmax")(logits)
+
+        # model = keras.Model(inputs=[input_ids, token_type_ids], outputs=logits)
+        # model.build(input_shape=[(None, max_seq_len), (None, max_seq_len)])
+        model = keras.Model(inputs=input_ids, outputs=logits)
+        model.build(input_shape=(None, max_seq_len))
+
+        # load the pre-trained model weights
+        #load_stock_weights(bert, bert_ckpt_file)
+        bert.load_bert_weights(self.l_bert, self.weight_file)  
         
     def train(self, x_train=None, y_train=None):
         '''

@@ -1,6 +1,6 @@
 # Manage pre-trained embeddings 
 
-from keras.preprocessing import text, sequence
+from tensorflow.keras.preprocessing import text, sequence
 import numpy as np
 import sys
 import os
@@ -17,7 +17,7 @@ from tqdm import tqdm
 import mmap
 import codecs
 import tensorflow as tf
-import keras.backend as K
+#import keras.backend as K
 
 # for fasttext binary embeddings
 fasttext_support = True
@@ -27,15 +27,15 @@ except ImportError as e:
     fasttext_support = False
 
 # for ELMo embeddings
-from delft.utilities.bilm.data import Batcher, TokenBatcher
-from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
-from delft.utilities.bilm.elmo import weight_layers
+#from delft.utilities.bilm.data import Batcher, TokenBatcher
+#from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
+#from delft.utilities.bilm.elmo import weight_layers
 
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import download_file
 
 # for BERT extraction of word embeddings (not the fine tuning, this realized by a specific model)
-from keras_bert import load_trained_model_from_checkpoint, Tokenizer
+#from keras_bert import load_trained_model_from_checkpoint, Tokenizer
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
@@ -46,13 +46,13 @@ from keras_bert import load_trained_model_from_checkpoint, Tokenizer
 map_size = 100 * 1024 * 1024 * 1024 
 
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
-ELMo_embed_size = 1024
+#ELMo_embed_size = 1024
 
-BERT_sentence_size = 512
+#BERT_sentence_size = 512
 
 # BERT embedding size depends on the pooling method (one layer has a size of 768)
 #BERT_embed_size = 768
-BERT_embed_size = 3072
+#BERT_embed_size = 3072
 
 class Embeddings(object):
 
@@ -60,8 +60,8 @@ class Embeddings(object):
         path='./embedding-registry.json', 
         lang='en', 
         extension='vec', 
-        use_ELMo=False, 
-        use_BERT=False, 
+        #use_ELMo=False, 
+        #use_BERT=False, 
         use_cache=True,
         load=True):
         self.name = name
@@ -83,6 +83,7 @@ class Embeddings(object):
 
         self.use_cache = use_cache
         # below init for using ELMo embeddings
+        '''
         self.use_ELMo = use_ELMo
         if use_ELMo:
             self.make_ELMo()
@@ -95,9 +96,11 @@ class Embeddings(object):
                 self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
                 self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+        '''
 
         # below init for using BERT embeddings (extracted features only, not fine tuning), 
         # similar to ELMo for this usage
+        '''
         self.use_BERT = use_BERT
         if use_BERT:
             # to avoid issue with tf graph and thread, we maintain in the class its own graph and session
@@ -114,6 +117,7 @@ class Embeddings(object):
                 self.clean_BERT_cache()
                 # create and load a cache in write mode, it will be used only for training
                 self.env_BERT = lmdb.open(self.embedding_BERT_cache, map_size=map_size)
+        '''
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -331,6 +335,7 @@ class Embeddings(object):
                 self.env = lmdb.open(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name)
 
+    '''
     def make_ELMo(self):
         # Location of pretrained BiLM for the specified language
         # TBD check if ELMo language resources are present
@@ -387,8 +392,9 @@ class Embeddings(object):
                     token_dict[token] = len(token_dict)
             print('token_dict size:', len(token_dict))
             self.bert_tokenizer = Tokenizer(token_dict, cased=True)
+    '''
 
-
+    '''
     def get_sentence_vector_only_ELMo(self, token_list):
         """
             Return the ELMo embeddings only for a full sentence
@@ -470,8 +476,9 @@ class Embeddings(object):
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
                 #concatenated_result[i][j] = np.concatenate((self.get_word_vector(token_list[i][j]), elmo_result[i][j]), )
         return concatenated_result
+    '''
 
-
+    '''
     def get_sentence_vector_only_BERT(self, token_list):
         """
             Return the BERT extracted embeddings only for a full sentence
@@ -544,8 +551,9 @@ class Embeddings(object):
             squeezed_bert_results[i] = bert_results[i][:max_size_token_list]
 
         return squeezed_bert_results
+    '''
 
-
+    '''
     def get_sentence_vector_with_BERT(self, token_list):
         """
             Return a concatenation of standard embeddings (e.g. Glove) and BERT extracted embeddings  
@@ -569,7 +577,7 @@ class Embeddings(object):
                     self.get_word_vector(token_list[i][j]).astype('float32')), )
 
         return concatenated_squeezed_result
-
+    '''
 
     def get_description(self, name):
         for emb in self.registry["embeddings"]:
@@ -614,6 +622,7 @@ class Embeddings(object):
             return self.get_word_vector(word)
         return word_vector
 
+    '''
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
         """
             Try to get the ELMo embeddings for a sequence cached in LMDB
@@ -653,7 +662,9 @@ class Embeddings(object):
             self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
             return self.get_ELMo_lmdb_vector(token_list)
         return ELMo_vector
+    '''
 
+    '''
     def get_BERT_lmdb_vector(self, sentence):
         """
             Try to get the BERT extracted embeddings for a sequence cached in LMDB
@@ -672,18 +683,6 @@ class Embeddings(object):
                 if vector:
                     # adapt expected shape/padding
                     BERT_vector = _deserialize_pickle(vector)
-                    '''
-                    if local_embeddings.shape[0] > max_size_sentence:
-                        # squeeze the extra padding space
-                        BERT_vector = local_embeddings[:max_size_sentence,]
-                    elif local_embeddings.shape[0] == max_size_sentence:
-                        # bingo~!
-                        BERT_vector = local_embeddings
-                    else:
-                        # fill the missing space with padding
-                        filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]), BERT_embed_size), dtype='float32')
-                        BERT_vector = np.concatenate((local_embeddings, filler))
-                    '''
                     vector = None
                 else:
                     return None
@@ -696,8 +695,9 @@ class Embeddings(object):
             self.env_BERT = lmdb.open(self.embedding_BERT_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
             return self.get_BERT_lmdb_vector(sentence)
         return BERT_vector
+    '''
 
-
+    '''
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
             Cache in LMDB the ELMo embeddings for a given sequence 
@@ -711,7 +711,9 @@ class Embeddings(object):
             the_hash = list_digest(token_list[i])
             txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))  
         txn.commit()
+    '''
 
+    '''
     def cache_BERT_lmdb_vector(self, sentence, BERT_vector):
         """
             Cache in LMDB the BERT embeddings for a given sequence 
@@ -725,7 +727,9 @@ class Embeddings(object):
         the_hash = list_digest(sentence)
         txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(BERT_vector))  
         txn.commit()
+    '''
 
+    '''
     def clean_ELMo_cache(self):
         """
             Delete ELMo embeddings cache, this takes place normally after the completion of a training
@@ -741,7 +745,9 @@ class Embeddings(object):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             os.rmdir(self.embedding_ELMo_cache)
+    '''
 
+    '''
     def clean_BERT_cache(self):
         """
             Delete BERT embeddings cache, this takes place normally after the completion of a training
@@ -762,6 +768,7 @@ class Embeddings(object):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             os.rmdir(self.embedding_BERT_cache)
+    '''
 
     def get_word_vector_in_memory(self, word):
         if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
@@ -889,8 +896,8 @@ def _fetch_header_if_available(line):
 
     return nb_words, embed_size
 
+'''
 def test():
-    '''
     embeddings = Embeddings("glove-840B", use_ELMo=True)
     token_list = [['This', 'is', 'a', 'test', '.']]
     vect = embeddings.get_sentence_vector_ELMo(token_list)
@@ -898,7 +905,6 @@ def test():
     vect = embeddings.get_sentence_vector_ELMo(token_list)
 
     embeddings.clean_ELMo_cache()
-    '''
 
     embeddings = Embeddings("glove-840B", use_BERT=True)
     token_list = [['This', 'is', 'a', 'test', '.']]
@@ -908,3 +914,4 @@ def test():
     vect = embeddings.get_sentence_vector_only_BERT(token_list)
 
     embeddings.clean_BERT_cache()
+'''

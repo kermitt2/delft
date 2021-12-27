@@ -21,9 +21,8 @@ from __future__ import print_function
 import collections
 import re
 import unicodedata
-import six
-import tensorflow as tf
-
+#import six
+#import tensorflow as tf
 
 def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
   """Checks whether the casing config is consistent with the checkpoint name."""
@@ -77,13 +76,14 @@ def validate_case_matches_checkpoint(do_lower_case, init_checkpoint):
 
 def convert_to_unicode(text):
   """Converts `text` to Unicode (if it's not already), assuming utf-8 input."""
-  if six.PY3:
-    if isinstance(text, str):
+  #if six.PY3:
+  if isinstance(text, str):
       return text
-    elif isinstance(text, bytes):
+  elif isinstance(text, bytes):
       return text.decode("utf-8", "ignore")
-    else:
+  else:
       raise ValueError("Unsupported string type: %s" % (type(text)))
+  '''
   elif six.PY2:
     # PL note: in python 3, all strings are unicode
     if isinstance(text, str):
@@ -94,20 +94,21 @@ def convert_to_unicode(text):
       raise ValueError("Unsupported string type: %s" % (type(text)))
   else:
     raise ValueError("Not running on Python2 or Python 3?")
-
+  '''
 
 def printable_text(text):
   """Returns text encoded in a way suitable for print or `tf.logging`."""
 
   # These functions want `str` for both Python2 and Python3, but in one case
   # it's a Unicode string and in the other it's a byte string.
-  if six.PY3:
-    if isinstance(text, str):
+  #if six.PY3:
+  if isinstance(text, str):
       return text
-    elif isinstance(text, bytes):
+  elif isinstance(text, bytes):
       return text.decode("utf-8", "ignore")
-    else:
+  else:
       raise ValueError("Unsupported string type: %s" % (type(text)))
+  '''
   elif six.PY2:
     # PL note: in python 3, all strings are unicode
     if isinstance(text, str):
@@ -118,13 +119,14 @@ def printable_text(text):
       raise ValueError("Unsupported string type: %s" % (type(text)))
   else:
     raise ValueError("Not running on Python2 or Python 3?")
-
+  '''
 
 def load_vocab(vocab_file):
   """Loads a vocabulary file into a dictionary."""
   vocab = collections.OrderedDict()
   index = 0
-  with tf.gfile.GFile(vocab_file, "r") as reader:
+  #with tf.gfile.GFile(vocab_file, "r") as reader:
+  with open(vocab_file, "r") as reader:
     while True:
       token = convert_to_unicode(reader.readline())
       if not token:

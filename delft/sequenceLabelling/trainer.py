@@ -1,12 +1,12 @@
 import os
 
 import numpy as np
-from keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
 from delft.sequenceLabelling.data_generator import DataGenerator
-from keras.optimizers import Adam
-from keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
-from keras.utils import plot_model
+from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.utils import plot_model
 
 # seqeval
 from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compute_metrics

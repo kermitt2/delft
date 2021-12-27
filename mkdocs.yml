@@ -1,0 +1,25 @@
+site_name: DeLFT Documentation
+repo_url: https://github.com/kermitt2/delft/
+repo_name: GitHub
+theme: readthedocs
+site_description: Documentation for DeLFT
+docs_dir: doc
+plugins:
+    - search
+theme:
+    name: readthedocs
+pages:
+  - Home: 'index.md'
+  - About:
+    - 'Introduction': 'Introduction.md'
+    - 'References': 'References.md'
+    - 'Licence': 'License.md'
+  - User manual:
+    - 'Install DeLFT': 'Install-DeLFT.md'
+    - 'Embeddings': 'embeddings.md'
+  - Sequence Labeling:
+    - 'Description': 'sequence_labeling.md'
+  - Text Classification:
+    - 'Description': 'text_classification.md'
+
+

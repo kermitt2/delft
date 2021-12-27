@@ -5,7 +5,6 @@ from delft.textClassification.reader import load_citation_sentiment_corpus
 import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
-import keras.backend as K
 import time
 from delft.textClassification.models import modelTypes
 
@@ -134,6 +133,3 @@ if __name__ == "__main__":
             'However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.']
         result = classify(someTexts, "json", architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
-
-    # See https://github.com/tensorflow/tensorflow/issues/3388
-    #K.clear_session()

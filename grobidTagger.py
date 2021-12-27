@@ -10,9 +10,6 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.models import *
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
-
-import keras.backend as K
-
 from delft.utilities.misc import parse_number_ranges
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
@@ -327,11 +324,3 @@ if __name__ == "__main__":
             x_all, f_all = load_data_crf_string(input_crf_string)
             result = annotate_text(x_all, model, None, use_ELMo=use_ELMo, architecture=architecture, features=f_all)
             print(result)
-        
-    try:
-        # see https://github.com/tensorflow/tensorflow/issues/3388
-        K.clear_session()
-    except:
-        # TF could complain in some case
-        print("\nLeaving TensorFlow...")
-

@@ -18,13 +18,8 @@ np.random.seed(7)
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
 
 import tensorflow as tf
-tf.set_random_seed(7)
-tf.logging.set_verbosity(tf.logging.ERROR)
-
-import keras.backend as K
-# Initialize Keras session
-#sess = tf.Session()
-#K.set_session(sess)
+tf.random.set_seed(7)
+tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
@@ -93,7 +88,7 @@ class Sequence(object):
 
         word_emb_size = 0
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT)
+            self.embeddings = Embeddings(embeddings_name)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None

@@ -293,6 +293,7 @@ class MnliProcessor(DataProcessor):
     return examples
 
 
+'''
 class MrpcProcessor(DataProcessor):
   """Processor for the MRPC data set (GLUE version)."""
 
@@ -331,8 +332,9 @@ class MrpcProcessor(DataProcessor):
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=text_b, label=label))
     return examples
+'''
 
-
+'''
 class ColaProcessor(DataProcessor):
   """Processor for the CoLA data set (GLUE version)."""
 
@@ -372,7 +374,7 @@ class ColaProcessor(DataProcessor):
       examples.append(
           InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
     return examples
-
+'''
 
 def convert_single_example(ex_index, example, label_list, max_seq_length,
                            tokenizer):
@@ -1067,7 +1069,7 @@ def file_based_convert_examples_to_features(examples, label_list, max_seq_length
 
   writer.close()
 
-
+'''
 if __name__ == "__main__":
   flags.mark_flag_as_required("data_dir")
   flags.mark_flag_as_required("task_name")
@@ -1075,3 +1077,4 @@ if __name__ == "__main__":
   flags.mark_flag_as_required("bert_config_file")
   flags.mark_flag_as_required("output_dir")
   tf.app.run()
+'''

@@ -1,13 +1,12 @@
+# DeLFT
+
 <img align="right" width="150" height="150" src="doc/cat-delft-small.jpg">
 
-[![Documentation Status](https://readthedocs.org/projects/delft/badge/?version=latest)](https://readthedocs.org/projects/delft/?badge=latest)
 [![Build Status](https://travis-ci.org/kermitt2/delft.svg?branch=master)](https://travis-ci.org/kermitt2/delft)
 [![PyPI version](https://badge.fury.io/py/delft.svg)](https://badge.fury.io/py/delft)
 [![SWH](https://archive.softwareheritage.org/badge/origin/https://github.com/kermitt2/delft/)](https://archive.softwareheritage.org/browse/origin/https://github.com/kermitt2/delft/)
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
 
-
-# DeLFT
 
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, focusing on sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
 
@@ -34,60 +33,3 @@ Some contributions include:
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
 The latest DeLFT release has been tested with python 3.7 and Tensorflow 2.7.0. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely fine for most RNN models. Using BERT Base model is fine with a GeForce GTX 1080 Ti.
-
-## DeLFT Documentation
-
-Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed information on installation, usage and models.
-
-## TODO
-
-__Models__:
-
-* The integration of FLAIR contextual embeddings (branch `flair` and `flair2`) raised several issues and we did not manage to reproduce the results from the full FLAIR implementation. We should experiment with https://github.com/kensho-technologies/bubs, a Keras/TensorFlow reimplementation of the Flair Contextualized Embeddings.
-
-* Try to migrate to TF 2.0 and tf.keras
-
-* Review/rewrite the current Linear Chain CRF layer that we are using, this Keras CRF implementation is (i) a runtime bottleneck, we could try to use Cython for improving runtime and (ii) the viterbi decoding is incomplete, it does not outputing final decoded label scores and it can't output n-best. 
-
-* Port everything to Apache MXNet? :)
-
-__NER__:
-
-* complete the benchmark with OntoNotes 5 - other languages
-
-* align the CoNLL corpus tokenisation (CoNLL corpus is "pre-tokenised", but we might not want to follow this particular tokenisation)
-
-__Production__:
-
-* automatic download of embeddings on demand
-
-* improve runtime
-
-__Build more models and examples__...
-
-* Model for entity disambiguation (deeptype for entity-fishing)
-
-* Relation extractions (in particular with medical texts)
-
-Note that we are focusing on sequence labelling/information extraction and text classification tasks, which are our main applications, and not on text understanding and machine translation which are the object of already many other Open Source frameworks. 
-
-## License and contact
-
-Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.
-
-Contact: Patrice Lopez (<patrice.lopez@science-miner.com>)
-
-## How to cite
-
-If you want to this work, please refer to the present GitHub project, together with the [Software Heritage](https://www.softwareheritage.org/) project-level permanent identifier. For example, with BibTeX:
-
-```bibtex
-@misc{DeLFT,
-    title = {DeLFT},
-    howpublished = {\url{https://github.com/kermitt2/delft}},
-    publisher = {GitHub},
-    year = {2018--2021},
-    archivePrefix = {swh},
-    eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
-}
-```
