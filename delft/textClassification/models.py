@@ -15,7 +15,6 @@ import shutil
 from delft.textClassification.data_generator import DataGenerator
 
 from tensorflow.keras import backend as K
-#from tensorflow.keras.engine.topology import Layer
 from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, Embedding, Input, concatenate
@@ -28,10 +27,6 @@ from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
-
-#import utilities.Attention
-#from delft.utilities.Attention import Attention
-#from delft.textClassification.preprocess import BERT_classifier_processor
 
 #from delft.utilities.bert.run_classifier_delft import *
 #import delft.utilities.bert.modeling as modeling
@@ -47,8 +42,23 @@ from bert.tokenization.bert_tokenization import FullTokenizer
 from numpy.random import seed
 seed(7)
 
-modelTypes = ['lstm', 'bidLstm_simple', 'bidLstm', 'cnn', 'cnn2', 'cnn3', 'mix1', 'dpcnn', 
-            'conv', "gru", "gru_simple", 'lstm_cnn', 'han', 'bert-base-en', 'scibert', 'biobert']
+modelTypes = [
+    'lstm', 
+    'bidLstm_simple', 
+    'cnn', 
+    'cnn2', 
+    'cnn3', 
+    'mix1', 
+    'dpcnn', 
+    'conv', 
+    "gru", 
+    "gru_simple", 
+    'lstm_cnn', 
+    'han', 
+    'bert-base-en', 
+    'scibert', 
+    'biobert'
+]
 
 # default parameters of the different DL models
 parameters_lstm = {
@@ -60,8 +70,7 @@ parameters_lstm = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'LSTM.csv'
+    'dense_size': 32
 }
 
 parameters_bidLstm_simple = {
@@ -73,21 +82,7 @@ parameters_bidLstm_simple = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 300,
-    'dense_size': 256,
-    'resultFile': 'BidLSTM_simple.csv'
-}
-
-parameters_bidLstm = {
-    'max_features': 200000,
-    'maxlen': 300,
-    'embed_size': 300,
-    'epoch': 25,
-    'batch_size': 256,
-    'dropout_rate': 0.3,
-    'recurrent_dropout_rate': 0.3,
-    'recurrent_units': 300,
-    'dense_size': 256,
-    'resultFile': 'BidLSTM_attention.csv'
+    'dense_size': 256
 }
 
 parameters_cnn = {
@@ -99,8 +94,7 @@ parameters_cnn = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CNN.csv'
+    'dense_size': 32
 }
 
 parameters_cnn2 = {
@@ -112,8 +106,7 @@ parameters_cnn2 = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CNN2.csv'
+    'dense_size': 32
 }
 
 parameters_cnn3 = {
@@ -125,8 +118,7 @@ parameters_cnn3 = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'CNN3.csv'
+    'dense_size': 32
 }
 
 parameters_lstm_cnn = {
@@ -138,8 +130,7 @@ parameters_lstm_cnn = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'LSTM_CNN.csv'
+    'dense_size': 32
 }
 
 parameters_conv = {
@@ -151,8 +142,7 @@ parameters_conv = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 256,
-    'dense_size': 64,
-    'resultFile': 'CNN.csv'
+    'dense_size': 64
 }
 
 parameters_gru = {
@@ -164,8 +154,7 @@ parameters_gru = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'GRU.csv'
+    'dense_size': 32
 }
 
 parameters_gru_old = {
@@ -177,8 +166,7 @@ parameters_gru_old = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'GRU.csv'
+    'dense_size': 32
 }
 
 parameters_gru_simple = {
@@ -190,8 +178,7 @@ parameters_gru_simple = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'GRU_simple.csv'
+    'dense_size': 32
 }
 
 parameters_mix1 = {
@@ -203,8 +190,7 @@ parameters_mix1 = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'mix1.csv'
+    'dense_size': 32
 }
 
 parameters_dpcnn = {
@@ -216,23 +202,22 @@ parameters_dpcnn = {
     'dropout_rate': 0.3,
     'recurrent_dropout_rate': 0.3,
     'recurrent_units': 64,
-    'dense_size': 32,
-    'resultFile': 'dpcnn.csv'
+    'dense_size': 32
 }
 
-parametersMap = { 'lstm' : parameters_lstm, 
-                  'bidLstm_simple' : parameters_bidLstm_simple, 
-                  'bidLstm': parameters_bidLstm, 
-                  'cnn': parameters_cnn, 
-                  'cnn2': parameters_cnn2, 
-                  'cnn3': parameters_cnn3, 
-                  'lstm_cnn': parameters_lstm_cnn,
-                  'mix1': parameters_mix1, 
-                  'gru': parameters_gru, 
-                  'gru_simple': parameters_gru_simple, 
-                  'dpcnn': parameters_dpcnn, 
-                  'conv': parameters_conv
-                }
+parametersMap = { 
+    'lstm' : parameters_lstm, 
+    'bidLstm_simple' : parameters_bidLstm_simple, 
+    'cnn': parameters_cnn, 
+    'cnn2': parameters_cnn2, 
+    'cnn3': parameters_cnn3, 
+    'lstm_cnn': parameters_lstm_cnn,
+    'mix1': parameters_mix1, 
+    'gru': parameters_gru, 
+    'gru_simple': parameters_gru_simple, 
+    'dpcnn': parameters_dpcnn, 
+    'conv': parameters_conv
+}
 
 # basic LSTM
 def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -283,27 +268,6 @@ def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_
     model.compile(loss='binary_crossentropy', 
         optimizer='adam', 
         metrics=['accuracy'])
-    return model
-
-
-# bidirectional LSTM with attention layer
-def bidLstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-    #inp = Input(shape=(maxlen, ))
-    input_layer = Input(shape=(maxlen, embed_size), )
-    #x = Embedding(max_features, embed_size, weights=[embedding_matrix], trainable=False)(inp)
-    x = Bidirectional(LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
-                           recurrent_dropout=dropout_rate))(input_layer)
-    #x = Dropout(dropout_rate)(x)
-    x = Attention(maxlen)(x)
-    #x = AttentionWeightedAverage(maxlen)(x)
-    #print('len(x):', len(x))
-    #x = AttentionWeightedAverage(maxlen)(x)
-    x = Dense(dense_size, activation="relu")(x)
-    x = Dropout(dropout_rate)(x)
-    x = Dense(nb_classes, activation="sigmoid")(x)
-    model = Model(inputs=input_layer, outputs=x)
-    model.summary()
-    model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     return model
 
 
@@ -670,9 +634,7 @@ def getModel(model_config, training_config):
     recurrent_dropout_rate = model_config.recurrent_dropout
 
     # awww Python has no case/switch statement :D
-    if (model_type == 'bidLstm'):
-        model = bidLstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'bidLstm_simple'):
+    if (model_type == 'bidLstm_simple'):
         model = bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'lstm'):
         model = lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
@@ -708,8 +670,6 @@ def train_model(model,
                 training_generator, 
                 validation_generator, 
                 val_y, 
-                use_ELMo=False, 
-                use_BERT=False, 
                 multiprocessing=True, 
                 callbacks=None):
     best_loss = -1
@@ -722,20 +682,21 @@ def train_model(model,
 
         #model.fit(train_x, train_y, batch_size=batch_size, epochs=1)
         nb_workers = 6
+        '''
         if use_ELMo or use_BERT:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
-
-        model.fit_generator(
-            generator=training_generator,
+        '''
+        model.fit(
+            training_generator,
             use_multiprocessing=multiprocessing,
             workers=nb_workers,
             class_weight=class_weights,
             epochs=1, callbacks=callbacks)
 
-        y_pred = model.predict_generator(
-            generator=validation_generator, 
+        y_pred = model.predict(
+            validation_generator, 
             use_multiprocessing=multiprocessing,
             workers=nb_workers)
 
@@ -743,7 +704,7 @@ def train_model(model,
         total_roc_auc = 0.0
 
         # we distinguish 1-class and multiclass problems 
-        if len(list_classes) is 1:
+        if len(list_classes) == 1:
             total_loss = log_loss(val_y, y_pred, labels=[0,1])
             if len(np.unique(val_y)) == 1:
                 # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
@@ -781,12 +742,12 @@ def train_model(model,
             print("Epoch {0} roc_auc {1} best_roc_auc {2} (for info) ".format(current_epoch, total_roc_auc, best_roc_auc))
 
         current_epoch += 1
-        if total_loss < best_loss or best_loss == -1 or math.isnan(best_loss) is True:
+        if total_loss < best_loss or best_loss == -1 or math.isnan(best_loss) == True:
             best_loss = total_loss
-            if use_roc_auc is False:
+            if use_roc_auc == False:
                 best_weights = model.get_weights()
                 best_epoch = current_epoch
-        elif use_roc_auc is False:
+        elif use_roc_auc == False:
             if current_epoch - best_epoch == 5:
                 break
 
@@ -842,8 +803,6 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         foldModel, best_score = train_model(getModel(model_config, training_config),
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
                 class_weights, training_generator, validation_generator, val_y, 
-                model_config.use_ELMo, 
-                model_config.use_BERT,
                 multiprocessing=training_config.multiprocessing, callbacks=callbacks)
         models.append(foldModel)
 
@@ -865,21 +824,23 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
     return models
 
 
-def predict(model, predict_generator, use_ELMo=False, use_BERT=False, use_main_thread_only=False):
+def predict(model, predict_generator, use_main_thread_only=False):
     nb_workers = 6
     multiprocessing = True
+    '''
     if use_ELMo or use_BERT or use_main_thread_only:
         # worker at 0 means the training will be executed in the main thread
         nb_workers = 0 
         multiprocessing = False
-    y = model.predict_generator(
-            generator=predict_generator, 
+    '''
+    y = model.predict(
+            predict_generator, 
             use_multiprocessing=multiprocessing,
             workers=nb_workers)
     return y
 
 
-def predict_folds(models, predict_generator, use_ELMo=False, use_BERT=False, use_main_thread_only=False):
+def predict_folds(models, predict_generator, use_main_thread_only=False):
     fold_count = len(models)
     y_predicts_list = []
     for fold_id in range(0, fold_count):
@@ -887,12 +848,14 @@ def predict_folds(models, predict_generator, use_ELMo=False, use_BERT=False, use
         #y_predicts = model.predict(xte)
         nb_workers = 6
         multiprocessing = True
+        '''
         if use_ELMo or use_BERT or use_main_thread_only:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
-        y_predicts = model.predict_generator(
-            generator=predict_generator, 
+        '''
+        y_predicts = model.predict(
+            predict_generator, 
             use_multiprocessing=multiprocessing,
             workers=nb_workers)
         y_predicts_list.append(y_predicts)
@@ -929,7 +892,7 @@ class BERT_classifier():
         print("config.maxlen: ", config.maxlen)
         print("config.batch_size: ", config.batch_size)
 
-        if model_name is not None:
+        if model_name != None:
             self.model_name = model_name
         else:
             self.model_name = config.model_name
@@ -939,7 +902,7 @@ class BERT_classifier():
         description = _get_description(self.model_type)
         self.class_weights = class_weights
 
-        if description is None:
+        if description == None:
             raise Exception('no embeddings description found for ' + self.model_type)
 
         self.fold_count = fold_count
@@ -974,11 +937,11 @@ class BERT_classifier():
         self.model_dir = 'data/models/textClassification/' + self.model_name
 
         # defaulting to fine-tuned model if available
-        if self.config_file is None:
+        if self.config_file == None:
             self.config_file = os.path.join(self.model_dir, 'bert_config.json')
-        if self.weight_file is None:
+        if self.weight_file == None:
             self.weight_file = os.path.join(self.model_dir, 'model.ckpt') 
-        if self.vocab_file is None: 
+        if self.vocab_file == None: 
             self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
 
         self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
@@ -1126,11 +1089,11 @@ class BERT_classifier():
             os.remove(garbage)
 
         # we need to save the vocab file and bert config files from the initial pre-trained model
-        if not self.config_file is None:
+        if not self.config_file == None:
             destination = os.path.join(self.model_dir+str(fold_number), "bert_config.json")
             shutil.copyfile(self.config_file, destination)
 
-        if not self.vocab_file is None: 
+        if not self.vocab_file == None: 
             destination = os.path.join(self.model_dir+str(fold_number), "vocab.txt")
             shutil.copyfile(self.vocab_file, destination)
 
@@ -1254,7 +1217,7 @@ class BERT_classifier():
             probabilities = prediction["probabilities"]
             q = 0
             for class_probability in probabilities:
-                if self.class_weights is not None:
+                if self.class_weights != None:
                     y_pred[p,q] = class_probability * self.class_weights[q]
                 else:
                     y_pred[p,q] = class_probability
@@ -1268,7 +1231,7 @@ class BERT_classifier():
 
 
     def predict(self, texts, fold_number=0):
-        if self.loaded_estimator is None:
+        if self.loaded_estimator == None:
             self.load_model(fold_number)        
 
         # create the DeLFT json result remplate
@@ -1280,7 +1243,7 @@ class BERT_classifier():
             "classifications": []
         }
         '''
-        if texts is None or len(texts) == 0:
+        if texts == None or len(texts) == 0:
             return res
 
         def chunks(l, n):
@@ -1292,7 +1255,7 @@ class BERT_classifier():
         y_pos = 0
 
         for text_batch in list(chunks(texts, self.predict_batch_size)):
-            if type(text_batch) is np.ndarray:
+            if type(text_batch) == np.ndarray:
                 text_batch = text_batch.tolist()
 
             # if the size of the last batch is less than the batch size, we need to fill it with dummy input

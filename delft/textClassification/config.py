@@ -15,16 +15,12 @@ class ModelConfig(object):
                  use_char_feature=False,
                  maxlen=300,
                  fold_number=1,
-                 batch_size=64, 
-                 use_ELMo=False, 
-                 use_BERT=False
+                 batch_size=64
                  ):
 
         self.model_name = model_name
         self.model_type = model_type
         self.embeddings_name = embeddings_name
-        self.use_ELMo = use_ELMo
-        self.use_BERT = use_BERT
 
         #self.vocab_size = None
         #self.char_vocab_size = None

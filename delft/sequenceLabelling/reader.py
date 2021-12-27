@@ -71,7 +71,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = 'O'
             for token in localTokens:
                 self.tokens.append(token)
@@ -173,7 +173,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                     mainType = attrs.getValue("type")
                 if "TYPE" in attrs:
                     mainType = attrs.getValue("TYPE")
-                if mainType is None:
+                if mainType == None:
                     print('ENAMEX element without type attribute!')
 
                 if "sub_type" in attrs:
@@ -204,7 +204,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = 'O'
             for token in localTokens:
                 self.tokens.append(token)
@@ -543,9 +543,9 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
     nb_files = 0
     # map lang and subdir names
     lang_name = 'english'
-    if lang is 'zh':
+    if lang == 'zh':
         lang_name = '/chinese/'
-    elif lang is 'ar':
+    elif lang == 'ar':
         lang_name = '/arabic/'
 
     tokens = []

@@ -13,11 +13,11 @@ class_weights = {0: 25.,
                  1: 1.,
                  2: 9.}
 
-def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"):
-    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+def train(embeddings_name, fold_count, architecture="gru"):
+    batch_size, maxlen = configure(architecture)
 
     model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     print('loading citation sentiment corpus...')
@@ -31,12 +31,8 @@ def train(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architect
     model.save()
 
 
-def configure(architecture, use_BERT=False, use_ELMo=False):
+def configure(architecture):
     batch_size = 256
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
     maxlen = 120
     # default bert model parameters
     if architecture.find("bert") != -1:
@@ -44,12 +40,12 @@ def configure(architecture, use_BERT=False, use_ELMo=False):
     return batch_size, maxlen
 
 
-def train_and_eval(embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"): 
-    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
+    batch_size, maxlen = configure(architecture)
     maxlen = 150
 
     model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT, batch_size=batch_size, maxlen=maxlen,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
         class_weights=class_weights)
 
     print('loading citation sentiment corpus...')
@@ -76,7 +72,7 @@ def classify(texts, output_format, architecture="gru"):
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
-    if output_format is 'json':
+    if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -90,8 +86,6 @@ if __name__ == "__main__":
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings") 
     parser.add_argument(
         "--embedding", default='word2vec',
         help=(
@@ -108,9 +102,6 @@ if __name__ == "__main__":
         print('action not specifed, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
-    use_ELMo = args.use_ELMo
-    use_BERT = args.use_BERT
-
     architecture = args.architecture
     if architecture not in modelTypes:
         print('unknown model architecture, must be one of '+str(modelTypes))
@@ -119,13 +110,13 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT, architecture=architecture)
+        train(embeddings_name, args.fold_count, architecture=architecture)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT, architecture=architecture)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture)    
 
     if args.action == 'classify':
         someTexts = ['One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.', 

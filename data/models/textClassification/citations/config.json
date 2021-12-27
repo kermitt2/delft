@@ -2,8 +2,6 @@
     "model_name": "citations",
     "model_type": "gru",
     "embeddings_name": "word2vec",
-    "use_ELMo": false,
-    "use_BERT": false,
     "char_embedding_size": 25,
     "word_embedding_size": 300,
     "dropout": 0.5,

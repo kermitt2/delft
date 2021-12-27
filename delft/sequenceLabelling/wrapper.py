@@ -87,7 +87,7 @@ class Sequence(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
-        if embeddings_name is not None:
+        if embeddings_name != None:
             self.embeddings = Embeddings(embeddings_name)
             word_emb_size = self.embeddings.embed_size
         else:
@@ -119,8 +119,8 @@ class Sequence(object):
 
     def train(self, x_train, y_train, f_train: np.array = None, x_valid=None, y_valid=None, f_valid: np.array = None, callbacks=None):
         # TBD if valid is None, segment train to get one
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid != None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid != None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
@@ -128,7 +128,7 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
-        if self.p.return_features is not False:
+        if self.p.return_features != False:
             print('x_train.shape: ', x_train.shape)
             print('features_train.shape: ', f_train.shape)
             sample_transformed_features = self.p.transform_features(f_train)
@@ -150,8 +150,8 @@ class Sequence(object):
             self.embeddings.clean_BERT_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train: np.array = None, f_valid: np.array = None, fold_number=10, callbacks=None):
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid != None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid != None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
@@ -229,7 +229,7 @@ class Sequence(object):
             print(report)
 
     def eval_nfold(self, x_test, y_test, features=None):
-        if self.models is not None:
+        if self.models != None:
             total_f1 = 0
             best_f1 = 0
             best_index = 0
@@ -385,7 +385,7 @@ class Sequence(object):
             start_time = time.time()
             annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
-            if output_format is 'json':
+            if output_format == 'json':
                 annotations["runtime"] = runtime
             #else:
             #    print("runtime: %s seconds " % (runtime))
@@ -401,12 +401,12 @@ class Sequence(object):
         if self.model:
             tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
             start_time = time.time()
-            if file_out is not None:
+            if file_out != None:
                 out = open(file_out,'w')
             first = True
             with open(file_in, 'r') as f:
                 texts = None
-                while texts is None or len(texts) == self.model_config.batch_size * self.nb_workers:
+                while texts == None or len(texts) == self.model_config.batch_size * self.nb_workers:
 
                   texts = next_n_lines(f, self.model_config.batch_size * self.nb_workers)
                   annotations = tagger.tag(texts, output_format)
@@ -418,7 +418,7 @@ class Sequence(object):
                           runtime = round(time.time() - start_time, 3)
                           annotations['runtime'] = runtime
                           jsonString = json.dumps(annotations, sort_keys=False, indent=4, ensure_ascii=False)
-                          if file_out is None:
+                          if file_out == None:
                               print(jsonString)
                           else:
                               out.write(jsonString)
@@ -430,7 +430,7 @@ class Sequence(object):
                           jsonString += '    "date": ' + json.dumps(annotations["date"], ensure_ascii=False) + ",\n"
                           jsonString += '    "model": ' + json.dumps(annotations["model"], ensure_ascii=False) + ",\n"
                           jsonString += '    "texts": ['
-                          if file_out is None:
+                          if file_out == None:
                               print(jsonString, end='', flush=True)
                           else:
                               out.write(jsonString)
@@ -439,7 +439,7 @@ class Sequence(object):
                               jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
                               #jsonString = jsonString.replace('\n', '\n\t\t')
                               jsonString = re.sub('\n', '\n        ', jsonString)
-                              if file_out is None:
+                              if file_out == None:
                                   if not first:
                                       print(',\n        '+jsonString, end='', flush=True)
                                   else:
@@ -457,7 +457,7 @@ class Sequence(object):
                       for jsonStr in annotations["texts"]:
                           jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
                           jsonString = re.sub('\n', '\n        ', jsonString)
-                          if file_out is None:
+                          if file_out == None:
                               print(',\n        '+jsonString, end='', flush=True)
                           else:
                               out.write(',\n        ')
@@ -468,12 +468,12 @@ class Sequence(object):
                 jsonString = "\n    ],\n"
                 jsonString += '    "runtime": ' + str(runtime)
                 jsonString += "\n}\n"
-                if file_out is None:
+                if file_out == None:
                     print(jsonString)
                 else:
                     out.write(jsonString) 
 
-            if file_out is not None:
+            if file_out != None:
                 out.close() 
             #print("runtime: %s seconds " % (runtime))
         else:
@@ -493,7 +493,7 @@ class Sequence(object):
 
         # bert model are always saved via training process steps as checkpoint
         if self.model_config.model_type.lower().find("bert") == -1:
-            if self.model is None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
+            if self.model == None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
                 print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
             else:
                self.model.save(os.path.join(directory, self.weight_file))

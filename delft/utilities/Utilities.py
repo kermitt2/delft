@@ -13,9 +13,9 @@ from urllib.parse import urlparse
 from tensorflow.keras.preprocessing import text
 
 from tqdm import tqdm 
-import langdetect
-from textblob import TextBlob
-from textblob.translate import NotTranslated
+#import langdetect
+#from textblob import TextBlob
+#from textblob.translate import NotTranslated
 from xml.sax.saxutils import escape
 
 import argparse
@@ -99,15 +99,17 @@ url_regex = re.compile(r"https?:\/\/[a-zA-Z0-9_\-\.]+(?:com|org|fr|de|uk|se|net|
 
 
 # language detection with langdetect package
+'''
 def detect_lang(x):
     try:
         language = langdetect.detect(x)
     except:
         language = 'unk'
     return language
-
+'''
 
 # language detection with textblob package
+'''
 def detect_lang_textBlob(x):
     #try:
     theBlob = TextBlob(x)
@@ -115,8 +117,9 @@ def detect_lang_textBlob(x):
     #except:
     #    language = 'unk'
     return language
+'''
 
-
+'''
 def translate(comment):
     if hasattr(comment, "decode"):
         comment = comment.decode("utf-8")
@@ -128,7 +131,7 @@ def translate(comment):
         pass
 
     return str(text_blob)
-
+'''
 
 # produce some statistics
 def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None):

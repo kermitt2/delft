@@ -18,8 +18,6 @@ setuptools.setup(
         'scikit-learn==1.0.1',
         'tqdm==4.62.3',
         'tensorflow=2.7.0',
-        'langdetect==1.0.9',
-        'textblob==0.17.1',
         'h5py==3.6.0',
         'unidecode==1.3.2',
         'pydot==1.4.0',

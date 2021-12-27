@@ -55,8 +55,6 @@ class Classifier(object):
                  maxlen=300,
                  fold_number=1,
                  use_roc_auc=True,
-                 use_ELMo=False,
-                 use_BERT=False,
                  embeddings=(),
                  class_weights=None,
                  multiprocessing=True):
@@ -66,7 +64,7 @@ class Classifier(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
-        if embeddings_name is not None and model_type.find("bert") == -1:
+        if embeddings_name != None and model_type.find("bert") == -1:
             self.embeddings = Embeddings(embeddings_name) 
             word_emb_size = self.embeddings.embed_size
 
@@ -81,9 +79,7 @@ class Classifier(object):
                                         use_char_feature=use_char_feature, 
                                         maxlen=maxlen, 
                                         fold_number=fold_number, 
-                                        batch_size=batch_size, 
-                                        use_ELMo=use_ELMo, 
-                                        use_BERT=use_BERT)
+                                        batch_size=batch_size)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -114,12 +110,7 @@ class Classifier(object):
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
         self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
             self.training_config.max_epoch, self.training_config.use_roc_auc, self.training_config.class_weights, 
-            training_generator, validation_generator, val_y, use_ELMo=self.embeddings.use_ELMo, 
-            use_BERT=self.embeddings.use_BERT, multiprocessing=self.training_config.multiprocessing, callbacks=callbacks)
-        if self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
-        if self.embeddings.use_BERT:
-            self.embeddings.clean_BERT_cache()
+            training_generator, validation_generator, val_y, multiprocessing=self.training_config.multiprocessing, callbacks=callbacks)
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
         # bert models
@@ -130,15 +121,11 @@ class Classifier(object):
             return
 
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
-        if self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
-        if self.embeddings.use_BERT:
-            self.embeddings.clean_BERT_cache()
 
     # classification
     def predict(self, texts, output_format='json', use_main_thread_only=False):
-        if self.model_config.fold_number is 1:
-            if self.model is not None:
+        if self.model_config.fold_number == 1:
+            if self.model != None:
                 # bert model?
                 if self.model_config.model_type.find("bert") != -1:
                     # be sure the input processor is instanciated
@@ -149,7 +136,7 @@ class Classifier(object):
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
-                    result = predict(self.model, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
+                    result = predict(self.model, predict_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:            
@@ -163,15 +150,15 @@ class Classifier(object):
                 #result = self.models[0].predict(texts)
                 result = self.model.predict(texts)
             else:
-                if self.models is not None: 
+                if self.models != None: 
                     predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
-                    result = predict_folds(self.models, predict_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
+                    result = predict_folds(self.models, predict_generator, use_main_thread_only=use_main_thread_only)
                 else:
                     raise (OSError('Could not find nfolds models.'))
-        if output_format is 'json':
+        if output_format == 'json':
             res = {
                 "software": "DeLFT",
                 "date": datetime.datetime.now().isoformat(),
@@ -196,7 +183,7 @@ class Classifier(object):
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
         if self.model_config.fold_number == 1:
-            if self.model is not None:
+            if self.model != None:
                 # bert model?
                 if self.model_config.model_type.find("bert") != -1:
                     #self.model.eval(x_test, y_test)
@@ -206,11 +193,11 @@ class Classifier(object):
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
 
-                    result = predict(self.model, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
+                    result = predict(self.model, test_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:
-            if self.models is not None or (self.model_config.model_type.find("bert") != -1 and self.model is not None):
+            if self.models != None or (self.model_config.model_type.find("bert") != -1 and self.model != None):
                 # bert model?
                 print(self.model_config.model_type)
                 if self.model_config.model_type.find("bert") != -1:
@@ -228,7 +215,7 @@ class Classifier(object):
                     test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False)
-                    result = predict_folds(self.models, test_generator, use_ELMo=self.embeddings.use_ELMo, use_BERT=self.embeddings.use_BERT, use_main_thread_only=use_main_thread_only)
+                    result = predict_folds(self.models, test_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         print("-----------------------------------------------")
@@ -268,7 +255,7 @@ class Classifier(object):
 
         # macro-average (average of class scores)
         # we distinguish 1-class and multiclass problems 
-        if len(self.model_config.list_classes) is 1:
+        if len(self.model_config.list_classes) == 1:
             total_accuracy = accuracy_score(y_test, result_binary)
             total_f1 = f1_score(y_test, result_binary)
             total_loss = log_loss(y_test, result, labels=[0,1])
@@ -311,7 +298,7 @@ class Classifier(object):
         total_roc_auc /= len(self.model_config.list_classes)
 
         '''
-        if len(self.model_config.list_classes) is not 1:
+        if len(self.model_config.list_classes) != 1:
             print("\nMacro-average:")
         print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
         print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
@@ -322,7 +309,7 @@ class Classifier(object):
         # micro-average (average of scores for each instance)
         # make sense only if we have more than 1 class, otherwise same as 
         # macro-avergae
-        if len(self.model_config.list_classes) is not 1:
+        if len(self.model_config.list_classes) != 1:
             total_accuracy = 0.0
             total_f1 = 0.0
             total_loss = 0.0
@@ -365,14 +352,14 @@ class Classifier(object):
             print('model saved')
             return
 
-        if self.model_config.fold_number is 1:
-            if self.model is not None:
+        if self.model_config.fold_number == 1:
+            if self.model != None:
                 self.model.save(os.path.join(directory, self.model_config.model_type+"."+self.weight_file))
                 print('model saved')
             else:
                 print('Error: model has not been built')
         else:
-            if self.models is None:
+            if self.models == None:
                 print('Error: nfolds models have not been built')
             else:
                 for i in range(0, self.model_config.fold_number):
@@ -389,11 +376,11 @@ class Classifier(object):
 
         # load embeddings
         # Do not use cache in 'production' mode
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_BERT=self.model_config.use_BERT, use_cache=False)
+        self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
         self.model_config.word_embedding_size = self.embeddings.embed_size
 
         self.model = getModel(self.model_config, self.training_config)
-        if self.model_config.fold_number is 1:
+        if self.model_config.fold_number == 1:
             self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
         else:
             self.models = []

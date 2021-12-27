@@ -28,7 +28,7 @@ def load_texts_and_classes(filepath):
     with open(filepath) as f:
         for line in f:
             line = line.strip()
-            if (len(line) is 0):
+            if len(line) == 0:
                 continue
             pieces = line.split('\t')
             if (len(pieces) < 3):
@@ -115,7 +115,7 @@ def load_citation_sentiment_corpus(filepath):
     with open(filepath) as f:
         for line in f:
             line = line.strip()
-            if (len(line) is 0):
+            if len(line) == 0:
                 continue
             if line.startswith('#'):
                 continue
@@ -130,15 +130,15 @@ def load_citation_sentiment_corpus(filepath):
             texts.append(text)
 
             polarity = []
-            if pieces[2] is 'n':
+            if pieces[2] == 'n':
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'o':
+            if pieces[2] == 'o':
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'p':
+            if pieces[2] == 'p':
                 polarity.append(1)
             else:
                 polarity.append(0)
