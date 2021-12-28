@@ -29,11 +29,22 @@ class_weights = {0: 1.,
 def configure(architecture):
     batch_size = 256
     maxlen = 300
+    bert_type = None
+
     # default bert model parameters
-    if architecture.find("bert") != -1:
+    if architecture == "scibert":
         batch_size = 32
         maxlen = 100
-    return batch_size, maxlen
+        bert_type = "scibert-cased"
+        architecture = "bert"
+    elif architecture.find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+        bert_type = "bert-base-en-cased"
+        architecture = "bert"
+
+    return batch_size, maxlen, bert_type, architecture
+
 
 def train(embeddings_name, fold_count, architecture="gru"):
     print('loading binary software use dataset...')
@@ -42,11 +53,11 @@ def train(embeddings_name, fold_count, architecture="gru"):
     model_name = 'software_use'
     class_weights = None
 
-    batch_size, maxlen = configure(architecture)
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -75,13 +86,13 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
 
-    batch_size, maxlen = configure(architecture)
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     print(list_classes)
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     if fold_count == 1:
         model.train(x_train, y_train)

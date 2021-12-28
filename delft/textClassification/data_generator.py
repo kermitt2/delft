@@ -33,7 +33,12 @@ class DataGenerator(keras.utils.Sequence):
         Give the number of batches per epoch
         """
         # The number of batches is set so that each training sample is seen at most once per epoch
-        return int(np.floor(len(self.x) / self.batch_size) + 1)
+        if self.x is None:
+            return 0
+        elif (len(self.x) % self.batch_size) == 0:
+            return int(np.floor(len(self.x) / self.batch_size))
+        else:
+            return int(np.floor(len(self.x) / self.batch_size) + 1)
 
     def __getitem__(self, index):
         """

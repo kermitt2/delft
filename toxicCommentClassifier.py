@@ -19,11 +19,28 @@ class_weights = {0: 1.,
                  4: 1.,
                  5: 1.}
 
-def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"): 
+def configure(architecture):
     batch_size = 256
     maxlen = 300
+    bert_type = None
+
+    # default bert model parameters
+    if architecture == "scibert":
+        batch_size = 32
+        bert_type = "scibert-cased"
+        architecture = "bert"
+    elif architecture.find("bert") != -1:
+        batch_size = 32
+        bert_type = "bert-base-en-cased"
+        architecture = "bert"
+
+    return batch_size, maxlen, bert_type, architecture
+
+def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"): 
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
+
     model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=30, fold_number=fold_count, class_weights=class_weights,
-        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen)
+        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, bert_type=bert_type)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")

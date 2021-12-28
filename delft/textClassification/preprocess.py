@@ -43,6 +43,8 @@ def normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
 
 def create_single_input_bert(text, maxlen=512, tokenizer=None):
+    # TBD: exception if tokenizer is not valid/None
+
     piece_tokens = tokenizer.tokenize(text)
     piece_tokens = piece_tokens[:maxlen-2]
     piece_tokens = ["[CLS]"] + piece_tokens + ["[SEP]"]
@@ -76,6 +78,7 @@ def get_segments(tokens, maxlen):
             current_segment_id = 1
     return segments + [0] * (maxlen - len(tokens))
 
+'''
 class InputExample(object):
   """
   From official BERT implementation.
@@ -224,4 +227,4 @@ class BERT_classifier_processor(DataProcessor):
             return text.decode("utf-8", "ignore")
         else:
             raise ValueError("Unsupported string type: %s" % (type(text)))
-          
+'''

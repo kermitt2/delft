@@ -22,9 +22,7 @@ class DataGenerator(keras.utils.Sequence):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                bert_data=False, 
-                tokenizer=None):
-        'Initialization'
+                bert_data=False):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -40,11 +38,12 @@ class DataGenerator(keras.utils.Sequence):
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
         self.bert_data = bert_data
-        self.tokenizer = tokenizer
         self.on_epoch_end()
 
     def __len__(self):
-        'Denotes the number of batches per epoch'
+        '''
+        Give the number of batches per epoch
+        '''
         # The number of batches is set so that each training sample is seen at most once per epoch
         if self.original_x is None:
             return 0
@@ -54,8 +53,9 @@ class DataGenerator(keras.utils.Sequence):
             return int(np.floor(len(self.original_x) / self.batch_size) + 1)
 
     def __getitem__(self, index):
-        'Generate one batch of data'
-        # generate data for the current batch index
+        '''
+        Generate one batch of data
+        '''
         batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
         if self.preprocessor.return_casing:
             return [batch_x, batch_c, batch_a, batch_l], batch_y
@@ -65,6 +65,9 @@ class DataGenerator(keras.utils.Sequence):
             return [batch_x, batch_c, batch_l], batch_y
 
     def on_epoch_end(self):
+        '''
+        In case we are training, we can shuffle the training data for the next epoch.
+        '''
         # If we are predicting, we don't need to shuffle
         if self.original_y is None:
             return
@@ -74,14 +77,15 @@ class DataGenerator(keras.utils.Sequence):
             self.x, self.y, self.features = shuffle_triple_with_view(self.original_x, self.original_y, self.original_features)
 
     def __data_generation(self, index):
-        'Generates data containing batch_size samples'
+        '''
+        Generates data containing batch_size samples
+        '''
         max_iter = min(self.batch_size, len(self.original_x)-self.batch_size * index)
 
         # restrict data to index window
         sub_x = self.x[(index * self.batch_size):(index * self.batch_size) + max_iter]
 
         # tokenize texts in self.x if not already done
-        # From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/c31f97433243a2b0a66671c0dd3e652dcd306362/sciencebeam_trainer_delft/sequence_labelling/data_generator.py#L102-L118
         if self.tokenize:
             x_tokenized = [
                 tokenizeAndFilterSimple(text)

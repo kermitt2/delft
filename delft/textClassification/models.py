@@ -485,9 +485,8 @@ def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load
 
     optimizer = Adam(learning_rate=2e-5, clipnorm=1)
     model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-
-    #model.compile(optimizer=keras.optimizers.Adam(),
-    #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    #model.compile(optimizer=optimizer, 
+    #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), 
     #              metrics=[keras.metrics.SparseCategoricalAccuracy(name="acc")])
     return model
 
@@ -564,6 +563,7 @@ def train_model(model,
                 validation_generator, 
                 val_y, 
                 multiprocessing=True, 
+                patience=5,
                 callbacks=None):
     best_loss = -1
     best_roc_auc = -1
@@ -630,7 +630,7 @@ def train_model(model,
                 best_weights = model.get_weights()
                 best_epoch = current_epoch
         elif use_roc_auc == False:
-            if current_epoch - best_epoch == 5:
+            if current_epoch - best_epoch == patience:
                 break
 
         if total_roc_auc > best_roc_auc or best_roc_auc == -1:
@@ -639,7 +639,7 @@ def train_model(model,
                 best_weights = model.get_weights()
                 best_epoch = current_epoch
         elif use_roc_auc:
-            if current_epoch - best_epoch == 5:
+            if current_epoch - best_epoch == patience:
                 break
 
     model.set_weights(best_weights)
@@ -684,7 +684,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
 
         foldModel, best_score = train_model(getModel(model_config, training_config),
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
-                class_weights, training_generator, validation_generator, val_y, 
+                class_weights, training_generator, validation_generator, val_y, patience=training_config.patience,
                 multiprocessing=training_config.multiprocessing, callbacks=callbacks)
         models.append(foldModel)
 

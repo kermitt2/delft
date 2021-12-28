@@ -29,7 +29,8 @@ class Trainer(object):
                  training_config,
                  checkpoint_path='',
                  save_path='',
-                 preprocessor=None
+                 preprocessor=None, 
+                 bert_data=False
                  ):
 
         # for single model training
@@ -44,34 +45,26 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
+        self.bert_data = bert_data
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
         Train the instance self.model
-        """
-        if 'bert' not in self.model_config.model_type.lower():
-            self.model.summary()
-            #print("self.model_config.use_crf:", self.model_config.use_crf)
-
-            if self.model_config.use_crf:
-                self.model.compile(loss=self.model.crf.loss,
-                               optimizer='adam')
-            else:
-                self.model.compile(loss='categorical_crossentropy',
-                               optimizer='adam')
-                               #optimizer=Adam(lr=self.training_config.learning_rate))
-            # uncomment to plot graph
-            #plot_model(self.model,
-            #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-            self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
-                                      f_train=features_train, f_valid=features_valid,
-                                      max_epoch=self.training_config.max_epoch, callbacks=callbacks)
+        """      
+        self.model.summary()
+        if self.model_config.use_crf:
+            self.model.compile(loss=self.model.crf.loss,
+                           optimizer='adam')
         else:
-            # for BERT architectures, directly call the model trainer
-            if self.training_config.early_stop:
-                self.model.train(x_train, y_train)
-            else:
-                self.model.train(np.concatenate([x_train, x_valid]), np.concatenate([y_train,y_valid]))
+            self.model.compile(loss='categorical_crossentropy',
+                           optimizer='adam')
+                           #optimizer=Adam(lr=self.training_config.learning_rate))
+        # uncomment to plot graph
+        #plot_model(self.model,
+        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
+        self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
+                                  f_train=features_train, f_valid=features_valid,
+                                  max_epoch=self.training_config.max_epoch, callbacks=callbacks)
 
     def train_model(self, local_model, x_train, y_train, f_train=None,
                     x_valid=None, y_valid=None, f_valid=None, max_epoch=50, callbacks=None):
@@ -86,13 +79,13 @@ class Trainer(object):
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=f_train)
+                embeddings=self.embeddings, shuffle=True, features=f_train, bert_data=bert_data)
 
             validation_generator = DataGenerator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid)
+                embeddings=self.embeddings, shuffle=False, features=f_valid, bert_data=bert_data)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
@@ -109,7 +102,7 @@ class Trainer(object):
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=feature_all)
+                embeddings=self.embeddings, shuffle=True, features=feature_all, bert_data=bert_data)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
@@ -118,14 +111,6 @@ class Trainer(object):
         multiprocessing = self.training_config.multiprocessing
         # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         
-        '''
-        if self.embeddings.use_ELMo or self.embeddings.use_BERT:
-            # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0 
-            multiprocessing = False
-            # dump token context independent data for train set, done once for the training
-        '''
-
         local_model.fit(training_generator,
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,
@@ -139,6 +124,7 @@ class Trainer(object):
         n-fold training for the instance model
         the n models are stored in self.models, and self.model left unset at this stage
         """
+        '''
         if 'bert' in self.model_config.model_type.lower():
             # for BERT architectures, directly call the model trainer which is managing n-fold training
             # validation set is ignored, we suppose that the hyper-parameters are set with the validation set
@@ -146,6 +132,7 @@ class Trainer(object):
             self.model.train(x_train, y_train)
             # force config saving to ensure nothing is lost
             return
+        '''
 
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count

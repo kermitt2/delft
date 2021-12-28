@@ -32,14 +32,12 @@ from delft.sequenceLabelling.trainer import Scorer
 from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import merge_folders
 
-# seqeval
 from delft.sequenceLabelling.evaluation import accuracy_score
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
+from delft.utilities.bert.tokenization.bert_tokenization import FullTokenizer
 
-# initially derived from https://github.com/Hironsan/anago/blob/master/anago/wrapper.py
-# with various modifications
 
 class Sequence(object):
 
@@ -153,7 +151,8 @@ class Sequence(object):
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p
+                          preprocessor=self.p, 
+                          bert_data=bert_data
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
 
@@ -198,10 +197,10 @@ class Sequence(object):
             if self.model:
                 # Prepare test data(steps, generator)
                 test_generator = DataGenerator(x_test, y_test,
-                  batch_size=self.model_config.batch_size, preprocessor=self.p,
-                  char_embed_size=self.model_config.char_embedding_size,
-                  max_sequence_length=self.model_config.max_sequence_length,
-                  embeddings=self.embeddings, shuffle=False, features=features)
+                    batch_size=self.model_config.batch_size, preprocessor=self.p,
+                    char_embed_size=self.model_config.char_embedding_size,
+                    max_sequence_length=self.model_config.max_sequence_length,
+                    embeddings=self.embeddings, shuffle=False, features=features)
 
                 # Build the evaluator and evaluate the model
                 scorer = Scorer(test_generator, self.p, evaluation=True)
@@ -507,17 +506,18 @@ class Sequence(object):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
         self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
 
-        if self.model_config.model_type.lower().find("bert") != -1:
-             self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag), dir_path=dir_path)
-             self.model.load_model()
-             return
-
-        # load embeddings
-        # Do not use cache in 'production' mode
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
-        self.model_config.word_embedding_size = self.embeddings.embed_size
+        if self.model_config.bert_type == None:
+            # load embeddings
+            # Do not use cache in 'production' mode
+            self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
+            self.model_config.word_embedding_size = self.embeddings.embed_size
+        else:
+            self.bert_type = self.model_config.bert_type
+            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+            self.embeddings = None
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+        print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
 
 def next_n_lines(file_opened, N):

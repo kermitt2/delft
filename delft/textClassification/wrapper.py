@@ -124,9 +124,19 @@ class Classifier(object):
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
-        self.model, best_roc_auc = train_model(self.model, self.model_config.list_classes, self.training_config.batch_size, 
-            self.training_config.max_epoch, self.training_config.use_roc_auc, self.training_config.class_weights, 
-            training_generator, validation_generator, val_y, multiprocessing=self.training_config.multiprocessing, callbacks=callbacks)
+        self.model, best_roc_auc = train_model(
+            self.model, 
+            self.model_config.list_classes, 
+            self.training_config.batch_size, 
+            self.training_config.max_epoch, 
+            self.training_config.use_roc_auc, 
+            self.training_config.class_weights, 
+            training_generator, 
+            validation_generator, 
+            val_y, 
+            patience=self.training_config.patience, 
+            multiprocessing=self.training_config.multiprocessing, 
+            callbacks=callbacks)
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
@@ -147,8 +157,8 @@ class Classifier(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:            
-            # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
             if self.models != None: 
+                # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
@@ -195,6 +205,7 @@ class Classifier(object):
                 raise (OSError('Could not find a model.'))
         else:
             if self.models != None:
+                # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
@@ -329,13 +340,6 @@ class Classifier(object):
 
         self.model_config.save(os.path.join(directory, self.config_file))
         print('model config file saved')
-
-        # bert model are always saved via training process steps as checkpoint
-        '''
-        if self.model_config.model_type.find("bert") != -1:
-            print('model saved')
-            return
-        '''
 
         if self.model_config.fold_number == 1:
             if self.model != None:

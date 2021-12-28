@@ -11,11 +11,13 @@ class Tagger(object):
                 model, 
                 model_config, 
                 embeddings=None, 
-                preprocessor=None):
+                preprocessor=None, 
+                bert_data=bert_data):
         self.model = model
         self.preprocessor = preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
+        self.bert_data = bert_data
 
     def tag(self, texts, output_format, features=None):
         assert isinstance(texts, list)
@@ -34,6 +36,7 @@ class Tagger(object):
         if (len(texts)>0 and isinstance(texts[0], str)):
             to_tokeniz = True
 
+        '''
         if 'bert' in self.model_config.model_type.lower():
             preds = self.model.predict(texts, fold_id=-1)
             for i in range(0,len(preds)):
@@ -61,54 +64,52 @@ class Tagger(object):
                     list_of_tags.append(the_tags)
 
         else:
-            predict_generator = DataGenerator(texts, None, 
-                batch_size=self.model_config.batch_size, 
-                preprocessor=self.preprocessor, 
-                char_embed_size=self.model_config.char_embedding_size,
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, features=features)
+        '''
+        
+        predict_generator = DataGenerator(texts, None, 
+            batch_size=self.model_config.batch_size, 
+            preprocessor=self.preprocessor, 
+            char_embed_size=self.model_config.char_embedding_size,
+            max_sequence_length=self.model_config.max_sequence_length,
+            embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, 
+            features=features, bert_data=bert_data)
 
-            nb_workers = 6
-            multiprocessing = True
-            # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-            if self.embeddings.use_ELMo:
-                # worker at 0 means the training will be executed in the main thread
-                nb_workers = 0
-                multiprocessing = False
-                # dump token context independent data for train set, done once for the training
+        nb_workers = 6
+        multiprocessing = True
+        # multiple workers might not work with BERT due to GPU memory limit (with GTX 1080Ti 11GB)
 
-            steps_done = 0
-            steps = len(predict_generator)
-            for generator_output in predict_generator:
-                if steps_done == steps:
-                    break
-                preds = self.model.predict_on_batch(generator_output[0])
+        steps_done = 0
+        steps = len(predict_generator)
+        for generator_output in predict_generator:
+            if steps_done == steps:
+                break
+            preds = self.model.predict_on_batch(generator_output[0])
 
-                for i in range(0, len(preds)):
-                    pred = [preds[i]]
-                    text = texts[i+(steps_done*self.model_config.batch_size)]
+            for i in range(0, len(preds)):
+                pred = [preds[i]]
+                text = texts[i+(steps_done*self.model_config.batch_size)]
 
-                    #if (isinstance(text, str)):
-                    if to_tokeniz:
-                       tokens, offsets = tokenizeAndFilter(text)
-                    else:
-                        # it is a list of string, so a string already tokenized
-                        # note that in this case, offset are not present and json output is impossible
-                        tokens = text
-                        offsets = []
+                #if (isinstance(text, str)):
+                if to_tokeniz:
+                   tokens, offsets = tokenizeAndFilter(text)
+                else:
+                    # it is a list of string, so a string already tokenized
+                    # note that in this case, offset are not present and json output is impossible
+                    tokens = text
+                    offsets = []
 
-                    tags = self._get_tags(pred)
-                    prob = self._get_prob(pred)
+                tags = self._get_tags(pred)
+                prob = self._get_prob(pred)
 
-                    if output_format == 'json':
-                        piece = {}
-                        piece["text"] = text
-                        piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
-                        res["texts"].append(piece)
-                    else:
-                        the_tags = list(zip(tokens, tags))
-                        list_of_tags.append(the_tags)
-                steps_done += 1
+                if output_format == 'json':
+                    piece = {}
+                    piece["text"] = text
+                    piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
+                    res["texts"].append(piece)
+                else:
+                    the_tags = list(zip(tokens, tags))
+                    list_of_tags.append(the_tags)
+            steps_done += 1
 
         if output_format == 'json':
             return res

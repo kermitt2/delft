@@ -1,6 +1,6 @@
 {
     "model_name": "citations",
-    "model_type": "gru",
+    "model_type": "bert",
     "embeddings_name": "word2vec",
     "char_embedding_size": 25,
     "word_embedding_size": 300,
@@ -15,6 +15,6 @@
         "positive"
     ],
     "fold_number": 1,
-    "batch_size": 256,
-    "bert_type": null
+    "batch_size": 32,
+    "bert_type": "scibert-cased"
 }

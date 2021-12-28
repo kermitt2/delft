@@ -13,11 +13,31 @@ class_weights = {0: 25.,
                  1: 1.,
                  2: 9.}
 
-def train(embeddings_name, fold_count, architecture="gru"):
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+def configure(architecture):
+    batch_size = 256
+    maxlen = 150
+    bert_type = None
 
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    # default bert model parameters
+    if architecture == "scibert":
+        batch_size = 32
+        bert_type = "scibert-cased"
+        architecture = "bert"
+        patience=10
+    elif architecture.find("bert") != -1:
+        batch_size = 32
+        bert_type = "bert-base-en-cased"
+        architecture = "bert"
+        patience=10
+
+    return batch_size, maxlen, bert_type, patience, architecture
+
+
+def train(embeddings_name, fold_count, architecture="gru"):
+    batch_size, maxlen, bert_type, patience, architecture = configure(architecture)
+
+    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, 
         class_weights=class_weights, bert_type=bert_type)
 
     print('loading citation sentiment corpus...')
@@ -31,29 +51,11 @@ def train(embeddings_name, fold_count, architecture="gru"):
     model.save()
 
 
-def configure(architecture):
-    batch_size = 256
-    maxlen = 150
-    bert_type = None
-
-    # default bert model parameters
-    if architecture == "scibert":
-        batch_size = 32
-        bert_type = "scibert-cased"
-        architecture = "bert"
-    elif architecture.find("bert") != -1:
-        batch_size = 32
-        bert_type = "bert-base-en-cased"
-        architecture = "bert"
-
-    return batch_size, maxlen, bert_type, architecture
-
-
 def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, architecture = configure(architecture)
 
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, 
         class_weights=class_weights, bert_type=bert_type)
 
     print('loading citation sentiment corpus...')
@@ -66,12 +68,13 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
         model.train(x_train, y_train)
     else:
         model.train_nfold(x_train, y_train)
-    model.eval(x_test, y_test)
-
+    
     # saving the model
     model.save()
 
+    model.eval(x_test, y_test)
 
+    
 # classify a list of texts
 def classify(texts, output_format, architecture="gru"):
     # load model
@@ -111,8 +114,8 @@ if __name__ == "__main__":
 
     embeddings_name = args.embedding
     architecture = args.architecture
-    if architecture not in modelTypes:
-        print('unknown model architecture, must be one of '+str(modelTypes))
+    #if architecture not in modelTypes:
+    #    print('unknown model architecture, must be one of '+str(modelTypes))
 
     if args.action == 'train':
         if args.fold_count < 1:

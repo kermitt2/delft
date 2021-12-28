@@ -15,23 +15,37 @@ import numpy as np
     dataset type. 
 """
 
+def configure(architecture):
+    batch_size = 256
+    maxlen = 300
+    bert_type = None
+
+    # default bert model parameters
+    if architecture == "scibert":
+        batch_size = 32
+        maxlen = 100
+        bert_type = "scibert-cased"
+        architecture = "bert"
+    elif architecture.find("bert") != -1:
+        batch_size = 32
+        maxlen = 100
+        bert_type = "bert-base-en-cased"
+        architecture = "bert"
+
+    return batch_size, maxlen, bert_type, architecture
+
 def train(embeddings_name, fold_count, architecture="gru", cascaded=False): 
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
     model_name = 'dataseer-binary'
     class_weights = None
-    batch_size = 256
-    maxlen = 300
 
-    # default bert model parameters
-    if architecture.lower().find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
     
     if fold_count == 1:
         model.train(xtr, y)
@@ -46,17 +60,10 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
 
     model_name = 'dataseer-reuse'
     class_weights = {0: 1.5, 1: 1.}
-    batch_size = 256
-    maxlen = 300
-
-    # default bert model parameters
-    if architecture.lower().find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
     
     if fold_count == 1:
         model.train(xtr, y)
@@ -72,17 +79,10 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
     model_name = 'dataseer-first'
 
     class_weights = None
-    batch_size = 256
-    maxlen = 300
-
-    # default bert model parameters
-    if architecture.lower().find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
 
     model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
     use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-         class_weights=class_weights)
+         class_weights=class_weights, bert_type=bert_type)
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -121,7 +121,7 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
 
         model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
             fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, 
-            batch_size=batch_size, class_weights=class_weights)
+            batch_size=batch_size, class_weights=class_weights, bert_type=bert_type)
 
         if fold_count == 1:
             model.train(datatypes_xtr[the_class], datatypes_y[the_class])
@@ -159,17 +159,12 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru"):
     print(len(y), "classes")
 
     class_weights = None
-    batch_size = 256
-    maxlen = 300
 
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -200,19 +195,13 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru"):
     print(len(xtr), "texts")
     print(len(y), "classes")
 
-    batch_size = 256
-    maxlen = 300
-
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     class_weights = {0: 1.5, 1: 1.}
 
     model = Classifier('dataseer-reuse', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -244,17 +233,11 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru"):
     print(len(y), "classes")
 
     class_weights = None
-    batch_size = 256
-    maxlen = 300
-
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -285,13 +268,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru"):
     print(len(list_subclasses), "sub-classes")
 
     class_weights = None
-    batch_size = 256
-    maxlen = 300
-
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     datatypes_y = {}
     datatypes_xtr = {}
@@ -341,7 +318,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru"):
 
         model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
             fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, 
-            batch_size=batch_size, maxlen=maxlen, class_weights=class_weights)
+            batch_size=batch_size, maxlen=maxlen, class_weights=class_weights, bert_type=bert_type)
 
         # we need to vectorize the y according to the actual list of classes
         local_y = []
@@ -358,7 +335,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru"):
             model.train_nfold(x_train, y_train)
         model.eval(x_test, y_test)
         # saving the model
-        #model.save()
+        model.save()
     
 def classify(texts, output_format, architecture="gru", cascaded=False):
     '''
@@ -379,13 +356,7 @@ def classify(texts, output_format, architecture="gru", cascaded=False):
 def train_eval_cascaded(embeddings_name, fold_count, architecture="gru"):
     # general setting of parameters
     class_weights = None
-    batch_size = 256
-    maxlen = 300
-
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-        maxlen = 100
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     # first binary classifier: dataset or no_dataset 
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
@@ -394,7 +365,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru"):
 
     model_binary = Classifier('dataseer-binary', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
