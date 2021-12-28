@@ -22,12 +22,11 @@ class ModelConfig(object):
                  use_crf=True,
                  fold_number=1,
                  batch_size=64,
-                 use_ELMo=False,
-                 use_BERT=False,
                  features_vocabulary_size=DEFAULT_FEATURES_VOCABULARY_SIZE,
                  features_indices=None,
                  features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
-                 features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE):
+                 features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
+                 bert_type=None):
 
         self.model_name = model_name
         self.model_type = model_type
@@ -59,8 +58,7 @@ class ModelConfig(object):
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for prediction
 
-        self.use_ELMo = use_ELMo
-        self.use_BERT = use_BERT
+        self.bert_type = bert_type
 
     def save(self, file):
         with open(file, 'w') as f:

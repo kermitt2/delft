@@ -19,16 +19,16 @@ from delft.textClassification.models import train_model
 from delft.textClassification.models import train_folds
 from delft.textClassification.models import predict
 from delft.textClassification.models import predict_folds
-from delft.textClassification.models import BERT_classifier
 from delft.textClassification.data_generator import DataGenerator
-from delft.textClassification.preprocess import to_vector_single, BERT_classifier_processor
 
 from delft.utilities.Embeddings import Embeddings
+from delft.utilities.bert_layer import _get_vocab_file_path
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
 from tensorflow.keras.utils import plot_model
+from delft.utilities.bert.tokenization.bert_tokenization import FullTokenizer
 
 class Classifier(object):
 
@@ -36,7 +36,7 @@ class Classifier(object):
     weight_file = 'model_weights.hdf5'
 
     def __init__(self, 
-                 model_name="",
+                 model_name=None,
                  model_type="gru",
                  embeddings_name=None,
                  list_classes=[],
@@ -57,14 +57,31 @@ class Classifier(object):
                  use_roc_auc=True,
                  embeddings=(),
                  class_weights=None,
-                 multiprocessing=True):
+                 multiprocessing=True,
+                 bert_type=None):
+        if model_name == None:
+            # add a dummy name based on the architecture
+            model_name = model_type
+            if embeddings_name != None:
+                model_name += "_" + embeddings_name
+            if bert_type != None:
+                model_name += "_" + bert_type
+
         self.model = None
         self.models = None
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
+        self.tokenizer = None
+
+        # if bert_type is None, no bert layer is present in the model
+        self.bert_type = bert_type
+        if self.bert_type != None:
+            # TBD: set do_lower_case parameter according to the CASE info in the model name
+            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
 
         word_emb_size = 0
-        if embeddings_name != None and model_type.find("bert") == -1:
+        
+        if embeddings_name != None:
             self.embeddings = Embeddings(embeddings_name) 
             word_emb_size = self.embeddings.embed_size
 
@@ -79,7 +96,8 @@ class Classifier(object):
                                         use_char_feature=use_char_feature, 
                                         maxlen=maxlen, 
                                         fold_number=fold_number, 
-                                        batch_size=batch_size)
+                                        batch_size=batch_size,
+                                        bert_type=self.bert_type)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -89,21 +107,19 @@ class Classifier(object):
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
 
-        # bert models
-        if self.model_config.model_type.find("bert") != -1:     
-            self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes, x_train=x_train, y_train=y_train)
-            self.model.train()
-            return
-
         # create validation set in case we don't use k-folds
         xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
 
+        bert_data = False
+        if self.bert_type != None:
+            bert_data = True
+
         training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
             maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-            embeddings=self.embeddings, shuffle=True)
+            embeddings=self.embeddings, shuffle=True, bert_data=bert_data, tokenizer=self.tokenizer)
         validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
             maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-            embeddings=self.embeddings, shuffle=False)
+            embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
         
         # uncomment to plot graph
         #plot_model(self.model, 
@@ -113,51 +129,33 @@ class Classifier(object):
             training_generator, validation_generator, val_y, multiprocessing=self.training_config.multiprocessing, callbacks=callbacks)
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        # bert models
-        if self.model_config.model_type.find("bert") != -1:     
-            self.model = getModel(self.model_config, self.training_config)
-            self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes, x_train=x_train, y_train=y_train)
-            self.model.train()
-            return
-
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
 
-    # classification
+    
     def predict(self, texts, output_format='json', use_main_thread_only=False):
-        if self.model_config.fold_number == 1:
-            if self.model != None:
-                # bert model?
-                if self.model_config.model_type.find("bert") != -1:
-                    # be sure the input processor is instanciated
-                    self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
-                    result = self.model.predict(texts)
-                else:
-                    predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
-                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                        embeddings=self.embeddings, shuffle=False)
+        bert_data = False
+        if self.bert_type != None:
+            bert_data = True
 
-                    result = predict(self.model, predict_generator, use_main_thread_only=use_main_thread_only)
+        if self.model_config.fold_number == 1:
+            if self.model != None: 
+                predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
+                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+
+                result = predict(self.model, predict_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:            
-            # bert model?
-            if self.model_config.model_type.find("bert") != -1:
-                # we don't support n classifiers for BERT for prediction currently 
-                # (it would be too large and too slow if loaded 10 times from file for each batch)
-                # (however it is done for eval, models are loaded 1 time for the complete dataset, not each time per batch, and we should do the same here) 
-                # be sure the input processor is instanciated
-                self.model.processor = BERT_classifier_processor(labels=self.model_config.list_classes)
-                #result = self.models[0].predict(texts)
-                result = self.model.predict(texts)
-            else:
-                if self.models != None: 
-                    predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
-                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                        embeddings=self.embeddings, shuffle=False)
+            # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
+            if self.models != None: 
+                predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
+                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
 
-                    result = predict_folds(self.models, predict_generator, use_main_thread_only=use_main_thread_only)
-                else:
-                    raise (OSError('Could not find nfolds models.'))
+                result = predict_folds(self.models, predict_generator, use_main_thread_only=use_main_thread_only)
+            else:
+                raise (OSError('Could not find nfolds models.'))
         if output_format == 'json':
             res = {
                 "software": "DeLFT",
@@ -182,40 +180,25 @@ class Classifier(object):
             return result
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
+        bert_data = False
+        if self.bert_type != None:
+            bert_data = True
+
         if self.model_config.fold_number == 1:
             if self.model != None:
-                # bert model?
-                if self.model_config.model_type.find("bert") != -1:
-                    #self.model.eval(x_test, y_test)
-                    result = self.model.predict(x_test)
-                else:
-                    test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                        embeddings=self.embeddings, shuffle=False)
+                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
+                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
 
-                    result = predict(self.model, test_generator, use_main_thread_only=use_main_thread_only)
+                result = predict(self.model, test_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:
-            if self.models != None or (self.model_config.model_type.find("bert") != -1 and self.model != None):
-                # bert model?
-                print(self.model_config.model_type)
-                if self.model_config.model_type.find("bert") != -1:
-                    result_list = []
-                    for i in range(self.model_config.fold_number):
-                        result = self.model.predict(x_test, i)
-                        result_list.append(result)
-
-                    result = np.ones(result_list[0].shape)
-                    for fold_result in result_list:
-                        result *= fold_result
-
-                    result **= (1. / len(result_list))
-                else:
-                    test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                        embeddings=self.embeddings, shuffle=False)
-                    result = predict_folds(self.models, test_generator, use_main_thread_only=use_main_thread_only)
+            if self.models != None:
+                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
+                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+                result = predict_folds(self.models, test_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         print("-----------------------------------------------")
@@ -348,9 +331,11 @@ class Classifier(object):
         print('model config file saved')
 
         # bert model are always saved via training process steps as checkpoint
+        '''
         if self.model_config.model_type.find("bert") != -1:
             print('model saved')
             return
+        '''
 
         if self.model_config.fold_number == 1:
             if self.model != None:
@@ -369,18 +354,19 @@ class Classifier(object):
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
-        if self.model_config.model_type.find("bert") != -1:
-             self.model = getModel(self.model_config, self.training_config)
-             self.model.load()
-             return
+        if self.model_config.bert_type == None:
+            # load embeddings
+            # Do not use cache in 'production' mode
+            self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
+            self.model_config.word_embedding_size = self.embeddings.embed_size
+        else:
+            self.bert_type = self.model_config.bert_type
+            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+            self.embeddings = None
 
-        # load embeddings
-        # Do not use cache in 'production' mode
-        self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
-        self.model_config.word_embedding_size = self.embeddings.embed_size
-
-        self.model = getModel(self.model_config, self.training_config)
+        self.model = getModel(self.model_config, self.training_config, load_weights=False)
         if self.model_config.fold_number == 1:
+            print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
             self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
         else:
             self.models = []

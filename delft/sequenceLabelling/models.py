@@ -14,7 +14,7 @@ from bert.tokenization.bert_tokenization import FullTokenizer
 from delft.utilities.crf_layer import ChainCRF
 from delft.utilities.bert_layer import BERT_layer
 
-from delft.sequenceLabelling.preprocess import NERProcessor, convert_single_example, input_fn_generator, convert_examples_to_features
+from delft.sequenceLabelling.preprocess import BERTProcessor, convert_single_example, input_fn_generator, convert_examples_to_features
 from delft.sequenceLabelling.preprocess import file_based_input_fn_builder, file_based_convert_examples_to_features
 
 import json
@@ -517,7 +517,7 @@ class BERT_Sequence(BaseModel):
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
         self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
-        self.processor = NERProcessor(self.labels)
+        self.processor = BERTProcessor(self.labels)
 
         self.loaded_estimator = None
 

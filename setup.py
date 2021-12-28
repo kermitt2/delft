@@ -24,8 +24,7 @@ setuptools.setup(
         'lmdb==1.2.1',
         'truecase',
         'requests',
-        'pandas',
-        'bert-for-tf2==0.14.9'
+        'pandas'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.7",

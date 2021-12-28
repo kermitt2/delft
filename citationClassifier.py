@@ -14,11 +14,11 @@ class_weights = {0: 25.,
                  2: 9.}
 
 def train(embeddings_name, fold_count, architecture="gru"):
-    batch_size, maxlen = configure(architecture)
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -33,20 +33,28 @@ def train(embeddings_name, fold_count, architecture="gru"):
 
 def configure(architecture):
     batch_size = 256
-    maxlen = 120
+    maxlen = 150
+    bert_type = None
+
     # default bert model parameters
-    if architecture.find("bert") != -1:
+    if architecture == "scibert":
         batch_size = 32
-    return batch_size, maxlen
+        bert_type = "scibert-cased"
+        architecture = "bert"
+    elif architecture.find("bert") != -1:
+        batch_size = 32
+        bert_type = "bert-base-en-cased"
+        architecture = "bert"
+
+    return batch_size, maxlen, bert_type, architecture
 
 
 def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
-    batch_size, maxlen = configure(architecture)
-    maxlen = 150
+    batch_size, maxlen, bert_type, architecture = configure(architecture)
 
     model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
-        class_weights=class_weights)
+        class_weights=class_weights, bert_type=bert_type)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")

@@ -15,7 +15,6 @@ import shutil
 from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.bert_layer import BERT_layer
 
-from tensorflow.keras import backend as K
 from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, Embedding, Input, InputLayer, concatenate
@@ -24,15 +23,11 @@ from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, 
 from tensorflow.keras.optimizers import RMSprop, Adam, Nadam
 from tensorflow.keras.preprocessing import text, sequence
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow import keras
 
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
-
-#from delft.utilities.bert.run_classifier_delft import *
-#import delft.utilities.bert.modeling as modeling
-#import delft.utilities.bert.optimization as optimization
-#import delft.utilities.bert.tokenization as tokenization
 
 # seed is fixed for reproducibility
 from numpy.random import seed
@@ -51,10 +46,7 @@ modelTypes = [
     "gru_simple", 
     'lstm_cnn', 
     'han', 
-    'bert',
-    'bert-base-en', 
-    'scibert', 
-    'biobert'
+    'bert'
 ]
 
 # default parameters of the different DL models
@@ -454,49 +446,54 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
     X = Dense(nb_classes, activation='sigmoid')(X)
 
     model = Model(inputs = input_layer, outputs = X, name='dpcnn')
-    model.summary()
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+    model.summary()
     return model
 
 # simple BERT classifier
-def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en"):
-    bert_l = BERT_layer(bert_type)
+def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
+    '''
+    The parameter bert_type provides the pre-trained model to be loaded in the model architecture
+    as bert layer. The bert_type model name must match the model name in the embeddings/resource registry.
+    '''
 
-    input_ids = Input(shape=(max_seq_len,), dtype='int32', name="input_ids")
-    bert_layer = bert_l.get_layer()
+    bert_object = BERT_layer(bert_type)
+
+    input_ids = Input(shape=(max_seq_len,), dtype='int32')
+    #input_type_ids = Input(shape=(max_seq_len,), dtype='int32')
+
+    print("input_ids shape", input_ids.shape)
+    bert_layer = bert_object.get_layer()
     bert_output = bert_layer(input_ids)
+    #bert_output = bert_layer([input_ids, input_type_ids])
 
     print("bert shape", bert_output.shape)
     cls_out1 = Lambda(lambda seq: seq[:, 0, :])(bert_output)
     cls_out2 = Dropout(0.1)(cls_out1)
-    #logits1 = Dense(units=512, activation="tanh")(cls_out2)
-    #logits2 = Dropout(0.1)(logits1)
-    logits3 = Dense(units=nb_classes, activation="softmax")(cls_out2)
+    logits = Dense(units=nb_classes, activation="softmax")(cls_out2)
 
-    model = Model(inputs=input_ids, outputs=logits3)
+    model = Model(inputs=input_ids, outputs=logits)
+    #model = Model(inputs=[input_ids, input_type_ids], outputs=logits)
+
     model.build(input_shape=(None, max_seq_len))
+    #model.build(input_shape=[(None, max_seq_len), (None, max_seq_len)])
+    model.summary()
 
-    # load the pre-trained model weights
-    bert_layer.load_weights()
+    # load the pre-trained model weights if requested (normally loaded prior to training only)
+    if load_weights:
+        bert_object.load_weights()
+
+    optimizer = Adam(learning_rate=2e-5, clipnorm=1)
+    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+    #model.compile(optimizer=keras.optimizers.Adam(),
+    #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True),
+    #              metrics=[keras.metrics.SparseCategoricalAccuracy(name="acc")])
     return model
 
-def getModel(model_config, training_config):
+def getModel(model_config, training_config, load_weights=True):
     model_type = model_config.model_type
     fold_count = model_config.fold_number
-
-    # for BERT models, parameters are set at class level
-    '''
-    if model_config.model_type.find('bert') != -1:
-        print("model_config.maxlen: " + str(model_config.maxlen))
-        print("model_config.batch_size: " + str(model_config.batch_size))
-        model = BERT_classifier(model_config, 
-                                fold_count=fold_count, 
-                                labels=model_config.list_classes, 
-                                class_weights=training_config.class_weights)
-        # the following will ensuring that the model stays warm/available
-        model.load()
-        return model
-    '''
 
     # default model parameters
     parameters = parametersMap[model_type]
@@ -550,7 +547,8 @@ def getModel(model_config, training_config):
     elif (model_type == 'gru_simple'):
         model = gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (model_type == 'bert'):
-        model = bert(dense_size, nb_classes, max_seq_len=512, bert_type=bert_type)
+        print(bert_type)
+        model = bert(dense_size, nb_classes, max_seq_len=maxlen, bert_type=bert_type, load_weights=load_weights)
     else:
         raise (OSError('The model type '+model_type+' is unknown'))
     return model

@@ -21,7 +21,9 @@ class DataGenerator(keras.utils.Sequence):
                 max_sequence_length=None,
                 tokenize=False,
                 shuffle=True,
-                features=None):
+                features=None,
+                bert_data=False, 
+                tokenizer=None):
         'Initialization'
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
@@ -37,6 +39,8 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
+        self.bert_data = bert_data
+        self.tokenizer = tokenizer
         self.on_epoch_end()
 
     def __len__(self):
@@ -101,27 +105,47 @@ class DataGenerator(keras.utils.Sequence):
 
         # generate data
         batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
-
-        '''
-        if self.embeddings.use_ELMo:
-            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
-        elif self.embeddings.use_BERT:
-            batch_x = to_vector_simple_with_bert(x_tokenized, self.embeddings, max_length_x, extend=extend)
-        else:
-        '''
+        batch_y = None
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
+        
         # store sample embeddings
-        for i in range(0, max_iter):
-            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+        if not self.bert_data:
+            for i in range(0, max_iter):
+                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+        else
+            # for input as sentence piece token index for BERT layer
+            input_ids = []
+            input_masks = []
+            input_segments = []
+            input_labels = []
+
+            features, _ = convert_examples_to_features
+
+            for i in range(0, max_iter):
+                feature, _ = convert_single_example(i, x_tokenized[i], label_list, maxlen=self.maxlen, tokenizer=self.tokenizer)
+                ids = create_int_feature(feature.input_ids)
+                masks = create_int_feature(feature.input_mask)
+                segments = create_int_feature(feature.segment_ids)
+                labels = create_int_feature(feature.label_ids)
+
+                #ids, masks, segments = create_single_input_bert(self.x[(index*self.batch_size)+i], maxlen=self.maxlen, tokenizer=self.tokenizer)
+                input_ids.append(ids)
+                input_masks.append(masks)
+                input_segments.append(segments)
+                input_labels.append(labels)
+
+            # we use only input indices
+            batch_x = np.asarray(input_ids, dtype=np.int32)
+            batch_y = np.asarray(input_labels, dtype=np.int32)
 
         if self.preprocessor.return_casing:
             for i in range(0, max_iter):
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
 
-        batch_y = None
+        
         # store tag embeddings
         if self.y is not None:
-            # note: tags are always already "tokenized",
+            # note: tags are always already "tokenized" by input token
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
             max_length_y = max((len(y_row) for y_row in batch_y))
 

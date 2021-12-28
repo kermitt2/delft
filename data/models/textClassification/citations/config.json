@@ -6,7 +6,8 @@
     "word_embedding_size": 300,
     "dropout": 0.5,
     "recurrent_dropout": 0.25,
-    "maxlen": 120,
+    "maxlen": 150,
+    "dense_size": 32,
     "use_char_feature": false,
     "list_classes": [
         "negative",
@@ -14,5 +15,6 @@
         "positive"
     ],
     "fold_number": 1,
-    "batch_size": 256
+    "batch_size": 256,
+    "bert_type": null
 }

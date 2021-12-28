@@ -128,7 +128,7 @@
     ],
     "transformers": [
         {
-            "name": "bert-base-en",
+            "name": "bert-base-en-cased",
             "model_dir": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12",
             "path-config": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/bert_config.json",
             "path-weights": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/bert_model.ckpt",
@@ -139,7 +139,7 @@
             "url": "https://storage.googleapis.com/bert_models/2018_10_18/cased_L-12_H-768_A-12.zip"
         },
         {
-            "name": "bert-large-en",
+            "name": "bert-large-en-cased",
             "path-config": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/bert_config.json",
             "path-weights": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/bert_model.ckpt",
             "path-vocab": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/vocab.txt",
@@ -149,7 +149,7 @@
             "url": "https://storage.googleapis.com/bert_models/2019_05_30/wwm_cased_L-24_H-1024_A-16.zip"
         },
         {
-            "name": "bert-base-multi",
+            "name": "bert-base-multi-cased",
             "path-config": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/bert_config.json",
             "path-weights": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/bert_model.ckpt",
             "path-vocab": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/vocab.txt",
@@ -159,11 +159,12 @@
             "url": "https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip"
         },
         {
-            "name": "scibert",
-            "path-config": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_config.json",
-            "path-weights": "/media/lopez/T5/embeddings/scibert_scivocab_cased/bert_model.ckpt",
-            "path-vocab": "/media/lopez/T5/embeddings/scibert_scivocab_cased/vocab.txt",
-            "path-cache": "/media/lopez/T5/cache/scibert/",
+            "name": "scibert-cased",
+            "model_dir": "/media/lopez/T51/embeddings/scibert_scivocab_cased",
+            "path-config": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_config.json",
+            "path-weights": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T51/embeddings/scibert_scivocab_cased/vocab.txt",
+            "path-cache": "/media/lopez/T51/cache/scibert/",
             "cache-training": true,
             "lang": "en"
         },

@@ -17,7 +17,7 @@ class ModelConfig(object):
                  fold_number=1,
                  batch_size=64,
                  dense_size=32,
-                 bert_type="bert-base-en"
+                 bert_type=None
                  ):
 
         self.model_name = model_name

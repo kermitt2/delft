@@ -515,19 +515,6 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
     return x
 
 
-def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on ELMo contextualized embeddings
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_only_ELMo(subtokens)
-    """
-    if use_token_dump:
-        return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
-    """
-
-
 def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
     """
     Extract the token list and eventually lowercase or truncate longest sequences
@@ -550,39 +537,6 @@ def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
             local_tokens.append(UNK)
         subtokens.append(local_tokens)
     return subtokens
-
-
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the concatenation of the provided static embeddings and 
-    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
-    padding token vector when appropriate
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_with_ELMo(subtokens)
-
-
-def to_vector_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the BERT contextualized embeddings, introducing
-    padding token when appropriate
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    vector = embeddings.get_sentence_vector_only_BERT(subtokens)
-    return vector
-
-
-def to_vector_simple_with_bert(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the concatenation of the provided static embeddings and 
-    the BERT contextualized embeddings, introducing padding token vector 
-    when appropriate
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_with_BERT(subtokens)
 
 
 def to_casing_single(tokens, maxlen):
@@ -673,7 +627,7 @@ class InputFeatures(object):
         self.label_ids = label_ids
 
 
-class NERProcessor(object):
+class BERTProcessor(object):
     """
     General BERT processor for a sequence labelling data set.
     This is simply feed by the DeLFT sequence labelling data obtained by the

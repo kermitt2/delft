@@ -52,7 +52,7 @@ class Sequence(object):
     nb_workers = 6
 
     def __init__(self, 
-                 model_name,
+                 model_name=None,
                  model_type="BidLSTM_CRF",
                  embeddings_name=None,
                  char_emb_size=25, 
@@ -76,7 +76,8 @@ class Sequence(object):
                  log_dir=None,
                  fold_number=1,
                  multiprocessing=True,
-                 features_indices=None):
+                 features_indices=None,
+                 bert_type=None):
 
         self.model = None
         self.models = None
@@ -85,11 +86,17 @@ class Sequence(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
-        if embeddings_name != None:
+        self.embeddings = None
+
+        # if bert_type is None, no bert layer is present in the model
+        self.bert_type = bert_type
+        if self.bert_type != None:
+            # TBD: set do_lower_case parameter according to the CASE info in the model name
+            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+             self.embeddings = None
+        elif embeddings_name != None:
             self.embeddings = Embeddings(embeddings_name)
-            word_emb_size = self.embeddings.embed_size
-        else:
-            self.embeddings = None
+            word_emb_size = self.embeddings.embed_size           
 
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
@@ -106,7 +113,8 @@ class Sequence(object):
                                         use_crf=use_crf, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
-                                        features_indices=features_indices)
+                                        features_indices=features_indices,
+                                        bert_type=self.bert_type)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,

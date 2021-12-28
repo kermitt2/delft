@@ -2,9 +2,9 @@ import json
 import os
 import numpy as np
 
-import bert
-from bert import BertModelLayer
-from bert.tokenization.bert_tokenization import FullTokenizer
+#import bert
+from .bert import BertModelLayer, params_from_pretrained_ckpt, load_bert_weights
+#from .bert.tokenization.bert_tokenization import FullTokenizer
 
 class BERT_layer():
     """
@@ -26,7 +26,7 @@ class BERT_layer():
         description = _get_description(model_name)
 
         if description == None:
-            raise Exception('no pre-trained model description found for ' + self.model_name)
+            raise Exception('no pre-trained model description found for ' + model_name)
 
         # note: postpone the instanciation if not available, it normally means that 
         # we load a fine-tuned model and we don't need to look at the original
@@ -59,15 +59,15 @@ class BERT_layer():
             self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
         '''
 
-        self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=False)
+        #self.tokenizer = FullTokenizer(vocab_file=self.vocab_file, do_lower_case=False)
         #self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
 
-        bert_params = bert.params_from_pretrained_ckpt(self.model_dir)
-        self.l_bert = bert.BertModelLayer.from_params(bert_params, name="bert")
+        bert_params = params_from_pretrained_ckpt(self.model_dir)
+        self.l_bert = BertModelLayer.from_params(bert_params, name="bert")
 
     def load_weights(self):
         # load the pre-trained model weights
-        bert.load_bert_weights(self.l_bert, self.weight_file)  
+        load_bert_weights(self.l_bert, self.weight_file)  
 
     def get_layer(self):
         return self.l_bert
@@ -79,4 +79,15 @@ def _get_description(name, path="./embedding-registry.json"):
     for emb in registry["transformers"]:
             if emb["name"] == name:
                 return emb
+    return None
+
+def _get_vocab_file_path(name, path="./embedding-registry.json"):
+    print(name)
+    registry_json = open(path).read()
+    registry = json.loads(registry_json)
+    for emb in registry["transformers"]:
+        if emb["name"] == name:
+            print(emb)
+            if "path-vocab" in emb and os.path.isfile(emb["path-vocab"]):
+                return emb["path-vocab"]
     return None
