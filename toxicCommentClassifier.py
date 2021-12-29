@@ -19,28 +19,38 @@ class_weights = {0: 1.,
                  4: 1.,
                  5: 1.}
 
+
 def configure(architecture):
     batch_size = 256
     maxlen = 300
     bert_type = None
+    patience = 5
+    early_stop = True
+    max_epoch = 30
 
     # default bert model parameters
     if architecture == "scibert":
         batch_size = 32
-        bert_type = "scibert-cased"
+        bert_type = "allenai/scibert_scivocab_cased"
         architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        maxlen = 200
     elif architecture.find("bert") != -1:
         batch_size = 32
-        bert_type = "bert-base-en-cased"
+        bert_type = "bert-base-cased"
         architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        maxlen = 200
 
-    return batch_size, maxlen, bert_type, architecture
+    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
 
 def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"): 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=30, fold_number=fold_count, class_weights=class_weights,
-        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, bert_type=bert_type)
+    model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
+        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, bert_type=bert_type, patience=patience, early_stop=early_stop)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
@@ -102,8 +112,8 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
 
     architecture = args.architecture
-    if architecture not in modelTypes:
-        print('unknown model architecture, must be one of '+str(modelTypes))
+    #if architecture not in modelTypes:
+    #    print('unknown model architecture, must be one of '+str(modelTypes))
 
     if architecture.find("bert") != -1:
         print('BERT models are not supported for multi-label labelling, at least for the moment. Please choose a RNN architecture.')

@@ -78,21 +78,10 @@ class DataGenerator(keras.utils.Sequence):
                 batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen)
         else:
             # for input as sentence piece token index for BERT layer
-            '''
-            input_ids = []
-            input_masks = []
-            input_segments = []
-            for i in range(0, max_iter):
-                ids, masks, segments = create_single_input_bert(self.x[(index*self.batch_size)+i], maxlen=self.maxlen, tokenizer=self.tokenizer)
-                input_ids.append(ids)
-                input_masks.append(masks)
-                input_segments.append(segments)
-            '''
-
             input_ids, input_masks, input_segments = create_batch_input_bert(self.x[(index*self.batch_size):(index*self.batch_size)+max_iter], 
                                                                              maxlen=self.maxlen, 
                                                                              tokenizer=self.tokenizer)
-            # we can use only input indices
+            # we can use only input indices, but could be reconsidered
             batch_x = np.asarray(input_ids, dtype=np.int32)
             #batch_x_masks = np.asarray(input_masks, dtype=np.int32)
             #batch_x_segments = np.asarray(input_segments, dtype=np.int32)

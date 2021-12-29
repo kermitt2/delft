@@ -39,38 +39,6 @@ The latest DeLFT release has been tested with python 3.7 and Tensorflow 2.7.0. A
 
 Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed information on installation, usage and models.
 
-## TODO
-
-__Models__:
-
-* The integration of FLAIR contextual embeddings (branch `flair` and `flair2`) raised several issues and we did not manage to reproduce the results from the full FLAIR implementation. We should experiment with https://github.com/kensho-technologies/bubs, a Keras/TensorFlow reimplementation of the Flair Contextualized Embeddings.
-
-* Try to migrate to TF 2.0 and tf.keras
-
-* Review/rewrite the current Linear Chain CRF layer that we are using, this Keras CRF implementation is (i) a runtime bottleneck, we could try to use Cython for improving runtime and (ii) the viterbi decoding is incomplete, it does not outputing final decoded label scores and it can't output n-best. 
-
-* Port everything to Apache MXNet? :)
-
-__NER__:
-
-* complete the benchmark with OntoNotes 5 - other languages
-
-* align the CoNLL corpus tokenisation (CoNLL corpus is "pre-tokenised", but we might not want to follow this particular tokenisation)
-
-__Production__:
-
-* automatic download of embeddings on demand
-
-* improve runtime
-
-__Build more models and examples__...
-
-* Model for entity disambiguation (deeptype for entity-fishing)
-
-* Relation extractions (in particular with medical texts)
-
-Note that we are focusing on sequence labelling/information extraction and text classification tasks, which are our main applications, and not on text understanding and machine translation which are the object of already many other Open Source frameworks. 
-
 ## License and contact
 
 Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.

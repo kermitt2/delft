@@ -22,7 +22,6 @@ from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
 from delft.utilities.Embeddings import Embeddings
-#from delft.utilities.bert_layer import _get_vocab_file_path
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
@@ -80,8 +79,6 @@ class Classifier(object):
         # if bert_type is None, no bert layer is present in the model
         self.bert_type = bert_type
         if self.bert_type != None:
-            # TBD: set do_lower_case parameter according to the CASE info in the model name
-            #self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
             self.tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
                                                 max_length=maxlen, padding='max_length')
             self.embeddings_name == None
@@ -386,7 +383,6 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.bert_type = self.model_config.bert_type
-            #self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
             self.tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
                                                 max_length=self.model_config.maxlen, padding='max_length')
             self.embeddings = None

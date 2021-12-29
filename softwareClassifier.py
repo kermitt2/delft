@@ -30,20 +30,27 @@ def configure(architecture):
     batch_size = 256
     maxlen = 300
     bert_type = None
+    patience = 5
+    early_stop = True
+    max_epoch = 100
 
     # default bert model parameters
     if architecture == "scibert":
         batch_size = 32
-        maxlen = 100
-        bert_type = "scibert-cased"
+        bert_type = "allenai/scibert_scivocab_cased"
         architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        maxlen = 100
     elif architecture.find("bert") != -1:
         batch_size = 32
-        maxlen = 100
-        bert_type = "bert-base-en-cased"
+        bert_type = "bert-base-cased"
         architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        maxlen = 100
 
-    return batch_size, maxlen, bert_type, architecture
+    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
 
 
 def train(embeddings_name, fold_count, architecture="gru"):
@@ -53,10 +60,10 @@ def train(embeddings_name, fold_count, architecture="gru"):
     model_name = 'software_use'
     class_weights = None
 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     if fold_count == 1:
@@ -86,12 +93,12 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
     print(list_classes)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     if fold_count == 1:
@@ -144,8 +151,8 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
 
     architecture = args.architecture
-    if architecture not in modelTypes:
-        print('unknown model architecture, must be one of '+str(modelTypes))
+    #if architecture not in modelTypes:
+    #    print('unknown model architecture, must be one of '+str(modelTypes))
 
     if args.action == 'train':
         if args.fold_count < 1:

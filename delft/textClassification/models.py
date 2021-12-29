@@ -13,7 +13,6 @@ import time
 import shutil
 
 from delft.textClassification.data_generator import DataGenerator
-from delft.utilities.bert_layer import BERT_layer
 
 from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.keras.models import Model, load_model
@@ -454,7 +453,7 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
     return model
 
 
-# simple BERT classifier with TF transformers
+# simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
 def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
     bert_model_name = bert_type
     transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
@@ -478,110 +477,6 @@ def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
 
     #model.compile(optimizer=optimizer, loss=SparseCategoricalCrossentropy(from_logits=True), metrics=["accuracy"])
-    return model
-
-# simple BERT classifier
-def bert0(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
-    '''
-    The parameter bert_type provides the pre-trained model to be loaded in the model architecture
-    as bert layer. The bert_type model name must match the model name in the embeddings/resource registry.
-    '''
-
-    bert_object = BERT_layer(bert_type)
-
-    input_ids = Input(shape=(max_seq_len,), dtype='int32')
-    #input_type_ids = Input(shape=(max_seq_len,), dtype='int32')
-
-    print("input_ids shape", input_ids.shape)
-    bert_layer = bert_object.get_layer()
-    bert_output = bert_layer(input_ids)
-    #bert_output = bert_layer([input_ids, input_type_ids])
-
-    print("bert shape", bert_output.shape)
-    cls_out1 = Lambda(lambda seq: seq[:, 0, :])(bert_output)
-    #cls_out1 = GlobalAveragePooling1D()(bert_output)
-    #cls_out1 = GlobalMaxPool1D()(bert_output)
-    cls_out2 = Dropout(0.1)(cls_out1)
-    logits = Dense(units=nb_classes, activation="softmax")(cls_out2)
-
-    model = Model(inputs=input_ids, outputs=logits)
-    #model = Model(inputs=[input_ids, input_type_ids], outputs=logits)
-
-    model.build(input_shape=(None, max_seq_len))
-    #model.build(input_shape=[(None, max_seq_len), (None, max_seq_len)])
-    model.summary()
-
-    # load the pre-trained model weights if requested (normally loaded prior to training only)
-    if load_weights:
-        bert_object.load_weights()
-
-    
-
-    '''
-    boundaries = [100000, 110000]
-    values = [1.0, 0.5, 0.1]
-
-    lr_schedule = schedules.PiecewiseConstantDecay(boundaries, values)
-    optimizer = keras.optimizers.RMSprop(learning_rate=lr_schedule)
-    '''
-
-    num_train_steps = 245 * 5
-    lr_schedule = schedules.PolynomialDecay(
-        initial_learning_rate=5e-5, end_learning_rate=0.0, decay_steps=num_train_steps
-    )
-
-    #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
-    optimizer = Adam(learning_rate=lr_schedule, clipnorm=1)
-    #optimizer = RMSprop(learning_rate=lr_schedule, clipnorm=1)
-
-    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-
-    #model.compile(optimizer=optimizer, 
-    #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), 
-    #              metrics=[keras.metrics.SparseCategoricalAccuracy(name="acc")])
-    return model
-
-
-# less simple BERT classifier
-def bert2(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
-    '''
-    The parameter bert_type provides the pre-trained model to be loaded in the model architecture
-    as bert layer. The bert_type model name must match the model name in the embeddings/resource registry.
-    '''
-
-    bert_object = BERT_layer(bert_type)
-
-    input_ids = Input(shape=(max_seq_len,), dtype='int32')
-    #input_type_ids = Input(shape=(max_seq_len,), dtype='int32')
-
-    print("input_ids shape", input_ids.shape)
-    bert_layer = bert_object.get_layer()
-    bert_output = bert_layer(input_ids)
-    #bert_output = bert_layer([input_ids, input_type_ids])
-
-    print("bert shape", bert_output.shape)
-    cls_out = Lambda(lambda seq: seq[:, 0, :])(bert_output)
-    cls_out = Dropout(0.5)(cls_out)
-    logits = keras.layers.Dense(units=768, activation="tanh")(cls_out)
-    logits = keras.layers.Dropout(0.5)(logits)
-    logits = Dense(units=nb_classes, activation="softmax")(logits)
-
-    model = Model(inputs=input_ids, outputs=logits)
-    #model = Model(inputs=[input_ids, input_type_ids], outputs=logits)
-
-    model.build(input_shape=(None, max_seq_len))
-    #model.build(input_shape=[(None, max_seq_len), (None, max_seq_len)])
-    model.summary()
-
-    # load the pre-trained model weights if requested (normally loaded prior to training only)
-    if load_weights:
-        bert_object.load_weights()
-
-    optimizer = Adam(learning_rate=2e-5, clipnorm=1)
-    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
-    #model.compile(optimizer=optimizer, 
-    #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), 
-    #              metrics=[keras.metrics.SparseCategoricalAccuracy(name="acc")])
     return model
 
 

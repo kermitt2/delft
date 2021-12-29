@@ -3,10 +3,10 @@
     "model_type": "bert",
     "embeddings_name": "word2vec",
     "char_embedding_size": 25,
-    "word_embedding_size": 300,
+    "word_embedding_size": 0,
     "dropout": 0.5,
     "recurrent_dropout": 0.25,
-    "maxlen": 100,
+    "maxlen": 200,
     "dense_size": 32,
     "use_char_feature": false,
     "list_classes": [
@@ -15,5 +15,5 @@
     ],
     "fold_number": 1,
     "batch_size": 32,
-    "bert_type": "scibert-cased"
+    "bert_type": "allenai/scibert_scivocab_cased"
 }

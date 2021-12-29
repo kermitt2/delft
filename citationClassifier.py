@@ -103,7 +103,7 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
     parser.add_argument(
-        "--embedding", default='word2vec',
+        "--embedding", default='glove-840B',
         help=(
             "The desired pre-trained word embeddings using their descriptions in the file"
             " embedding-registry.json."
