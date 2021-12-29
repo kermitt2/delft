@@ -22,6 +22,8 @@ setuptools.setup(
         'unidecode==1.3.2',
         'pydot==1.4.0',
         'lmdb==1.2.1',
+        'transformers==4.15.0', 
+        'torch==1.10.1',
         'truecase',
         'requests',
         'pandas'
