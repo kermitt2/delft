@@ -20,7 +20,8 @@ from tensorflow.keras.models import Model, load_model
 from tensorflow.keras.layers import Dense, Embedding, Input, InputLayer, concatenate
 from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, SpatialDropout1D, AveragePooling1D, GlobalAveragePooling1D, TimeDistributed, Masking, Lambda 
 from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten, BatchNormalization
-from tensorflow.keras.optimizers import RMSprop, Adam, Nadam
+from tensorflow.keras.losses import SparseCategoricalCrossentropy
+from tensorflow.keras.optimizers import RMSprop, Adam, Nadam, schedules
 from tensorflow.keras.preprocessing import text, sequence
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
 from tensorflow import keras
@@ -28,6 +29,8 @@ from tensorflow import keras
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
+
+from transformers import TFBertModel
 
 # seed is fixed for reproducibility
 from numpy.random import seed
@@ -450,8 +453,35 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
     model.summary()
     return model
 
-# simple BERT classifier
+
+# simple BERT classifier with TF transformers
 def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
+    bert_model_name = bert_type
+    transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
+
+    input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
+
+    #input_masks_in = Input(shape=(max_seq_len,), name='masked_token', dtype='int32')
+    #embedding_layer = transformer_model(input_ids_in, attention_mask=input_masks_in)[1]
+
+    # get the pooler_output as in the original BERT implementation
+    embedding_layer = transformer_model(input_ids_in)[1]
+    cls_out = Dropout(0.1)(embedding_layer)
+    logits = Dense(units=nb_classes, activation="softmax")(cls_out)
+
+    model = Model(inputs=[input_ids_in], outputs=logits)
+    #model = Model(inputs=[input_ids_in, input_masks_in], outputs=logits)
+    model.summary()
+
+    #loss = SparseCategoricalCrossentropy(from_logits=False)
+    optimizer = Adam(learning_rate=2e-5, clipnorm=1)
+    model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
+
+    #model.compile(optimizer=optimizer, loss=SparseCategoricalCrossentropy(from_logits=True), metrics=["accuracy"])
+    return model
+
+# simple BERT classifier
+def bert0(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
     '''
     The parameter bert_type provides the pre-trained model to be loaded in the model architecture
     as bert layer. The bert_type model name must match the model name in the embeddings/resource registry.
@@ -469,8 +499,72 @@ def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load
 
     print("bert shape", bert_output.shape)
     cls_out1 = Lambda(lambda seq: seq[:, 0, :])(bert_output)
+    #cls_out1 = GlobalAveragePooling1D()(bert_output)
+    #cls_out1 = GlobalMaxPool1D()(bert_output)
     cls_out2 = Dropout(0.1)(cls_out1)
     logits = Dense(units=nb_classes, activation="softmax")(cls_out2)
+
+    model = Model(inputs=input_ids, outputs=logits)
+    #model = Model(inputs=[input_ids, input_type_ids], outputs=logits)
+
+    model.build(input_shape=(None, max_seq_len))
+    #model.build(input_shape=[(None, max_seq_len), (None, max_seq_len)])
+    model.summary()
+
+    # load the pre-trained model weights if requested (normally loaded prior to training only)
+    if load_weights:
+        bert_object.load_weights()
+
+    
+
+    '''
+    boundaries = [100000, 110000]
+    values = [1.0, 0.5, 0.1]
+
+    lr_schedule = schedules.PiecewiseConstantDecay(boundaries, values)
+    optimizer = keras.optimizers.RMSprop(learning_rate=lr_schedule)
+    '''
+
+    num_train_steps = 245 * 5
+    lr_schedule = schedules.PolynomialDecay(
+        initial_learning_rate=5e-5, end_learning_rate=0.0, decay_steps=num_train_steps
+    )
+
+    #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
+    optimizer = Adam(learning_rate=lr_schedule, clipnorm=1)
+    #optimizer = RMSprop(learning_rate=lr_schedule, clipnorm=1)
+
+    model.compile(loss='binary_crossentropy', optimizer=optimizer, metrics=['accuracy'])
+
+    #model.compile(optimizer=optimizer, 
+    #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), 
+    #              metrics=[keras.metrics.SparseCategoricalAccuracy(name="acc")])
+    return model
+
+
+# less simple BERT classifier
+def bert2(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
+    '''
+    The parameter bert_type provides the pre-trained model to be loaded in the model architecture
+    as bert layer. The bert_type model name must match the model name in the embeddings/resource registry.
+    '''
+
+    bert_object = BERT_layer(bert_type)
+
+    input_ids = Input(shape=(max_seq_len,), dtype='int32')
+    #input_type_ids = Input(shape=(max_seq_len,), dtype='int32')
+
+    print("input_ids shape", input_ids.shape)
+    bert_layer = bert_object.get_layer()
+    bert_output = bert_layer(input_ids)
+    #bert_output = bert_layer([input_ids, input_type_ids])
+
+    print("bert shape", bert_output.shape)
+    cls_out = Lambda(lambda seq: seq[:, 0, :])(bert_output)
+    cls_out = Dropout(0.5)(cls_out)
+    logits = keras.layers.Dense(units=768, activation="tanh")(cls_out)
+    logits = keras.layers.Dropout(0.5)(logits)
+    logits = Dense(units=nb_classes, activation="softmax")(logits)
 
     model = Model(inputs=input_ids, outputs=logits)
     #model = Model(inputs=[input_ids, input_type_ids], outputs=logits)
@@ -489,6 +583,7 @@ def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load
     #              loss=keras.losses.SparseCategoricalCrossentropy(from_logits=True), 
     #              metrics=[keras.metrics.SparseCategoricalAccuracy(name="acc")])
     return model
+
 
 def getModel(model_config, training_config, load_weights=True):
     model_type = model_config.model_type
@@ -567,84 +662,94 @@ def train_model(model,
                 callbacks=None):
     best_loss = -1
     best_roc_auc = -1
-    best_weights = None
-    best_epoch = 0
-    current_epoch = 1
 
-    while current_epoch <= max_epoch:
-
+    if validation_generator == None:
+        # no early stop
         nb_workers = 6
-        model.fit(
+        best_loss = model.fit(
             training_generator,
             use_multiprocessing=multiprocessing,
             workers=nb_workers,
             class_weight=class_weights,
-            epochs=1, callbacks=callbacks)
+            epochs=max_epoch, callbacks=callbacks)
+    else:
+        best_weights = None
+        current_epoch = 1
+        best_epoch = 0
+        while current_epoch <= max_epoch:
 
-        y_pred = model.predict(
-            validation_generator, 
-            use_multiprocessing=multiprocessing,
-            workers=nb_workers)
+            nb_workers = 6
+            loss = model.fit(
+                training_generator,
+                use_multiprocessing=multiprocessing,
+                workers=nb_workers,
+                class_weight=class_weights,
+                epochs=1, callbacks=callbacks)
 
-        total_loss = 0.0
-        total_roc_auc = 0.0
+            y_pred = model.predict(
+                validation_generator, 
+                use_multiprocessing=multiprocessing,
+                workers=nb_workers)
 
-        # we distinguish 1-class and multiclass problems 
-        if len(list_classes) == 1:
-            total_loss = log_loss(val_y, y_pred, labels=[0,1])
-            if len(np.unique(val_y)) == 1:
-                # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
-                # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
-                roc_auc = r2_score(val_y, y_pred)
-                if roc_auc < 0:
-                    roc_auc = 0 
-            else:
-                total_roc_auc = roc_auc_score(val_y, y_pred)
-        else:
-            for j in range(0, len(list_classes)):
-                loss = log_loss(val_y[:, j], y_pred[:, j], labels=[0,1])
-                total_loss += loss
-                if len(np.unique(val_y[:, j])) == 1:
+            total_loss = 0.0
+            total_roc_auc = 0.0
+
+            # we distinguish 1-class and multiclass problems 
+            if len(list_classes) == 1:
+                total_loss = log_loss(val_y, y_pred, labels=[0,1])
+                if len(np.unique(val_y)) == 1:
                     # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
                     # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
-                    roc_auc = r2_score(val_y[:, j], y_pred[:, j])
+                    roc_auc = r2_score(val_y, y_pred)
                     if roc_auc < 0:
                         roc_auc = 0 
                 else:
-                    roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
-                total_roc_auc += roc_auc
+                    total_roc_auc = roc_auc_score(val_y, y_pred)
+            else:
+                for j in range(0, len(list_classes)):
+                    loss = log_loss(val_y[:, j], y_pred[:, j], labels=[0,1])
+                    total_loss += loss
+                    if len(np.unique(val_y[:, j])) == 1:
+                        # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
+                        # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
+                        roc_auc = r2_score(val_y[:, j], y_pred[:, j])
+                        if roc_auc < 0:
+                            roc_auc = 0 
+                    else:
+                        roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
+                    total_roc_auc += roc_auc
 
-        total_loss /= len(list_classes)
-        total_roc_auc /= len(list_classes)
-        if use_roc_auc:
-            print("Epoch {0} loss {1} best_loss {2} (for info) ".format(current_epoch, total_loss, best_loss))
-            print("Epoch {0} roc_auc {1} best_roc_auc {2} (for early stop) ".format(current_epoch, total_roc_auc, best_roc_auc))
-        else:
-            print("Epoch {0} loss {1} best_loss {2} (for early stop) ".format(current_epoch, total_loss, best_loss))
-            print("Epoch {0} roc_auc {1} best_roc_auc {2} (for info) ".format(current_epoch, total_roc_auc, best_roc_auc))
-
-        current_epoch += 1
-        if total_loss < best_loss or best_loss == -1 or math.isnan(best_loss) == True:
-            best_loss = total_loss
-            if use_roc_auc == False:
-                best_weights = model.get_weights()
-                best_epoch = current_epoch
-        elif use_roc_auc == False:
-            if current_epoch - best_epoch == patience:
-                break
-
-        if total_roc_auc > best_roc_auc or best_roc_auc == -1:
-            best_roc_auc = total_roc_auc
+            total_loss /= len(list_classes)
+            total_roc_auc /= len(list_classes)
             if use_roc_auc:
-                best_weights = model.get_weights()
-                best_epoch = current_epoch
-        elif use_roc_auc:
-            if current_epoch - best_epoch == patience:
-                break
+                print("Epoch {0} loss {1} best_loss {2} (for info) ".format(current_epoch, total_loss, best_loss))
+                print("Epoch {0} roc_auc {1} best_roc_auc {2} (for early stop) ".format(current_epoch, total_roc_auc, best_roc_auc))
+            else:
+                print("Epoch {0} loss {1} best_loss {2} (for early stop) ".format(current_epoch, total_loss, best_loss))
+                print("Epoch {0} roc_auc {1} best_roc_auc {2} (for info) ".format(current_epoch, total_roc_auc, best_roc_auc))
 
-    model.set_weights(best_weights)
+            current_epoch += 1
+            if total_loss < best_loss or best_loss == -1 or math.isnan(best_loss) == True:
+                best_loss = total_loss
+                if use_roc_auc == False:
+                    best_weights = model.get_weights()
+                    best_epoch = current_epoch
+            elif use_roc_auc == False:
+                if current_epoch - best_epoch == patience:
+                    break
 
-    if use_roc_auc:
+            if total_roc_auc > best_roc_auc or best_roc_auc == -1:
+                best_roc_auc = total_roc_auc
+                if use_roc_auc:
+                    best_weights = model.get_weights()
+                    best_epoch = current_epoch
+            elif use_roc_auc:
+                if current_epoch - best_epoch == patience:
+                    break
+
+        model.set_weights(best_weights)
+
+    if use_roc_auc and validation_generator != None:
         return model, best_roc_auc
     else:
         return model, best_loss
@@ -678,9 +783,12 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
             embeddings=embeddings, shuffle=True)
-        validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
-            maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embeddings=embeddings, shuffle=False)
+
+        validation_generator = None
+        if training_config.early_stop:
+            validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
+                maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
+                embeddings=embeddings, shuffle=False)
 
         foldModel, best_score = train_model(getModel(model_config, training_config),
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 

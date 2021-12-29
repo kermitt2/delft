@@ -91,7 +91,8 @@ class BertModelLayer(Layer):
 
         if self.params.return_pooler_output:
             pooler_output = self.pooler_layer(encoder_output, mask=mask, training=training)
-            return encoder_output, pooler_output
+            #return encoder_output + pooler_output
+            return pooler_output
         else:
             return encoder_output   # [B, seq_len, hidden_size]
 

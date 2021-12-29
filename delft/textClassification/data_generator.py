@@ -4,7 +4,7 @@ from delft.utilities.numpy import shuffle_triple_with_view
 np.random.seed(7)
 import tensorflow.keras as keras
 from delft.textClassification.preprocess import to_vector_single
-from delft.textClassification.preprocess import create_single_input_bert
+from delft.textClassification.preprocess import create_single_input_bert, create_batch_input_bert
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 class DataGenerator(keras.utils.Sequence):
@@ -78,6 +78,7 @@ class DataGenerator(keras.utils.Sequence):
                 batch_x[i] = to_vector_single(self.x[(index*self.batch_size)+i], self.embeddings, self.maxlen)
         else:
             # for input as sentence piece token index for BERT layer
+            '''
             input_ids = []
             input_masks = []
             input_segments = []
@@ -86,9 +87,15 @@ class DataGenerator(keras.utils.Sequence):
                 input_ids.append(ids)
                 input_masks.append(masks)
                 input_segments.append(segments)
+            '''
 
-            # we use only input indices
+            input_ids, input_masks, input_segments = create_batch_input_bert(self.x[(index*self.batch_size):(index*self.batch_size)+max_iter], 
+                                                                             maxlen=self.maxlen, 
+                                                                             tokenizer=self.tokenizer)
+            # we can use only input indices
             batch_x = np.asarray(input_ids, dtype=np.int32)
+            #batch_x_masks = np.asarray(input_masks, dtype=np.int32)
+            #batch_x_segments = np.asarray(input_segments, dtype=np.int32)
 
         # classes are numerical, so nothing to vectorize for y
         for i in range(0, max_iter):

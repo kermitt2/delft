@@ -66,6 +66,7 @@ class TrainingConfig(object):
                  clip_gradients=5.0, 
                  max_epoch=50, 
                  patience=5,
+                 early_stop=True,
                  use_roc_auc=True,
                  class_weights=None,
                  multiprocessing=True):
@@ -80,3 +81,5 @@ class TrainingConfig(object):
         self.use_roc_auc = use_roc_auc
         self.class_weights = class_weights
         self.multiprocessing = multiprocessing
+        self.early_stop = early_stop
+        

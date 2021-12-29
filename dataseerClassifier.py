@@ -19,20 +19,27 @@ def configure(architecture):
     batch_size = 256
     maxlen = 300
     bert_type = None
+    patience = 5
+    early_stop = True
+    max_epoch = 100
 
     # default bert model parameters
     if architecture == "scibert":
         batch_size = 32
-        maxlen = 100
-        bert_type = "scibert-cased"
+        bert_type = "allenai/scibert_scivocab_cased"
         architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        maxlen = 200
     elif architecture.find("bert") != -1:
         batch_size = 32
-        maxlen = 100
-        bert_type = "bert-base-en-cased"
+        bert_type = "bert-base-cased"
         architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        maxlen = 200
 
-    return batch_size, maxlen, bert_type, architecture
+    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
 
 def train(embeddings_name, fold_count, architecture="gru", cascaded=False): 
     print('loading binary dataset type corpus...')
@@ -41,10 +48,10 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
     model_name = 'dataseer-binary'
     class_weights = None
 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
     
     if fold_count == 1:
@@ -61,8 +68,8 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
     model_name = 'dataseer-reuse'
     class_weights = {0: 1.5, 1: 1.}
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
     
     if fold_count == 1:
@@ -80,8 +87,8 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
 
     class_weights = None
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-    use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
          class_weights=class_weights, bert_type=bert_type)
 
     if fold_count == 1:
@@ -119,9 +126,9 @@ def train(embeddings_name, fold_count, architecture="gru", cascaded=False):
 
         model_name = 'dataseer-' + the_class
 
-        model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
-            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, 
-            batch_size=batch_size, class_weights=class_weights, bert_type=bert_type)
+        model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
+            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name, 
+            batch_size=batch_size, class_weights=class_weights, early_stop=early_stop, bert_type=bert_type)
 
         if fold_count == 1:
             model.train(datatypes_xtr[the_class], datatypes_y[the_class])
@@ -139,13 +146,13 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", cascaded=Fal
     train_and_eval_binary(embeddings_name, fold_count, architecture)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    train_and_eval_reuse(embeddings_name, fold_count, architecture)
+    #train_and_eval_reuse(embeddings_name, fold_count, architecture)
 
     # classifier for first level data type hierarchy
-    train_and_eval_primary(embeddings_name, fold_count, architecture)
+    #train_and_eval_primary(embeddings_name, fold_count, architecture)
 
     # classifier for second level data type hierarchy (subtypes)
-    train_and_eval_secondary(embeddings_name, fold_count, architecture)
+    #train_and_eval_secondary(embeddings_name, fold_count, architecture)
 
 def train_and_eval_binary(embeddings_name, fold_count, architecture="gru"): 
     print('loading dataset type corpus...')
@@ -160,10 +167,10 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru"):
 
     class_weights = None
 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
@@ -195,12 +202,12 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru"):
     print(len(xtr), "texts")
     print(len(y), "classes")
 
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
     class_weights = {0: 1.5, 1: 1.}
 
-    model = Classifier('dataseer-reuse', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier('dataseer-reuse', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
@@ -233,10 +240,10 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru"):
     print(len(y), "classes")
 
     class_weights = None
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model = Classifier('dataseer', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
@@ -268,7 +275,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru"):
     print(len(list_subclasses), "sub-classes")
 
     class_weights = None
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
     datatypes_y = {}
     datatypes_xtr = {}
@@ -316,9 +323,10 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru"):
 
         model_name = 'dataseer-' + the_class
 
-        model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=100, 
-            fold_number=fold_count, patience=10, use_roc_auc=True, embeddings_name=embeddings_name, 
-            batch_size=batch_size, maxlen=maxlen, class_weights=class_weights, bert_type=bert_type)
+        model = Classifier(model_name, model_type=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
+            fold_number=fold_count, use_roc_auc=True, embeddings_name=embeddings_name, 
+            batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop, 
+            class_weights=class_weights, bert_type=bert_type)
 
         # we need to vectorize the y according to the actual list of classes
         local_y = []
@@ -347,7 +355,7 @@ def classify(texts, output_format, architecture="gru", cascaded=False):
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
-    if output_format is 'json':
+    if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -356,15 +364,15 @@ def classify(texts, output_format, architecture="gru", cascaded=False):
 def train_eval_cascaded(embeddings_name, fold_count, architecture="gru"):
     # general setting of parameters
     class_weights = None
-    batch_size, maxlen, bert_type, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
     # first binary classifier: dataset or no_dataset 
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
     print(list_classes)
 
-    model_binary = Classifier('dataseer-binary', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model_binary = Classifier('dataseer-binary', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     # segment train and eval sets
@@ -394,8 +402,8 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru"):
 
     list_classes.remove('no_dataset')
 
-    model_first = Classifier('dataseer-first', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, patience=10,
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen,
+    model_first = Classifier('dataseer-first', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights)
 
     if fold_count == 1:
@@ -506,8 +514,8 @@ if __name__ == "__main__":
     cascaded = args.cascaded
 
     architecture = args.architecture
-    if architecture not in modelTypes:
-        print('unknown model architecture, must be one of '+str(modelTypes))
+    #if architecture not in modelTypes:
+    #    print('unknown model architecture, must be one of '+str(modelTypes))
 
     if args.action == 'train':
         if args.fold_count < 1:

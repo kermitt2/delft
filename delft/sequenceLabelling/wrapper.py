@@ -91,7 +91,7 @@ class Sequence(object):
         if self.bert_type != None:
             # TBD: set do_lower_case parameter according to the CASE info in the model name
             self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
-             self.embeddings = None
+            self.embeddings = None
         elif embeddings_name != None:
             self.embeddings = Embeddings(embeddings_name)
             word_emb_size = self.embeddings.embed_size           
@@ -120,7 +120,9 @@ class Sequence(object):
                                               max_checkpoints_to_keep, multiprocessing)
 
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):
-        # TBD if valid is None, segment train to get one
+        # TBD if valid is None, segment train to get one if early_stop is True
+
+        # we concatenate all the training+validation data to create the model vocabulary
         if not x_valid is None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
         else:

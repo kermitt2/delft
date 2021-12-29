@@ -35,4 +35,5 @@ class BertPoolerLayer(Layer):
         first_token_tensor = inputs[:, 0, :]
 
         pooled_output = self.pooler_layer(first_token_tensor)
+        print("ooled_output.shape", pooled_output.shape)
         return pooled_output

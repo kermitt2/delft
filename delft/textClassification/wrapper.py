@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 import numpy as np
 # seed is fixed for reproducibility
@@ -22,13 +22,16 @@ from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
 from delft.utilities.Embeddings import Embeddings
-from delft.utilities.bert_layer import _get_vocab_file_path
+#from delft.utilities.bert_layer import _get_vocab_file_path
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
 from tensorflow.keras.utils import plot_model
-from delft.utilities.bert.tokenization.bert_tokenization import FullTokenizer
+import transformers
+transformers.logging.set_verbosity(transformers.logging.ERROR) 
+from transformers import BertTokenizer
+
 
 class Classifier(object):
 
@@ -55,7 +58,7 @@ class Classifier(object):
                  maxlen=300,
                  fold_number=1,
                  use_roc_auc=True,
-                 embeddings=(),
+                 early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
                  bert_type=None):
@@ -71,20 +74,23 @@ class Classifier(object):
         self.models = None
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
+        self.embeddings = None
         self.tokenizer = None
 
         # if bert_type is None, no bert layer is present in the model
         self.bert_type = bert_type
         if self.bert_type != None:
             # TBD: set do_lower_case parameter according to the CASE info in the model name
-            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
-
-        word_emb_size = 0
-        
-        if embeddings_name != None:
-            self.embeddings = Embeddings(embeddings_name) 
+            #self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+            self.tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+                                                max_length=maxlen, padding='max_length')
+            self.embeddings_name == None
+            self.embeddings = None
+            word_emb_size = 0
+        elif self.embeddings_name != None:
+            self.embeddings = Embeddings(self.embeddings_name) 
             word_emb_size = self.embeddings.embed_size
-
+        
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
                                         embeddings_name=embeddings_name, 
@@ -100,27 +106,39 @@ class Classifier(object):
                                         bert_type=self.bert_type)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
-                                              lr_decay, clip_gradients, max_epoch,
-                                              patience, use_roc_auc,
-                                              class_weights=class_weights, multiprocessing=multiprocessing)
+                                              lr_decay, clip_gradients, 
+                                              max_epoch=max_epoch,
+                                              patience=patience, 
+                                              use_roc_auc=use_roc_auc, 
+                                              early_stop=early_stop,
+                                              class_weights=class_weights, 
+                                              multiprocessing=multiprocessing)
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
-
-        # create validation set in case we don't use k-folds
-        xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
-
+        
         bert_data = False
         if self.bert_type != None:
             bert_data = True
 
-        training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
-            maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-            embeddings=self.embeddings, shuffle=True, bert_data=bert_data, tokenizer=self.tokenizer)
-        validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
-            maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-            embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
-        
+        if self.training_config.early_stop:
+            # create validation set 
+            xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
+
+            training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
+                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, tokenizer=self.tokenizer)
+            validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
+                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+        else:
+            val_y = y_train
+
+            training_generator = DataGenerator(x_train, y_train, batch_size=self.training_config.batch_size, 
+                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, tokenizer=self.tokenizer)
+            validation_generator = None
+
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
@@ -137,6 +155,7 @@ class Classifier(object):
             patience=self.training_config.patience, 
             multiprocessing=self.training_config.multiprocessing, 
             callbacks=callbacks)
+
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
@@ -252,6 +271,8 @@ class Classifier(object):
         if len(self.model_config.list_classes) == 1:
             total_accuracy = accuracy_score(y_test, result_binary)
             total_f1 = f1_score(y_test, result_binary)
+
+            # sklearn will complain if log(0)
             total_loss = log_loss(y_test, result, labels=[0,1])
             if len(np.unique(y_test)) == 1:
                 # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
@@ -365,7 +386,9 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.bert_type = self.model_config.bert_type
-            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+            #self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+            self.tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+                                                max_length=self.model_config.maxlen, padding='max_length')
             self.embeddings = None
 
         self.model = getModel(self.model_config, self.training_config, load_weights=False)

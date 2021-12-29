@@ -17,27 +17,32 @@ def configure(architecture):
     batch_size = 256
     maxlen = 150
     bert_type = None
+    patience=5
+    early_stop = True
+    max_epoch = 100
 
     # default bert model parameters
     if architecture == "scibert":
         batch_size = 32
-        bert_type = "scibert-cased"
+        bert_type = "allenai/scibert_scivocab_cased"
         architecture = "bert"
-        patience=10
+        early_stop = False
+        max_epoch = 3
     elif architecture.find("bert") != -1:
         batch_size = 32
-        bert_type = "bert-base-en-cased"
+        bert_type = "bert-base-cased"
         architecture = "bert"
-        patience=10
+        early_stop = False
+        max_epoch = 3
 
-    return batch_size, maxlen, bert_type, patience, architecture
+    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
 
 
 def train(embeddings_name, fold_count, architecture="gru"):
-    batch_size, maxlen, bert_type, patience, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, 
+    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     print('loading citation sentiment corpus...')
@@ -52,10 +57,10 @@ def train(embeddings_name, fold_count, architecture="gru"):
 
 
 def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
-    batch_size, maxlen, bert_type, patience, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
 
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
-        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, 
+    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+        use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, bert_type=bert_type)
 
     print('loading citation sentiment corpus...')
