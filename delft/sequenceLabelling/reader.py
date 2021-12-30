@@ -87,10 +87,10 @@ class TEIContentHandler(xml.sax.ContentHandler):
         self.accumulated += content
 
     def getSents(self):
-        return np.asarray(self.sents)
+        return np.asarray(self.sents, dtype=object)
 
     def getAllLabels(self):
-        return np.asarray(self.allLabels)
+        return np.asarray(self.allLabels, dtype=object)
 
     def clear(self): # clear the accumulator for re-use
         self.accumulated = ""

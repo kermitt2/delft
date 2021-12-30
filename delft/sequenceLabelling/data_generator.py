@@ -16,13 +16,13 @@ class DataGenerator(keras.utils.Sequence):
     def __init__(self, x, y,
                 batch_size=24,
                 preprocessor=None,
+                bert_preprocessor=None,
                 char_embed_size=25,
                 embeddings=None,
                 max_sequence_length=None,
                 tokenize=False,
                 shuffle=True,
-                features=None,
-                bert_data=False):
+                features=None):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -31,13 +31,13 @@ class DataGenerator(keras.utils.Sequence):
         self.preprocessor = preprocessor
         if preprocessor:
             self.labels = preprocessor.vocab_tag
+        self.bert_preprocessor = bert_preprocessor
         self.batch_size = batch_size
         self.embeddings = embeddings
         self.char_embed_size = char_embed_size
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
-        self.bert_data = bert_data
         self.on_epoch_end()
 
     def __len__(self):
@@ -57,12 +57,20 @@ class DataGenerator(keras.utils.Sequence):
         Generate one batch of data
         '''
         batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
-        if self.preprocessor.return_casing:
-            return [batch_x, batch_c, batch_a, batch_l], batch_y
-        elif self.preprocessor.return_features:
-            return [batch_x, batch_c, batch_f, batch_l], batch_y
-        else:
-            return [batch_x, batch_c, batch_l], batch_y
+        if self.preprocessor.return_word_embeddings:
+            if self.preprocessor.return_casing:
+                return [batch_x, batch_c, batch_a, batch_l], batch_y
+            elif self.preprocessor.return_features:
+                return [batch_x, batch_c, batch_f, batch_l], batch_y
+            else:
+                return [batch_x, batch_c, batch_l], batch_y
+
+        if self.preprocessor.return_bert_embeddings:
+            if self.preprocessor.return_features:  
+                return [batch_x, batch_f, batch_l], batch_y
+            else:
+                return [batch_x, batch_l], batch_y
+
 
     def on_epoch_end(self):
         '''
@@ -99,7 +107,7 @@ class DataGenerator(keras.utils.Sequence):
         if self.max_sequence_length and max_length_x > self.max_sequence_length:
             max_length_x = self.max_sequence_length
             # truncation of sequence at max_sequence_length
-            x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length))
+            x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length), dtype=object)
 
         # prevent sequence of length 1 alone in a batch (this causes an error in tf)
         extend = False
@@ -112,51 +120,44 @@ class DataGenerator(keras.utils.Sequence):
         batch_y = None
         batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
         
-        # store sample embeddings
-        if not self.bert_data:
-            for i in range(0, max_iter):
-                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
-        else
-            # for input as sentence piece token index for BERT layer
-            input_ids = []
-            input_masks = []
-            input_segments = []
-            input_labels = []
-
-            features, _ = convert_examples_to_features
-
-            for i in range(0, max_iter):
-                feature, _ = convert_single_example(i, x_tokenized[i], label_list, maxlen=self.maxlen, tokenizer=self.tokenizer)
-                ids = create_int_feature(feature.input_ids)
-                masks = create_int_feature(feature.input_mask)
-                segments = create_int_feature(feature.segment_ids)
-                labels = create_int_feature(feature.label_ids)
-
-                #ids, masks, segments = create_single_input_bert(self.x[(index*self.batch_size)+i], maxlen=self.maxlen, tokenizer=self.tokenizer)
-                input_ids.append(ids)
-                input_masks.append(masks)
-                input_segments.append(segments)
-                input_labels.append(labels)
-
-            # we use only input indices
-            batch_x = np.asarray(input_ids, dtype=np.int32)
-            batch_y = np.asarray(input_labels, dtype=np.int32)
-
-        if self.preprocessor.return_casing:
-            for i in range(0, max_iter):
-                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
-
-        
         # store tag embeddings
         if self.y is not None:
             # note: tags are always already "tokenized" by input token
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
             max_length_y = max((len(y_row) for y_row in batch_y))
 
-            # From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/c31f97433243a2b0a66671c0dd3e652dcd306362/sciencebeam_trainer_delft/sequence_labelling/data_generator.py#L152
             if self.max_sequence_length and max_length_y > self.max_sequence_length:
                 # truncation of sequence at max_sequence_length
-                 batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length))
+                 batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=object)
+
+        # Note: for the moment it's word embeddings or transformers embeddings, not both !
+        if self.preprocessor.return_word_embeddings:
+            for i in range(0, max_iter):
+                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+        elif self.preprocessor.return_bert_embeddings:
+            # for input as sentence piece token index for BERT layer
+
+            if self.y == None:
+                input_ids, input_masks, input_segments, _ = self.bert_preprocessor.create_batch_input_bert(
+                                                                            x_tokenized, 
+                                                                            maxlen=self.max_sequence_length)
+            else:
+                input_ids, input_masks, input_segments, input_labels, _ = self.bert_preprocessor.tokenize_and_align_labels(
+                                                                            x_tokenized, 
+                                                                            batch_y,
+                                                                            maxlen=self.max_sequence_length)
+
+            # we can use only input indices, but could be reconsidered
+            batch_x = np.asarray(input_ids, dtype=np.int32)
+            #batch_x_masks = np.asarray(input_masks, dtype=np.int32)
+            #batch_x_segments = np.asarray(input_segments, dtype=np.int32)
+
+            if self.y != None:
+                batch_y = np.asarray(input_labels, dtype=np.int32)
+
+        if self.preprocessor.return_casing:
+            for i in range(0, max_iter):
+                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
 
         batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
 

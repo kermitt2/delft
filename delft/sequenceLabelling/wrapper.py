@@ -1,5 +1,8 @@
 import os
 
+# ask tensorflow to be quiet and not print hundred lines of logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+
 from itertools import islice
 import time
 import json
@@ -14,16 +17,13 @@ from delft.utilities.numpy import concatenate_or_none
 # seed is fixed for reproducibility
 np.random.seed(7)
 
-# ask tensorflow to be quiet and not print hundred lines of logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
-
 import tensorflow as tf
 tf.random.set_seed(7)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
-from delft.sequenceLabelling.preprocess import prepare_preprocessor, WordPreprocessor
+from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor, BERTPreprocessor
 from delft.sequenceLabelling.tagger import Tagger
 from delft.sequenceLabelling.trainer import Trainer
 from delft.sequenceLabelling.data_generator import DataGenerator
@@ -36,15 +36,15 @@ from delft.sequenceLabelling.evaluation import accuracy_score
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
-from delft.utilities.bert.tokenization.bert_tokenization import FullTokenizer
-
+import transformers
+transformers.logging.set_verbosity(transformers.logging.ERROR) 
+from transformers import BertTokenizer
 
 class Sequence(object):
 
     config_file = 'config.json'
     weight_file = 'model_weights.hdf5'
     preprocessor_file = 'preprocessor.json'
-    #preprocessor_file_new = 'preprocessor.json'
 
     # number of parallel worker for the data generator 
     nb_workers = 6
@@ -77,6 +77,14 @@ class Sequence(object):
                  features_indices=None,
                  bert_type=None):
 
+        if model_name == None:
+            # add a dummy name based on the architecture
+            model_name = model_type
+            if embeddings_name != None:
+                model_name += "_" + embeddings_name
+            if bert_type != None:
+                model_name += "_" + bert_type
+
         self.model = None
         self.models = None
         self.p = None
@@ -89,12 +97,18 @@ class Sequence(object):
         # if bert_type is None, no bert layer is present in the model
         self.bert_type = bert_type
         if self.bert_type != None:
-            # TBD: set do_lower_case parameter according to the CASE info in the model name
-            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
+            tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+                                                max_length=max_sequence_length, padding='max_length')
+            self.bert_preprocessor = BERTPreprocessor(tokenizer)
+        else:
+            self.bert_preprocessor = None
+
+        if self.embeddings_name != None:
+            self.embeddings = Embeddings(self.embeddings_name) 
+            word_emb_size = self.embeddings.embed_size 
+        else:
             self.embeddings = None
-        elif embeddings_name != None:
-            self.embeddings = Embeddings(embeddings_name)
-            word_emb_size = self.embeddings.embed_size           
+            word_emb_size = 0
 
         self.model_config = ModelConfig(model_name=model_name, 
                                         model_type=model_type, 
@@ -136,6 +150,9 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+        if self.bert_preprocessor != None:
+            self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
+
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
@@ -154,7 +171,7 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p, 
-                          bert_data=bert_data
+                          bert_preprocessor=self.bert_preprocessor
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
 
@@ -167,11 +184,8 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         self.p.return_lengths = True
-
-        if 'bert' in self.model_config.model_type.lower():
-            self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+        
         self.models = []
-
         for k in range(0, fold_number):
             model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
             self.models.append(model)
@@ -182,11 +196,10 @@ class Sequence(object):
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p
+                          preprocessor=self.p,
+                          bert_preprocessor=self.bert_preprocessor
                           )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
-        if 'bert' in self.model_config.model_type.lower():
-            self.save()
 
     def eval(self, x_test, y_test, features=None):
         if self.models and 1 < self.model_config.fold_number == len(self.models):
@@ -195,21 +208,25 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-        if 'bert' not in self.model_config.model_type.lower():
-            if self.model:
-                # Prepare test data(steps, generator)
-                test_generator = DataGenerator(x_test, y_test,
-                    batch_size=self.model_config.batch_size, preprocessor=self.p,
-                    char_embed_size=self.model_config.char_embedding_size,
-                    max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features)
+        #if 'bert' not in self.model_config.model_type.lower():
+        
+        if self.model:
+            # Prepare test data(steps, generator)
+            test_generator = DataGenerator(x_test, y_test,
+                batch_size=self.model_config.batch_size, preprocessor=self.p,
+                bert_preprocessor=self.bert_preprocessor,
+                char_embed_size=self.model_config.char_embedding_size,
+                max_sequence_length=self.model_config.max_sequence_length,
+                embeddings=self.embeddings, shuffle=False, features=features)
 
-                # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True)
-                scorer.model = self.model
-                scorer.on_epoch_end(epoch=-1)
-            else:
-                raise (OSError('Could not find a model.'))
+            # Build the evaluator and evaluate the model
+            scorer = Scorer(test_generator, self.p, evaluation=True)
+            scorer.model = self.model
+            scorer.on_epoch_end(epoch=-1)
+        else:
+            raise (OSError('Could not find a model.'))
+        
+        '''
         else:
             # BERT architecture model
             y_pred = self.model.predict(x_test, fold_id=-1)
@@ -232,6 +249,7 @@ class Sequence(object):
 
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
             print(report)
+        '''
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models != None:
@@ -247,24 +265,27 @@ class Sequence(object):
             for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                if 'bert' not in self.model_config.model_type.lower():
-                    # Prepare test data(steps, generator)
-                    test_generator = DataGenerator(x_test, y_test,
-                      batch_size=self.model_config.batch_size, preprocessor=self.p,
-                      char_embed_size=self.model_config.char_embedding_size,
-                      max_sequence_length=self.model_config.max_sequence_length,
-                      embeddings=self.embeddings, shuffle=False, features=features)
+                #if 'bert' not in self.model_config.model_type.lower():
+                
+                # Prepare test data(steps, generator)
+                test_generator = DataGenerator(x_test, y_test,
+                  batch_size=self.model_config.batch_size, preprocessor=self.p,
+                  bert_preprocessor=self.bert_preprocessor,
+                  char_embed_size=self.model_config.char_embedding_size,
+                  max_sequence_length=self.model_config.max_sequence_length,
+                  embeddings=self.embeddings, shuffle=False, features=features)
 
-                    # Build the evaluator and evaluate the model
-                    scorer = Scorer(test_generator, self.p, evaluation=True)
-                    scorer.model = self.models[i]
-                    scorer.on_epoch_end(epoch=-1)
-                    f1 = scorer.f1
-                    precision = scorer.precision
-                    recall = scorer.recall
-                    reports.append(scorer.report)
-                    reports_as_map.append(scorer.report_as_map)
+                # Build the evaluator and evaluate the model
+                scorer = Scorer(test_generator, self.p, evaluation=True)
+                scorer.model = self.models[i]
+                scorer.on_epoch_end(epoch=-1)
+                f1 = scorer.f1
+                precision = scorer.precision
+                recall = scorer.recall
+                reports.append(scorer.report)
+                reports_as_map.append(scorer.report_as_map)
                     
+                '''
                 else:
                     # BERT architecture model
                     dir_path = 'data/models/sequenceLabelling/'
@@ -302,6 +323,7 @@ class Sequence(object):
                     report, report_as_map = classification_report(y_test, y_pred, digits=4)
                     reports.append(report)
                     reports_as_map.append(report_as_map)
+                '''
 
                 if best_f1 < f1:
                     best_f1 = f1
@@ -365,8 +387,12 @@ class Sequence(object):
             print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
 
-            if 'bert' not in self.model_config.model_type.lower():
-                self.model = self.models[best_index]
+            #if 'bert' not in self.model_config.model_type.lower():
+            
+            self.model = self.models[best_index]
+            
+
+            '''
             else:
                 # copy best BERT model fold_number
                 best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
@@ -376,7 +402,8 @@ class Sequence(object):
                 # clean other fold directory
                 for i in range(self.model_config.fold_number):
                     shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
-        
+            '''
+
             print("----------------------------------------------------------------------")
             print("\nAverage over", self.model_config.fold_number, "folds")
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
@@ -386,7 +413,7 @@ class Sequence(object):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
         if self.model:
-            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
+            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
             start_time = time.time()
             annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
@@ -404,7 +431,7 @@ class Sequence(object):
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
         if self.model:
-            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
+            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
             start_time = time.time()
             if file_out != None:
                 out = open(file_out,'w')
@@ -497,26 +524,37 @@ class Sequence(object):
         print('preprocessor saved')
 
         # bert model are always saved via training process steps as checkpoint
+        '''
         if self.model_config.model_type.lower().find("bert") == -1:
             if self.model == None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
                 print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
             else:
                self.model.save(os.path.join(directory, self.weight_file))
+        '''
+
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-        self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
-
-        if self.model_config.bert_type == None:
+        
+        if self.model_config.embeddings_name != None:
             # load embeddings
             # Do not use cache in 'production' mode
             self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
-            self.bert_type = self.model_config.bert_type
-            self.tokenizer = FullTokenizer(_get_vocab_file_path(self.bert_type), do_lower_case=False)
             self.embeddings = None
+            self.model_config.word_embedding_size = 0
+
+        if self.model_config.bert_type != None:
+            self.bert_type = self.model_config.bert_type
+            tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+                                                max_length=self.model_config.maxlen, padding='max_length')
+            self.bert_preprocessor = BERTPreprocessor(tokenizer)
+        else:
+            self.bert_preprocessor = None
+
+        self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.weight_file))

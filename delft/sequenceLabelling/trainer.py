@@ -30,7 +30,7 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor=None, 
-                 bert_data=False
+                 bert_preprocessor=None
                  ):
 
         # for single model training
@@ -45,7 +45,7 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-        self.bert_data = bert_data
+        self.bert_preprocessor = bert_preprocessor
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -77,15 +77,17 @@ class Trainer(object):
         if self.training_config.early_stop:
             training_generator = DataGenerator(x_train, y_train, 
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+                bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=f_train, bert_data=bert_data)
+                embeddings=self.embeddings, shuffle=True, features=f_train)
 
             validation_generator = DataGenerator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+                bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid, bert_data=bert_data)
+                embeddings=self.embeddings, shuffle=False, features=f_valid)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
@@ -100,9 +102,10 @@ class Trainer(object):
 
             training_generator = DataGenerator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
+                bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=feature_all, bert_data=bert_data)
+                embeddings=self.embeddings, shuffle=True, features=feature_all)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False)
@@ -124,15 +127,6 @@ class Trainer(object):
         n-fold training for the instance model
         the n models are stored in self.models, and self.model left unset at this stage
         """
-        '''
-        if 'bert' in self.model_config.model_type.lower():
-            # for BERT architectures, directly call the model trainer which is managing n-fold training
-            # validation set is ignored, we suppose that the hyper-parameters are set with the validation set
-            # before
-            self.model.train(x_train, y_train)
-            # force config saving to ensure nothing is lost
-            return
-        '''
 
         fold_count = len(self.models)
         fold_size = len(x_train) // fold_count
@@ -250,7 +244,8 @@ class Scorer(Callback):
                 break
             y_true_batch = label
             y_true_batch = np.argmax(y_true_batch, -1)
-            sequence_lengths = data[-1] # shape of (batch_size, 1)
+            sequence_lengths = data[-1] # this is the vectors "length_input" of the models input
+            # shape of (batch_size, 1), we want (batch_size)
             sequence_lengths = np.reshape(sequence_lengths, (-1,))
 
             y_pred_batch = self.model.predict_on_batch(data)
