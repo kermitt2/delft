@@ -39,7 +39,7 @@ class Classifier(object):
 
     def __init__(self, 
                  model_name=None,
-                 model_type="gru",
+                 architecture="gru",
                  embeddings_name=None,
                  list_classes=[],
                  char_emb_size=25, 
@@ -60,14 +60,14 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
-                 bert_type=None):
+                 transformer=None):
         if model_name == None:
             # add a dummy name based on the architecture
-            model_name = model_type
+            model_name = architecture
             if embeddings_name != None:
                 model_name += "_" + embeddings_name
-            if bert_type != None:
-                model_name += "_" + bert_type
+            if transformer != None:
+                model_name += "_" + transformer
 
         self.model = None
         self.models = None
@@ -76,10 +76,10 @@ class Classifier(object):
         self.embeddings = None
         self.tokenizer = None
 
-        # if bert_type is None, no bert layer is present in the model
-        self.bert_type = bert_type
-        if self.bert_type != None:
-            self.tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+        # if transformer is None, no bert layer is present in the model
+        self.transformer = transformer
+        if self.transformer != None:
+            self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=maxlen, padding='max_length')
             self.embeddings_name == None
             self.embeddings = None
@@ -89,7 +89,7 @@ class Classifier(object):
             word_emb_size = self.embeddings.embed_size
         
         self.model_config = ModelConfig(model_name=model_name, 
-                                        model_type=model_type, 
+                                        architecture=architecture, 
                                         embeddings_name=embeddings_name, 
                                         list_classes=list_classes, 
                                         char_emb_size=char_emb_size, 
@@ -100,7 +100,7 @@ class Classifier(object):
                                         maxlen=maxlen, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
-                                        bert_type=self.bert_type)
+                                        transformer=self.transformer)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, 
@@ -115,7 +115,7 @@ class Classifier(object):
         self.model = getModel(self.model_config, self.training_config)
         
         bert_data = False
-        if self.bert_type != None:
+        if self.transformer != None:
             bert_data = True
 
         if self.training_config.early_stop:
@@ -138,7 +138,7 @@ class Classifier(object):
 
         # uncomment to plot graph
         #plot_model(self.model, 
-        #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
+        #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
         self.model, best_roc_auc = train_model(
             self.model, 
             self.model_config.list_classes, 
@@ -160,7 +160,7 @@ class Classifier(object):
     
     def predict(self, texts, output_format='json', use_main_thread_only=False):
         bert_data = False
-        if self.bert_type != None:
+        if self.transformer != None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
@@ -207,7 +207,7 @@ class Classifier(object):
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
         bert_data = False
-        if self.bert_type != None:
+        if self.transformer != None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
@@ -361,7 +361,7 @@ class Classifier(object):
 
         if self.model_config.fold_number == 1:
             if self.model != None:
-                self.model.save(os.path.join(directory, self.model_config.model_type+"."+self.weight_file))
+                self.model.save(os.path.join(directory, self.model_config.architecture+"."+self.weight_file))
                 print('model saved')
             else:
                 print('Error: model has not been built')
@@ -370,30 +370,30 @@ class Classifier(object):
                 print('Error: nfolds models have not been built')
             else:
                 for i in range(0, self.model_config.fold_number):
-                    self.models[i].save(os.path.join(directory, self.model_config.model_type+".model{0}_weights.hdf5".format(i)))
+                    self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                 print('nfolds model saved')
 
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
-        if self.model_config.bert_type == None:
+        if self.model_config.transformer == None:
             # load embeddings
             # Do not use cache in 'production' mode
             self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
-            self.bert_type = self.model_config.bert_type
-            self.tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+            self.transformer = self.model_config.transformer
+            self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=self.model_config.maxlen, padding='max_length')
             self.embeddings = None
 
-        self.model = getModel(self.model_config, self.training_config, load_weights=False)
+        self.model = getModel(self.model_config, self.training_config)
         if self.model_config.fold_number == 1:
-            print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
-            self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+"."+self.weight_file))
+            print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
+            self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
         else:
             self.models = []
             for i in range(0, self.model_config.fold_number):
                 local_model = getModel(self.model_config, self.training_config)
-                local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.model_type+".model{0}_weights.hdf5".format(i)))
+                local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                 self.models.append(local_model)

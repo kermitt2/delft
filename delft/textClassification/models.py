@@ -1,9 +1,3 @@
-# Class for experimenting various single input DL models at word level
-#
-#   model_type      type of the model to be used
-#   fold_count      number of folds for k-fold training (default is 1)
-#
-
 import numpy as np
 import sys, os
 import argparse
@@ -189,7 +183,7 @@ parameters_bert = {
     'max_seq_len': 512,
     'dropout_rate': 0.1,
     'batch_size': 10,
-    'bert_type': 'bert-base-en'
+    'transformer': 'bert-base-en'
 }
 
 parametersMap = { 
@@ -454,8 +448,8 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
 
 
 # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
-def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
-    bert_model_name = bert_type
+def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en"):
+    bert_model_name = transformer
     transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
 
     input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
@@ -480,12 +474,12 @@ def bert(dense_size, nb_classes, max_seq_len=512, bert_type="bert-base-en", load
     return model
 
 
-def getModel(model_config, training_config, load_weights=True):
-    model_type = model_config.model_type
+def getModel(model_config, training_config):
+    architecture = model_config.architecture
     fold_count = model_config.fold_number
 
     # default model parameters
-    parameters = parametersMap[model_type]
+    parameters = parametersMap[architecture]
     if 'embed_size' in parameters:
         embed_size = parameters['embed_size']
     if 'maxlen' in parameters:
@@ -497,49 +491,49 @@ def getModel(model_config, training_config, load_weights=True):
     if 'recurrent_dropout_rate' in parameters:
         recurrent_dropout_rate = parameters['recurrent_dropout_rate']
     dense_size = parameters['dense_size']
-    if 'bert_type' in parameters:
-        bert_type = parameters['bert_type']
+    if 'transformer' in parameters:
+        transformer = parameters['transformer']
 
     # overwrite with config paramters 
     embed_size = model_config.word_embedding_size
     maxlen = model_config.maxlen
     batch_size = training_config.batch_size
     max_epoch = training_config.max_epoch
-    model_type = model_config.model_type
+    architecture = model_config.architecture
     use_roc_auc = training_config.use_roc_auc
     nb_classes = len(model_config.list_classes)
     dropout_rate = model_config.dropout
     recurrent_dropout_rate = model_config.recurrent_dropout
-    bert_type = model_config.bert_type
+    transformer = model_config.transformer
 
     # awww Python has no case/switch statement :D
-    if (model_type == 'bidLstm_simple'):
+    if (architecture == 'bidLstm_simple'):
         model = bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'lstm'):
+    elif (architecture == 'lstm'):
         model = lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'cnn'):
+    elif (architecture == 'cnn'):
         model = cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'cnn2'):
+    elif (architecture == 'cnn2'):
         model = cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'cnn3'):
+    elif (architecture == 'cnn3'):
         model = cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'lstm_cnn'):
+    elif (architecture == 'lstm_cnn'):
         model = lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'conv'):
+    elif (architecture == 'conv'):
         model = dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'mix1'):
+    elif (architecture == 'mix1'):
         model = mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'dpcnn'):
+    elif (architecture == 'dpcnn'):
         model = dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'gru'):
+    elif (architecture == 'gru'):
         model = gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'gru_simple'):
+    elif (architecture == 'gru_simple'):
         model = gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
-    elif (model_type == 'bert'):
-        print(bert_type)
-        model = bert(dense_size, nb_classes, max_seq_len=maxlen, bert_type=bert_type, load_weights=load_weights)
+    elif (architecture == 'bert'):
+        print(transformer, "will be used")
+        model = bert(dense_size, nb_classes, max_seq_len=maxlen, transformer=transformer)
     else:
-        raise (OSError('The model type '+model_type+' is unknown'))
+        raise (OSError('The model type '+architecture+' is unknown'))
     return model
 
 
@@ -653,7 +647,7 @@ def train_model(model,
 def train_folds(X, y, model_config, training_config, embeddings, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
-    model_type = model_config.model_type
+    architecture = model_config.architecture
     use_roc_auc = training_config.use_roc_auc
     class_weights = training_config.class_weights
 
@@ -691,7 +685,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
                 multiprocessing=training_config.multiprocessing, callbacks=callbacks)
         models.append(foldModel)
 
-        #model_path = os.path.join("../data/models/textClassification/",model_name, model_type+".model{0}_weights.hdf5".format(fold_id))
+        #model_path = os.path.join("../data/models/textClassification/",model_name, architecture+".model{0}_weights.hdf5".format(fold_id))
         #foldModel.save_weights(model_path, foldModel.get_weights())
         #foldModel.save(model_path)
         #del foldModel

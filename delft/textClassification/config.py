@@ -5,7 +5,7 @@ class ModelConfig(object):
 
     def __init__(self, 
                  model_name="",
-                 model_type="gru",
+                 architecture="gru",
                  embeddings_name="glove-840B", 
                  list_classes=[],
                  char_emb_size=0, 
@@ -17,11 +17,11 @@ class ModelConfig(object):
                  fold_number=1,
                  batch_size=64,
                  dense_size=32,
-                 bert_type=None
+                 transformer=None
                  ):
 
         self.model_name = model_name
-        self.model_type = model_type
+        self.architecture = architecture
         self.embeddings_name = embeddings_name
 
         #self.vocab_size = None
@@ -39,7 +39,7 @@ class ModelConfig(object):
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for test and prediction
 
-        self.bert_type = bert_type
+        self.transformer = transformer
 
     def save(self, file):
         with open(file, 'w') as f:
