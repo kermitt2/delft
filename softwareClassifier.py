@@ -22,35 +22,33 @@ import numpy as np
     Best architecture/model is fine-tuned SciBERT. 
 """
 
-list_classes = ["not_used", "used"]
-class_weights = {0: 1.,
-                 1: 4.}
+list_classes =  [
+                    "not_used", 
+                    "used"
+                ]
+
+class_weights = {
+                    0: 1.,
+                    1: 4.
+                }
+
 
 def configure(architecture):
     batch_size = 256
     maxlen = 300
-    bert_type = None
+    transformer = None
     patience = 5
     early_stop = True
-    max_epoch = 100
+    max_epoch = 60
 
     # default bert model parameters
-    if architecture == "scibert":
+    if architecture == "bert":
         batch_size = 32
-        bert_type = "allenai/scibert_scivocab_cased"
-        architecture = "bert"
-        early_stop = False
-        max_epoch = 3
-        maxlen = 100
-    elif architecture.find("bert") != -1:
-        batch_size = 32
-        bert_type = "bert-base-cased"
-        architecture = "bert"
         early_stop = False
         max_epoch = 3
         maxlen = 100
 
-    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
+    return batch_size, maxlen, transformer, patience, early_stop, max_epoch
 
 
 def train(embeddings_name, fold_count, architecture="gru"):
@@ -60,11 +58,11 @@ def train(embeddings_name, fold_count, architecture="gru"):
     model_name = 'software_use'
     class_weights = None
 
-    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
+    batch_size, maxlen, transformer, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
+    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
-        class_weights=class_weights, bert_type=bert_type)
+        class_weights=class_weights, transformer=transformer)
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -93,13 +91,13 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
 
-    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
+    batch_size, maxlen, transformer, patience, early_stop, max_epoch = configure(architecture)
 
     print(list_classes)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
+    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
-        class_weights=class_weights, bert_type=bert_type)
+        class_weights=class_weights, transformer=transformer)
 
     if fold_count == 1:
         model.train(x_train, y_train)
@@ -114,7 +112,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
 # classify a list of texts
 def classify(texts, output_format, architecture="gru"):
     # load model
-    model = Classifier('software_use', model_type=architecture, list_classes=list_classes)
+    model = Classifier('software_use', architecture=architecture, list_classes=list_classes)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -128,19 +126,31 @@ def classify(texts, output_format, architecture="gru"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description = "Classify whether a mentioned software is used or not")
+        description = "Classify whether a mentioned software is used or not, using the DeLFT library")
+
+    word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
+    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
     parser.add_argument(
-        "--embedding", default='glove-840B',
-        help=(
-            "The desired pre-trained word embeddings using their descriptions in the file"
-            " embedding-registry.json."
-            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+        "--embedding", 
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use embedding-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
-        )
+    )
+    parser.add_argument(
+        "--transformer", 
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, embedding-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
     )
 
     args = parser.parse_args()

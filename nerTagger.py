@@ -2,30 +2,53 @@ import os
 import numpy as np
 from delft.sequenceLabelling import Sequence
 from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.utilities.Embeddings import Embeddings,test
+from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import stats
 from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
 import argparse
 import time
 
-# train a model with all available CoNLL 2003 data 
-def train(embedding_name, dataset_type='conll2003', lang='en', architecture='BidLSTM_CRF', data_path=None):
-
+def configure(architecture, dataset_type, lang, embeddings_name):
+    batch_size = 20
     max_sequence_length = 300
+    patience = 5
+    early_stop = True
+    max_epoch = 60
+
+    # general RNN word embeddings input
+    if embeddings_name is None:
+        embeddings_name = 'glove-840B'
+        if lang == 'en':
+            if dataset_type == 'conll2012':
+                embeddings_name = 'fasttext-crawl'
+        elif lang == 'fr':
+            embeddings_name = 'wiki.fr'
 
     if architecture == "BidLSTM_CNN_CRF":
         word_lstm_units = 200
+        max_epoch = 30
         recurrent_dropout = 0.5
     else:
         word_lstm_units = 100
+        max_epoch = 25
         recurrent_dropout = 0.5
 
-    if architecture.lower().find("bert") != -1:
+    # default bert model parameters
+    if architecture.find("BERT") != -1:
         batch_size = 32
+        early_stop = False
         max_sequence_length = 150
-    else:
-        batch_size = 20
+        max_epoch = 5
+        embeddings_name = None
+
+    return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units 
+
+
+# train a model with all available CoNLL 2003 data 
+def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None):
+
+    batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -44,10 +67,11 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-en-conll2003-' + architecture
 
         model = Sequence(model_name, 
-                        max_epoch=60, 
+                        max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
-                        embeddings_name=embedding_name,
-                        model_type=architecture,
+                        embeddings_name=embeddings_name,
+                        architecture=architecture,
+                        transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         max_sequence_length=max_sequence_length)
@@ -69,11 +93,12 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-en-conll2012-' + architecture
 
         model = Sequence(model_name, 
-                        max_epoch=80, 
-                        recurrent_dropout=0.20,
-                        embeddings_name=embedding_name, 
+                        max_epoch=max_epoch, 
+                        recurrent_dropout=recurrent_dropout,
+                        embeddings_name=embeddings_name, 
                         early_stop=True, 
-                        model_type=architecture,
+                        architecture=architecture,
+                        transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         max_sequence_length=max_sequence_length)
@@ -87,10 +112,11 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         model_name = 'ner-fr-lemonde-' + architecture
 
         model = Sequence(model_name, 
-                        max_epoch=60, 
+                        max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
-                        embeddings_name=embedding_name, 
-                        model_type=architecture,
+                        embeddings_name=embeddings_name, 
+                        architecture=architecture,
+                        transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         max_sequence_length=max_sequence_length)
@@ -99,9 +125,9 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
         return
 
     #elif (dataset_type == 'ontonotes') and (lang == 'en'):
-    #    model = sequenceLabelling.Sequence('ner-en-ontonotes', max_epoch=60, embeddings_name=embedding_name)
+    #    model = sequenceLabelling.Sequence('ner-en-ontonotes', max_epoch=60, embeddings_name=embeddings_name)
     #elif (lang == 'fr'):
-    #    model = sequenceLabelling.Sequence('ner-fr-lemonde', max_epoch=60, embeddings_name=embedding_name)
+    #    model = sequenceLabelling.Sequence('ner-fr-lemonde', max_epoch=60, embeddings_name=embeddings_name)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
@@ -113,29 +139,16 @@ def train(embedding_name, dataset_type='conll2003', lang='en', architecture='Bid
 
 
 # train and usual eval on CoNLL 2003 eng.testb 
-def train_eval(embedding_name, 
+def train_eval(embeddings_name=None, 
                 dataset_type='conll2003', 
                 lang='en', 
                 architecture='BidLSTM_CRF', 
+                transformer=None, 
                 fold_count=1, 
                 train_with_validation_set=False,
                 data_path=None): 
 
-    max_sequence_length = 300
-    if (architecture == "BidLSTM_CNN_CRF"):
-        word_lstm_units = 200
-        max_epoch = 30
-        recurrent_dropout = 0.5
-    else:        
-        word_lstm_units = 100
-        max_epoch = 25
-        recurrent_dropout = 0.5
-
-    if architecture.lower().find("bert") != -1:
-        batch_size = 32
-        max_sequence_length = 150
-    else:
-        batch_size = 20
+    batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
@@ -149,12 +162,13 @@ def train_eval(embedding_name,
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
             model = Sequence(model_name, 
-                            max_epoch=60, 
+                            max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=True, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -165,10 +179,11 @@ def train_eval(embedding_name,
             model = Sequence(model_name, 
                             max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=False, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -183,12 +198,13 @@ def train_eval(embedding_name,
         model_name = 'ner-en-ontonotes-' + architecture
 
         model = Sequence(model_name, 
-                        max_epoch=60, 
+                        max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
-                        embeddings_name=embedding_name, 
+                        embeddings_name=embeddings_name, 
                         early_stop=True, 
                         fold_number=fold_count,
-                        model_type=architecture,
+                        architecture=architecture,
+                        transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         max_sequence_length=max_sequence_length)
@@ -205,12 +221,13 @@ def train_eval(embedding_name,
 
         if not train_with_validation_set: 
             model = Sequence(model_name, 
-                            max_epoch=80, 
+                            max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=True, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -219,12 +236,13 @@ def train_eval(embedding_name,
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
             # this leads obviously to much higher results 
             model = Sequence(model_name, 
-                            max_epoch=40, 
+                            max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=False, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -239,12 +257,13 @@ def train_eval(embedding_name,
         model_name = 'ner-fr-lemonde-' + architecture
 
         model = Sequence(model_name, 
-                        max_epoch=60, 
+                        max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
-                        embeddings_name=embedding_name, 
+                        embeddings_name=embeddings_name, 
                         early_stop=True, 
                         fold_number=fold_count,
-                        model_type=architecture,
+                        architecture=architecture,
+                        transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         max_sequence_length=max_sequence_length)
@@ -260,12 +279,13 @@ def train_eval(embedding_name,
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
             model = Sequence(model_name, 
-                            max_epoch=60, 
+                            max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=True, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -276,10 +296,11 @@ def train_eval(embedding_name,
             model = Sequence(model_name, 
                             max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=False, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -295,12 +316,13 @@ def train_eval(embedding_name,
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
             model = Sequence(model_name, 
-                            max_epoch=60, 
+                            max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=True, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -311,10 +333,11 @@ def train_eval(embedding_name,
             model = Sequence(model_name, 
                             max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
-                            embeddings_name=embedding_name, 
+                            embeddings_name=embeddings_name, 
                             early_stop=False, 
                             fold_number=fold_count,
-                            model_type=architecture,
+                            architecture=architecture,
+                            transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             max_sequence_length=max_sequence_length)
@@ -341,6 +364,7 @@ def train_eval(embedding_name,
 def eval(dataset_type='conll2003', 
          lang='en', 
          architecture='BidLSTM_CRF', 
+         transformer=None, 
          data_path=None): 
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
@@ -350,7 +374,7 @@ def eval(dataset_type='conll2003',
 
         # load model
         model_name = 'ner-en-conll2003-' + architecture
-        model = Sequence(model_name)
+        model = Sequence(model_name, transformer=transformer,)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -361,7 +385,7 @@ def eval(dataset_type='conll2003',
 
         # load model
         model_name = 'ner-en-conll2012-' + architecture
-        model = Sequence(model_name)
+        model = Sequence(model_name, transformer=transformer,)
         model.load()
 
     else:
@@ -382,6 +406,7 @@ def annotate(output_format,
              dataset_type='conll2003', 
              lang='en', 
              architecture='BidLSTM_CRF',
+             transformer=None, 
              file_in=None, 
              file_out=None):
     if file_in is None or not os.path.isfile(file_in):
@@ -391,18 +416,18 @@ def annotate(output_format,
     if (dataset_type == 'conll2003') and (lang == 'en'):
         # load model
         model_name = 'ner-en-conll2003-' + architecture
-        model = Sequence(model_name)
+        model = Sequence(model_name, transformer=transformer)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         # load model
         model_name = 'ner-en-conll2012-' + architecture
-        model = Sequence(model_name)
+        model = Sequence(model_name, transformer=transformer)
         model.load()
 
     elif (lang == 'fr'):
         model_name = 'ner-fr-lemonde-' + architecture
-        model = Sequence(model_name)
+        model = Sequence(model_name, transformer=transformer)
         model.load()
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -418,29 +443,48 @@ def annotate(output_format,
 
 if __name__ == "__main__":
 
-    architectures = ['BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
-                     'bert-base-en', 'bert-large-en', 'scibert', 'biobert']
+    architectures_word_embeddings = [
+                     'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     ]
 
-    parser = argparse.ArgumentParser(
-        description = "Neural Named Entity Recognizers")
+    word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
+
+    architectures_transformers_based = [
+                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES'
+                     ]
+
+    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
+
+    architectures = architectures_word_embeddings + architectures_transformers_based
+
+    parser = argparse.ArgumentParser(description="Neural Named Entity Recognizers based on DeLFT")
 
     parser.add_argument("action", help="one of [train, train_eval, eval, tag]")
     parser.add_argument("--fold-count", type=int, default=1, help="number of folds or re-runs to be used when training")
-    parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code")
+    parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code (en, fr, de, etc.)")
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
-    parser.add_argument("--architecture",default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--architecture", default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
     parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
     parser.add_argument(
-        "--embedding", default=None,
-        help=(
-            "The desired pre-trained word embeddings using their descriptions in the file"
-            " embedding-registry.json."
-            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+        "--embedding", 
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use embedding-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
-        )
+    )
+    parser.add_argument(
+        "--transformer", 
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, embedding-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
     )
 
     args = parser.parse_args()
@@ -452,8 +496,9 @@ if __name__ == "__main__":
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
     architecture = args.architecture
-    if architecture not in architectures and architecture.lower().find("bert") == -1:
+    if architecture not in architectures:
         print('unknown model architecture, must be one of', architectures)
+    transformer = args.transformer
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
@@ -462,39 +507,39 @@ if __name__ == "__main__":
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
     # below we set the default embeddings value
-    if args.embedding is None:
-        embeddings_name = 'glove-840B'
-        if lang == 'en':
-            if dataset_type == 'conll2012':
-                embeddings_name = 'fasttext-crawl'
-        elif lang == 'fr':
-            embeddings_name = 'wiki.fr'
-    else:
-        embeddings_name = args.embedding
+    embeddings_name = args.embedding
 
     if action == 'train':
-        train(embeddings_name, 
-            dataset_type, 
-            lang, 
+        train( 
+            dataset_type=dataset_type, 
+            lang=lang, 
+            embeddings_name=embeddings_name,
             architecture=architecture, 
+            transformer=transformer,
             data_path=data_path)
 
     if action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train_eval(embeddings_name, 
-            dataset_type, 
-            lang, 
+        train_eval(
+            dataset_type=dataset_type, 
+            lang=lang, 
+            embeddings_name=embeddings_name, 
             architecture=architecture, 
+            transformer=transformer,
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             data_path=data_path)
 
     if action == 'eval':
-        eval(dataset_type, lang, architecture=architecture)
+        eval(
+            dataset_type=dataset_type, 
+            lang=lang, 
+            architecture=architecture, 
+            transformer=transformer)
 
     if action == 'tag':
-        if lang is not 'en' and lang is not 'fr':
+        if lang != 'en' and lang != 'fr':
             print("Language not supported:", lang)
         else: 
             print(file_in)
@@ -502,9 +547,11 @@ if __name__ == "__main__":
                             dataset_type, 
                             lang, 
                             architecture=architecture, 
+                            transformer=transformer,
                             file_in=file_in, 
                             file_out=file_out)
-            """if result is not None:
+            """
+            if result is not None:
                 if file_out is None:
                     print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
             """

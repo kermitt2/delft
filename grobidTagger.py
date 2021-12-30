@@ -14,8 +14,44 @@ from delft.utilities.misc import parse_number_ranges
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
+
+def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1):
+    '''
+    Set up the default parameters based on the model type.
+    '''
+    if output_path:
+        model_name = model
+    else:
+        model_name = 'grobid-' + model
+
+    if architecture.lower().find("BERT") != -1:
+        if batch_size == -1:
+            batch_size = 6
+        if max_sequence_length == -1 or max_sequence_length > 512:
+            # 512 is the largest sequence for BERT input
+            max_sequence_length = 512
+        embeddings_name = None
+
+    if model == "software":
+        if batch_size == -1:
+            # class are more unbalanced, so we need to extend the batch size
+            batch_size = 30
+        if max_sequence_length == -1:
+            max_sequence_length = 1500
+
+    model_name += '-' + architecture;
+    
+    if batch_size == -1:
+        batch_size = 20
+
+    if max_sequence_length == -1:
+        max_sequence_length = 3000
+
+    return batch_size, max_sequence_length, model_name, embeddings_name
+
+
 # train a GROBID model with all available data
-def train(model, embeddings_name, architecture='BidLSTM_CRF', input_path=None, output_path=None,
+def train(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, input_path=None, output_path=None,
           features_indices=None, max_sequence_length=-1, batch_size=-1):
 
     print('Loading data...')
@@ -31,13 +67,14 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', input_path=None, o
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
+    batch_size, max_sequence_length, model_name, embeddings_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
 
     model = Sequence(model_name,
                      max_epoch=100,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
-                     model_type=architecture,
+                     architecture=architecture,
+                     transformer=transformer, 
                      batch_size=batch_size,
                      max_sequence_length=max_sequence_length,
                      features_indices=features_indices)
@@ -55,7 +92,7 @@ def train(model, embeddings_name, architecture='BidLSTM_CRF', input_path=None, o
 
 
 # split data, train a GROBID model and evaluate it
-def train_eval(model, embeddings_name, architecture='BidLSTM_CRF', 
+def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1):
     print('Loading data...')
@@ -71,13 +108,14 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF',
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
+    batch_size, max_sequence_length, model_name, embeddings_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
 
     model = Sequence(model_name,
                     max_epoch=100,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
-                    model_type=architecture,
+                    architecture=architecture,
+                    transformer=transformer, 
                     max_sequence_length=max_sequence_length,
                     batch_size=batch_size,
                     fold_number=fold_count,
@@ -104,42 +142,9 @@ def train_eval(model, embeddings_name, architecture='BidLSTM_CRF',
         model.save()
 
 
-def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1):
-    '''
-    Set up the default parameters based on the model type.
-    '''
-    if output_path:
-        model_name = model
-    else:
-        model_name = 'grobid-' + model
-
-    if architecture.lower().find("bert") != -1:
-        if batch_size == -1:
-            batch_size = 6
-        if max_sequence_length == -1 or max_sequence_length > 512:
-            # 512 is the largest sequence for BERT input
-            max_sequence_length = 512
-
-    if model == "software":
-        if batch_size == -1:
-            # class are more unbalanced, so we need to extend the batch size
-            batch_size = 30
-        if max_sequence_length == -1:
-            max_sequence_length = 1500
-
-    model_name += '-' + architecture;
-    
-    if batch_size == -1:
-        batch_size = 20
-
-    if max_sequence_length == -1:
-        max_sequence_length = 3000
-
-    return batch_size, max_sequence_length, model_name
-
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture='BidLSTM_CRF'):
+def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None):
     print('Loading data...')
     if input_path == None:
         # it should never be the case
@@ -169,7 +174,7 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF'):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', transformer=None, features=None):
     annotations = []
 
     # load model
@@ -198,12 +203,23 @@ class Tasks:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description = "Trainer for GROBID models")
+    parser = argparse.ArgumentParser(description = "Trainer for GROBID models using the DeLFT library")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
-    architectures = [BidLSTM_CRF.name, BidLSTM_CNN.name, BidLSTM_CNN_CRF.name, BidGRU_CRF.name, BidLSTM_CRF_CASING.name,
-                     BidLSTM_CRF_FEATURES.name,
-                     'bert-base-en', 'bert-large-en', 'scibert', 'biobert']
+
+    architectures_word_embeddings = [
+                     'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     ]
+
+    word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
+
+    architectures_transformers_based = [
+                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES'
+                     ]
+
+    architectures = architectures_word_embeddings + architectures_transformers_based
+
+    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
@@ -211,16 +227,26 @@ if __name__ == "__main__":
                                                                   "cross validation.")
     parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
                         help="Type of model architecture to be used, one of "+str(architectures))
-    parser.add_argument("--embedding", default='glove-840B',
-        help=(
-            "The desired pre-trained word embeddings using their descriptions in the file"
-            " embedding-registry.json."
-            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+    parser.add_argument(
+        "--embedding", 
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use embedding-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
-        )
+    )
+    parser.add_argument(
+        "--transformer", 
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, embedding-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
     )
     parser.add_argument("--output", help="Directory where to save a trained model.")
-    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and "
+    parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument(
         "--feature-indices",
@@ -242,11 +268,13 @@ if __name__ == "__main__":
     feature_indices = args.feature_indices
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
+    transformer = args.transformer
 
     if action == Tasks.TRAIN:
         train(model, 
-            embeddings_name, 
+            embeddings_name=embeddings_name, 
             architecture=architecture, 
+            transformer=transformer,
             input_path=input_path, 
             output_path=output,
             max_sequence_length=max_sequence_length,
@@ -264,8 +292,9 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
         train_eval(model, 
-                embeddings_name, 
+                embeddings_name=embeddings_name, 
                 architecture=architecture, 
+                transformer=transformer,
                 input_path=input_path, 
                 output_path=output, 
                 fold_count=args.fold_count,
@@ -293,7 +322,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, transformer=transformer)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
@@ -304,5 +333,5 @@ if __name__ == "__main__":
             with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
                 input_crf_string = file.read()
             x_all, f_all = load_data_crf_string(input_crf_string)
-            result = annotate_text(x_all, model, None, architecture=architecture, features=f_all)
+            result = annotate_text(x_all, model, None, architecture=architecture, transformer=transformer, features=f_all)
             print(result)

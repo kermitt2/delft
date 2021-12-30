@@ -19,35 +19,26 @@ class_weights = {0: 1.,
                  4: 1.,
                  5: 1.}
 
-
 def configure(architecture):
     batch_size = 256
     maxlen = 300
-    bert_type = None
+    transformer = None
     patience = 5
     early_stop = True
     max_epoch = 30
 
     # default bert model parameters
-    if architecture == "scibert":
+    if architecture == "bert":
         batch_size = 32
-        bert_type = "allenai/scibert_scivocab_cased"
-        architecture = "bert"
-        early_stop = False
-        max_epoch = 3
-        maxlen = 200
-    elif architecture.find("bert") != -1:
-        batch_size = 32
-        bert_type = "bert-base-cased"
-        architecture = "bert"
         early_stop = False
         max_epoch = 3
         maxlen = 200
 
-    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
+    return batch_size, maxlen, transformer, patience, early_stop, max_epoch
+
 
 def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"): 
-    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
         embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, bert_type=bert_type, patience=patience, early_stop=early_stop)
@@ -88,19 +79,31 @@ def classify(texts, output_format, architecture="gru"):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description = "Classification of comments/short texts in toxicity types (toxic, severe_toxic, obscene, threat, insult, identity_hate)")
+        description = "Classification of comments/short texts in toxicity types (toxic, severe_toxic, obscene, threat, insult, identity_hate) based on DeLFT")
+
+    word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
+    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
     parser.add_argument(
-        "--embedding", default='fasttext-crawl',
-        help=(
-            "The desired pre-trained word embeddings using their descriptions in the file"
-            " embedding-registry.json."
-            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+        "--embedding", 
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use embedding-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
-        )
+    )
+    parser.add_argument(
+        "--transformer", 
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, embedding-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
     )
 
     args = parser.parse_args()

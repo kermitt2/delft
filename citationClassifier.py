@@ -8,42 +8,41 @@ import argparse
 import time
 from delft.textClassification.models import modelTypes
 
-list_classes = ["negative", "neutral", "positive"]
-class_weights = {0: 25.,
-                 1: 1.,
-                 2: 9.}
+list_classes = [
+                    "negative", 
+                    "neutral", 
+                    "positive"
+                ]
+
+class_weights = {
+                    0: 25.,
+                    1: 1.,
+                    2: 9.
+                }
 
 def configure(architecture):
     batch_size = 256
     maxlen = 150
-    bert_type = None
-    patience=5
+    transformer = None
+    patience = 5
     early_stop = True
-    max_epoch = 100
+    max_epoch = 60
 
     # default bert model parameters
-    if architecture == "scibert":
+    if architecture == "bert":
         batch_size = 32
-        bert_type = "allenai/scibert_scivocab_cased"
-        architecture = "bert"
-        early_stop = False
-        max_epoch = 3
-    elif architecture.find("bert") != -1:
-        batch_size = 32
-        bert_type = "bert-base-cased"
-        architecture = "bert"
         early_stop = False
         max_epoch = 3
 
-    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture
+    return batch_size, maxlen, transformer, patience, early_stop, max_epoch
 
 
 def train(embeddings_name, fold_count, architecture="gru"):
-    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
+    batch_size, maxlen, transformer, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('citations', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, bert_type=bert_type)
+        class_weights=class_weights, transformer=transformer)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -57,11 +56,11 @@ def train(embeddings_name, fold_count, architecture="gru"):
 
 
 def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
-    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, architecture = configure(architecture)
+    batch_size, maxlen, transformer, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('citations', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, bert_type=bert_type)
+        class_weights=class_weights, transformer=transformer)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -83,7 +82,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
 # classify a list of texts
 def classify(texts, output_format, architecture="gru"):
     # load model
-    model = Classifier('citations', model_type=architecture, list_classes=list_classes)
+    model = Classifier('citations', architecture=architecture, list_classes=list_classes)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -96,20 +95,31 @@ def classify(texts, output_format, architecture="gru"):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description = "Sentiment classification of citation passages")
+    parser = argparse.ArgumentParser(description = "Sentiment classification of citation contexts based on DeLFT")
+
+    word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
+    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
     parser.add_argument(
-        "--embedding", default='glove-840B',
-        help=(
-            "The desired pre-trained word embeddings using their descriptions in the file"
-            " embedding-registry.json."
-            " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
+        "--embedding", 
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use embedding-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
-        )
+    )
+    parser.add_argument(
+        "--transformer", 
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, embedding-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
     )
 
     args = parser.parse_args()
@@ -119,8 +129,8 @@ if __name__ == "__main__":
 
     embeddings_name = args.embedding
     architecture = args.architecture
-    #if architecture not in modelTypes:
-    #    print('unknown model architecture, must be one of '+str(modelTypes))
+    if architecture not in modelTypes:
+        print('unknown model architecture, must be one of '+str(modelTypes))
 
     if args.action == 'train':
         if args.fold_count < 1:
