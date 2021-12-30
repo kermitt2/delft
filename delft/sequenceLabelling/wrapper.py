@@ -26,7 +26,6 @@ from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor, BERTPreprocessor
 from delft.sequenceLabelling.tagger import Tagger
 from delft.sequenceLabelling.trainer import Trainer
-from delft.sequenceLabelling.data_generator import DataGenerator
 from delft.sequenceLabelling.trainer import Scorer
 
 from delft.utilities.Embeddings import Embeddings
@@ -51,7 +50,7 @@ class Sequence(object):
 
     def __init__(self, 
                  model_name=None,
-                 model_type="BidLSTM_CRF",
+                 architecture="BidLSTM_CRF",
                  embeddings_name=None,
                  char_emb_size=25, 
                  max_char_length=30,
@@ -75,15 +74,14 @@ class Sequence(object):
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 bert_type=None):
-
+                 transformer=None):
         if model_name == None:
             # add a dummy name based on the architecture
-            model_name = model_type
+            model_name = architecture
             if embeddings_name != None:
                 model_name += "_" + embeddings_name
-            if bert_type != None:
-                model_name += "_" + bert_type
+            if transformer != None:
+                model_name += "_" + transformer
 
         self.model = None
         self.models = None
@@ -94,11 +92,12 @@ class Sequence(object):
         word_emb_size = 0
         self.embeddings = None
 
-        # if bert_type is None, no bert layer is present in the model
-        self.bert_type = bert_type
-        if self.bert_type != None:
-            tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
+        # if transformer is None, no bert layer is present in the model
+        self.transformer = transformer
+        if self.transformer != None:
+            tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=max_sequence_length, padding='max_length')
+            print(self.transformer, "will be used")
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None
@@ -111,7 +110,7 @@ class Sequence(object):
             word_emb_size = 0
 
         self.model_config = ModelConfig(model_name=model_name, 
-                                        model_type=model_type, 
+                                        architecture=architecture, 
                                         embeddings_name=embeddings_name, 
                                         word_embedding_size=word_emb_size, 
                                         char_emb_size=char_emb_size, 
@@ -126,7 +125,7 @@ class Sequence(object):
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
                                         features_indices=features_indices,
-                                        bert_type=self.bert_type)
+                                        transformer=self.transformer)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -208,11 +207,12 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-        #if 'bert' not in self.model_config.model_type.lower():
+        #if 'bert' not in self.model_config.architecture.lower():
         
         if self.model:
             # Prepare test data(steps, generator)
-            test_generator = DataGenerator(x_test, y_test,
+            generator = self.model.get_generator()
+            test_generator = generator(x_test, y_test,
                 batch_size=self.model_config.batch_size, preprocessor=self.p,
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size,
@@ -265,10 +265,11 @@ class Sequence(object):
             for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                #if 'bert' not in self.model_config.model_type.lower():
+                #if 'bert' not in self.model_config.architecture.lower():
                 
                 # Prepare test data(steps, generator)
-                test_generator = DataGenerator(x_test, y_test,
+                generator = self.models[i].get_generator()
+                test_generator = generator(x_test, y_test,
                   batch_size=self.model_config.batch_size, preprocessor=self.p,
                   bert_preprocessor=self.bert_preprocessor,
                   char_embed_size=self.model_config.char_embedding_size,
@@ -387,7 +388,7 @@ class Sequence(object):
             print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
 
-            #if 'bert' not in self.model_config.model_type.lower():
+            #if 'bert' not in self.model_config.architecture.lower():
             
             self.model = self.models[best_index]
             
@@ -523,14 +524,11 @@ class Sequence(object):
         self.p.save(os.path.join(directory, self.preprocessor_file))
         print('preprocessor saved')
 
-        # bert model are always saved via training process steps as checkpoint
-        '''
-        if self.model_config.model_type.lower().find("bert") == -1:
-            if self.model == None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
-                print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
-            else:
-               self.model.save(os.path.join(directory, self.weight_file))
-        '''
+        if self.model == None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
+            print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
+        else:
+           self.model.save(os.path.join(directory, self.weight_file))
+        
 
         print('model saved')
 
@@ -546,10 +544,11 @@ class Sequence(object):
             self.embeddings = None
             self.model_config.word_embedding_size = 0
 
-        if self.model_config.bert_type != None:
-            self.bert_type = self.model_config.bert_type
-            tokenizer = BertTokenizer.from_pretrained(self.bert_type, do_lower_case=False, add_special_tokens=True,
-                                                max_length=self.model_config.maxlen, padding='max_length')
+        if self.model_config.transformer != None:
+            self.transformer = self.model_config.transformer
+            print(self.transformer, "will be used")
+            tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
+                                                max_length=self.model_config.max_sequence_length, padding='max_length')
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None

@@ -8,7 +8,7 @@ class ModelConfig(object):
 
     def __init__(self, 
                  model_name="",
-                 model_type="BidLSTM_CRF",
+                 architecture="BidLSTM_CRF",
                  embeddings_name="glove-840B",
                  word_embedding_size=300,
                  char_emb_size=25, 
@@ -26,10 +26,10 @@ class ModelConfig(object):
                  features_indices=None,
                  features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
                  features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
-                 bert_type=None):
+                 transformer=None):
 
         self.model_name = model_name
-        self.model_type = model_type
+        self.architecture = architecture
         self.embeddings_name = embeddings_name
 
         self.char_vocab_size = None
@@ -58,7 +58,7 @@ class ModelConfig(object):
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for prediction
 
-        self.bert_type = bert_type
+        self.transformer = transformer
 
     def save(self, file):
         with open(file, 'w') as f:

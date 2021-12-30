@@ -3,7 +3,7 @@ import os
 import numpy as np
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
-from delft.sequenceLabelling.data_generator import DataGenerator
+#from delft.sequenceLabelling.data_generator import DataGenerator
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.utils import plot_model
@@ -18,6 +18,38 @@ import numpy as np
 np.random.seed(7)
 import tensorflow as tf
 
+
+def sparse_crossentropy_masked(y_true, y_pred):
+    mask_value = 0
+    y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
+    y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
+    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, 
+y_pred_masked))
+
+def sparse_categorical_accuracy_masked(y_true, y_pred):
+    mask_value = 0
+    active_loss = tf.reshape(y_true, (-1,)) != mask_value
+    reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
+    y_true = tf.boolean_mask(tf.reshape(y_true, (-1,)), active_loss)
+    reduced_logits = tf.cast(tf.argmax(reduced_logits, axis=-1), tf.keras.backend.floatx())
+    equality = tf.equal(y_true, reduced_logits)
+    return tf.reduce_mean(tf.cast(equality, tf.keras.backend.floatx()))
+
+def crossentropy_masked(y_true, y_pred):
+    mask_value = 0
+    y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
+    y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
+    return tf.reduce_mean(tf.keras.losses.categorical_crossentropy(y_true_masked, 
+y_pred_masked))
+
+def categorical_accuracy_masked(y_true, y_pred):
+    mask_value = 0
+    active_loss = tf.reshape(y_true, (-1,)) != mask_value
+    reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
+    y_true = tf.boolean_mask(tf.reshape(y_true, (-1,)), active_loss)
+    reduced_logits = tf.cast(tf.argmax(reduced_logits, axis=-1), tf.keras.backend.floatx())
+    equality = tf.equal(y_true, reduced_logits)
+    return tf.reduce_mean(tf.cast(equality, tf.keras.backend.floatx()))
 
 class Trainer(object):
 
@@ -55,13 +87,15 @@ class Trainer(object):
         if self.model_config.use_crf:
             self.model.compile(loss=self.model.crf.loss,
                            optimizer='adam')
+        elif self.bert_preprocessor != None:
+            self.model.compile(optimizer=Adam(learning_rate=5e-5), loss=sparse_crossentropy_masked)
         else:
-            self.model.compile(loss='categorical_crossentropy',
-                           optimizer='adam')
+            self.model.compile(optimizer='adam', loss='categorical_crossentropy')
+            #self.model.compile(loss='categorical_crossentropy', optimizer='adam')
                            #optimizer=Adam(lr=self.training_config.learning_rate))
         # uncomment to plot graph
         #plot_model(self.model,
-        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.model_type+'.png')
+        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
         self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
                                   f_train=features_train, f_valid=features_valid,
                                   max_epoch=self.training_config.max_epoch, callbacks=callbacks)
@@ -74,15 +108,16 @@ class Trainer(object):
         """
         # todo: if valid set is None, create it as random segment of the shuffled train set
 
+        generator = local_model.get_generator()
         if self.training_config.early_stop:
-            training_generator = DataGenerator(x_train, y_train, 
+            training_generator = generator(x_train, y_train, 
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=True, features=f_train)
 
-            validation_generator = DataGenerator(x_valid, y_valid,  
+            validation_generator = generator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
@@ -100,7 +135,7 @@ class Trainer(object):
             if f_train is not None:
                 feature_all = np.concatenate((f_train, f_valid), axis=0)
 
-            training_generator = DataGenerator(x_train, y_train,
+            training_generator = generator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 

@@ -9,6 +9,7 @@ from transformers import TFBertModel
 from delft.utilities.crf_layer import ChainCRF
 
 from delft.sequenceLabelling.preprocess import BERTPreprocessor
+from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
 
 import json
 import time
@@ -18,34 +19,53 @@ import numpy as np
 np.random.seed(7)
 import tensorflow as tf
 
+
+"""
+The sequence labeling models.
+
+Each model is a class implementing a Keras architecture. 
+The class can also define the data generator class object to be used, the loss function,
+the metrics and the optimizer.
+"""
+
 def get_model(config, preprocessor, ntags=None):
-    if config.model_type == BidLSTM_CRF.name:
+    """
+    Return a model instance by its name. This is a facilitator function. 
+    """
+    if config.architecture == BidLSTM_CRF.name:
         preprocessor.return_casing = False
         config.use_crf = True
         return BidLSTM_CRF(config, ntags)
-    elif config.model_type == BidLSTM_CNN.name:
+    elif config.architecture == BidLSTM_CNN.name:
         preprocessor.return_casing = True
         config.use_crf = False
         return BidLSTM_CNN(config, ntags)
-    elif config.model_type == BidLSTM_CNN_CRF.name:
+    elif config.architecture == BidLSTM_CNN_CRF.name:
         preprocessor.return_casing = True
         config.use_crf = True
         return BidLSTM_CNN_CRF(config, ntags)
-    elif config.model_type == BidGRU_CRF.name:
+    elif config.architecture == BidGRU_CRF.name:
         preprocessor.return_casing = False
         config.use_crf = True
         return BidGRU_CRF(config, ntags)
-    elif config.model_type == BidLSTM_CRF_FEATURES.name:
+    elif config.architecture == BidLSTM_CRF_FEATURES.name:
         preprocessor.return_casing = False
         preprocessor.return_features = True
         config.use_crf = True
         return BidLSTM_CRF_FEATURES(config, ntags)
-    elif config.model_type == BidLSTM_CRF_CASING.name:
+    elif config.architecture == BidLSTM_CRF_CASING.name:
         preprocessor.return_casing = True
         config.use_crf = True
-        return BidLSTM_CRF_CASING(config, ntags, bert_type)
-
-    elif config.model_type == BERT_CRF.name:
+        return BidLSTM_CRF_CASING(config, ntags)
+    elif config.architecture == BERT.name:
+        preprocessor.return_word_embeddings = False
+        preprocessor.return_casing = False
+        preprocessor.return_features = False
+        preprocessor.return_bert_embeddings = True
+        config.use_crf = False
+        config.labels = preprocessor.vocab_tag
+        return BERT(config, ntags)
+    elif config.architecture == BERT_CRF.name:
         preprocessor.return_word_embeddings = False
         preprocessor.return_casing = False
         preprocessor.return_features = False
@@ -53,17 +73,17 @@ def get_model(config, preprocessor, ntags=None):
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
         return BERT_CRF(config, ntags)
-    elif config.model_type == BERT_CRF_FEATURES.name:
+    elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_word_embeddings = False
         preprocessor.return_casing = False
         preprocessor.return_features = True
         preprocessor.return_bert_embeddings = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
-        return BERT_CRF_FEATURES(config, ntags, bert_type)
+        return BERT_CRF_FEATURES(config, ntags)
 
     else:
-        raise (OSError('Model name does exist: ' + config.model_type))
+        raise (OSError('Model name does exist: ' + config.architecture))
 
 
 class BaseModel(object):
@@ -96,6 +116,9 @@ class BaseModel(object):
         model_copy.set_weights(self.model.get_weights())
         return model_copy
 
+    def get_generator(self):
+        # default generator
+        return DataGenerator
 
 class BidLSTM_CRF(BaseModel):
     """
@@ -430,46 +453,37 @@ class BidLSTM_CRF_FEATURES(BaseModel):
 class BERT(BaseModel):
     """
     A Keras implementation of BERT for sequence labelling with softmax activation layer. The BERT layer will be 
-    loaded with weights of existing pre-trained BERT model given by the parameter bert_type. 
+    loaded with weights of existing pre-trained BERT model given by the field transformer in config. 
     """
 
     name = 'BERT'
 
-    def __init__(self, config, ntags=None, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
+    def __init__(self, config, ntags=None):
         # build input, directly feed with BERT input ids by the data generator
         max_seq_len = config.max_sequence_length
-        bert_model_name = config.bert_type
+        transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
+        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        #token_type_ids = Input(shape=(max_len,), dtype=tf.int32)
+        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
-        embedding_layer = transformer_model(input_ids)[0]
-        #embedding = transformer_model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
-        tag_logits = Dense(num_tags+1, activation='softmax')(embedding_layer)
+        tag_logits = Dense(ntags, activation='softmax')(embedding_layer)
         
-        self.model = Model(inputs=[input_ids], outputs=[tag_logits])
+        self.model = Model(inputs=[input_ids_in, token_type_ids], outputs=[tag_logits])
         self.config = config
 
-    def masked_ce_loss(real, pred):
-        '''
-        During loss calculation, we ignore the loss corresponding to padding tokens (id is integer 17)
-        '''
-        mask = tf.math.logical_not(tf.math.equal(real, 17))
-        loss_ = loss_object(real, pred)
-
-        mask = tf.cast(mask, dtype=loss_.dtype)
-        loss_ *= mask
-
-        return tf.reduce_mean(loss_)
+    def get_generator(self):
+        return DataGeneratorTransformers   
 
 class BERT_CRF(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
-    of existing pre-trained BERT model given by the parameter bert_type. 
+    of existing pre-trained BERT model given by the field transformer in the config. 
     """
 
     name = 'BERT_CRF'
@@ -477,47 +491,50 @@ class BERT_CRF(BaseModel):
     def __init__(self, config, ntags=None):
         # build input, directly feed with BERT input ids by the data generator AND features from data generator too
         max_seq_len = config.max_sequence_length
-        bert_model_name = config.bert_type
+        transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
+        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        #token_type_ids = Input(shape=(max_len,), dtype=tf.int32)
+        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
-        embedding_layer = transformer_model(input_ids)[0]
-        #embedding = transformer_model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        embedding_layer = Dropout(0.1)(embedding_layer)
+        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        x = Dropout(0.1)(embedding_layer)
         x = Dense(ntags)(x)
         self.crf = ChainCRF()
         pred = self.crf(x)
         
-        self.model = Model(inputs=[input_ids], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, token_type_ids], outputs=[pred])
         self.config = config
+
+    def get_generator(self):
+        return DataGeneratorTransformers
 
 
 class BERT_CRF_FEATURES(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     additional generic discrete features information. The BERT layer will be loaded with weights
-    of existing pre-trained BERT model given by the parameter bert_type. 
+    of existing pre-trained BERT model given by the field transformer in the config. 
     """
 
     name = 'BERT_CRF_FEATURES'
 
-    def __init__(self, config, ntags=None, max_seq_len=512, bert_type="bert-base-en", load_weights=True):
+    def __init__(self, config, ntags=None):
         # build input, directly feed with BERT input ids by the data generator
         max_seq_len = config.max_sequence_length
-        bert_model_name = config.bert_type
+        transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
+        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        #token_type_ids = Input(shape=(max_len,), dtype=tf.int32)
+        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
-        text_embedding_layer = transformer_model(input_ids)[0]
-        #embedding = transformer_model(input_ids, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        text_embedding_layer = transformer_model(input_ids_in, oken_type_ids=token_type_ids)[0]
+        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # layout features input and embeddings
@@ -549,6 +566,8 @@ class BERT_CRF_FEATURES(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids, features_input], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, token_type_ids, features_input], outputs=[pred])
         self.config = config
 
+    def get_generator(self):
+        return DataGeneratorTransformers

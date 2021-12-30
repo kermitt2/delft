@@ -232,7 +232,7 @@ class BERTPreprocessor(object):
         self.tokenizer = tokenizer
         self.empty_features_vector = empty_features_vector
 
-    def set_empty_features_vector(empty_features_vector):
+    def set_empty_features_vector(self, empty_features_vector):
         self.empty_features_vector = empty_features_vector
 
     def create_batch_input_bert(self, texts, maxlen=512):
@@ -340,7 +340,9 @@ class BERTPreprocessor(object):
 
     def convert_single_text(self, text_tokens, features_tokens, label_tokens, max_seq_length):
         """
-        Converts a single BERT `InputExample` into a single BERT `InputFeatures`.
+        Converts a single sequence input into a single BERT input format.
+
+        The original BERT implementation works as follow:
 
         input:
             tokens: [Jim,Henson,was,a,puppeteer]
@@ -349,7 +351,13 @@ class BERTPreprocessor(object):
             tokens: [Jim,Hen,##son,was,a,puppet,##eer]
             labels: [I-PER,I-PER,X,O,O,O,X]
 
-        Note: labels here are actually already integers
+        Here, we don't introduce the X label for added sub-tokens and simply extend the previous label
+        and produce:
+            tokens: [Jim,Hen,##son,was,a,puppet,##eer]
+            labels: [I-PER,I-PER,I-PER,O,O,O,O]
+
+        Notes: input and output labels are text labels, they will need to be changed into indices after
+        text conversion.
         """
 
         tokens = []
@@ -385,13 +393,13 @@ class BERTPreprocessor(object):
                 if not tok.startswith("##"):
                     text_sub_tokens_marked[i] = "##" + tok
             
-            label_sub_tokens = [label_token] + ["X"] * (len(text_sub_tokens) - 1)
+            label_sub_tokens = [label_token] + [label_token] * (len(text_sub_tokens) - 1)
             
             tokens.extend(text_sub_tokens)
             tokens_marked.extend(text_sub_tokens_marked)
             labels.extend(label_sub_tokens)
             for i in range(len(text_sub_tokens)):
-                features.add(features_token)
+                features.append(features_token)
 
         if len(tokens) >= max_seq_length - 2:
             tokens = tokens[0:(max_seq_length - 2)]
@@ -419,7 +427,7 @@ class BERTPreprocessor(object):
         input_tokens.append("[CLS]")
         input_tokens_marked.append("[CLS]")
         segment_ids.append(0)
-        label_ids.append(-100)
+        label_ids.append("<PAD>")
         feature_blocks.append(self.empty_features_vector)
 
         for i, token in enumerate(tokens):
@@ -434,10 +442,10 @@ class BERTPreprocessor(object):
         input_tokens.append("[SEP]")
         input_tokens_marked.append("[SEP]")
         segment_ids.append(0)
-        label_ids.append(-100)
+        label_ids.append("<PAD>")
         feature_blocks.append(self.empty_features_vector)
 
-        input_ids = tokenizer.convert_tokens_to_ids(input_tokens)
+        input_ids = self.tokenizer.convert_tokens_to_ids(input_tokens)
 
         # The mask has 1 for real tokens and 0 for padding tokens
         input_mask = [1] * len(input_ids)
@@ -447,7 +455,7 @@ class BERTPreprocessor(object):
             input_ids.append(0)
             input_mask.append(0)
             segment_ids.append(0)
-            label_ids.append(0)
+            label_ids.append("<PAD>")
             feature_blocks.append(self.empty_features_vector)
 
         assert len(input_ids) == max_seq_length
@@ -517,7 +525,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
         return self
 
-    def transform(self, X, y=None, extend=False):
+    def transform(self, X, y=None, extend=False, label_indices=False):
         """
         transforms input into sequence
         the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch 
@@ -528,8 +536,10 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             y: list of list of tags
 
         Returns:
-            numpy array: sentences with char sequences, and optionally length, casing and custom features  
-            numpy array: sequence of tags
+            numpy array: sentences with char sequences and optionally length (if self.return_lengths is True)
+            numpy array: sequence of tags, either one hot encoded (default) or as indices
+
+        if label_indices parameter is true, we encode tags with index integer, otherwise ouput hot one encoded tags
         """
         chars = []
         lengths = []
@@ -547,13 +557,14 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
         if y is not None:
             pad_index = self.vocab_tag[PAD]
-            LOGGER.debug('vocab_tag: %s', self.vocab_tag)
             y = [[self.vocab_tag.get(t, pad_index) for t in sent] for sent in y]
+            #if label_indices:
+            #    y = [[pad_index if t == 0 else t for t in sent] for sent in y]
             if extend:
                 y[0].append(pad_index)
 
         if self.padding:
-            sents, y = self.pad_sequence(chars, y)
+            sents, y = self.pad_sequence(chars, y, label_indices=label_indices)
         else:
             sents = [chars]
 
@@ -576,7 +587,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
     def inverse_transform(self, y):
         """
-        send back original label string
+        send back original label string from a one hot encoded tag
         """
         indice_tag = {i: t for t, i in self.vocab_tag.items()}
         return [indice_tag[y_] for y_ in y]
@@ -584,21 +595,28 @@ class Preprocessor(BaseEstimator, TransformerMixin):
     def get_char_ids(self, word):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]
 
-    def pad_sequence(self, char_ids, labels=None):
-        labels_one_hot = None
+    def pad_sequence(self, char_ids, labels=None, label_indices=False):
+        '''
+        pad char and label sequences
+
+        Relatively to labels, if label_indices is True, we encode labels with integer,
+        otherwise with hot one encoding
+        '''
+        labels_final = None
         if labels:
             labels_padded, _ = pad_sequences(labels, 0)
-            labels_asarray = np.asarray(labels_padded)
-            labels_one_hot = dense_to_one_hot(labels_asarray, len(self.vocab_tag), nlevels=2)
+            labels_final = np.asarray(labels_padded)
+            if not label_indices:
+                labels_final = dense_to_one_hot(labels_final, len(self.vocab_tag), nlevels=2)
 
         if self.use_char_feature:
             char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
             char_ids = np.asarray(char_ids)
-            return [char_ids], labels_one_hot
+            return [char_ids], labels_final
         else:
-            return labels_one_hot
+            return labels_final
 
-    def empty_features_vector():
+    def empty_features_vector(self):
         if self.feature_preprocessor != None:
             return self.feature_preprocessor.empty_features_vector()
         else:
@@ -722,7 +740,7 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     From: https://github.com/elifesciences/sciencebeam-trainer-delft/blob/5ceb89bdb9ae56c7f60d68b3aeb7e04dc34cd2be/sciencebeam_trainer_delft/sequence_labelling/preprocess.py#L81
     """
     feature_preprocessor = None
-    if features is not None and str.endswith(model_config.model_type, "FEATURES"):
+    if features is not None and str.endswith(model_config.architecture, "FEATURES"):
         feature_preprocessor = FeaturesPreprocessor(
             features_indices=model_config.features_indices,
             features_vocabulary_size=model_config.features_vocabulary_size

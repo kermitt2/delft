@@ -15,7 +15,7 @@ class Tagger(object):
                 bert_preprocessor=None):
         self.model = model
         self.preprocessor = preprocessor
-        self.bert_preprocessor = bert_preprocessor,
+        self.bert_preprocessor = bert_preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
 
@@ -91,6 +91,7 @@ class Tagger(object):
 
     def _get_tags(self, pred):
         pred = np.argmax(pred, -1)
+        print(pred)
         tags = self.preprocessor.inverse_transform(pred[0])
 
         return tags
@@ -109,7 +110,7 @@ class Tagger(object):
         # spaces = [offsets[offsetIndex-1][1] != offsets[offsetIndex][0] for offsetIndex in range(1, len(offsets))]
 
         for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
-            if prob != None:
+            if prob is not None:
                 score = float(np.average(prob[chunk_start:chunk_end]))
             else:
                 score = 1.0
@@ -150,87 +151,100 @@ class Tagger(object):
         if texts is None or len(texts) == 0:
             return res
 
+        to_tokeniz = False
         if (len(texts)>0 and isinstance(texts[0], str)):
             # we need to tokenize these texts
+            to_tokeniz = True
             texts_tokenized = [
                 tokenizeAndFilterSimple(text)
                 for text in texts
             ]
-            texts = texts_tokenized
-        
+        else:
+            texts_tokenized = texts
+
         def chunks(l, n):
             """Yield successive n-sized chunks from l."""
             for i in range(0, len(l), n):
                 yield l[i:i + n]
         
         batch_idx = 0
-        for text_batch in list(chunks(texts, self.model_config.batch_size)):
+        # segment in batches corresponding to self.predict_batch_size
+        for text_batch in list(chunks(texts_tokenized, self.model_config.batch_size)):
             if type(text_batch) is np.ndarray:
                 text_batch = text_batch.tolist()
 
             features_batch = None
             if features != None:
-                upper_bound = min(len(texts), (batch_idx+1)*self.model_config.batch_size)
+                upper_bound = min(len(texts_tokenized), (batch_idx+1)*self.model_config.batch_size)
                 features_batch = features[batch_idx*self.model_config.batch_size:upper_bound]
 
             # if the size of the last batch is less than the batch size, we need to fill it with dummy input
             num_current_batch = len(text_batch)
-            if num_current_batch < self.predict_batch_size:
+            if num_current_batch < self.model_config.batch_size:
                 dummy_text = text_batch[-1]    
                 if features_batch != None:
                     dummy_features = features_batch[-1]         
-                for p in range(0, self.predict_batch_size-num_current_batch):
+                for p in range(0, self.model_config.batch_size-num_current_batch):
                     text_batch.append(dummy_text)
                     if features_batch != None:
                         features_batch.append(dummy_features)
-
-            # segment in batches corresponding to self.predict_batch_size
+            
             if features == None:
-                input_ids, input_masks, input_segments, input_tokens = self.bert_preprocessor.create_batch_input_bert(text_batch, maxlen=self.max_seq_length)
-                results = self.model.predict_on_batch(input_ids)
+                input_ids, input_masks, input_segments, input_tokens = self.bert_preprocessor.create_batch_input_bert(
+                                                                                                text_batch, 
+                                                                                                maxlen=self.model_config.max_sequence_length)
+                batch_x = np.asarray(input_ids, dtype=np.int32)
+                batch_x_masks = np.asarray(input_masks, dtype=np.int32)
+                results = self.model.predict_on_batch([batch_x, batch_x_masks])
             else:
-                input_ids, input_masks, input_segments, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(text_batch, features_batch, maxlen=self.max_seq_length)
-                results = self.model.predict_on_batch([input_ids,input_features])
+                input_ids, input_masks, input_segments, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
+                                                                                                text_batch, 
+                                                                                                features_batch, 
+                                                                                                maxlen=self.model_config.max_sequence_length)
+                batch_x = np.asarray(input_ids, dtype=np.int32)
+                batch_x_masks = np.asarray(input_masks, dtype=np.int32)
+                batch_f = self.preprocessor.transform_features(input_features, extend=extend)
+                results = self.model.predict_on_batch([batch_x, batch_x_masks, batch_f])
 
             p = 0
             for i, prediction in enumerate(results):
                 if p == num_current_batch:
                     break
-                predicted_labels = prediction["predicts"]
+                predicted_labels = self._get_tags([prediction]) 
+                text = texts[p+(batch_idx*self.model_config.batch_size)]
+
                 y_pred_result = []
                 for q in range(len(predicted_labels)):
                     if input_tokens[i][q] == '[SEP]':
                         break
-                    if self.labels[predicted_labels[q]] in ['[PAD]', '[CLS]', '[SEP]']:
+                    if input_tokens[i][q] in ['[PAD]', '[CLS]']:
                         continue
                     if input_tokens[i][q].startswith("##"): 
                         continue
-                    y_pred_result.append(self.labels[predicted_labels[q]]) 
+                    y_pred_result.append(prediction[q]) 
                 p += 1
 
-                for i in range(0, len(y_pred_result)):
-                    pred = y_pred_result[i]
-                    text = text_batch[i]
+                pred = y_pred_result
+                
+                if to_tokeniz:
+                   tokens, offsets = tokenizeAndFilter(text)
+                else:
+                    # it is a list of string, so a string already tokenized
+                    # note that in this case, offset are not present and json output is impossible
+                    tokens = text
+                    offsets = []
 
-                    if to_tokeniz:
-                       tokens, offsets = tokenizeAndFilter(text)
-                    else:
-                        # it is a list of string, so a string already tokenized
-                        # note that in this case, offset are not present and json output is impossible
-                        tokens = text
-                        offsets = []
+                tags = self._get_tags([pred])
+                prob = self._get_prob([pred])
 
-                    tags = self._get_tags(pred)
-                    prob = self._get_prob(pred)
-
-                    if output_format == 'json':
-                        piece = {}
-                        piece["text"] = text
-                        piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
-                        res["texts"].append(piece)
-                    else:
-                        the_tags = list(zip(tokens, tags))
-                        list_of_tags.append(the_tags)
+                if output_format == 'json':
+                    piece = {}
+                    piece["text"] = text
+                    piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
+                    res["texts"].append(piece)
+                else:
+                    the_tags = list(zip(tokens, tags))
+                    list_of_tags.append(the_tags)
             batch_idx += 1
 
         if output_format == 'json':
