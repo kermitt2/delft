@@ -8,7 +8,36 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_d
 import argparse
 import time
 
-def train(embeddings_name, architecture='BidLSTM_CRF'): 
+def configure(architecture):
+    batch_size = 20
+    maxlen = 300
+    bert_type = None
+    patience = 5
+    early_stop = True
+    max_epoch = 50
+    embeddings_name = "glove-840B"
+
+    # default bert model parameters
+    if architecture == "scibert":
+        batch_size = 10
+        bert_type = "allenai/scibert_scivocab_cased"
+        architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        embeddings_name = None
+    elif architecture.find("bert") != -1:
+        batch_size = 10
+        bert_type = "bert-base-cased"
+        architecture = "bert"
+        early_stop = False
+        max_epoch = 3
+        embeddings_name = None
+
+    return batch_size, maxlen, bert_type, patience, early_stop, max_epoch, embeddings_name, architecture
+
+def train(embeddings_name=None, architecture='BidLSTM_CRF'): 
+    batch_size, maxlen, bert_type, patience, early_stop, max_epoch, embeddings_name, architecture = configure(architecture)
+
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
 
     train_path = os.path.join(root, 'corrected.xml')
@@ -20,7 +49,9 @@ def train(embeddings_name, architecture='BidLSTM_CRF'):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = Sequence('insult', max_epoch=50, embeddings_name=embeddings_name)
+    model = Sequence('insult', max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
+        embeddings_name=embeddings_name, model_type=architecture, patience=patience, early_stop=early_stop,
+        bert_type=bert_type)
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
@@ -33,7 +64,7 @@ def annotate(texts, output_format, architecture='BidLSTM_CRF'):
     annotations = []
 
     # load model
-    model = Sequence('insult', architecture=architecture)
+    model = Sequence('insult', model_type=architecture)
     model.load()
 
     start_time = time.time()
@@ -41,7 +72,7 @@ def annotate(texts, output_format, architecture='BidLSTM_CRF'):
     annotations = model.tag(texts, output_format)
     runtime = round(time.time() - start_time, 3)
 
-    if output_format is 'json':
+    if output_format == 'json':
         annotations["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -79,7 +110,7 @@ if __name__ == "__main__":
     architecture = args.architecture
 
     if args.action == 'train':
-        train(embeddings_name, architecture=architecture)
+        train(embeddings_name=embeddings_name, architecture=architecture)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 
