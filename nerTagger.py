@@ -39,13 +39,13 @@ def configure(architecture, dataset_type, lang, embeddings_name):
         batch_size = 32
         early_stop = False
         max_sequence_length = 150
-        max_epoch = 5
+        max_epoch = 10
         embeddings_name = None
 
     return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units 
 
 
-# train a model with all available CoNLL 2003 data 
+# train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
@@ -74,6 +74,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        early_stop=early_stop,
+                        patience=patience,
                         max_sequence_length=max_sequence_length)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
@@ -96,11 +98,12 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
                         embeddings_name=embeddings_name, 
-                        early_stop=True, 
                         architecture=architecture,
                         transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        early_stop=early_stop,
+                        patience=patience,
                         max_sequence_length=max_sequence_length)
     elif (lang == 'fr'):
         print('Loading data...')
@@ -119,6 +122,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        early_stop=early_stop,
+                        patience=patience,
                         max_sequence_length=max_sequence_length)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -138,7 +143,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
     model.save()
 
 
-# train and usual eval on CoNLL 2003 eng.testb 
+# train and usual eval on dataset, e.g. eval with CoNLL 2003 eng.testb for CoNLL 2003 
 def train_eval(embeddings_name=None, 
                 dataset_type='conll2003', 
                 lang='en', 
@@ -165,12 +170,13 @@ def train_eval(embeddings_name=None,
                             max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
                             embeddings_name=embeddings_name, 
-                            early_stop=True, 
                             fold_number=fold_count,
                             architecture=architecture,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            early_stop=True,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
@@ -186,10 +192,11 @@ def train_eval(embeddings_name=None,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
 
     elif (dataset_type == 'ontonotes-all') and (lang == 'en'):
-        print('Loading Ontonotes 5.0 XML data...')
+        print("Loading all Ontonotes 5.0 XML data, evaluation will be on 10\% random partition")
         x_all, y_all = load_data_and_labels_ontonotes(data_path)
         x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
         x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
@@ -201,12 +208,13 @@ def train_eval(embeddings_name=None,
                         max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
                         embeddings_name=embeddings_name, 
-                        early_stop=True, 
                         fold_number=fold_count,
                         architecture=architecture,
                         transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        early_stop=early_stop,
+                        patience=patience,
                         max_sequence_length=max_sequence_length)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -224,15 +232,16 @@ def train_eval(embeddings_name=None,
                             max_epoch=max_epoch, 
                             recurrent_dropout=recurrent_dropout,
                             embeddings_name=embeddings_name, 
-                            early_stop=True, 
                             fold_number=fold_count,
                             architecture=architecture,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            early_stop=True,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
         else:
-            # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
+            # also use validation set to train (no early stop, hyperparameters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
             # this leads obviously to much higher results 
             model = Sequence(model_name, 
@@ -245,6 +254,7 @@ def train_eval(embeddings_name=None,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            patience=patience, 
                             max_sequence_length=max_sequence_length)
 
     elif (lang == 'fr') and (dataset_type == 'ftb' or dataset_type is None):
@@ -260,12 +270,13 @@ def train_eval(embeddings_name=None,
                         max_epoch=max_epoch, 
                         recurrent_dropout=recurrent_dropout,
                         embeddings_name=embeddings_name, 
-                        early_stop=True, 
                         fold_number=fold_count,
                         architecture=architecture,
                         transformer=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
+                        early_stop=early_stop,
+                        patience=patience,
                         max_sequence_length=max_sequence_length)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
         print('Loading data...')
@@ -288,6 +299,7 @@ def train_eval(embeddings_name=None,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
@@ -303,6 +315,7 @@ def train_eval(embeddings_name=None,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split_xml'):
         print('Loading data...')
@@ -325,6 +338,7 @@ def train_eval(embeddings_name=None,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
@@ -340,6 +354,7 @@ def train_eval(embeddings_name=None,
                             transformer=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
+                            patience=patience,
                             max_sequence_length=max_sequence_length)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -353,12 +368,13 @@ def train_eval(embeddings_name=None,
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
+    # saving the model
+    model.save()
+
     print("\nEvaluation on test set:")
 
     model.eval(x_eval, y_eval)
 
-    # saving the model
-    model.save()
 
 # usual eval on CoNLL 2003 eng.testb 
 def eval(dataset_type='conll2003', 
