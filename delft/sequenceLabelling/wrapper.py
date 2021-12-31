@@ -14,11 +14,7 @@ import numpy as np
 from delft.sequenceLabelling.evaluation import get_report
 from delft.utilities.numpy import concatenate_or_none
 
-# seed is fixed for reproducibility
-np.random.seed(7)
-
 import tensorflow as tf
-tf.random.set_seed(7)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
@@ -207,49 +203,61 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-        #if 'bert' not in self.model_config.architecture.lower():
-        
-        if self.model:
-            # Prepare test data(steps, generator)
-            generator = self.model.get_generator()
-            test_generator = generator(x_test, y_test,
-                batch_size=self.model_config.batch_size, preprocessor=self.p,
-                bert_preprocessor=self.bert_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size,
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=features)
 
-            # Build the evaluator and evaluate the model
-            scorer = Scorer(test_generator, self.p, evaluation=True)
-            scorer.model = self.model
-            scorer.on_epoch_end(epoch=-1)
+        if self.transformer == None:
+            # we can use a data generator for evaluation
+            if self.model:
+                # Prepare test data(steps, generator)
+                generator = self.model.get_generator()
+                test_generator = generator(x_test, y_test,
+                    batch_size=self.model_config.batch_size, preprocessor=self.p,
+                    bert_preprocessor=self.bert_preprocessor,
+                    char_embed_size=self.model_config.char_embedding_size,
+                    max_sequence_length=self.model_config.max_sequence_length,
+                    embeddings=self.embeddings, shuffle=False, features=features)
+
+                # Build the evaluator and evaluate the model
+                scorer = Scorer(test_generator, self.p, evaluation=True)
+                scorer.model = self.model
+                scorer.on_epoch_end(epoch=-1)
+            else:
+                raise (OSError('Could not find a model.'))
         else:
-            raise (OSError('Could not find a model.'))
-        
-        '''
-        else:
-            # BERT architecture model
-            y_pred = self.model.predict(x_test, fold_id=-1)
+            # the architecture model uses a transformer layer, we need to use predict to get usable data
+            # (usable here means predicted labels well aligned with expected ones)
+            #y_pred = self.model.predict(x_test, fold_id=-1)
+            if self.model:
+                tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
+                y_pred_pairs = tagger.tag_without_generator(x_test, output_format=None)
 
-            nb_alignment_issues = 0
-            for i in range(len(y_test)):
-                if len(y_test[i]) != len(y_pred[i]):
-                    nb_alignment_issues += 1
-                    # BERT tokenizer appears to introduce some additional tokens without ## prefix,
-                    # but this is normally handled when predicting.
-                    # To be very conservative, the following ensure the number of tokens always
-                    # match, but it should never be used in practice.
-                    if len(y_test[i]) < len(y_pred[i]):
-                        y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
-                    if len(y_test[i]) > len(y_pred[i]):
-                        y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
+                # keep only labels
+                y_pred = []
+                for result in y_pred_pairs:
+                    result_labels = []
+                    for pair in result:
+                        result_labels.append(pair[1])
+                    y_pred.append(result_labels)
 
-            if nb_alignment_issues > 0:
-                print("number of alignment issues with test set:", nb_alignment_issues)
+                nb_alignment_issues = 0
+                for i in range(len(y_test)):
+                    if len(y_test[i]) != len(y_pred[i]):
+                        nb_alignment_issues += 1
+                        # BERT tokenizer appears to introduce some additional tokens without ## prefix,
+                        # but we normally handled that well when predicting.
+                        # To be very conservative, the following ensure the number of tokens always
+                        # match, but it should never be used in practice.
+                        if len(y_test[i]) < len(y_pred[i]):
+                            y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
+                        if len(y_test[i]) > len(y_pred[i]):
+                            y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
 
-            report, report_as_map = classification_report(y_test, y_pred, digits=4)
-            print(report)
-        '''
+                if nb_alignment_issues > 0:
+                    print("number of alignment issues with test set:", nb_alignment_issues)
+
+                report, report_as_map = classification_report(y_test, y_pred, digits=4)
+                print(report)
+            else:
+                raise (OSError('Could not find a model.'))
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models != None:
@@ -265,46 +273,49 @@ class Sequence(object):
             for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                #if 'bert' not in self.model_config.architecture.lower():
-                
-                # Prepare test data(steps, generator)
-                generator = self.models[i].get_generator()
-                test_generator = generator(x_test, y_test,
-                  batch_size=self.model_config.batch_size, preprocessor=self.p,
-                  bert_preprocessor=self.bert_preprocessor,
-                  char_embed_size=self.model_config.char_embedding_size,
-                  max_sequence_length=self.model_config.max_sequence_length,
-                  embeddings=self.embeddings, shuffle=False, features=features)
+                if self.transformer == None:
+                    # we can use a data generator for evaluation
+                    # Prepare test data(steps, generator)
+                    generator = self.models[i].get_generator()
+                    test_generator = generator(x_test, y_test,
+                        batch_size=self.model_config.batch_size, preprocessor=self.p,
+                        bert_preprocessor=self.bert_preprocessor,
+                        char_embed_size=self.model_config.char_embedding_size,
+                        max_sequence_length=self.model_config.max_sequence_length,
+                        embeddings=self.embeddings, shuffle=False, features=features)
 
-                # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True)
-                scorer.model = self.models[i]
-                scorer.on_epoch_end(epoch=-1)
-                f1 = scorer.f1
-                precision = scorer.precision
-                recall = scorer.recall
-                reports.append(scorer.report)
-                reports_as_map.append(scorer.report_as_map)
-                    
-                '''
+                    # Build the evaluator and evaluate the model
+                    scorer = Scorer(test_generator, self.p, evaluation=True)
+                    scorer.model = self.models[i]
+                    scorer.on_epoch_end(epoch=-1)
+                    f1 = scorer.f1
+                    precision = scorer.precision
+                    recall = scorer.recall
+                    reports.append(scorer.report)
+                    reports_as_map.append(scorer.report_as_map)
                 else:
-                    # BERT architecture model
+                    # the architecture model uses a transformer layer, we need to use predict to get usable data
+                    # (usable here means predicted labels well aligned with expected ones)
                     dir_path = 'data/models/sequenceLabelling/'
                     self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
                     self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
                     self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
-                    self.model.load_model(i)
+                    self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
                     
                     y_pred = self.model.predict(x_test, fold_id=i)
+                    tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
+                    y_pred = tagger.tag_without_generator(x_test, output_format=None)
+
+
 
                     nb_alignment_issues = 0
                     for j in range(len(y_test)):
                         if len(y_test[i]) != len(y_pred[j]):
                             nb_alignment_issues += 1
                             # BERT tokenizer appears to introduce some additional tokens without ## prefix,
-                            # but this is normally handled when predicting.
-                            # To be very conservative, the following ensure the number of tokens always 
-                            # match, but it should never be used in practice. 
+                            # but we normally handled that well when predicting.
+                            # To be very conservative, the following ensure the number of tokens always
+                            # match, but it should never be used in practice.
                             if len(y_test[j]) < len(y_pred[j]):
                                 y_test[j] = y_test[j] + ["O"] * (len(y_pred[j]) - len(y_test[j]))
                             if len(y_test[j]) > len(y_pred[j]):
@@ -324,7 +335,7 @@ class Sequence(object):
                     report, report_as_map = classification_report(y_test, y_pred, digits=4)
                     reports.append(report)
                     reports_as_map.append(report_as_map)
-                '''
+                
 
                 if best_f1 < f1:
                     best_f1 = f1

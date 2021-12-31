@@ -12,37 +12,20 @@ from tensorflow.keras.utils import plot_model
 from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compute_metrics
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 
 import numpy as np
-# seed is fixed for reproducibility
-np.random.seed(7)
 import tensorflow as tf
 
+from transformers import create_optimizer
 
 def sparse_crossentropy_masked(y_true, y_pred):
     mask_value = 0
     y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
     y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
-    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, 
-y_pred_masked))
+    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
 
 def sparse_categorical_accuracy_masked(y_true, y_pred):
-    mask_value = 0
-    active_loss = tf.reshape(y_true, (-1,)) != mask_value
-    reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
-    y_true = tf.boolean_mask(tf.reshape(y_true, (-1,)), active_loss)
-    reduced_logits = tf.cast(tf.argmax(reduced_logits, axis=-1), tf.keras.backend.floatx())
-    equality = tf.equal(y_true, reduced_logits)
-    return tf.reduce_mean(tf.cast(equality, tf.keras.backend.floatx()))
-
-def crossentropy_masked(y_true, y_pred):
-    mask_value = 0
-    y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
-    y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
-    return tf.reduce_mean(tf.keras.losses.categorical_crossentropy(y_true_masked, 
-y_pred_masked))
-
-def categorical_accuracy_masked(y_true, y_pred):
     mask_value = 0
     active_loss = tf.reshape(y_true, (-1,)) != mask_value
     reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
@@ -84,21 +67,38 @@ class Trainer(object):
         Train the instance self.model
         """      
         self.model.summary()
-        if self.model_config.use_crf:
-            self.model.compile(loss=self.model.crf.loss,
-                           optimizer='adam')
-        elif self.bert_preprocessor != None:
-            self.model.compile(optimizer=Adam(learning_rate=5e-5), loss=sparse_crossentropy_masked)
-        else:
-            self.model.compile(optimizer='adam', loss='categorical_crossentropy')
-            #self.model.compile(loss='categorical_crossentropy', optimizer='adam')
-                           #optimizer=Adam(lr=self.training_config.learning_rate))
+        self.model = self.compile_model(self.model, len(x_train))
+
         # uncomment to plot graph
         #plot_model(self.model,
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
+        
         self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
                                   f_train=features_train, f_valid=features_valid,
                                   max_epoch=self.training_config.max_epoch, callbacks=callbacks)
+
+    def compile_model(self, local_model, train_size):
+
+        nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
+        optimizer, lr_schedule = create_optimizer(
+            init_lr=5e-5, #self.training_config.learning_rate
+            num_train_steps=nb_train_steps,
+            weight_decay_rate=0.01,
+            num_warmup_steps=0.1*nb_train_steps,
+        )
+
+        if self.model_config.transformer != None:
+            if local_model.config.use_crf:
+                local_model.compile(loss=local_model.crf.sparse_crf_loss_masked, optimizer=optimizer)
+            else:
+                local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
+        else:
+            if local_model.config.use_crf:
+                local_model.compile(loss=local_model.crf.loss, optimizer='adam')
+            else:
+                local_model.compile(optimizer='adam', loss='categorical_crossentropy')
+
+        return local_model
 
     def train_model(self, local_model, x_train, y_train, f_train=None,
                     x_valid=None, y_valid=None, f_valid=None, max_epoch=50, callbacks=None):
@@ -122,7 +122,7 @@ class Trainer(object):
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid)
+                embeddings=self.embeddings, shuffle=False, features=f_valid, output_input_tokens=True)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
@@ -198,13 +198,7 @@ class Trainer(object):
             foldModel = self.models[fold_id]
             foldModel.summary()
 
-            if self.model_config.use_crf:
-                foldModel.compile(loss=foldModel.crf.loss,
-                               optimizer='adam')
-            else:
-                foldModel.compile(loss='categorical_crossentropy',
-                               optimizer='adam')
-
+            foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 
                                     train_x,
                                     train_y,
@@ -277,29 +271,71 @@ class Scorer(Callback):
         for i, (data, label) in enumerate(self.valid_batches):
             if i == self.valid_steps:
                 break
-            y_true_batch = label
-            y_true_batch = np.argmax(y_true_batch, -1)
-            sequence_lengths = data[-1] # this is the vectors "length_input" of the models input
-            # shape of (batch_size, 1), we want (batch_size)
-            sequence_lengths = np.reshape(sequence_lengths, (-1,))
+            y_true_batch = label       
 
-            y_pred_batch = self.model.predict_on_batch(data)
-            y_pred_batch = np.argmax(y_pred_batch, -1)
+            if isinstance(self.valid_batches, DataGeneratorTransformers):
+                y_true_batch = np.asarray(y_true_batch, dtype=object)
 
-            y_pred_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_pred_batch, sequence_lengths)]
-            y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]
+                # we need to remove one vector of the data corresponding to the marked tokens, this vector is not 
+                # expected by the model, but we need it to restore correctly the labels (which are produced
+                # according to the sub-segmentation of wordpiece, not the expected segmentation)
+                input_tokens = data[-1]
+                data = data[:-1]
+
+                y_pred_batch = self.model.predict_on_batch(data)
+                y_pred_batch = np.argmax(y_pred_batch, -1)
+
+                # results have been produced by a model using a transformer layer, so a few things to do
+                # the labels are sparse, so integers and not one hot encoded
+                # we need to restore back the labels for wordpiece to the labels for normal tokens
+                # for this we can use the marked tokens provided by the generator 
+                new_y_pred_batch = []
+                new_y_true_batch = []
+                for y_pred_text, y_true_text, tokens_text in zip(y_pred_batch, y_true_batch, input_tokens):
+                    new_y_pred_text = []
+                    new_y_true_text = []
+                    # this is the result per sequence, realign labels:
+                    for q in range(len(y_pred_text)):
+                        if tokens_text[q] == '[SEP]':
+                            break
+                        if tokens_text[q] in ['[PAD]', '[CLS]']:
+                            continue
+                        if tokens_text[q].startswith("##"): 
+                            continue
+                        new_y_pred_text.append(y_pred_text[q]) 
+                        new_y_true_text.append(y_true_text[q])
+                    new_y_pred_batch.append(new_y_pred_text)
+                    new_y_true_batch.append(new_y_true_text)
+                y_pred_batch = new_y_pred_batch
+                y_true_batch = new_y_true_batch
+
+                y_true_batch = [self.p.inverse_transform(y) for y in y_true_batch]
+                y_pred_batch = [self.p.inverse_transform(y) for y in y_pred_batch]
+            else:
+                y_true_batch = np.argmax(y_true_batch, -1)
+
+                # no transformer layer around, no mess to manage with the sub-tokenization...
+                y_pred_batch = self.model.predict_on_batch(data)
+                y_pred_batch = np.argmax(y_pred_batch, -1)
+
+                # one hot encoded labels, we also have the input length available 
+                sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
+                # shape of (batch_size, 1), we want (batch_size)
+                sequence_lengths = np.reshape(sequence_lengths, (-1,))
+                y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]
 
             if i == 0:
                 y_pred = y_pred_batch
                 y_true = y_true_batch
-            else:    
-                y_pred = y_pred + y_pred_batch
-                y_true = y_true + y_true_batch 
+            else:
+                y_pred.extend(y_pred_batch)
+                y_true.extend(y_true_batch)
 
-
-        #for i in range(0,len(y_pred)):
-        #    print("pred", y_pred[i])
-        #    print("true", y_true[i])
+        '''
+        for i in range(0,len(y_pred)):
+            print("pred", y_pred[i])
+            print("true", y_true[i])
+        '''
         has_data = y_true is not None and y_pred is not None
         f1 = f1_score(y_true, y_pred) if has_data else 0.0
         print("\tf1 (micro): {:04.2f}".format(f1 * 100))

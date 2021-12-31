@@ -12,11 +12,7 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 LOGGER = logging.getLogger(__name__)
 
-np.random.seed(7)
-# from tensorflow import set_random_seed
-# set_random_seed(7)
 from sklearn.base import BaseEstimator, TransformerMixin
-
 import tensorflow as tf
 
 # this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
@@ -493,6 +489,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         self.vocab_case = [k for k, v in case_index.items()]
         self.max_char_length = max_char_length
         self.feature_preprocessor = feature_preprocessor
+        self.indice_tag = None
 
     def fit(self, X, y):
         chars = {PAD: 0, UNK: 1}
@@ -558,8 +555,6 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         if y is not None:
             pad_index = self.vocab_tag[PAD]
             y = [[self.vocab_tag.get(t, pad_index) for t in sent] for sent in y]
-            #if label_indices:
-            #    y = [[pad_index if t == 0 else t for t in sent] for sent in y]
             if extend:
                 y[0].append(pad_index)
 
@@ -589,8 +584,9 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         """
         send back original label string from a one hot encoded tag
         """
-        indice_tag = {i: t for t, i in self.vocab_tag.items()}
-        return [indice_tag[y_] for y_ in y]
+        if self.indice_tag == None:
+            self.indice_tag = {i: t for t, i in self.vocab_tag.items()}
+        return [self.indice_tag[y_] for y_ in y]
 
     def get_char_ids(self, word):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]

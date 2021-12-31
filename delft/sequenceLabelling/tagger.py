@@ -22,7 +22,9 @@ class Tagger(object):
     def tag(self, texts, output_format, features=None):
         assert isinstance(texts, list)
 
-        if self.bert_preprocessor != None:
+        # if the model uses a transformer layer, we cannot use a batch generator, so
+        # we rely on a tag function customized for transformers usage 
+        if self.model_config.transformer != None:
             return self.tag_without_generator(texts, output_format, features=features)
 
         if output_format == 'json':
@@ -91,7 +93,6 @@ class Tagger(object):
 
     def _get_tags(self, pred):
         pred = np.argmax(pred, -1)
-        print(pred)
         tags = self.preprocessor.inverse_transform(pred[0])
 
         return tags
@@ -132,7 +133,7 @@ class Tagger(object):
 
         return res
 
-    def tag_without_generator(self, texts, output_format, features=None):
+    def tag_without_generator(self, texts, output_format='json', features=None):
         '''
         For models using BERT tokenized sequences, we need more information about the original input string than available
         via a generator for the input model, so we don't use a generator and create batch keeping track of original tokens 

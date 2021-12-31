@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout
+from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
@@ -16,7 +16,6 @@ import time
 import os
 import shutil
 import numpy as np
-np.random.seed(7)
 import tensorflow as tf
 
 
@@ -148,7 +147,7 @@ class BidLSTM_CRF(BaseModel):
 
         chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
 
-        # length of sequence not used for the moment (but used for f1 communication)
+        # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
@@ -209,7 +208,7 @@ class BidLSTM_CNN(BaseModel):
                            name='casing_embedding')(casing_input)
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
-        # length of sequence not used for the moment (but used for f1 communication)
+        # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32')
 
         # combine words, custom features and characters
@@ -270,7 +269,7 @@ class BidLSTM_CNN_CRF(BaseModel):
         casing_embedding = Dropout(config.dropout)(casing_embedding)
         """
 
-        # length of sequence not used for the moment (but used for f1 communication)
+        # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32')
 
         # combine words, custom features and characters
@@ -313,7 +312,7 @@ class BidGRU_CRF(BaseModel):
 
         chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
 
-        # length of sequence not used for the moment (but used for f1 communication)
+        # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
@@ -370,7 +369,7 @@ class BidLSTM_CRF_CASING(BaseModel):
                            name='casing_embedding')(casing_input)
         casing_embedding = Dropout(config.dropout)(casing_embedding)
 
-        # length of sequence not used for the moment (but used for f1 communication)
+        # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
@@ -430,7 +429,8 @@ class BidLSTM_CRF_FEATURES(BaseModel):
                                                  name="features_embedding_td_2")(features_embedding)
 
         features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
-        # length of sequence not used for the moment (but used for f1 communication)
+
+        # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
         # combine characters and word embeddings
@@ -566,7 +566,7 @@ class BERT_CRF_FEATURES(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, token_type_ids, features_input], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids], outputs=[pred])
         self.config = config
 
     def get_generator(self):

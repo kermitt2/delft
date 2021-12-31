@@ -500,7 +500,7 @@ def load_data_and_labels_conll(filename):
                 words.append(word)
                 tags.append(tag)
 
-    return np.asarray(sents), np.asarray(labels)
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
 
 
 def load_data_and_labels_lemonde(filepathXml):

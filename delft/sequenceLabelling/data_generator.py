@@ -2,9 +2,6 @@ import numpy as np
 from delft.utilities.Utilities import truncate_batch_values
 from delft.utilities.numpy import shuffle_triple_with_view
 
-# seed is fixed for reproducibility
-np.random.seed(7)
-
 import tensorflow.keras as keras
 from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
@@ -28,7 +25,8 @@ class DataGenerator(keras.utils.Sequence):
                 max_sequence_length=None,
                 tokenize=False,
                 shuffle=True,
-                features=None):
+                features=None,
+                output_input_tokens=False):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -59,7 +57,7 @@ class DataGenerator(keras.utils.Sequence):
 
     def __getitem__(self, index):
         '''
-        Generate one batch of data
+        Generate one batch of data, batch_l always last input, so that it can be used easily by the training scorer
         '''
         batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
         if self.preprocessor.return_casing:
@@ -171,7 +169,8 @@ class DataGeneratorTransformers(keras.utils.Sequence):
                 max_sequence_length=None,
                 tokenize=False,
                 shuffle=True,
-                features=None):
+                features=None,
+                output_input_tokens=False):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -187,6 +186,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
+        self.output_input_tokens = output_input_tokens
         self.on_epoch_end()
 
     def __len__(self):
@@ -203,13 +203,19 @@ class DataGeneratorTransformers(keras.utils.Sequence):
 
     def __getitem__(self, index):
         '''
-        Generate one batch of data
+        Generate one batch of data. batch_x_masks always last input, so that it can be used easily by the training scorer
         '''
-        batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_y = self.__data_generation(index)
+        batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y = self.__data_generation(index)
         if self.preprocessor.return_features:  
-            return [batch_x, batch_x_masks, batch_f], batch_y
+            if self.output_input_tokens:
+                return [batch_x, batch_f, batch_x_masks, batch_input_tokens], batch_y
+            else:
+                return [batch_x, batch_f, batch_x_masks], batch_y
         else:
-            return [batch_x, batch_x_masks], batch_y
+            if self.output_input_tokens:
+                return [batch_x, batch_x_masks, batch_input_tokens], batch_y
+            else:
+                return [batch_x, batch_x_masks], batch_y
 
     def on_epoch_end(self):
         '''
@@ -279,24 +285,24 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         # for input as sentence piece token index for transformer layer
         if self.y is None:
             if self.preprocessor.return_features:
-                input_ids, input_masks, input_segments, input_features, _ = self.bert_preprocessor.tokenize_and_align_features(
+                input_ids, input_masks, input_segments, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
                                                                         x_tokenized, 
                                                                         sub_f,
                                                                         maxlen=self.max_sequence_length)
 
             else:
-                input_ids, input_masks, input_segments, _ = self.bert_preprocessor.create_batch_input_bert(
+                input_ids, input_masks, input_segments, input_tokens = self.bert_preprocessor.create_batch_input_bert(
                                                                             x_tokenized, 
                                                                             maxlen=self.max_sequence_length)
         else:
             if self.preprocessor.return_features:
-                input_ids, input_masks, input_segments, input_features, input_labels, _ = tokenize_and_align_features_and_labels(
+                input_ids, input_masks, input_segments, input_features, input_labels, input_tokens = tokenize_and_align_features_and_labels(
                                                                         x_tokenized, 
                                                                         sub_f,
                                                                         batch_y,
                                                                         maxlen=self.max_sequence_length)
             else:
-                input_ids, input_masks, input_segments, input_labels, _ = self.bert_preprocessor.tokenize_and_align_labels(
+                input_ids, input_masks, input_segments, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_labels(
                                                                         x_tokenized, 
                                                                         batch_y,
                                                                         maxlen=self.max_sequence_length)
@@ -305,6 +311,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         batch_x = np.asarray(input_ids, dtype=np.int32)
         batch_x_masks = np.asarray(input_masks, dtype=np.int32)
         #batch_x_segments = np.asarray(input_segments, dtype=np.int32)
+        batch_input_tokens = np.asarray(input_tokens, dtype=object)
 
         if self.y is not None:
             batch_y = np.asarray(input_labels, dtype=object)
@@ -324,8 +331,4 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         batch_c = np.asarray(batches[0])
         batch_l = batches[1]
 
-        #print(batch_x)
-        #print(batch_x_masks)
-        #print(batch_y)
-
-        return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_y
+        return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y
