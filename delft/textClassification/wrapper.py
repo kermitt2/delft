@@ -4,11 +4,8 @@ import os
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
 
 import numpy as np
-# seed is fixed for reproducibility
-np.random.seed(7)
 
 import tensorflow as tf
-tf.random.set_seed(7)
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 
 import datetime

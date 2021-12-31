@@ -25,10 +25,6 @@ from sklearn.metrics import precision_score, precision_recall_fscore_support
 
 from transformers import TFBertModel
 
-# seed is fixed for reproducibility
-from numpy.random import seed
-seed(7)
-
 modelTypes = [
     'lstm', 
     'bidLstm_simple', 
@@ -466,11 +462,8 @@ def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en"):
     #model = Model(inputs=[input_ids_in, input_masks_in], outputs=logits)
     model.summary()
 
-    #loss = SparseCategoricalCrossentropy(from_logits=False)
     optimizer = Adam(learning_rate=2e-5, clipnorm=1)
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
-
-    #model.compile(optimizer=optimizer, loss=SparseCategoricalCrossentropy(from_logits=True), metrics=["accuracy"])
     return model
 
 

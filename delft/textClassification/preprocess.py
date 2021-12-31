@@ -1,8 +1,6 @@
 import itertools
 import regex as re
 import numpy as np
-# seed is fixed for reproducibility
-np.random.seed(7)
 
 from unidecode import unidecode
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple

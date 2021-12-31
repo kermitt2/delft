@@ -5,7 +5,7 @@ Originally from Philipp Gross, https://github.com/phipleg/keras/blob/crf/keras/l
 
 Migrated to Keras/tensorflow 2 by your DeLFT servitor.
 
-Note: there are still a few tensorflow.keras.backend function usages, but it's probably fine.
+Note: there are still a few tensorflow.keras.backend function usages, but it's probably ok.
 If tensorflow drops the support of this keras.backend API, we would need to move some of the 
 compatibility API behavior here for the few functions still using it. 
 """
@@ -13,6 +13,7 @@ compatibility API behavior here for the few functions still using it.
 from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.keras.layers import Layer, InputSpec
 import tensorflow as tf
+import sys
 
 def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
     """
@@ -184,7 +185,7 @@ def _backward(gamma, mask):
     gamma = tf.cast(gamma, 'int32')
 
     def _backward_step(gamma_t, states):
-        y_tm1 = tf.squeeze(states[0], 0)
+        y_tm1 = tf.squeeze(states[0], [0])
         y_t = batch_gather(gamma_t, y_tm1)
         return y_t, [tf.expand_dims(y_t, 0)]
 
@@ -349,13 +350,25 @@ class ChainCRF(Layer):
         mask = self._fetch_mask()
         return chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
+    def sparse_crf_loss_masked(self, y_true, y_pred):
+        mask_value = 0
+        y_true_masked = tf.ragged.boolean_mask(y_true, tf.not_equal(y_true, mask_value)).to_tensor()
+        y_pred_masked = tf.ragged.boolean_mask(y_pred, tf.not_equal(y_true, mask_value)).to_tensor()
+
+        # note: we could experiment some more aggressive stripping of the input for padding and
+        # if special wordpiece symbol were used, to better ignore them during loss estimation
+
+        return self.sparse_loss(y_true_masked, y_pred_masked)
+
     def sparse_loss(self, y_true, y_pred):
         """
         Linear Chain Conditional Random Field loss function with sparse
         tag sequences.
         """
         y_true = tf.cast(y_true, 'int32')
-        y_true = tf.squeeze(y_true, 2)
+
+        # note: nothing to squeeze here with sparse tags which are 2D
+        #y_true = tf.squeeze(y_true, [2])
         mask = self._fetch_mask()
         return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 

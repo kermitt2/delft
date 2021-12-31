@@ -1,8 +1,7 @@
 import numpy as np
-from delft.utilities.numpy import shuffle_triple_with_view
-# seed is fixed for reproducibility
-np.random.seed(7)
 import tensorflow.keras as keras
+
+from delft.utilities.numpy import shuffle_triple_with_view
 from delft.textClassification.preprocess import to_vector_single
 from delft.textClassification.preprocess import create_single_input_bert, create_batch_input_bert
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
