@@ -11,4 +11,4 @@ truecase
 requests
 pandas
 transformers==4.15.0 
-torch==1.10.1 
+torch==1.10.1

@@ -26,7 +26,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
     if architecture.lower().find("BERT") != -1:
         if batch_size == -1:
-            batch_size = 6
+            batch_size = 5
         if max_sequence_length == -1 or max_sequence_length > 512:
             # 512 is the largest sequence for BERT input
             max_sequence_length = 512

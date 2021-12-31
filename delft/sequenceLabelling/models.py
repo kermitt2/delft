@@ -553,7 +553,7 @@ class BERT_CRF_FEATURES(BaseModel):
 
         features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
 
-        # combine characters and word embeddings
+        # combine feature and text embeddings
         x = Concatenate()([text_embedding_layer, features_embedding_out])
         x = Dropout(config.dropout)(x)
 
