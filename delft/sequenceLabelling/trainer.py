@@ -13,11 +13,16 @@ from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compu
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
+from delft.sequenceLabelling.models import get_model
 
 import numpy as np
 import tensorflow as tf
 
 from transformers import create_optimizer
+
+DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
+CONFIG_FILE_NAME = 'config.json'
+PROCESSOR_FILE_NAME = 'preprocessor.json'
 
 def sparse_crossentropy_masked(y_true, y_pred):
     mask_value = 0
@@ -147,7 +152,7 @@ class Trainer(object):
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
-        # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
+        # warning: multiple workers might not work with transformer layers due to GPU memory limit (with GTX 1080Ti 11GB)
         
         local_model.fit(training_generator,
                                 epochs=max_epoch,
@@ -160,10 +165,17 @@ class Trainer(object):
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
         """
         n-fold training for the instance model
-        the n models are stored in self.models, and self.model left unset at this stage
+
+        for RNN models:
+        -> the n models are stored in self.models, and self.model left unset at this stage
+        fold number is available with self.model_config.fold_number 
+
+        for models with transformer layer:
+        -> fold models are saved on disk (because too large) and self.models is not used, we identify the usage
+        of folds with self.model_config.fold_number     
         """
 
-        fold_count = len(self.models)
+        fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
         #roc_scores = []
 
@@ -195,7 +207,8 @@ class Trainer(object):
                 val_y = y_valid
                 val_f = f_valid
 
-            foldModel = self.models[fold_id]
+            foldModel = get_model(self.model_config, self.preprocessor, len(self.preprocessor.vocab_tag))
+            
             foldModel.summary()
 
             foldModel = self.compile_model(foldModel, len(train_x))
@@ -208,7 +221,18 @@ class Trainer(object):
                                     f_valid=val_f,
                                     max_epoch=self.training_config.max_epoch,
                                     callbacks=callbacks)
-            self.models[fold_id] = foldModel
+            if self.model_config.transformer == None:
+                self.models.append(foldModel)
+            else:
+                # save the model with transformer layer on disk
+                dir_path = 'data/models/sequenceLabelling/'
+                fold_path = os.path.join(dir_path, self.model_config.model_name)
+                if not os.path.exists(fold_path):
+                    os.makedirs(fold_path)
+                weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
+                foldModel.save(os.path.join(fold_path, weight_file))
+                #self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
+                #self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):

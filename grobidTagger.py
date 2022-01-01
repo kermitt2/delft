@@ -29,10 +29,10 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         batch_size = 20
         if max_sequence_length == -1 or max_sequence_length > 512:
             # 512 is the largest sequence for BERT input
-            max_sequence_length = 512
-        max_sequence_length = 300
+            max_sequence_length = 200
+        max_sequence_length = 20
         embeddings_name = None
-        max_epoch = 10
+        max_epoch = 60
 
     if model == "software":
         if batch_size == -1:
@@ -146,15 +146,15 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
 
-    # saving the model
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_eval, y_eval, features=f_eval)
+
+    # saving the model (must be called after eval for multiple fold training)
     if (output_path):
         model.save(output_path)
     else:
         model.save()
-
-    # evaluation
-    print("\nEvaluation:")
-    model.eval(x_eval, y_eval, features=f_eval)
 
 
 # split data, train a GROBID model and evaluate it
@@ -239,7 +239,7 @@ if __name__ == "__main__":
     parser.add_argument("action", choices=actions)
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
-    parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures,
+    parser.add_argument("--architecture", default='BidLSTM_CRF', 
                         help="Type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
         "--embedding", 
@@ -283,6 +283,10 @@ if __name__ == "__main__":
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer
+
+    if transformer == None and embeddings_name == None:
+        # default word embeddings
+        embeddings_name = "glove-840B"
 
     if action == Tasks.TRAIN:
         train(model, 

@@ -11,8 +11,6 @@ import math
 import shutil
 
 import numpy as np
-from delft.sequenceLabelling.evaluation import get_report
-from delft.utilities.numpy import concatenate_or_none
 
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
@@ -23,6 +21,9 @@ import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
 tf.get_logger().setLevel('ERROR')
 
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
 # unfortunately when running in graph mode, we cannot use BERT pre-trained, 
 # see https://github.com/huggingface/transformers/issues/3086
 # we could however disable eager mode for better performance for RNN architectures
@@ -30,8 +31,9 @@ tf.get_logger().setLevel('ERROR')
 #from tensorflow.python.framework.ops import disable_eager_execution
 #disable_eager_execution()
 
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
+from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
+from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME 
+from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
@@ -39,9 +41,11 @@ from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocesso
 from delft.sequenceLabelling.tagger import Tagger
 from delft.sequenceLabelling.trainer import Trainer
 from delft.sequenceLabelling.trainer import Scorer
+from delft.sequenceLabelling.evaluation import get_report
 
 from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import merge_folders
+from delft.utilities.numpy import concatenate_or_none
 
 from delft.sequenceLabelling.evaluation import accuracy_score
 from delft.sequenceLabelling.evaluation import classification_report
@@ -51,11 +55,9 @@ import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
 from transformers import BertTokenizer
 
-class Sequence(object):
 
-    config_file = 'config.json'
-    weight_file = 'model_weights.hdf5'
-    preprocessor_file = 'preprocessor.json'
+
+class Sequence(object):
 
     # number of parallel worker for the data generator 
     nb_workers = 6
@@ -167,13 +169,6 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
-        #if self.p.return_features != False:
-        #    print('x_train.shape: ', x_train.shape)
-        #    print('features_train.shape: ', f_train.shape)
-        #    sample_transformed_features = self.p.transform_features(f_train)
-        #    self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
-        #    print('max_feature_size: ', self.model_config.max_feature_size)
-
         trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
@@ -186,8 +181,8 @@ class Sequence(object):
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10, callbacks=None):
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid != None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid != None else y_train
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
@@ -199,10 +194,6 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
         
         self.models = []
-        for k in range(0, fold_number):
-            model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
-            self.models.append(model)
-
         trainer = Trainer(self.model, 
                           self.models,
                           self.embeddings,
@@ -215,7 +206,7 @@ class Sequence(object):
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
 
     def eval(self, x_test, y_test, features=None):
-        if self.models and 1 < self.model_config.fold_number == len(self.models):
+        if self.model_config.fold_number > 1:
             self.eval_nfold(x_test, y_test, features=features)
         else:
             self.eval_single(x_test, y_test, features=features)
@@ -320,19 +311,28 @@ class Sequence(object):
                     reports.append(scorer.report)
                     reports_as_map.append(scorer.report_as_map)
                 else:
+                    # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
+                    dir_path = 'data/models/sequenceLabelling/'
+                    weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i)+".hdf5")
+                    self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+                    self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
+
                     # the architecture model uses a transformer layer, we need to use predict to get usable data
                     # (usable here means predicted labels well aligned with expected ones)
-                    dir_path = 'data/models/sequenceLabelling/'
-                    self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-                    self.p = WordPreprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
-                    self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
-                    self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
-                    
-                    y_pred = self.model.predict(x_test, fold_id=i)
-                    tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
-                    y_pred = tagger.tag_without_generator(x_test, output_format=None, features=features)
+                    tagger = Tagger(self.model, 
+                                    self.model_config, 
+                                    self.embeddings, 
+                                    preprocessor=self.p, 
+                                    bert_preprocessor=self.bert_preprocessor)
+                    y_pred_pairs = tagger.tag_without_generator(x_test, output_format=None, features=features)
 
-
+                    # keep only labels
+                    y_pred = []
+                    for result in y_pred_pairs:
+                        result_labels = []
+                        for pair in result:
+                            result_labels.append(pair[1])
+                        y_pred.append(result_labels)
 
                     nb_alignment_issues = 0
                     for j in range(len(y_test)):
@@ -349,6 +349,7 @@ class Sequence(object):
 
                     if nb_alignment_issues > 0:
                         print("number of alignment issues with test set:", nb_alignment_issues)
+                        print("you might need to increase the maximum sequence input length of the model and retrain")
 
                     f1 = f1_score(y_test, y_pred)
                     precision = precision_score(y_test, y_pred)
@@ -361,7 +362,6 @@ class Sequence(object):
                     report, report_as_map = classification_report(y_test, y_pred, digits=4)
                     reports.append(report)
                     reports_as_map.append(report_as_map)
-                
 
                 if best_f1 < f1:
                     best_f1 = f1
@@ -425,20 +425,12 @@ class Sequence(object):
             print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
             
-            self.model = self.models[best_index]
-            
-
-            '''
-                # BERT case:
-                # copy best BERT model fold_number
-                best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
-                new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
-                # update new_model_dir if it already exists, keep its existing config content
-                merge_folders(best_model_dir, new_model_dir)
-                # clean other fold directory
-                for i in range(self.model_config.fold_number):
-                    shutil.rmtree('data/models/sequenceLabelling/' + self.model_config.model_name + str(i))
-            '''
+            if self.transformer == None:
+                self.model = self.models[best_index]
+            else:
+                dir_path = 'data/models/sequenceLabelling/'
+                weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(best_index)+".hdf5")
+                self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
             print("----------------------------------------------------------------------")
             print("\nAverage over", self.model_config.fold_number, "folds")
@@ -547,28 +539,27 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.'))
 
-    def save(self, dir_path='data/models/sequenceLabelling/'):
+    def save(self, dir_path='data/models/sequenceLabelling/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
         # create subfolder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
 
-        self.model_config.save(os.path.join(directory, self.config_file))
+        self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
         print('model config file saved')
 
-        self.p.save(os.path.join(directory, self.preprocessor_file))
+        self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print('preprocessor saved')
 
-        if self.model == None and self.model_config.fold_number != 0 and self.model_config.fold_number != 1:
+        if self.model == None and self.model_config.fold_number > 1:
             print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
         else:
-           self.model.save(os.path.join(directory, self.weight_file))
+           self.model.save(os.path.join(directory, weight_file))
         
-
         print('model saved')
 
-    def load(self, dir_path='data/models/sequenceLabelling/'):
-        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+    def load(self, dir_path='data/models/sequenceLabelling/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
+        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, CONFIG_FILE_NAME))
         
         if self.model_config.embeddings_name != None:
             # load embeddings
@@ -588,14 +579,14 @@ class Sequence(object):
         else:
             self.bert_preprocessor = None
 
-        self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+        self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
         if self.bert_preprocessor != None:
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
-        print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.weight_file))
-        self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, self.weight_file))
+        print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
+        self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]

@@ -11,11 +11,9 @@ import time
 def configure(architecture):
     batch_size = 20
     maxlen = 300
-    transformer = None
     patience = 5
     early_stop = True
     max_epoch = 50
-    embeddings_name = "glove-840B"
 
     # default bert model parameters
     if architecture.find("BERT") != -1:
@@ -24,10 +22,10 @@ def configure(architecture):
         max_epoch = 3
         embeddings_name = None
 
-    return batch_size, maxlen, transformer, patience, early_stop, max_epoch, embeddings_name
+    return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None): 
-    batch_size, maxlen, transformer, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
 
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
 
@@ -46,7 +44,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None):
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
-    # saving the model
+    # saving the model (must be called after eval for multiple fold training)
     model.save()
 
 
@@ -119,6 +117,10 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
     architecture = args.architecture
     transformer = args.transformer
+
+    if transformer == None and embeddings_name == None:
+        # default word embeddings
+        embeddings_name = "glove-840B"
 
     if args.action == 'train':
         train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer)

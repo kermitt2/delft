@@ -7,7 +7,7 @@ import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
-from delft.textClassification.models import modelTypes
+from delft.textClassification.models import architectures
 import numpy as np
 
 """
@@ -36,7 +36,6 @@ class_weights = {
 def configure(architecture):
     batch_size = 256
     maxlen = 300
-    transformer = None
     patience = 5
     early_stop = True
     max_epoch = 60
@@ -48,17 +47,17 @@ def configure(architecture):
         max_epoch = 3
         maxlen = 100
 
-    return batch_size, maxlen, transformer, patience, early_stop, max_epoch
+    return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru"):
+def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
     model_name = 'software_use'
     class_weights = None
 
-    batch_size, maxlen, transformer, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
@@ -72,7 +71,7 @@ def train(embeddings_name, fold_count, architecture="gru"):
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru"): 
+def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
@@ -91,7 +90,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru"):
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
 
-    batch_size, maxlen, transformer, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     print(list_classes)
 
@@ -117,7 +116,7 @@ def classify(texts, output_format, architecture="gru"):
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
-    if output_format is 'json':
+    if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -133,7 +132,7 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
+    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
         "--embedding", 
         default=None,
@@ -159,22 +158,27 @@ if __name__ == "__main__":
         print('action not specified, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
+    transformer = args.transformer
 
     architecture = args.architecture
-    #if architecture not in modelTypes:
-    #    print('unknown model architecture, must be one of '+str(modelTypes))
+    if architecture not in architectures:
+        print('unknown model architecture, must be one of '+str(architectures))
+
+    if transformer == None and embeddings_name == None:
+        # default word embeddings
+        embeddings_name = "glove-840B"
 
     if args.action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, architecture=architecture)
+        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
 
     if args.action == 'classify':
         someTexts = ['Radiographic errors were recorded on individual tick sheets and the information was captured in an Excel spreadsheet (Microsoft, Redmond, WA).', 

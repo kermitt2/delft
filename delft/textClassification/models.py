@@ -25,7 +25,7 @@ from sklearn.metrics import precision_score, precision_recall_fscore_support
 
 from transformers import TFBertModel
 
-modelTypes = [
+architectures = [
     'lstm', 
     'bidLstm_simple', 
     'cnn', 

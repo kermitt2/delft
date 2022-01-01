@@ -9,7 +9,7 @@ import argparse
 import pandas as pd
 import time
 import sys
-from delft.textClassification.models import modelTypes
+from delft.textClassification.models import architectures
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 class_weights = {0: 1.,
@@ -22,7 +22,6 @@ class_weights = {0: 1.,
 def configure(architecture):
     batch_size = 256
     maxlen = 300
-    transformer = None
     patience = 5
     early_stop = True
     max_epoch = 30
@@ -34,14 +33,15 @@ def configure(architecture):
         max_epoch = 3
         maxlen = 200
 
-    return batch_size, maxlen, transformer, patience, early_stop, max_epoch
+    return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"): 
-    batch_size, maxlen, bert_type, patience, early_stop, max_epoch = configure(architecture)
+def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None): 
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
-        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, bert_type=bert_type, patience=patience, early_stop=early_stop)
+        embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop, 
+        transformer=transformer)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
@@ -55,7 +55,7 @@ def train(embeddings_name="fasttext-crawl", fold_count=1, architecture="gru"):
 
 def test(architecture="gru"):
     # load model
-    model = Classifier('toxic', architecture, list_classes=list_classes)
+    model = Classifier('toxic', architecture, list_classes=list_classes, transformer=None)
     model.load()
 
     print('loading test dataset...')
@@ -68,7 +68,7 @@ def test(architecture="gru"):
 
 
 # classify a list of texts
-def classify(texts, output_format, architecture="gru"):
+def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
     model = Classifier('toxic', architecture, list_classes=list_classes)
     model.load()
@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
+    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument(
         "--embedding", 
         default=None,
@@ -113,10 +113,15 @@ if __name__ == "__main__":
         print('action not specifed, must be one of [train,test,classify]')
 
     embeddings_name = args.embedding
+    transformer = args.transformer
 
     architecture = args.architecture
-    #if architecture not in modelTypes:
-    #    print('unknown model architecture, must be one of '+str(modelTypes))
+    if architecture not in architectures:
+        print('unknown model architecture, must be one of '+str(architectures))
+
+    if transformer == None and embeddings_name == None:
+        # default word embeddings
+        embeddings_name = "glove-840B"
 
     if architecture.find("bert") != -1:
         print('BERT models are not supported for multi-label labelling, at least for the moment. Please choose a RNN architecture.')
@@ -125,7 +130,7 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture)
+        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer)
 
     if action == 'test':
         y_test = test()    
