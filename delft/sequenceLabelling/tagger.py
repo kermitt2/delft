@@ -138,7 +138,6 @@ class Tagger(object):
         For models using BERT tokenized sequences, we need more information about the original input string than available
         via a generator for the input model, so we don't use a generator and create batch keeping track of original tokens 
         '''
-
         if output_format == 'json':
             res = {
                 "software": "DeLFT",
@@ -151,6 +150,9 @@ class Tagger(object):
 
         if texts is None or len(texts) == 0:
             return res
+
+        if not self.preprocessor.return_features:
+            features = None
 
         to_tokeniz = False
         if (len(texts)>0 and isinstance(texts[0], str)):
@@ -166,46 +168,49 @@ class Tagger(object):
         def chunks(l, n):
             """Yield successive n-sized chunks from l."""
             for i in range(0, len(l), n):
+                #bound = min(n, )
                 yield l[i:i + n]
         
         batch_idx = 0
         # segment in batches corresponding to self.predict_batch_size
         for text_batch in list(chunks(texts_tokenized, self.model_config.batch_size)):
-            if type(text_batch) is np.ndarray:
-                text_batch = text_batch.tolist()
-
             features_batch = None
-            if features != None:
+            if features is not None:
                 upper_bound = min(len(texts_tokenized), (batch_idx+1)*self.model_config.batch_size)
                 features_batch = features[batch_idx*self.model_config.batch_size:upper_bound]
 
-            # if the size of the last batch is less than the batch size, we need to fill it with dummy input
             num_current_batch = len(text_batch)
-            if num_current_batch < self.model_config.batch_size:
-                dummy_text = text_batch[-1]    
-                if features_batch != None:
-                    dummy_features = features_batch[-1]         
-                for p in range(0, self.model_config.batch_size-num_current_batch):
-                    text_batch.append(dummy_text)
-                    if features_batch != None:
-                        features_batch.append(dummy_features)
-            
-            if features == None:
-                input_ids, input_masks, input_segments, input_tokens = self.bert_preprocessor.create_batch_input_bert(
+
+            batches = self.preprocessor.transform(text_batch)
+            chars_batch = np.asarray(batches[0])
+
+            if features is None:
+                input_ids, input_masks, input_segments, input_chars, input_tokens = self.bert_preprocessor.create_batch_input_bert(
                                                                                                 text_batch, 
+                                                                                                chars_batch,
                                                                                                 maxlen=self.model_config.max_sequence_length)
                 batch_x = np.asarray(input_ids, dtype=np.int32)
                 batch_x_masks = np.asarray(input_masks, dtype=np.int32)
-                results = self.model.predict_on_batch([batch_x, batch_x_masks])
+                batch_c = np.asarray(input_chars, dtype=np.int32)
+                if self.preprocessor.return_chars:
+                    results = self.model.predict_on_batch([batch_x, batch_c, batch_x_masks])
+                else:
+                    results = self.model.predict_on_batch([batch_x, batch_x_masks])
             else:
-                input_ids, input_masks, input_segments, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
+                features_batch = self.preprocessor.transform_features(features_batch)
+                input_ids, input_masks, input_segments, input_chars, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
                                                                                                 text_batch, 
+                                                                                                chars_batch,
                                                                                                 features_batch, 
                                                                                                 maxlen=self.model_config.max_sequence_length)
                 batch_x = np.asarray(input_ids, dtype=np.int32)
                 batch_x_masks = np.asarray(input_masks, dtype=np.int32)
-                batch_f = self.preprocessor.transform_features(input_features, extend=extend)
-                results = self.model.predict_on_batch([batch_x, batch_x_masks, batch_f])
+                batch_c = np.asarray(input_chars, dtype=np.int32)
+                batch_f = np.asarray(input_features, dtype=np.int32)
+                if self.preprocessor.return_chars:
+                    results = self.model.predict_on_batch([batch_x, batch_c, batch_f, batch_x_masks])
+                else:
+                    results = self.model.predict_on_batch([batch_x, batch_f, batch_x_masks])
 
             p = 0
             for i, prediction in enumerate(results):

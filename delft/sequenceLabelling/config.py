@@ -18,7 +18,6 @@ class ModelConfig(object):
                  max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
-                 use_char_feature=True, 
                  use_crf=True,
                  fold_number=1,
                  batch_size=64,
@@ -53,7 +52,6 @@ class ModelConfig(object):
         self.dropout = dropout
         self.recurrent_dropout = recurrent_dropout
 
-        self.use_char_feature = use_char_feature
         self.use_crf = use_crf
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for prediction

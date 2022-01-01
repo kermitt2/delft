@@ -307,7 +307,7 @@ def load_data_and_labels_crf_file(filepath):
         with open(filepath) as f:
             sents, labels, featureSets = load_data_and_labels_crf_content(f)
 
-    return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object), np.asarray(featureSets, dtype=object)
 
 def load_data_and_labels_crf_content(the_file):
     sents = []

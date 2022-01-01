@@ -55,7 +55,6 @@ class Sequence(object):
                  max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.25,
-                 use_char_feature=True, 
                  use_crf=True,
                  batch_size=20, 
                  optimizer='adam', 
@@ -116,7 +115,6 @@ class Sequence(object):
                                         max_sequence_length=max_sequence_length, 
                                         dropout=dropout, 
                                         recurrent_dropout=recurrent_dropout, 
-                                        use_char_feature=use_char_feature, 
                                         use_crf=use_crf, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
@@ -147,17 +145,18 @@ class Sequence(object):
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
         if self.bert_preprocessor != None:
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
+            self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
-        if self.p.return_features != False:
-            print('x_train.shape: ', x_train.shape)
-            print('features_train.shape: ', f_train.shape)
-            sample_transformed_features = self.p.transform_features(f_train)
-            self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
-            print('max_feature_size: ', self.model_config.max_feature_size)
+        #if self.p.return_features != False:
+        #    print('x_train.shape: ', x_train.shape)
+        #    print('features_train.shape: ', f_train.shape)
+        #    sample_transformed_features = self.p.transform_features(f_train)
+        #    self.model_config.max_feature_size = np.asarray(sample_transformed_features).shape[-1]
+        #    print('max_feature_size: ', self.model_config.max_feature_size)
 
         trainer = Trainer(self.model,
                           self.models,
@@ -176,9 +175,12 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+        if self.bert_preprocessor != None:
+            self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
+            self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
+
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
-        self.p.return_lengths = True
         
         self.models = []
         for k in range(0, fold_number):
@@ -227,8 +229,12 @@ class Sequence(object):
             # (usable here means predicted labels well aligned with expected ones)
             #y_pred = self.model.predict(x_test, fold_id=-1)
             if self.model:
-                tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
-                y_pred_pairs = tagger.tag_without_generator(x_test, output_format=None)
+                tagger = Tagger(self.model, 
+                              self.model_config, 
+                              self.embeddings, 
+                              preprocessor=self.p, 
+                              bert_preprocessor=self.bert_preprocessor)
+                y_pred_pairs = tagger.tag_without_generator(x_test, output_format=None, features=features)
 
                 # keep only labels
                 y_pred = []
@@ -241,6 +247,9 @@ class Sequence(object):
                 nb_alignment_issues = 0
                 for i in range(len(y_test)):
                     if len(y_test[i]) != len(y_pred[i]):
+                        #print("y_test:", y_test[i])
+                        #print("y_pred:", y_pred[i])
+
                         nb_alignment_issues += 1
                         # BERT tokenizer appears to introduce some additional tokens without ## prefix,
                         # but we normally handled that well when predicting.
@@ -253,6 +262,7 @@ class Sequence(object):
 
                 if nb_alignment_issues > 0:
                     print("number of alignment issues with test set:", nb_alignment_issues)
+                    print("you might need to increase the maximum sequence input length of the model and retrain")
 
                 report, report_as_map = classification_report(y_test, y_pred, digits=4)
                 print(report)
@@ -304,7 +314,7 @@ class Sequence(object):
                     
                     y_pred = self.model.predict(x_test, fold_id=i)
                     tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
-                    y_pred = tagger.tag_without_generator(x_test, output_format=None)
+                    y_pred = tagger.tag_without_generator(x_test, output_format=None, features=features)
 
 
 
@@ -398,14 +408,12 @@ class Sequence(object):
 
             print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
-
-            #if 'bert' not in self.model_config.architecture.lower():
             
             self.model = self.models[best_index]
             
 
             '''
-            else:
+                # BERT case:
                 # copy best BERT model fold_number
                 best_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name + str(best_index)
                 new_model_dir = 'data/models/sequenceLabelling/' + self.model_config.model_name
@@ -565,6 +573,9 @@ class Sequence(object):
             self.bert_preprocessor = None
 
         self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, self.preprocessor_file))
+        if self.bert_preprocessor != None:
+            self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
+            self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
         self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.weight_file))

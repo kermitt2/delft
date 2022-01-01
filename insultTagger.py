@@ -79,7 +79,7 @@ if __name__ == "__main__":
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
 
     architectures_transformers_based = [
-                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES'
+                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
                      ]
 
     architectures = architectures_word_embeddings + architectures_transformers_based

@@ -187,6 +187,10 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
         self.output_input_tokens = output_input_tokens
+
+        if self.bert_preprocessor.empty_features_vector == None:
+            self.bert_preprocessor.set_empty_features_vector(self.preprocessor.empty_features_vector())
+
         self.on_epoch_end()
 
     def __len__(self):
@@ -203,19 +207,29 @@ class DataGeneratorTransformers(keras.utils.Sequence):
 
     def __getitem__(self, index):
         '''
-        Generate one batch of data. batch_x_masks always last input, so that it can be used easily by the training scorer
+        Generate one batch of data. These data are the input of the models but can also be used by the training scorer
         '''
         batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y = self.__data_generation(index)
+
+        # careful with the order of data arrays, double-check the models input as defined in models.py before
+        # modifying this
+
+        return_data = [batch_x]
+
+        if self.preprocessor.return_chars:  
+            return_data += [batch_c]
+
         if self.preprocessor.return_features:  
-            if self.output_input_tokens:
-                return [batch_x, batch_f, batch_x_masks, batch_input_tokens], batch_y
-            else:
-                return [batch_x, batch_f, batch_x_masks], batch_y
-        else:
-            if self.output_input_tokens:
-                return [batch_x, batch_x_masks, batch_input_tokens], batch_y
-            else:
-                return [batch_x, batch_x_masks], batch_y
+            return_data += [batch_f]
+
+        return_data += [batch_x_masks]
+
+        if self.output_input_tokens:
+            # always last input, used when prediction are done to be able to restore the correct labeled sequence
+            # this is never routed directly to a model input
+            return_data += [batch_input_tokens]
+
+        return return_data, batch_y
 
     def on_epoch_end(self):
         '''
@@ -255,7 +269,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
             x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length), dtype=object)
 
         # prevent sequence of length 1 alone in a batch (this causes an error in tf
-        # TBD: it's probably fixed in TF2 ! to be checked, we could remove this fix then
+        # TBD: it's probably corrected in TF2 !?! to be checked, we could remove this fix then
         extend = False
         if max_length_x == 1:
             max_length_x += 1
@@ -264,7 +278,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         # generate data
         batch_y = None
         
-        # store tag embeddings
+        # tag embeddings
         if self.y is not None:
             # note: tags are always already "tokenized" by input token
             batch_y = self.y[(index*self.batch_size):(index*self.batch_size)+max_iter]
@@ -274,36 +288,46 @@ class DataGeneratorTransformers(keras.utils.Sequence):
                 # truncation of sequence at max_sequence_length
                  batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=object)
 
+        # features
         if self.preprocessor.return_features:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
             if self.max_sequence_length and max_length_f > self.max_sequence_length:
                 max_length_f = self.max_sequence_length
                 # truncation of sequence at max_sequence_length
                 sub_f = truncate_batch_values(sub_f, self.max_sequence_length)
+            sub_f = self.preprocessor.transform_features(sub_f, extend=extend)
 
+        # chars and length
+        batches = self.preprocessor.transform(x_tokenized, extend=extend)
+        batch_c = np.asarray(batches[0])
+        batch_l = batches[1]
 
         # for input as sentence piece token index for transformer layer
         if self.y is None:
             if self.preprocessor.return_features:
-                input_ids, input_masks, input_segments, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
+                input_ids, input_masks, input_segments, input_chars, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
                                                                         x_tokenized, 
+                                                                        batch_c,
                                                                         sub_f,
                                                                         maxlen=self.max_sequence_length)
 
             else:
-                input_ids, input_masks, input_segments, input_tokens = self.bert_preprocessor.create_batch_input_bert(
+                input_ids, input_masks, input_segments, input_chars, input_tokens = self.bert_preprocessor.create_batch_input_bert(
                                                                             x_tokenized, 
+                                                                            batch_c,
                                                                             maxlen=self.max_sequence_length)
         else:
             if self.preprocessor.return_features:
-                input_ids, input_masks, input_segments, input_features, input_labels, input_tokens = tokenize_and_align_features_and_labels(
+                input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
                                                                         x_tokenized, 
+                                                                        batch_c,
                                                                         sub_f,
                                                                         batch_y,
                                                                         maxlen=self.max_sequence_length)
             else:
-                input_ids, input_masks, input_segments, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_labels(
+                input_ids, input_masks, input_segments, input_chars, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_labels(
                                                                         x_tokenized, 
+                                                                        batch_c,
                                                                         batch_y,
                                                                         maxlen=self.max_sequence_length)
 
@@ -311,24 +335,18 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         batch_x = np.asarray(input_ids, dtype=np.int32)
         batch_x_masks = np.asarray(input_masks, dtype=np.int32)
         #batch_x_segments = np.asarray(input_segments, dtype=np.int32)
+        batch_c = np.asarray(input_chars, dtype=object)
         batch_input_tokens = np.asarray(input_tokens, dtype=object)
 
         if self.y is not None:
             batch_y = np.asarray(input_labels, dtype=object)
 
         if self.preprocessor.return_features:
-            batch_f = np.asarray(input_features, dtype='int32')
-
-        batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
-        if self.preprocessor.return_features:
-            batch_f = self.preprocessor.transform_features(sub_f, extend=extend)
+            batch_f = np.asarray(input_features, dtype=np.int32)
+        else:    
+            batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
 
         if self.y is not None:
-            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
-        else:
-            batches = self.preprocessor.transform(x_tokenized, extend=extend)
-
-        batch_c = np.asarray(batches[0])
-        batch_l = batches[1]
+            __, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
 
         return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y

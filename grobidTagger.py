@@ -15,7 +15,7 @@ from delft.utilities.misc import parse_number_ranges
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 
-def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1):
+def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1):
     '''
     Set up the default parameters based on the model type.
     '''
@@ -24,13 +24,15 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     else:
         model_name = 'grobid-' + model
 
-    if architecture.lower().find("BERT") != -1:
-        if batch_size == -1:
-            batch_size = 5
+    if architecture.find("BERT") != -1:
+        #if batch_size == -1:
+        batch_size = 20
         if max_sequence_length == -1 or max_sequence_length > 512:
             # 512 is the largest sequence for BERT input
             max_sequence_length = 512
+        max_sequence_length = 300
         embeddings_name = None
+        max_epoch = 10
 
     if model == "software":
         if batch_size == -1:
@@ -47,12 +49,15 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     if max_sequence_length == -1:
         max_sequence_length = 3000
 
-    return batch_size, max_sequence_length, model_name, embeddings_name
+    if max_epoch == -1:
+        max_epoch = 100
+
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch
 
 
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, input_path=None, output_path=None,
-          features_indices=None, max_sequence_length=-1, batch_size=-1):
+          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1):
 
     print('Loading data...')
     if input_path == None:
@@ -67,17 +72,22 @@ def train(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=N
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
-
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch = configure(model, 
+                                                                            architecture, 
+                                                                            output_path, 
+                                                                            max_sequence_length, 
+                                                                            batch_size, 
+                                                                            embeddings_name,
+                                                                            max_epoch)
     model = Sequence(model_name,
-                     max_epoch=100,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
                      architecture=architecture,
                      transformer=transformer, 
                      batch_size=batch_size,
                      max_sequence_length=max_sequence_length,
-                     features_indices=features_indices)
+                     features_indices=features_indices,
+                     max_epoch=max_epoch)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -94,7 +104,7 @@ def train(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=N
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1):
+               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1):
     print('Loading data...')
     if input_path == None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -108,10 +118,14 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name = configure(model, architecture, output_path, max_sequence_length, batch_size)
-
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch = configure(model, 
+                                                                            architecture, 
+                                                                            output_path, 
+                                                                            max_sequence_length, 
+                                                                            batch_size, 
+                                                                            embeddings_name,
+                                                                            max_epoch)
     model = Sequence(model_name,
-                    max_epoch=100,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
                     architecture=architecture,
@@ -119,7 +133,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     max_sequence_length=max_sequence_length,
                     batch_size=batch_size,
                     fold_number=fold_count,
-                    features_indices=features_indices)
+                    features_indices=features_indices,
+                    max_epoch=max_epoch)
 
     start_time = time.time()
 
@@ -131,16 +146,15 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
 
-    # evaluation
-    print("\nEvaluation:")
-    model.eval(x_eval, y_eval, features=f_eval)
-
     # saving the model
     if (output_path):
         model.save(output_path)
     else:
         model.save()
 
+    # evaluation
+    print("\nEvaluation:")
+    model.eval(x_eval, y_eval, features=f_eval)
 
 
 # split data, train a GROBID model and evaluate it
@@ -214,7 +228,7 @@ if __name__ == "__main__":
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
 
     architectures_transformers_based = [
-                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES'
+                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
                      ]
 
     architectures = architectures_word_embeddings + architectures_transformers_based
@@ -285,7 +299,7 @@ if __name__ == "__main__":
             print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use "
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
-            raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model")
+            raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input")
         eval_(model, input_path=input_path, architecture=architecture)
 
     if action == Tasks.TRAIN_EVAL:

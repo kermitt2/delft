@@ -32,55 +32,84 @@ def get_model(config, preprocessor, ntags=None):
     Return a model instance by its name. This is a facilitator function. 
     """
     if config.architecture == BidLSTM_CRF.name:
-        preprocessor.return_casing = False
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
         config.use_crf = True
         return BidLSTM_CRF(config, ntags)
+
     elif config.architecture == BidLSTM_CNN.name:
+        preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
         config.use_crf = False
         return BidLSTM_CNN(config, ntags)
+
     elif config.architecture == BidLSTM_CNN_CRF.name:
+        preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
         config.use_crf = True
         return BidLSTM_CNN_CRF(config, ntags)
+
     elif config.architecture == BidGRU_CRF.name:
-        preprocessor.return_casing = False
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
         config.use_crf = True
         return BidGRU_CRF(config, ntags)
+
     elif config.architecture == BidLSTM_CRF_FEATURES.name:
-        preprocessor.return_casing = False
+        preprocessor.return_word_embeddings = True
         preprocessor.return_features = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
         config.use_crf = True
         return BidLSTM_CRF_FEATURES(config, ntags)
+
     elif config.architecture == BidLSTM_CRF_CASING.name:
+        preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
         config.use_crf = True
         return BidLSTM_CRF_CASING(config, ntags)
+
     elif config.architecture == BERT.name:
-        preprocessor.return_word_embeddings = False
-        preprocessor.return_casing = False
-        preprocessor.return_features = False
         preprocessor.return_bert_embeddings = True
         config.use_crf = False
         config.labels = preprocessor.vocab_tag
         return BERT(config, ntags)
+
     elif config.architecture == BERT_CRF.name:
-        preprocessor.return_word_embeddings = False
-        preprocessor.return_casing = False
-        preprocessor.return_features = False
         preprocessor.return_bert_embeddings = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
         return BERT_CRF(config, ntags)
+
     elif config.architecture == BERT_CRF_FEATURES.name:
-        preprocessor.return_word_embeddings = False
-        preprocessor.return_casing = False
-        preprocessor.return_features = True
         preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
         return BERT_CRF_FEATURES(config, ntags)
 
+    elif config.architecture == BERT_CRF_CHAR.name:
+        preprocessor.return_bert_embeddings = True        
+        preprocessor.return_chars = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_CHAR(config, ntags)
+
+    elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_CHAR_FEATURES(config, ntags)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
@@ -533,7 +562,7 @@ class BERT_CRF_FEATURES(BaseModel):
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
-        text_embedding_layer = transformer_model(input_ids_in, oken_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
         #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
@@ -571,3 +600,135 @@ class BERT_CRF_FEATURES(BaseModel):
 
     def get_generator(self):
         return DataGeneratorTransformers
+
+
+class BERT_CRF_CHAR(BaseModel):
+    """
+    A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
+    a character input channel. The BERT layer will be loaded with weights of existing 
+    pre-trained BERT model given by the field transformer in the config. 
+    """
+
+    name = 'BERT_CRF_CHAR'
+
+    def __init__(self, config, ntags=None):
+        # build input, directly feed with BERT input ids by the data generator
+        max_seq_len = config.max_sequence_length
+        transformer_model_name = config.transformer
+
+        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+
+        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+
+        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
+                                                   return_sequences=False)))(char_embeddings)
+
+        # combine characters and word embeddings
+        x = Concatenate()([text_embedding_layer, chars])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        x = Dense(ntags)(x)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[input_ids_in, char_input, token_type_ids], outputs=[pred])
+        self.config = config
+
+    def get_generator(self):
+        return DataGeneratorTransformers
+
+
+class BERT_CRF_CHAR_FEATURES(BaseModel):
+    """
+    A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
+    additional generic discrete features information and a character input channel. The 
+    BERT layer will be loaded with weights of existing pre-trained BERT model given by 
+    the field transformer in the config. 
+    """
+
+    name = 'BERT_CRF_CHAR_FEATURES'
+
+    def __init__(self, config, ntags=None):
+        # build input, directly feed with BERT input ids by the data generator
+        max_seq_len = config.max_sequence_length
+        transformer_model_name = config.transformer
+
+        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+
+        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+
+        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
+                                                   return_sequences=False)))(char_embeddings)
+
+        # layout features input and embeddings
+        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
+
+        # The input dimension is calculated by
+        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
+        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
+                                       output_dim=config.features_embedding_size,
+                                       # mask_zero=True,
+                                       trainable=False,
+                                       name='features_embedding'), name="features_embedding_td")(features_input)
+
+        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
+                                                 name="features_embedding_td_2")(features_embedding)
+
+        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
+
+        # combine feature, characters and word embeddings
+        x = Concatenate()([text_embedding_layer, chars, features_embedding_out])
+        x = Dropout(config.dropout)(x)
+
+
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        x = Dense(ntags)(x)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids], outputs=[pred])
+        self.config = config
+
+    def get_generator(self):
+        return DataGeneratorTransformers
+

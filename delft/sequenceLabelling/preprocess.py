@@ -15,8 +15,6 @@ LOGGER = logging.getLogger(__name__)
 from sklearn.base import BaseEstimator, TransformerMixin
 import tensorflow as tf
 
-# this is derived from https://github.com/Hironsan/anago/blob/master/anago/preprocess.py
-
 UNK = '<UNK>'
 PAD = '<PAD>'
 
@@ -224,14 +222,18 @@ class BERTPreprocessor(object):
     Rely on transformers library tokenizer
     """
 
-    def __init__(self, tokenizer, empty_features_vector=None):
+    def __init__(self, tokenizer, empty_features_vector=None, empty_char_vector=None):
         self.tokenizer = tokenizer
         self.empty_features_vector = empty_features_vector
+        self.empty_char_vector = empty_char_vector
 
     def set_empty_features_vector(self, empty_features_vector):
         self.empty_features_vector = empty_features_vector
 
-    def create_batch_input_bert(self, texts, maxlen=512):
+    def set_empty_char_vector(self, empty_char_vector):
+        self.empty_char_vector = empty_char_vector    
+
+    def create_batch_input_bert(self, texts, chars, maxlen=512):
         '''
         Prediction usage without features: sub-tokenize and convert to ids/mask/segments input texts, no label.
         texts is a list of texts already pre-tokenized
@@ -240,19 +242,25 @@ class BERTPreprocessor(object):
         target_type_ids = []
         target_attention_mask  = []
         input_tokens = []
+        target_chars = []
 
         for i, text in enumerate(texts):
-                       
-            input_ids, token_type_ids, attention_mask, _, _, tokens = self.convert_single_text(text, None, None, maxlen)
             
+            local_chars = chars[i]
+
+            input_ids, token_type_ids, attention_mask, chars_block, _, _, tokens = self.convert_single_text(text, 
+                                                                                            local_chars, 
+                                                                                            None, None, 
+                                                                                            maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
             input_tokens.append(tokens)
+            target_chars.append(chars_block)
 
-        return target_ids, target_type_ids, target_attention_mask, input_tokens
+        return target_ids, target_type_ids, target_attention_mask, target_chars, input_tokens
 
-    def tokenize_and_align_labels(self, texts, labels, maxlen=512):
+    def tokenize_and_align_labels(self, texts, chars, labels, maxlen=512):
         """
         Training/evaluation usage without features: sub-tokenize+convert to ids/mask/segments input texts and realign labels
         given new tokens introduced by the wordpiece sub-tokenizer.
@@ -263,22 +271,28 @@ class BERTPreprocessor(object):
         target_attention_mask  = []
         target_labels = []
         input_tokens = []
+        target_chars = []
 
         for i, text in enumerate(texts):
             
+            local_chars = chars[i]
             label_list = labels[i]
             
-            input_ids, token_type_ids, attention_mask, _, target_tags, tokens = self.convert_single_text(text, None, label_list, maxlen)
-            
+            input_ids, token_type_ids, attention_mask, chars_block, _, target_tags, tokens = self.convert_single_text(text, 
+                                                                                                        local_chars, 
+                                                                                                        None, 
+                                                                                                        label_list, 
+                                                                                                        maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
             target_labels.append(target_tags)
             input_tokens.append(tokens)
+            target_chars.append(chars_block)
 
-        return target_ids, target_type_ids, target_attention_mask, target_labels, input_tokens
+        return target_ids, target_type_ids, target_attention_mask, target_chars, target_labels, input_tokens
 
-    def tokenize_and_align_features(self, texts, text_features, maxlen=512):
+    def tokenize_and_align_features(self, texts, chars, text_features, maxlen=512):
         '''
         Prediction usage with features: sub-tokenize+convert to ids/mask/segments input texts and realign features
         given new tokens introduced by the wordpiece sub-tokenizer.
@@ -289,22 +303,28 @@ class BERTPreprocessor(object):
         target_attention_mask  = []
         target_features = []
         input_tokens = []
+        target_chars = []
 
         for i, text in enumerate(texts):
             
+            local_chars = chars[i]
             features = text_features[i]
             
-            input_ids, token_type_ids, attention_mask, feature_blocks, _, tokens = self.convert_single_text(text, features, None, maxlen)
-            
+            input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, _, tokens = self.convert_single_text(text, 
+                                                                                                            local_chars, 
+                                                                                                            features, 
+                                                                                                            None, 
+                                                                                                            maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
             target_features.append(feature_blocks)
             input_tokens.append(tokens)
+            target_chars.append(chars_block)
 
-        return target_ids, target_type_ids, target_attention_mask, target_features, input_tokens
+        return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, input_tokens
 
-    def tokenize_and_align_features_and_labels(self, texts, text_features, text_labels, maxlen=512):
+    def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         '''
         Training/evaluation usage with features: sub-tokenize+convert to ids/mask/segments input texts, realign labels
         and features given new tokens introduced by the wordpiece sub-tokenizer.
@@ -316,25 +336,31 @@ class BERTPreprocessor(object):
         target_features = []
         target_labels = []
         input_tokens = []
+        target_chars = []
 
         for i, text in enumerate(texts):
             
+            local_chars = chars[i]
             features = text_features[i]
-            label_list = labels[i]
+            label_list = text_labels[i]
 
-            input_ids, token_type_ids, attention_mask, feature_blocks, target_tags, tokens = self.convert_single_text(text, features, label_list, maxlen)
-            
+            input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, target_tags, tokens = self.convert_single_text(text, 
+                                                                                                                    local_chars, 
+                                                                                                                    features, 
+                                                                                                                    label_list, 
+                                                                                                                    maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
             target_features.append(feature_blocks)
             target_labels.append(target_tags)
             input_tokens.append(tokens)
+            target_chars.append(chars_block)
 
-        return target_ids, target_type_ids, target_attention_mask, target_features, target_labels, input_tokens
+        return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, target_labels, input_tokens
 
 
-    def convert_single_text(self, text_tokens, features_tokens, label_tokens, max_seq_length):
+    def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
         Converts a single sequence input into a single BERT input format.
 
@@ -362,20 +388,21 @@ class BERTPreprocessor(object):
         tokens_marked = []
         labels = []
         features = []
+        chars = []
 
-        if label_tokens == None:
+        if label_tokens is None:
             # we create a dummy label list to facilitate
             label_tokens = []
             while len(label_tokens) < len(text_tokens):
                 label_tokens.append(0)
 
-        if features_tokens == None:
+        if features_tokens is None:
             # we create a dummy feature list to facilitate
             features_tokens = []
             while len(features_tokens) < len(text_tokens):
                 features_tokens.append(self.empty_features_vector)
 
-        for text_token, label_token, features_token in zip(text_tokens, label_tokens, features_tokens):
+        for text_token, label_token, chars_token, features_token in zip(text_tokens, label_tokens, chars_tokens, features_tokens):
             text_sub_tokens = self.tokenizer.tokenize(text_token, add_special_tokens=False)
             
             # we mark added sub-tokens with the "##" prefix in order to restore token back correctly,
@@ -390,23 +417,27 @@ class BERTPreprocessor(object):
                     text_sub_tokens_marked[i] = "##" + tok
             
             label_sub_tokens = [label_token] + [label_token] * (len(text_sub_tokens) - 1)
-            
+            chars_sub_tokens = [chars_token] + [chars_token] * (len(text_sub_tokens) - 1)
+            feature_sub_tokens = [features_token] + [features_token] * (len(text_sub_tokens) - 1)
+
             tokens.extend(text_sub_tokens)
             tokens_marked.extend(text_sub_tokens_marked)
             labels.extend(label_sub_tokens)
-            for i in range(len(text_sub_tokens)):
-                features.append(features_token)
+            features.extend(feature_sub_tokens)
+            chars.extend(chars_sub_tokens)
 
         if len(tokens) >= max_seq_length - 2:
             tokens = tokens[0:(max_seq_length - 2)]
             tokens_marked = tokens_marked[0:(max_seq_length - 2)]
             labels = labels[0:(max_seq_length - 2)]
             features = features[0:(max_seq_length - 2)]
+            chars = chars[0:(max_seq_length - 2)]
 
         input_tokens = []
         input_tokens_marked = []
         segment_ids = []
         label_ids = []
+        chars_blocks = []
         feature_blocks = []
 
         # The convention in BERT is:
@@ -424,6 +455,7 @@ class BERTPreprocessor(object):
         input_tokens_marked.append("[CLS]")
         segment_ids.append(0)
         label_ids.append("<PAD>")
+        chars_blocks.append(self.empty_char_vector)
         feature_blocks.append(self.empty_features_vector)
 
         for i, token in enumerate(tokens):
@@ -431,6 +463,7 @@ class BERTPreprocessor(object):
             segment_ids.append(0)
             label_ids.append(labels[i])
             feature_blocks.append(features[i])
+            chars_blocks.append(chars[i])
 
         for token in tokens_marked:
             input_tokens_marked.append(token)
@@ -439,6 +472,7 @@ class BERTPreprocessor(object):
         input_tokens_marked.append("[SEP]")
         segment_ids.append(0)
         label_ids.append("<PAD>")
+        chars_blocks.append(self.empty_char_vector)
         feature_blocks.append(self.empty_features_vector)
 
         input_ids = self.tokenizer.convert_tokens_to_ids(input_tokens)
@@ -452,37 +486,39 @@ class BERTPreprocessor(object):
             input_mask.append(0)
             segment_ids.append(0)
             label_ids.append("<PAD>")
+            chars_blocks.append(self.empty_char_vector)
             feature_blocks.append(self.empty_features_vector)
 
         assert len(input_ids) == max_seq_length
         assert len(input_mask) == max_seq_length
         assert len(segment_ids) == max_seq_length
         assert len(label_ids) == max_seq_length
+        assert len(chars_blocks) == max_seq_length
         assert len(feature_blocks) == max_seq_length
 
-        return input_ids, input_mask, segment_ids, feature_blocks, label_ids, input_tokens_marked
+        return input_ids, input_mask, segment_ids, chars_blocks, feature_blocks, label_ids, input_tokens_marked
 
 
 class Preprocessor(BaseEstimator, TransformerMixin):
 
     def __init__(self,
-                 use_char_feature=True,
                  padding=True,
-                 return_lengths=True,
-                 return_word_embeddings=True,
+                 return_lengths=False,
+                 return_word_embeddings=False,
                  return_casing=False,
                  return_features=False,
+                 return_chars=False,
                  return_bert_embeddings=False,
                  max_char_length=30,
                  feature_preprocessor: FeaturesPreprocessor = None,
                  ):
 
-        self.use_char_feature = use_char_feature
         self.padding = padding
         self.return_lengths = return_lengths
         self.return_word_embeddings = return_word_embeddings
         self.return_casing = return_casing
         self.return_features = return_features
+        self.return_chars = return_chars
         self.return_bert_embeddings = return_bert_embeddings
         self.vocab_char = None
         self.vocab_tag = None
@@ -495,19 +531,20 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         chars = {PAD: 0, UNK: 1}
         tags = {PAD: 0}
 
-        if self.use_char_feature:
-            temp_chars = {
-                c
-                for w in set(itertools.chain(*X))
-                for c in w
-            }
+        #if self.return_chars:
 
-            sorted_chars = sorted(temp_chars)
-            sorted_chars_dict = {
-                c: idx + 2
-                for idx, c in enumerate(sorted_chars)
-            }
-            chars = {**chars, **sorted_chars_dict}
+        temp_chars = {
+            c
+            for w in set(itertools.chain(*X))
+            for c in w
+        }
+
+        sorted_chars = sorted(temp_chars)
+        sorted_chars_dict = {
+            c: idx + 2
+            for idx, c in enumerate(sorted_chars)
+        }
+        chars = {**chars, **sorted_chars_dict}
 
         temp_tags = set(itertools.chain(*y))
         sorted_tags = sorted(temp_tags)
@@ -533,7 +570,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             y: list of list of tags
 
         Returns:
-            numpy array: sentences with char sequences and optionally length (if self.return_lengths is True)
+            numpy array: sentences with char sequences and length 
             numpy array: sequence of tags, either one hot encoded (default) or as indices
 
         if label_indices parameter is true, we encode tags with index integer, otherwise ouput hot one encoded tags
@@ -544,13 +581,13 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             char_ids = []
             lengths.append(len(sent))
             for w in sent:
-                if self.use_char_feature:
-                    char_ids.append(self.get_char_ids(w))
-                    if extend:
-                        char_ids.append([])
+                #if self.return_chars:
+                char_ids.append(self.get_char_ids(w))
+                if extend:
+                    char_ids.append([])
 
-            if self.use_char_feature:
-                chars.append(char_ids)
+            #if self.return_chars:
+            chars.append(char_ids)
 
         if y is not None:
             pad_index = self.vocab_tag[PAD]
@@ -564,10 +601,10 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             sents = [chars]
 
         # lengths
-        if self.return_lengths:
-            lengths = np.asarray(lengths, dtype=np.int32)
-            lengths = lengths.reshape((lengths.shape[0], 1))
-            sents.append(lengths)
+        #if self.return_lengths:
+        lengths = np.asarray(lengths, dtype=np.int32)
+        lengths = lengths.reshape((lengths.shape[0], 1))
+        sents.append(lengths)
 
         return (sents, y) if y is not None else sents
 
@@ -582,7 +619,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
     def inverse_transform(self, y):
         """
-        send back original label string from a one hot encoded tag
+        send back original label string from label index 
         """
         if self.indice_tag == None:
             self.indice_tag = {i: t for t, i in self.vocab_tag.items()}
@@ -605,18 +642,23 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             if not label_indices:
                 labels_final = dense_to_one_hot(labels_final, len(self.vocab_tag), nlevels=2)
 
-        if self.use_char_feature:
-            char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
-            char_ids = np.asarray(char_ids)
-            return [char_ids], labels_final
-        else:
-            return labels_final
+        #if self.return_chars:
+        char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
+        char_ids = np.asarray(char_ids)
+        return [char_ids], labels_final
+        #else:
+        #    return labels_final
 
     def empty_features_vector(self):
         if self.feature_preprocessor != None:
             return self.feature_preprocessor.empty_features_vector()
+        elif self.feature_preprocessor != None:
+            self.empty_features_vector = self.feature_preprocessor.empty_features_vector()
         else:
             return None
+
+    def empty_char_vector(self):
+        return [0] * self.max_char_length
 
     def save(self, file_path):
         variables = vars(self)
@@ -646,6 +688,9 @@ class Preprocessor(BaseEstimator, TransformerMixin):
                     setattr(self, key, preprocessor)
                 else:
                     setattr(self, key, val)
+
+        # fix typing issue for integer keys which become string :/
+        self.indice_tag = {i: t for t, i in self.vocab_tag.items()}
         return self
 
 
