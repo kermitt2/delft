@@ -402,6 +402,12 @@ class BERTPreprocessor(object):
             while len(features_tokens) < len(text_tokens):
                 features_tokens.append(self.empty_features_vector)
 
+        if chars_tokens is None:
+            # we create a dummy feature list to facilitate
+            chars_tokens = []
+            while len(chars_tokens) < len(text_tokens):
+                chars_tokens.append(self.empty_char_vector)
+
         for text_token, label_token, chars_token, features_token in zip(text_tokens, label_tokens, chars_tokens, features_tokens):
             text_sub_tokens = self.tokenizer.tokenize(text_token, add_special_tokens=False)
             

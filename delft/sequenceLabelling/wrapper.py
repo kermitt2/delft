@@ -14,8 +14,24 @@ import numpy as np
 from delft.sequenceLabelling.evaluation import get_report
 from delft.utilities.numpy import concatenate_or_none
 
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+warnings.filterwarnings("ignore", category=UserWarning) 
+
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+tf.get_logger().setLevel('ERROR')
+
+# unfortunately when running in graph mode, we cannot use BERT pre-trained, 
+# see https://github.com/huggingface/transformers/issues/3086
+# we could however disable eager mode for better performance for RNN architectures
+# at model compile time 
+#from tensorflow.python.framework.ops import disable_eager_execution
+#disable_eager_execution()
+
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model

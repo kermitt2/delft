@@ -72,7 +72,7 @@ class Trainer(object):
         # uncomment to plot graph
         #plot_model(self.model,
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
-        
+
         self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
                                   f_train=features_train, f_valid=features_valid,
                                   max_epoch=self.training_config.max_epoch, callbacks=callbacks)
@@ -322,6 +322,7 @@ class Scorer(Callback):
                 sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
                 # shape of (batch_size, 1), we want (batch_size)
                 sequence_lengths = np.reshape(sequence_lengths, (-1,))
+                y_pred_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_pred_batch, sequence_lengths)]
                 y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]
 
             if i == 0:

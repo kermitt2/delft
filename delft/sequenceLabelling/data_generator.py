@@ -146,7 +146,7 @@ class DataGenerator(keras.utils.Sequence):
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
-        batch_c = np.asarray(batches[0])
+        batch_c = np.asarray(batches[0], dtype=np.int32)
         batch_l = batches[1]
 
         return batch_x, batch_c, batch_f, batch_a, batch_l, batch_y
@@ -299,7 +299,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
 
         # chars and length
         batches = self.preprocessor.transform(x_tokenized, extend=extend)
-        batch_c = np.asarray(batches[0])
+        batch_c = batches[0]
         batch_l = batches[1]
 
         # for input as sentence piece token index for transformer layer
@@ -335,7 +335,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         batch_x = np.asarray(input_ids, dtype=np.int32)
         batch_x_masks = np.asarray(input_masks, dtype=np.int32)
         #batch_x_segments = np.asarray(input_segments, dtype=np.int32)
-        batch_c = np.asarray(input_chars, dtype=object)
+        batch_c = np.asarray(input_chars, dtype=np.int32)
         batch_input_tokens = np.asarray(input_tokens, dtype=object)
 
         if self.y is not None:

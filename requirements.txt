@@ -1,4 +1,4 @@
-numpy==1.21.4
+numpy==1.17.3
 regex==2021.11.10 
 scikit-learn==1.0.1
 tqdm==4.62.3

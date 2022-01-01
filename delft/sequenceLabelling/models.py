@@ -334,7 +334,7 @@ class BidGRU_CRF(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -381,7 +381,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -393,7 +393,7 @@ class BidLSTM_CRF_CASING(BaseModel):
 
         casing_embedding = Embedding(input_dim=config.case_vocab_size, 
                            output_dim=config.case_embedding_size,
-                           mask_zero=True,
+                           #mask_zero=True,
                            trainable=False,
                            name='casing_embedding')(casing_input)
         casing_embedding = Dropout(config.dropout)(casing_embedding)
@@ -435,7 +435,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -630,13 +630,14 @@ class BERT_CRF_CHAR(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
 
         chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
-                                                   return_sequences=False)))(char_embeddings)
+                                                    return_sequences=False)),
+                                                    name="chars_rnn")(char_embeddings)
 
         # combine characters and word embeddings
         x = Concatenate()([text_embedding_layer, chars])
@@ -687,13 +688,14 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    #mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
 
         chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
-                                                   return_sequences=False)))(char_embeddings)
+                                                    return_sequences=False)),
+                                                    name="chars_rnn")(char_embeddings)
 
         # layout features input and embeddings
         features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
@@ -714,8 +716,6 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         # combine feature, characters and word embeddings
         x = Concatenate()([text_embedding_layer, chars, features_embedding_out])
         x = Dropout(config.dropout)(x)
-
-
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                return_sequences=True,

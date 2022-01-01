@@ -3,7 +3,10 @@ from __future__ import absolute_import
 """
 Originally from Philipp Gross, https://github.com/phipleg/keras/blob/crf/keras/layers/crf.py
 
-Migrated to Keras/tensorflow 2 by your DeLFT servitor.
+Tentatively migrated to Keras/tensorflow 2 by your DeLFT servitor.
+
+Note: in this version, zero masking is not working with TF2, so do not use mask_zero=True in
+your archiecture when using this CRF layer
 
 Note: there are still a few tensorflow.keras.backend function usages, but it's probably ok.
 If tensorflow drops the support of this keras.backend API, we would need to move some of the 

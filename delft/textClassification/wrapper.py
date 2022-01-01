@@ -5,8 +5,23 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 import numpy as np
 
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+warnings.filterwarnings("ignore", category=DeprecationWarning) 
+warnings.filterwarnings("ignore", category=UserWarning) 
+
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
+
+from tensorflow.python.util import deprecation
+deprecation._PRINT_DEPRECATION_WARNINGS = False
+
+# unfortunately when running in graph mode, we cannot use BERT pre-trained, 
+# see https://github.com/huggingface/transformers/issues/3086
+# we could however disable eager mode for better performance for RNN architectures
+# at model compile time 
+#from tensorflow.python.framework.ops import disable_eager_execution
+#disable_eager_execution()
 
 import datetime
 
