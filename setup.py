@@ -1,6 +1,6 @@
-import setuptools 
+from setuptools import setup, find_packages
 
-setuptools.setup(
+setup(
     name="delft",
     version="0.3.0",
     author="Patrice Lopez",
@@ -9,15 +9,15 @@ setuptools.setup(
     long_description=open("Readme.md", encoding='utf-8').read(),
     long_description_content_type="text/markdown",
     url="https://github.com/kermitt2/delft",
-    packages=setuptools.find_packages(exclude=['test', '*.test', '*.test.*']),  
+    packages=find_packages(exclude=['test', '*.test', '*.test.*']),  
     include_package_data=True,
     python_requires='>=3.7',
     install_requires=[
-        'numpy==1.21.5',
+        'numpy==1.17.3',
         'regex==2021.11.10',
         'scikit-learn==1.0.1',
         'tqdm==4.62.3',
-        'tensorflow=2.7.0',
+        'tensorflow==2.7.0',
         'h5py==3.6.0',
         'unidecode==1.3.2',
         'pydot==1.4.0',
