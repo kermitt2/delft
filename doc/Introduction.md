@@ -12,7 +12,7 @@ __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and Tens
 
 DeLFT has three main purposes: 
 
-1. __Usefulness__: most of the existing Deep Learning works in NLP only consider simple texts as input. In addition to simple texts, we also target _rich text_ where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. Text is usually coming from large documents like PDF or HTML, and not just from segments like sentences or paragraphs, so contextual features is useful. Rich text is the most common textual content used by humans to communicate and work.
+1. __Covering text and rich texts__: most of the existing Deep Learning works in NLP only consider simple texts as input. In addition to simple texts, we also target _rich text_ where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. Text is usually coming from large documents like PDF or HTML, and not just from segments like sentences or paragraphs, and contextual features appear very useful. Rich text is the most common textual content used by humans to communicate and work.
 
 2. __Reproducibility and benchmarking__: by implementing several state-of-the-art algorithms for both sequence labeling and text classification tasks, we want to offer the capacity to validate reported results and to benchmark several methods under the same conditions and criteria.
 

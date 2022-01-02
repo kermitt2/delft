@@ -1,6 +1,5 @@
 <h1>DeLFT Documentation</h1>
 
-
 <h3>About</h3>
 
 * [Introduction](Introduction.md)
@@ -9,10 +8,16 @@
 
 * [License](License.md)
 
-<h3>User manual</h3>
+<h3>Installation</h3>
 
 * [Install DeLFT](Install-DeLFT.md)
 * [Embeddings](embeddings.md)
+
+<h3>Applications</h3>
+
+* [NER](ner.md)
+* [GROBID models](grobid.md)
+* [Snippet classification](classifiers.md)
 
 <h3>Sequence Labeling</h3>
 
@@ -21,5 +26,4 @@
 <h3>Text Classification</h3>
 
 * [Description](text_classification.md)
-
 
