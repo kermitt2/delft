@@ -4,6 +4,7 @@
 
 All the following models includes Dropout, Pooling and Dense layers with hyperparameters tuned for reasonable performance across standard text classification tasks. If necessary, they are good basis for further performance tuning.
 
+* `bert`: a BERT classifier to fine-tune, to be instanciated by any BERT pre-trained model
 * `gru`: two layers Bidirectional GRU
 * `gru_simple`: one layer Bidirectional GRU
 * `bidLstm`: a Bidirectional LSTM layer followed by an Attention layer
@@ -11,10 +12,6 @@ All the following models includes Dropout, Pooling and Dense layers with hyperpa
 * `lstm_cnn`: LSTM followed by convolutional layers
 * `mix1`: one layer Bidirectional GRU followed by a Bidirectional LSTM
 * `dpcnn`: Deep Pyramid Convolutional Neural Networks (but not working as expected - to be reviewed)
-
-also available (via TensorFlow): 
-
-* `bert` or `scibert`: BERT (Bidirectional Encoder Representations from Transformers) architecture (classification corresponds to a fine tuning)
 
 Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 Ti with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
 
@@ -28,19 +25,19 @@ This is a multi-label regression problem, where a Wikipedia comment (or any simi
 
 To launch the training:
 
-> python3 toxicCommentClassifier.py train
+> python3 delft/applications/toxicCommentClassifier.py train
 
 For training with n-folds, use the parameter `--fold-count`:
 
-> python3 toxicCommentClassifier.py train --fold-count 10
+> python3 delft/applications/toxicCommentClassifier.py train --fold-count 10
 
 After training (1 or n-folds), to process the Kaggle test set, use:
 
-> python3 toxicCommentClassifier.py test
+> python3 delft/applications/toxicCommentClassifier.py test
 
 To classify a set of comments:
 
-> python3 toxicCommentClassifier.py classify
+> python3 delft/applications/toxicCommentClassifier.py classify
 
 #### Citation classification
 
@@ -52,15 +49,15 @@ For a given scientific article, the task is to estimate if the occurrence of a b
 
 In this example, we formulate the problem as a 3 class regression (`negative`. `neutral`, `positive`). To train the model:
 
-> python3 citationClassifier.py train
+> python3 delft/applications/citationClassifier.py train
 
 with n-folds:
 
-> python3 citationClassifier.py train --fold-count 10
+> python3 delft/applications/citationClassifier.py train --fold-count 10
 
 Training and evalation (ratio) with 10-folds:
 
-> python3 citationClassifier.py train_eval --fold-count 10
+> python3 delft/applications/citationClassifier.py train_eval --fold-count 10
 
 which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
@@ -86,7 +83,7 @@ Evaluation on 896 instances:
 
 To classify a set of citation contexts with default model (2-layers Bidirectional GRU model `gru`):
 
-> python3 citationClassifier.py classify
+> python3 delft/applications/citationClassifier.py classify
 
 which will produce some JSON output like this:
 

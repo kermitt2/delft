@@ -22,7 +22,7 @@ pip3 install -r requirements.txt
 Finally install the project in editable state
 
 ```sh
-pip3 install -e
+pip3 install -e .
 ```
 
 Current DeLFT version is __0.3.0__. It uses tensorflow 2.7.0 and will exploit your available GPU with the condition that CUDA (>=11.0) is properly installed. 
