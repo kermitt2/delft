@@ -1,23 +1,18 @@
+import os
+import numpy as np
+
 from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
-
-from transformers import TFBertModel
-
-from delft.utilities.crf_layer import ChainCRF
-
-from delft.sequenceLabelling.preprocess import BERTPreprocessor
-from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
-
-import json
-import time
-import os
-import shutil
-import numpy as np
 import tensorflow as tf
 
+from transformers import TFBertModel, BertConfig, PretrainedConfig
+
+from delft.utilities.crf_layer import ChainCRF
+from delft.sequenceLabelling.preprocess import BERTPreprocessor
+from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
 
 """
 The sequence labeling models.
@@ -27,7 +22,9 @@ The class can also define the data generator class object to be used, the loss f
 the metrics and the optimizer.
 """
 
-def get_model(config, preprocessor, ntags=None):
+TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
+
+def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
     """
     Return a model instance by its name. This is a facilitator function. 
     """
@@ -81,7 +78,10 @@ def get_model(config, preprocessor, ntags=None):
         preprocessor.return_bert_embeddings = True
         config.use_crf = False
         config.labels = preprocessor.vocab_tag
-        return BERT(config, ntags)
+        return BERT(config, 
+                    ntags, 
+                    load_pretrained_weights=load_pretrained_weights, 
+                    local_path=local_path)
 
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
@@ -116,7 +116,24 @@ def get_model(config, preprocessor, ntags=None):
 
 class BaseModel(object):
 
-    def __init__(self, config, ntags):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+        """
+        Args:
+            config (ModelConfig): DeLFT model configuration object
+            ntags (integer): number of different labels of the model
+            load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
+                                               or not we load the pretrained weights of this transformer. For training
+                                               a new model set it to True. When getting the full Keras model to load
+                                               existing weights, set it to False to avoid reloading the pretrained weights. 
+            local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
+                                 pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
+                                 transformers hub.
+            
+            not used:
+            transformer_config_file_path: used only when the model contains a transformer layer - local path to the 
+                                          transformer config file to be used when not loading the pretrained weights of 
+                                          the transformer. 
+        """
         self.config = config
         self.ntags = ntags
         self.model = None
@@ -147,6 +164,27 @@ class BaseModel(object):
     def get_generator(self):
         # default generator
         return DataGenerator
+
+    def get_transformer_config(self):
+        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
+        return None
+
+    def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
+        if load_pretrained_weights:
+            if local_path is None:
+                transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)                
+            else:
+                transformer_model = TFBertModel.from_pretrained(local_path, from_pt=True)
+            self.bert_config = transformer_model.config
+        else:
+            # load config in JSON format
+            if local_path is None:
+                self.bert_config = BertConfig.from_pretrained(transformer_model_name, from_pt=True)
+            else:
+                self.bert_config = BertConfig.from_json_file(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
+            transformer_model = TFBertModel(self.bert_config)
+        return transformer_model
+
 
 class BidLSTM_CRF(BaseModel):
     """
@@ -481,19 +519,29 @@ class BidLSTM_CRF_FEATURES(BaseModel):
 
 class BERT(BaseModel):
     """
-    A Keras implementation of BERT for sequence labelling with softmax activation layer. The BERT layer will be 
-    loaded with weights of existing pre-trained BERT model given by the field transformer in config. 
+    A Keras implementation of BERT for sequence labelling with softmax activation final layer. 
+
+    For training, the BERT layer will be loaded with weights of existing pre-trained BERT model given by the 
+    field transformer of the model config (load_pretrained_weights=True). 
+
+    For an existing trained model, the BERT layer will be simply initialized (load_pretrained_weights=False), 
+    without loading pre-trained weights (the weight of the transformer layer will be loaded with the full Keras 
+    saved model). 
+
+    When initializing the model, we can provide a local_path to load locally the transformer config and (if 
+    necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
     """
-
     name = 'BERT'
+    bert_config = None 
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         # build input, directly feed with BERT input ids by the data generator
         max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
-        #transformer_model = transformers.TFBertModel(transformers.BertConfig())
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
@@ -510,6 +558,13 @@ class BERT(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers   
 
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
+
+
 class BERT_CRF(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
@@ -518,12 +573,14 @@ class BERT_CRF(BaseModel):
 
     name = 'BERT_CRF'
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         # build input, directly feed with BERT input ids by the data generator AND features from data generator too
         max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
@@ -552,12 +609,14 @@ class BERT_CRF_FEATURES(BaseModel):
 
     name = 'BERT_CRF_FEATURES'
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         # build input, directly feed with BERT input ids by the data generator
         max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
@@ -612,12 +671,14 @@ class BERT_CRF_CHAR(BaseModel):
 
     name = 'BERT_CRF_CHAR'
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         # build input, directly feed with BERT input ids by the data generator
         max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
@@ -670,12 +731,14 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
 
     name = 'BERT_CRF_CHAR_FEATURES'
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         # build input, directly feed with BERT input ids by the data generator
         max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
-        transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')

@@ -487,7 +487,7 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(modelTypes))
+    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--cascaded", action="store_true", help="Use models in cascade (train, eval, predict)") 
     parser.add_argument(
         "--embedding", 

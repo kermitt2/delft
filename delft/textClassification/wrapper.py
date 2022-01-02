@@ -33,6 +33,8 @@ from delft.textClassification.models import predict
 from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
+from delft.textClassification.models import TRANSFORMER_CONFIG_FILE_NAME
+
 from delft.utilities.Embeddings import Embeddings
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
@@ -90,6 +92,7 @@ class Classifier(object):
 
         # if transformer is None, no bert layer is present in the model
         self.transformer = transformer
+        self.transformer_config = None
         if self.transformer != None:
             self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=maxlen, padding='max_length')
@@ -124,7 +127,7 @@ class Classifier(object):
                                               multiprocessing=multiprocessing)
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.model = getModel(self.model_config, self.training_config)
+        self.model, self.transformer_config = getModel(self.model_config, self.training_config)
         
         bert_data = False
         if self.transformer != None:
@@ -385,6 +388,11 @@ class Classifier(object):
                     self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                 print('nfolds model saved')
 
+        # save pretrained transformer config if used in the model
+        if self.transformer is not None:
+            if self.transformer_config is not None:
+                self.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
@@ -399,13 +407,19 @@ class Classifier(object):
                                                 max_length=self.model_config.maxlen, padding='max_length')
             self.embeddings = None
 
-        self.model = getModel(self.model_config, self.training_config)
+        self.model, self.transformer_config = getModel(self.model_config, 
+                              self.training_config, 
+                              load_pretrained_weights=False, 
+                              local_path=os.path.join(dir_path, self.model_config.model_name))
         if self.model_config.fold_number == 1:
             print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
             self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
         else:
             self.models = []
             for i in range(0, self.model_config.fold_number):
-                local_model = getModel(self.model_config, self.training_config)
+                local_model, self.transformer_config = getModel(self.model_config, 
+                                                                self.training_config, 
+                                                                load_pretrained_weights=False, 
+                                                                local_path=os.path.join(dir_path, self.model_config.model_name))
                 local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                 self.models.append(local_model)

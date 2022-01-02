@@ -108,7 +108,7 @@
             "url": "https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip"
         },
         {
-            "name": "scibert-cased",
+            "name": "allenai/scibert_scivocab_cased",
             "model_dir": "/media/lopez/T51/embeddings/scibert_scivocab_cased",
             "path-config": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_config.json",
             "path-weights": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_model.ckpt",
@@ -118,10 +118,10 @@
             "lang": "en"
         },
         {
-            "name": "biobert",
-            "path-config": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/bert_config.json",
-            "path-weights": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/model.ckpt-1000000",
-            "path-vocab": "/media/lopez/T5/embeddings/biobert_v1.1_pubmed/vocab.txt",
+            "name": "dmis-lab/biobert-base-cased-v1.2",
+            "path-config": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/model.ckpt-1000000",
+            "path-vocab": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/vocab.txt",
             "path-cache": "/media/lopez/T5/cache/biobert/",
             "cache-training": true,
             "lang": "en"

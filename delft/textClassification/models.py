@@ -23,7 +23,9 @@ from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
 
-from transformers import TFBertModel
+from transformers import TFBertModel, BertConfig
+
+TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 
 architectures = [
     'lstm', 
@@ -215,7 +217,7 @@ def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     model.compile(loss='binary_crossentropy', 
                 optimizer='adam', 
                 metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # bidirectional LSTM 
@@ -235,7 +237,7 @@ def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_
     model.compile(loss='binary_crossentropy', 
         optimizer='adam', 
         metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # conv+GRU with embeddings
@@ -255,7 +257,7 @@ def cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rat
     model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
+    return model, None
 
 def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
     input_layer = Input(shape=(maxlen, embed_size), )
@@ -270,7 +272,7 @@ def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
+    return model, None
 
 
 def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -291,7 +293,7 @@ def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
+    return model, None
 
 
 def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
@@ -312,7 +314,7 @@ def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     model = Model(inputs=input_layer, outputs=x)
     model.summary()  
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # LSTM + conv
@@ -339,7 +341,7 @@ def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropou
     model.compile(loss='binary_crossentropy', 
                 optimizer='adam', 
                 metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # 2 bid. GRU 
@@ -361,7 +363,7 @@ def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rat
                   optimizer=RMSprop(clipvalue=1, clipnorm=1),
                   #optimizer='adam',
                   metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # 1 layer bid GRU
@@ -381,7 +383,7 @@ def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_drop
                   optimizer=RMSprop(clipvalue=1, clipnorm=1),
                   #optimizer='adam',
                   metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # bid GRU + bid LSTM
@@ -403,7 +405,7 @@ def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
                   optimizer=RMSprop(clipvalue=1, clipnorm=1),
                   #optimizer='adam',
                   metrics=['accuracy'])
-    return model
+    return model, None
 
 
 # DPCNN
@@ -440,13 +442,25 @@ def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_r
     model = Model(inputs = input_layer, outputs = X, name='dpcnn')
     model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
     model.summary()
-    return model
-
+    return model, None
 
 # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
-def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en"):
+def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
     bert_model_name = transformer
-    transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)
+
+    if load_pretrained_weights:
+        if local_path is None:
+            transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)                
+        else:
+            transformer_model = TFBertModel.from_pretrained(local_path, from_pt=True)
+        bert_config = transformer_model.config
+    else:
+        # load config in JSON format
+        if local_path is None:
+            bert_config = BertConfig.from_pretrained(bert_model_name, from_pt=True)
+        else:
+            bert_config = BertConfig.from_json_file(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
+        transformer_model = TFBertModel(self.bert_config)
 
     input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
 
@@ -464,10 +478,10 @@ def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en"):
 
     optimizer = Adam(learning_rate=2e-5, clipnorm=1)
     model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
-    return model
+    return model, bert_config
 
 
-def getModel(model_config, training_config):
+def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
     architecture = model_config.architecture
     fold_count = model_config.fold_number
 
@@ -524,7 +538,11 @@ def getModel(model_config, training_config):
         model = gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes)
     elif (architecture == 'bert'):
         print(transformer, "will be used")
-        model = bert(dense_size, nb_classes, max_seq_len=maxlen, transformer=transformer)
+        model = bert(dense_size, nb_classes, 
+                    max_seq_len=maxlen, 
+                    transformer=transformer, 
+                    load_pretrained_weights=load_pretrained_weights, 
+                    local_path=local_path)
     else:
         raise (OSError('The model type '+architecture+' is unknown'))
     return model
@@ -672,7 +690,9 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
                 maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
                 embeddings=embeddings, shuffle=False)
 
-        foldModel, best_score = train_model(getModel(model_config, training_config),
+        local_model, _ = getModel(model_config, training_config)
+
+        foldModel, best_score = train_model(local_model,
                 model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
                 class_weights, training_generator, validation_generator, val_y, patience=training_config.patience,
                 multiprocessing=training_config.multiprocessing, callbacks=callbacks)

@@ -34,6 +34,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
 from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME 
 from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
+from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
@@ -168,7 +169,7 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
         trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
@@ -314,7 +315,11 @@ class Sequence(object):
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
                     dir_path = 'data/models/sequenceLabelling/'
                     weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i)+".hdf5")
-                    self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag))
+                    self.model = get_model(self.model_config, 
+                               self.p, 
+                               ntags=len(self.p.vocab_tag), 
+                               load_pretrained_weights=False, 
+                               local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
                     # the architecture model uses a transformer layer, we need to use predict to get usable data
@@ -554,7 +559,11 @@ class Sequence(object):
         if self.model == None and self.model_config.fold_number > 1:
             print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
         else:
-           self.model.save(os.path.join(directory, weight_file))
+            self.model.save(os.path.join(directory, weight_file))
+
+            # save pretrained transformer config if used in the model
+            if self.model.get_transformer_config() is not None:
+                self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
         
         print('model saved')
 
@@ -584,7 +593,10 @@ class Sequence(object):
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
-        self.model = get_model(self.model_config, self.p, ntags=len(self.p.vocab_tag))
+        self.model = get_model(self.model_config, 
+                               self.p, ntags=len(self.p.vocab_tag), 
+                               load_pretrained_weights=False, 
+                               local_path=os.path.join(dir_path, self.model_config.model_name))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
