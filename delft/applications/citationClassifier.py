@@ -79,9 +79,9 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
     
 # classify a list of texts
-def classify(texts, output_format, architecture="gru", transformer=None):
+def classify(texts, output_format, architecture="gru", embeddings_name=None, transformer=None):
     # load model
-    model = Classifier('citations', architecture=architecture, list_classes=list_classes)
+    model = Classifier('citations', architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -153,5 +153,5 @@ if __name__ == "__main__":
         someTexts = ['One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.', 
             'Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.', 
             'However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.']
-        result = classify(someTexts, "json", architecture=architecture, transformer=transformer)
+        result = classify(someTexts, "json", architecture=architecture, embeddings_name=embeddings_name, transformer=transformer)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

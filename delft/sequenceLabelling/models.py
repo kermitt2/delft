@@ -535,16 +535,14 @@ class BERT(BaseModel):
     bert_config = None 
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        # build input, directly feed with BERT input ids by the data generator
-        max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
-        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
         embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
@@ -574,16 +572,14 @@ class BERT_CRF(BaseModel):
     name = 'BERT_CRF'
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        # build input, directly feed with BERT input ids by the data generator AND features from data generator too
-        max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
-        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
         embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
@@ -610,16 +606,14 @@ class BERT_CRF_FEATURES(BaseModel):
     name = 'BERT_CRF_FEATURES'
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        # build input, directly feed with BERT input ids by the data generator
-        max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
-        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
         text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
@@ -672,16 +666,14 @@ class BERT_CRF_CHAR(BaseModel):
     name = 'BERT_CRF_CHAR'
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        # build input, directly feed with BERT input ids by the data generator
-        max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
-        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
         text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
@@ -732,16 +724,14 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
     name = 'BERT_CRF_CHAR_FEATURES'
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        # build input, directly feed with BERT input ids by the data generator
-        max_seq_len = config.max_sequence_length
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
-        input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
 
         text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]

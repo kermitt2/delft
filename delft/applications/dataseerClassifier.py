@@ -129,21 +129,21 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.save()
     '''
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False): 
+def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, cascaded=False): 
     if cascaded:
-        return train_eval_cascaded(embeddings_name, fold_count, architecture)
+        return train_eval_cascaded(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, architecture)
+    train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    #train_and_eval_reuse(embeddings_name, fold_count, architecture)
+    #train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for first level data type hierarchy
-    #train_and_eval_primary(embeddings_name, fold_count, architecture)
+    #train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for second level data type hierarchy (subtypes)
-    #train_and_eval_secondary(embeddings_name, fold_count, architecture)
+    #train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
 def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading dataset type corpus...')
@@ -182,7 +182,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     # saving the model
     model.save()
 
-def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=transformer): 
+def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
@@ -219,7 +219,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
     # saving the model
     model.save()
     
-def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=transformer): 
+def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
@@ -255,7 +255,7 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     # saving the model
     model.save()
 
-def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", transformer=transformer): 
+def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # aggregate by class, we will have one training set per class
@@ -336,12 +336,12 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
         # saving the model
         model.save()
     
-def classify(texts, output_format, architecture="gru", transformer=transformer, cascaded=False):
+def classify(texts, output_format, architecture="gru", transformer=None, cascaded=False, embeddings_name=None):
     '''
         Classify a list of texts with an existing model
     '''
     # load model
-    model = Classifier('dataseer-first', architecture=architecture)
+    model = Classifier('dataseer', architecture=architecture, transformer=transformer, embeddings_name=embeddings_name)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -352,7 +352,7 @@ def classify(texts, output_format, architecture="gru", transformer=transformer, 
         print("runtime: %s seconds " % (runtime))
     return result
 
-def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transformer=transformer):
+def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transformer=None):
     # general setting of parameters
     class_weights = None
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
@@ -529,16 +529,16 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer, cascaded=cascaded)
+        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer, cascaded=cascaded)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer, cascaded=cascaded)    
+        y_test = train_and_eval(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer, cascaded=cascaded)    
 
     if args.action == 'classify':
         someTexts = ['Labeling yield and radiochemical purity was analyzed by instant thin layered chromatography (ITLC).', 
             'NOESY and ROESY spectra64,65 were collected with typically 128 scans per t1 increment, with the residual water signal removed by the WATERGATE sequence and 1 s relaxation time.', 
             'The concentrations of Cd and Pb in feathers were measured by furnace atomic absorption spectrometry (VARIAN 240Z).']
-        result = classify(someTexts, "json", architecture=architecture, cascaded=cascaded)
+        result = classify(someTexts, "json", architecture=architecture, cascaded=cascaded, embeddings_name=embeddings_name, transformer=transformer)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))  

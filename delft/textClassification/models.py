@@ -460,7 +460,7 @@ def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", lo
             bert_config = BertConfig.from_pretrained(bert_model_name, from_pt=True)
         else:
             bert_config = BertConfig.from_json_file(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
-        transformer_model = TFBertModel(self.bert_config)
+        transformer_model = TFBertModel(bert_config)
 
     input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
 

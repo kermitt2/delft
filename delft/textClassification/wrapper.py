@@ -93,13 +93,14 @@ class Classifier(object):
         # if transformer is None, no bert layer is present in the model
         self.transformer = transformer
         self.transformer_config = None
-        if self.transformer != None:
+
+        if self.transformer is not None:
             self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=maxlen, padding='max_length')
             self.embeddings_name == None
             self.embeddings = None
             word_emb_size = 0
-        elif self.embeddings_name != None:
+        elif self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name) 
             word_emb_size = self.embeddings.embed_size
         
@@ -396,7 +397,9 @@ class Classifier(object):
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
 
-        if self.model_config.transformer == None:
+        print(self.model_config.transformer)
+
+        if self.model_config.transformer is None:
             # load embeddings
             # Do not use cache in 'production' mode
             self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)

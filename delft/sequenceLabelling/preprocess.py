@@ -233,11 +233,12 @@ class BERTPreprocessor(object):
     def set_empty_char_vector(self, empty_char_vector):
         self.empty_char_vector = empty_char_vector    
 
+    '''
     def create_batch_input_bert(self, texts, chars, maxlen=512):
-        '''
+        """
         Prediction usage without features: sub-tokenize and convert to ids/mask/segments input texts, no label.
         texts is a list of texts already pre-tokenized
-        '''
+        """
         target_ids = []
         target_type_ids = []
         target_attention_mask  = []
@@ -293,11 +294,11 @@ class BERTPreprocessor(object):
         return target_ids, target_type_ids, target_attention_mask, target_chars, target_labels, input_tokens
 
     def tokenize_and_align_features(self, texts, chars, text_features, maxlen=512):
-        '''
+        """
         Prediction usage with features: sub-tokenize+convert to ids/mask/segments input texts and realign features
         given new tokens introduced by the wordpiece sub-tokenizer.
         texts is a list of texts already pre-tokenized
-        '''
+        """
         target_ids = []
         target_type_ids = []
         target_attention_mask  = []
@@ -323,26 +324,39 @@ class BERTPreprocessor(object):
             target_chars.append(chars_block)
 
         return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, input_tokens
+    '''
 
     def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
-        '''
+        """
         Training/evaluation usage with features: sub-tokenize+convert to ids/mask/segments input texts, realign labels
         and features given new tokens introduced by the wordpiece sub-tokenizer.
         texts is a list of texts already pre-tokenized
-        '''
+        """
         target_ids = []
         target_type_ids = []
         target_attention_mask  = []
-        target_features = []
-        target_labels = []
         input_tokens = []
         target_chars = []
 
+        target_features = None
+        if text_features is not None:
+            target_features = []
+        
+        target_labels = None
+        if text_labels is not None:
+            target_labels = [] 
+        
         for i, text in enumerate(texts):
             
             local_chars = chars[i]
-            features = text_features[i]
-            label_list = text_labels[i]
+
+            features = None
+            if text_features is not None:
+                features = text_features[i]
+            
+            label_list = None
+            if text_labels is not None:
+                label_list = text_labels[i]
 
             input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, target_tags, tokens = self.convert_single_text(text, 
                                                                                                                     local_chars, 
@@ -352,10 +366,14 @@ class BERTPreprocessor(object):
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
-            target_features.append(feature_blocks)
-            target_labels.append(target_tags)
             input_tokens.append(tokens)
             target_chars.append(chars_block)
+
+            if target_features is not None:
+                target_features.append(feature_blocks)
+            
+            if target_labels is not None:
+                target_labels.append(target_tags)                
 
         return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, target_labels, input_tokens
 

@@ -296,6 +296,8 @@ class DataGeneratorTransformers(keras.utils.Sequence):
                 # truncation of sequence at max_sequence_length
                 sub_f = truncate_batch_values(sub_f, self.max_sequence_length)
             sub_f = self.preprocessor.transform_features(sub_f, extend=extend)
+        else:
+            sub_f = None
 
         # chars and length
         batches = self.preprocessor.transform(x_tokenized, extend=extend)
@@ -303,6 +305,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         batch_l = batches[1]
 
         # for input as sentence piece token index for transformer layer
+        '''
         if self.y is None:
             if self.preprocessor.return_features:
                 input_ids, input_masks, input_segments, input_chars, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
@@ -330,23 +333,37 @@ class DataGeneratorTransformers(keras.utils.Sequence):
                                                                         batch_c,
                                                                         batch_y,
                                                                         maxlen=self.max_sequence_length)
+        '''
 
-        # we need input indices AND mask to avoid learning/evaluating with <PAD>
-        batch_x = np.asarray(input_ids, dtype=np.int32)
-        batch_x_masks = np.asarray(input_masks, dtype=np.int32)
-        #batch_x_segments = np.asarray(input_segments, dtype=np.int32)
-        batch_c = np.asarray(input_chars, dtype=np.int32)
-        batch_input_tokens = np.asarray(input_tokens, dtype=object)
+        input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
+                                                                        x_tokenized, 
+                                                                        batch_c,
+                                                                        sub_f,
+                                                                        batch_y,
+                                                                        maxlen=self.max_sequence_length)
+
+        # truncate the batch input vectors for the max length in batch after sub-tokenization
+        max_length_x = max((_len_until_first_pad(tokens, 0) for tokens in input_ids))
+
+        batch_x = np.asarray(truncate_batch_values(input_ids, max_length_x), dtype=np.int32)
+        batch_x_masks = np.asarray(truncate_batch_values(input_masks, max_length_x), dtype=np.int32)
+        #batch_x_segments = np.asarray(truncate_batch_values(input_segments, max_length_x), dtype=np.int32)
+        batch_c = np.asarray(truncate_batch_values(input_chars, max_length_x), dtype=np.int32)
+        batch_input_tokens = np.asarray(truncate_batch_values(input_tokens, max_length_x), dtype=object)
 
         if self.y is not None:
-            batch_y = np.asarray(input_labels, dtype=object)
+            __, batch_y = self.preprocessor.transform(x_tokenized, input_labels, extend=extend, label_indices=True)
+            batch_y = np.asarray(truncate_batch_values(batch_y, max_length_x), dtype=np.int32)
 
         if self.preprocessor.return_features:
-            batch_f = np.asarray(input_features, dtype=np.int32)
+            batch_f = np.asarray(truncate_batch_values(input_features, max_length_x), dtype=np.int32)
         else:    
-            batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
-
-        if self.y is not None:
-            __, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
+            batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')            
 
         return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y
+
+def _len_until_first_pad(tokens, pad):
+    for i in range(len(tokens)):
+        if tokens[i] == pad:
+            return i
+    return len(tokens)

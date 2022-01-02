@@ -1,7 +1,7 @@
 from collections import defaultdict
 import numpy as np
 import datetime
-from delft.sequenceLabelling.data_generator import DataGenerator
+from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.utilities.Tokenizer import tokenizeAndFilter
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
@@ -24,8 +24,10 @@ class Tagger(object):
 
         # if the model uses a transformer layer, we cannot use a batch generator, so
         # we rely on a tag function customized for transformers usage 
+        '''
         if self.model_config.transformer != None:
             return self.tag_without_generator(texts, output_format, features=features)
+        '''
 
         if output_format == 'json':
             res = {
@@ -41,25 +43,61 @@ class Tagger(object):
         if (len(texts)>0 and isinstance(texts[0], str)):
             to_tokeniz = True
         
-        predict_generator = DataGenerator(texts, None, 
+        generator = self.model.get_generator()
+        predict_generator = generator(texts, None, 
             batch_size=self.model_config.batch_size, 
             preprocessor=self.preprocessor, 
             bert_preprocessor=self.bert_preprocessor,
             char_embed_size=self.model_config.char_embedding_size,
             max_sequence_length=self.model_config.max_sequence_length,
             embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, 
-            features=features)
-
-        nb_workers = 6
-        multiprocessing = True
-        # multiple workers might not work with BERT due to GPU memory limit (with GTX 1080Ti 11GB)
+            features=features, output_input_tokens=True)
 
         steps_done = 0
         steps = len(predict_generator)
         for generator_output in predict_generator:
             if steps_done == steps:
                 break
-            preds = self.model.predict_on_batch(generator_output[0])
+
+            if isinstance(predict_generator, DataGeneratorTransformers):
+                # the model uses transformer embeddings, so we need the input tokens to realign correctly the 
+                # labels and the inpit label texts 
+
+                # we need to remove one vector of the data corresponding to the marked tokens, this vector is not 
+                # expected by the model, but we need it to restore correctly the labels (which are produced
+                # according to the sub-segmentation of wordpiece, not the expected segmentation)
+                data = generator_output[0]
+
+                input_tokens = data[-1]
+                data = data[:-1]
+
+                y_pred_batch = self.model.predict_on_batch(data)
+                y_pred_batch = np.argmax(y_pred_batch, -1)
+
+                # results have been produced by a model using a transformer layer, so a few things to do
+                # the labels are sparse, so integers and not one hot encoded
+                # we need to restore back the labels for wordpiece to the labels for normal tokens
+                # for this we can use the marked tokens provided by the generator 
+                new_y_pred_batch = []
+                for y_pred_text, tokens_text in zip(y_pred_batch, input_tokens):
+                    new_y_pred_text = []
+                    # this is the result per sequence, realign labels:
+                    for q in range(len(y_pred_text)):
+                        if tokens_text[q] == '[SEP]':
+                            break
+                        if tokens_text[q] in ['[PAD]', '[CLS]']:
+                            continue
+                        if tokens_text[q].startswith("##"): 
+                            continue
+                        new_y_pred_text.append(y_pred_text[q]) 
+                    new_y_pred_batch.append(new_y_pred_text)
+                preds = new_y_pred_batch
+
+                #preds = [self.preprocessor.inverse_transform(y) for y in y_pred_batch]
+            else:
+                # no weirdness changes on the input 
+                preds = self.model.predict_on_batch(generator_output[0])
+                #preds = [self.preprocessor.inverse_transform(y) for y in preds]
 
             for i in range(0, len(preds)):
                 pred = [preds[i]]
@@ -73,8 +111,12 @@ class Tagger(object):
                     tokens = text
                     offsets = []
 
-                tags = self._get_tags(pred)
-                prob = self._get_prob(pred)
+                if isinstance(predict_generator, DataGeneratorTransformers):
+                    tags = self._get_tags_sparse(pred)
+                    prob = self._get_prob_sparse(pred)
+                else:
+                    tags = self._get_tags(pred)
+                    prob = self._get_prob(pred)
 
                 if output_format == 'json':
                     piece = {}
@@ -94,13 +136,18 @@ class Tagger(object):
     def _get_tags(self, pred):
         pred = np.argmax(pred, -1)
         tags = self.preprocessor.inverse_transform(pred[0])
+        return tags
 
+    def _get_tags_sparse(self, pred):
+        tags = self.preprocessor.inverse_transform(pred[0])
         return tags
 
     def _get_prob(self, pred):
         prob = np.max(pred, -1)[0]
-
         return prob
+
+    def _get_prob_sparse(self, pred):
+        return [1.0] * len(pred[0])
 
     def _build_json_response(self, original_text, tokens, tags, prob, offsets):
         res = {
@@ -133,11 +180,9 @@ class Tagger(object):
 
         return res
 
+
     def tag_without_generator(self, texts, output_format='json', features=None):
-        '''
-        For models using BERT tokenized sequences, we need more information about the original input string than available
-        via a generator for the input model, so we don't use a generator and create batch keeping track of original tokens 
-        '''
+
         if output_format == 'json':
             res = {
                 "software": "DeLFT",
@@ -184,28 +229,26 @@ class Tagger(object):
             batches = self.preprocessor.transform(text_batch)
             chars_batch = np.asarray(batches[0])
 
+            if features is not None:
+                features_batch = self.preprocessor.transform_features(features_batch)
+
+            input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
+                                                                        text_batch, 
+                                                                        chars_batch,
+                                                                        features_batch, 
+                                                                        None,
+                                                                        maxlen=self.model_config.max_sequence_length)
+
+            batch_x = np.asarray(input_ids, dtype=np.int32)
+            batch_x_masks = np.asarray(input_masks, dtype=np.int32)
+            batch_c = np.asarray(input_chars, dtype=np.int32)
+
             if features is None:
-                input_ids, input_masks, input_segments, input_chars, input_tokens = self.bert_preprocessor.create_batch_input_bert(
-                                                                                                text_batch, 
-                                                                                                chars_batch,
-                                                                                                maxlen=self.model_config.max_sequence_length)
-                batch_x = np.asarray(input_ids, dtype=np.int32)
-                batch_x_masks = np.asarray(input_masks, dtype=np.int32)
-                batch_c = np.asarray(input_chars, dtype=np.int32)
                 if self.preprocessor.return_chars:
                     results = self.model.predict_on_batch([batch_x, batch_c, batch_x_masks])
                 else:
                     results = self.model.predict_on_batch([batch_x, batch_x_masks])
             else:
-                features_batch = self.preprocessor.transform_features(features_batch)
-                input_ids, input_masks, input_segments, input_chars, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
-                                                                                                text_batch, 
-                                                                                                chars_batch,
-                                                                                                features_batch, 
-                                                                                                maxlen=self.model_config.max_sequence_length)
-                batch_x = np.asarray(input_ids, dtype=np.int32)
-                batch_x_masks = np.asarray(input_masks, dtype=np.int32)
-                batch_c = np.asarray(input_chars, dtype=np.int32)
                 batch_f = np.asarray(input_features, dtype=np.int32)
                 if self.preprocessor.return_chars:
                     results = self.model.predict_on_batch([batch_x, batch_c, batch_f, batch_x_masks])
@@ -216,11 +259,11 @@ class Tagger(object):
             for i, prediction in enumerate(results):
                 if p == num_current_batch:
                     break
-                predicted_labels = self._get_tags([prediction]) 
+                #predicted_labels = self._get_tags([prediction]) 
                 text = texts[p+(batch_idx*self.model_config.batch_size)]
 
                 y_pred_result = []
-                for q in range(len(predicted_labels)):
+                for q in range(len(input_tokens)):
                     if input_tokens[i][q] == '[SEP]':
                         break
                     if input_tokens[i][q] in ['[PAD]', '[CLS]']:
@@ -280,6 +323,7 @@ def get_entities_with_offsets(seq, offsets):
     chunks = []
     seq = seq + ['O']  # add sentinel
     types = [tag.split('-')[-1] for tag in seq]
+
     max_length = min(len(seq)-1, len(offsets))
     while i < max_length:
         if seq[i].startswith('B'):
