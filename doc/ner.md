@@ -4,6 +4,92 @@ NER models can be trained and applied via the script `delft/applications/nerTagg
 
 See `ner-datasets.md` for more information on the datasets used in this section. 
 
+## Overview
+
+We have reimplemented in DeLFT some reference neural architectures for NER of the last four years and performed a reproducibility analysis of the these systems with comparable evaluation criterias. Unfortunaltely, in publications, systems are usually compared directly with reported results obtained in different settings, which can bias scores by more than 1.0 point and completely invalidate both comparison and interpretation of results.  
+
+You can read more about our reproducibility study of neural NER in this [blog article](http://science-miner.com/a-reproducibility-study-on-neural-ner/). This effort is similar to the work of [(Yang and Zhang, 2018)](https://arxiv.org/pdf/1806.04470.pdf) (see also [NCRFpp](https://github.com/jiesutd/NCRFpp)) but has also been extended to BERT for a fair comparison of RNN for sequence labeling, and can also be related to the motivations of [(Pressel et al., 2018)](http://aclweb.org/anthology/W18-2506) [MEAD](https://github.com/dpressel/mead-baseline). 
+
+All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We report first the f-score averaged over 10 training runs, and second the best f-score over these 10 training runs. All the DeLFT trained models are included in this repository. 
+
+| Architecture  | Implementation | Glove only (avg / best)| Glove + valid. set (avg / best)| ELMo + Glove (avg / best)| ELMo + Glove + valid. set (avg / best)|
+| --- | --- | --- | --- | --- | --- |
+| BidLSTM-CRF   | DeLFT | __90.75__ / __91.35__  | 91.13 / 91.60 | __92.47__ / __92.71__ | __92.69__ / __93.09__ | 
+|               | [(Lample and al., 2016)](https://arxiv.org/abs/1603.01360) | - / 90.94 |      |              |               | 
+| BidLSTM-CNN-CRF | DeLFT | 90.73 / 91.07| 91.01 / 91.26 | 92.30 / 92.57| 92.67 / 93.04 |
+|               | [(Ma & Hovy, 2016)](https://arxiv.org/abs/1603.01354) |  - / 91.21  | | | |
+|               | [(Peters & al. 2018)](https://arxiv.org/abs/1802.05365) |  | | 92.22** / - | |
+| BidLSTM-CNN   | DeLFT | 89.23 / 89.47  | 89.35 / 89.87 | 91.66 / 92.00 | 92.01 / 92.16 |
+|               | [(Chiu & Nichols, 2016)](https://arxiv.org/abs/1511.08308) || __90.88***__ / - | | |
+| BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
+|               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
+
+Results with BERT fine-tuning, including a final CRF activation layer, instead of a softmax (a CRF activation layer improves f-score in average by +0.30 for sequence labelling task): 
+
+| Architecture  | Implementation | f-score |
+| --- | --- | --- | 
+| bert-base-en    | DeLFT | 90.9 |  
+| bert-base-en+CRF    | DeLFT | 91.2 |  
+| bert-base-en        | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
+
+For DeLFT, the average is obtained with 10 training runs (see [full results](https://github.com/kermitt2/delft/pull/78#issuecomment-569493805)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not reproducible, and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment (the original paper probably reported token-level metrics instead of the usual entity-level metrics, giving in our humble opinion a misleading conclusion about the performance of transformers for sequence labelling tasks). 
+
+_*_ reported f-score using Senna word embeddings and not Glove.
+
+** f-score is averaged over 5 training runs. 
+
+*** reported f-score with Senna word embeddings (Collobert 50d) averaged over 10 runs, including case features and not including lexical features. DeLFT implementation of the same architecture includes the capitalization features too, but uses the more efficient GloVe 300d embeddings.
+
+
+##### Command Line Interface
+
+Different datasets and languages are supported. They can be specified by the command line parameters. The general usage of the CLI is as follow: 
+
+```
+usage: delft/application/nerTagger.py [-h] [--fold-count FOLD_COUNT] [--lang LANG]
+                    [--dataset-type DATASET_TYPE]
+                    [--train-with-validation-set]
+                    [--architecture ARCHITECTURE] 
+                    [--data-path DATA_PATH] [--file-in FILE_IN]
+                    [--file-out FILE_OUT]
+                    action
+
+Neural Named Entity Recognizers
+
+positional arguments:
+  action                one of [train, train_eval, eval, tag]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --fold-count FOLD_COUNT
+                        number of folds or re-runs to be used when training
+  --lang LANG           language of the model as ISO 639-1 code
+  --dataset-type DATASET_TYPE
+                        dataset to be used for training the model
+  --train-with-validation-set
+                        Use the validation set for training together with the
+                        training set
+  --architecture ARCHITECTURE
+                        type of model architecture to be used, one of
+                        ['BidLSTM_CRF', 'BidLSTM_CRF_FEATURES', 'BidLSTM_CNN_CRF', 
+                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 
+                        'BidLSTM_CRF_CASING', 'bert-base-en', 'bert-base-en', 
+                        'scibert', 'biobert']
+  --data-path DATA_PATH
+                        path to the corpus of documents for training (only use
+                        currently with Ontonotes corpus in orginal XML format)
+  --file-in FILE_IN     path to a text file to annotate
+  --file-out FILE_OUT   path for outputting the resulting JSON NER anotations
+  --embedding EMBEDDING
+                        The desired pre-trained word embeddings using their
+                        descriptions in the file delft/resources-registry.json. Be
+                        sure to use here the same name as in the registry
+                        ('glove-840B', 'fasttext-crawl', 'word2vec'), and that
+                        the path in the registry to the embedding file is
+                        correct on your system.
+```
+
+
 ## CONLL 2003
 
 DeLFT comes with various trained models for the CoNLL-2003 NER dataset.
@@ -16,7 +102,9 @@ For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `
 
 For training and evaluating following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 train_eval
+```
 
 Some recent works like (Chiu & Nichols, 2016) and (Peters and al., 2017) also train with the validation set, leading obviously to a better accuracy (still they compare their scores with scores previously reported trained differently, which is arguably a bit unfair - this aspect is mentioned in (Ma & Hovy, 2016)). To train with both train and validation sets, use the parameter `--train-with-validation-set`:
 
@@ -26,7 +114,9 @@ Note that, by default, the BidLSTM-CRF model is used. (Documentation on selectin
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 eval
+```
 
 ```text
     Evaluation on test set:
@@ -77,7 +167,9 @@ Using ELMo and training with the validation set gives a f-score of 93.09 (best m
 
 Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
 
+```sh
 > python3 delft/applications/nerTagger.py --architecture bert-base-en --dataset-type conll2003 --fold-count 10 train_eval
+```
 
 ```text
 average over 10 folds
@@ -96,19 +188,27 @@ average over 10 folds
 
 For training with all the available data:
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 train
+```
 
 To take into account the strong impact of random seed, you need to train multiple times with the n-folds options. The model will be trained n times with different seed values but with the same sets if the evaluation set is provided. The evaluation will then give the average scores over these n models (against test set) and for the best model which will be saved. For 10 times training for instance, use:
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --fold-count 10 train_eval
+```
 
 After training a model, for tagging some text, for instance in a file `data/test/test.ner.en.txt` (), use the command:
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt tag
+```
 
 For instance for tagging the text with a specific architecture: 
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt --architecture bert-base-en tag
+```
 
 Note that, currently, the input text file must contain one sentence per line, so the text must be presegmented into sentences. To obtain the JSON annotations in a text file instead than in the standard output, use the parameter `--file-out`. Predictions work at around 7400 tokens per second for the BidLSTM_CRF architecture with a GeForce GTX 1080 Ti. 
 
@@ -166,8 +266,9 @@ This produces a JSON output with entities, scores and character offsets like thi
 
 For English NER tagging, the default static embeddings is Glove (`glove-840B`). Other static embeddings can be specified with the parameter `--embedding`, for instance:
 
+```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --embedding word2vec train_eval
-
+```
 
 ## Ontonotes 5.0 CONLL 2012
 
@@ -179,7 +280,9 @@ With ELMo, f-score is __88.66__ averaged over these 10 trainings, and with best 
 
 For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/delft/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
 
+```sh
 > python3 nerTagger.py --dataset-type conll2012 train_eval
+```
 
 ```text
 Evaluation on test set:
@@ -243,11 +346,16 @@ Note that Le Monde corpus is subject to copyrights and is limited to research us
 
 Similarly as before, for training and evaluating use:
 
+```sh
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb train_eval
+```
 
 In practice, we need to repeat training and evaluation several times to neutralise random seed effects and to average scores, here ten times:
 
+```sh
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb --fold-count 10 train_eval
+```
+
 
 The performance is as follow, for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, with a f-score of __91.01__ averaged over 10 training:
 
@@ -321,7 +429,9 @@ all (micro avg.)     0.9268    0.9290    0.9279      1254
 
 For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
 
+```sh
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 train_eval
+```
 
 which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, a f-score of __86.37__ averaged over 10 training:
 
@@ -419,11 +529,15 @@ For the `ftb_force_split` dataset, similarly as for CoNLL 2013, you can use the 
 
 Finally, for training with all the dataset without evaluation (e.g. for production):
 
+```sh
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb train
+```
 
 and for annotating some examples:
 
+```sh
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb --file-in data/test/test.ner.fr.txt tag
+```
 
 ```json
 {
@@ -469,13 +583,17 @@ A small experimental model for recognising insults and threats in texts, based o
 
 For training:
 
+```sh
 > python3 delft/applications/insultTagger.py train
+```
 
 By default training uses the whole train set.
 
 Example of a small tagging test:
 
+```sh
 > python3 delft/applications/insultTagger.py tag
+```
 
 will produced (__socially offensive language warning!__) result like this:
 

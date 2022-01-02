@@ -493,6 +493,7 @@ class BERT(BaseModel):
         transformer_model_name = config.transformer
 
         transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)
+        #transformer_model = transformers.TFBertModel(transformers.BertConfig())
 
         input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(max_seq_len,), name='input_token_type', dtype='int32')

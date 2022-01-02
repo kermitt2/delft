@@ -1,4 +1,4 @@
-<img align="right" width="150" height="150" src="doc/cat-delft-small.jpg">
+<img align="right" width="150" height="150" src="cat-delft-small.jpg">
 
 [![Documentation Status](https://readthedocs.org/projects/delft/badge/?version=latest)](https://readthedocs.org/projects/delft/?badge=latest)
 [![PyPI version](https://badge.fury.io/py/delft.svg)](https://badge.fury.io/py/delft)

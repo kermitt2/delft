@@ -11,19 +11,27 @@ This is a multi-label regression problem, where a Wikipedia comment (or any simi
 
 To launch the training:
 
+```sh
 > python3 delft/applications/toxicCommentClassifier.py train
+```
 
 For training with n-folds, use the parameter `--fold-count`:
 
+```sh
 > python3 delft/applications/toxicCommentClassifier.py train --fold-count 10
+```
 
 After training (1 or n-folds), to process the Kaggle test set, use:
 
+```sh
 > python3 delft/applications/toxicCommentClassifier.py test
+```
 
 To classify a set of comments:
 
+```sh
 > python3 delft/applications/toxicCommentClassifier.py classify
+```
 
 #### Citation classification
 
@@ -35,15 +43,21 @@ For a given scientific article, the task is to estimate if the occurrence of a b
 
 In this example, we formulate the problem as a 3 class regression (`negative`. `neutral`, `positive`). To train the model:
 
+```sh
 > python3 delft/applications/citationClassifier.py train
+```
 
 with n-folds:
 
+```sh
 > python3 delft/applications/citationClassifier.py train --fold-count 10
+```
 
 Training and evalation (ratio) with 10-folds:
 
+```sh
 > python3 delft/applications/citationClassifier.py train_eval --fold-count 10
+```
 
 which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
 
@@ -57,7 +71,9 @@ Evaluation on 896 instances:
 
 Similarly as other scripts, use `--architecture` to specify an alternative DL architecture, for instance SciBERT:
 
+```sh
 > python3 delft/applications/citationClassifier.py train_eval --architecture scibert
+```
 
 ```
 Evaluation on 896 instances:
@@ -69,7 +85,9 @@ Evaluation on 896 instances:
 
 To classify a set of citation contexts with default model (2-layers Bidirectional GRU model `gru`):
 
+```sh
 > python3 delft/applications/citationClassifier.py classify
+```
 
 which will produce some JSON output like this:
 

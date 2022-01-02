@@ -27,21 +27,11 @@ pip3 install -e .
 
 Current DeLFT version is __0.3.0__. It uses tensorflow 2.7.0 and will exploit your available GPU with the condition that CUDA (>=11.0) is properly installed. 
 
-You need then to download some pre-trained word embeddings and notify their path into the embedding registry. We suggest for exploiting the provided models:
+## Loading resources locally
 
-* _glove Common Crawl_ (2.2M vocab., cased, 300 dim. vectors): [glove-840B](http://nlp.stanford.edu/data/glove.840B.300d.zip)
+Required resources to train models (static embeddings, pre-trained transformer models) will be downloaded automatically. However, if you wish to load these resources locally, you need to notify their local path in the resource registry file. 
 
-* _fasttext Common Crawl_ (2M vocab., cased, 300 dim. vectors): [fasttext-crawl](https://s3-us-west-1.amazonaws.com/fasttext-vectors/crawl-300d-2M.vec.zip)
-
-* _word2vec GoogleNews_ (3M vocab., cased, 300 dim. vectors): [word2vec](https://drive.google.com/file/d/0B7XkCwpI5KDYNlNUTTlSS21pQmM/edit?usp=sharing)
-
-* _fasttext_wiki_fr_ (1.1M, NOT cased, 300 dim. vectors) for French: [wiki.fr](https://s3-us-west-1.amazonaws.com/fasttext-vectors/wiki.fr.vec)
-
-* _BERT_ for English, we are using BERT-Base, Cased, 12-layer, 768-hidden, 12-heads , 110M parameters: available [here](https://storage.googleapis.com/bert_models/2018_10_18/cased_L-12_H-768_A-12.zip)
-
-* _SciBERT_ for English and scientific content: [SciBERT-cased](https://s3-us-west-2.amazonaws.com/ai2-s2-research/scibert/tensorflow_models/scibert_scivocab_cased.tar.gz)
-
-Then edit the file `delft/resources-registry.json` and modify the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unzipped.
+Edit the file `delft/resources-registry.json` and modify the value for `path` according to the path where you have saved the corresponding embeddings. The embedding files must be unzipped. For instance, for loading glove-840B embeddings from a local path:
 
 ```json
 {
@@ -60,4 +50,3 @@ Then edit the file `delft/resources-registry.json` and modify the value for `pat
 
 ```
 
-You're ready to use DeLFT.

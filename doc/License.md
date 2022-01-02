@@ -10,13 +10,7 @@ Contact: Patrice Lopez (<patrice.lopez@science-miner.com>)
 
 ## Acknowledgments
 
-* Keras CRF implementation by Philipp Gross
+* Keras Chain CRF layer original implementation by Philipp Gross
 
-* The evaluations for sequence labelling are based on a modified version of https://github.com/chakki-works/seqeval
-
-* The preprocessor of the sequence labelling part is derived from https://github.com/Hironsan/anago/
-
-* [BERT](https://github.com/google-research/bert) transformer original implementation by Google Research, which has been adapted for text classification and sequence labelling in DeLFT.
-
-* [FastPredict](https://github.com/marcsto/rl/blob/master/src/fast_predict2.py) from by Marc Stogaitis, adapted to our BERT usages. 
+* The evaluations for sequence labelling are based on a modified/extended version of [seqeval](https://github.com/chakki-works/seqeval)
 
