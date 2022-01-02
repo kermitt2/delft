@@ -13,7 +13,7 @@ __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and Tens
 
 DeLFT has three main purposes: 
 
-1. __Usefulness__: most of the existing Deep Learning works in NLP only consider simple texts as input. In addition to simple texts, we also target _rich text_ where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. Text is usually coming from large documents like PDF or HTML, and not just from segments like sentences or paragraphs, so contextual features is useful. Rich text is the most common textual content used by humans to communicate and work.
+1. __Covering text and rich texts__: most of the existing Deep Learning works in NLP only consider simple texts as input. In addition to simple texts, we also target _rich text_ where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. Text is usually coming from large documents like PDF or HTML, and not just from segments like sentences or paragraphs, and contextual features appear very useful. Rich text is the most common textual content used by humans to communicate and work.
 
 2. __Reproducibility and benchmarking__: by implementing several state-of-the-art algorithms for both sequence labeling and text classification tasks, we want to offer the capacity to validate reported results and to benchmark several methods under the same conditions and criteria.
 
@@ -36,6 +36,7 @@ Some contributions include:
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
 The latest DeLFT release has been tested with python 3.7 and Tensorflow 2.7.0. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely fine for most RNN models. Using BERT Base model is fine with a GeForce GTX 1080 Ti.
+
 
 ## DeLFT Documentation
 

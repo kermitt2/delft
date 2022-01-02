@@ -18,8 +18,8 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 
 # unfortunately when running in graph mode, we cannot use BERT pre-trained, 
 # see https://github.com/huggingface/transformers/issues/3086
-# we could however disable eager mode for better performance for RNN architectures
-# at model compile time 
+# but this is apparently not useful anyway to disable eager mode here, because 
+# the Keras API compiles models before running them 
 #from tensorflow.python.framework.ops import disable_eager_execution
 #disable_eager_execution()
 

@@ -741,7 +741,7 @@ def predict_folds(models, predict_generator, use_main_thread_only=False):
     return y_predicts    
 
 
-def _get_description(name, path="./embedding-registry.json"):
+def _get_description(name, path="delft/resources-registry.json"):
     registry_json = open(path).read()
     registry = json.loads(registry_json)
     for emb in registry["embeddings-contextualized"]:

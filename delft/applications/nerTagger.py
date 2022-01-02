@@ -487,7 +487,7 @@ if __name__ == "__main__":
         "--embedding", 
         default=None,
         help="The desired pre-trained word embeddings using their descriptions in the file. " + \
-            "For local loading, use embedding-registry.json. " + \
+            "For local loading, use delft/resources-registry.json. " + \
             "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
     )
@@ -495,7 +495,7 @@ if __name__ == "__main__":
         "--transformer", 
         default=None,
         help="The desired pre-trained transformer to be used in the selected architecture. " + \
-            "For local loading use, embedding-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
             str(pretrained_transformers_examples) + \
             " and that the path in the registry to the model path is correct on your system. " + \
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
@@ -518,7 +518,7 @@ if __name__ == "__main__":
     file_in = args.file_in
     file_out = args.file_out
 
-    # name of embeddings refers to the file embedding-registry.json
+    # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
     # and that the path in the registry to the embedding file is correct on your system
     # below we set the default embeddings value
