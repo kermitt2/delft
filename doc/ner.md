@@ -2,7 +2,7 @@
 
 NER models can be trained and applied via the script `delft/applications/nerTagger.py`. 
 
-See `ner-datasets.md` for more information on the datasets used in this section. 
+See [NER Datasets](ner-datasets.md) for more information on the datasets used in this section. 
 
 ## Overview
 
@@ -46,15 +46,13 @@ _*_ reported f-score using Senna word embeddings and not Glove.
 Different datasets and languages are supported. They can be specified by the command line parameters. The general usage of the CLI is as follow: 
 
 ```
-usage: delft/application/nerTagger.py [-h] [--fold-count FOLD_COUNT] [--lang LANG]
-                    [--dataset-type DATASET_TYPE]
-                    [--train-with-validation-set]
-                    [--architecture ARCHITECTURE] 
-                    [--data-path DATA_PATH] [--file-in FILE_IN]
-                    [--file-out FILE_OUT]
+usage: nerTagger.py [-h] [--fold-count FOLD_COUNT] [--lang LANG] [--dataset-type DATASET_TYPE]
+                    [--train-with-validation-set] [--architecture ARCHITECTURE] [--data-path DATA_PATH]
+                    [--file-in FILE_IN] [--file-out FILE_OUT] [--embedding EMBEDDING]
+                    [--transformer TRANSFORMER]
                     action
 
-Neural Named Entity Recognizers
+Neural Named Entity Recognizers based on DeLFT
 
 positional arguments:
   action                one of [train, train_eval, eval, tag]
@@ -63,30 +61,32 @@ optional arguments:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
                         number of folds or re-runs to be used when training
-  --lang LANG           language of the model as ISO 639-1 code
+  --lang LANG           language of the model as ISO 639-1 code (en, fr, de, etc.)
   --dataset-type DATASET_TYPE
                         dataset to be used for training the model
   --train-with-validation-set
-                        Use the validation set for training together with the
-                        training set
+                        Use the validation set for training together with the training set
   --architecture ARCHITECTURE
-                        type of model architecture to be used, one of
-                        ['BidLSTM_CRF', 'BidLSTM_CRF_FEATURES', 'BidLSTM_CNN_CRF', 
-                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 
-                        'BidLSTM_CRF_CASING', 'bert-base-en', 'bert-base-en', 
-                        'scibert', 'biobert']
+                        type of model architecture to be used, one of ['BidLSTM_CRF', 'BidLSTM_CNN_CRF',
+                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BERT',
+                        'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
   --data-path DATA_PATH
-                        path to the corpus of documents for training (only use
-                        currently with Ontonotes corpus in orginal XML format)
+                        path to the corpus of documents for training (only use currently with Ontonotes
+                        corpus in orginal XML format)
   --file-in FILE_IN     path to a text file to annotate
   --file-out FILE_OUT   path for outputting the resulting JSON NER anotations
   --embedding EMBEDDING
-                        The desired pre-trained word embeddings using their
-                        descriptions in the file delft/resources-registry.json. Be
-                        sure to use here the same name as in the registry
-                        ('glove-840B', 'fasttext-crawl', 'word2vec'), and that
-                        the path in the registry to the embedding file is
-                        correct on your system.
+                        The desired pre-trained word embeddings using their descriptions in the file. For
+                        local loading, use delft/resources-registry.json. Be sure to use here the same
+                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec'] and
+                        that the path in the registry to the embedding file is correct on your system.
+  --transformer TRANSFORMER
+                        The desired pre-trained transformer to be used in the selected architecture. For
+                        local loading use, delft/resources-registry.json, and be sure to use here the
+                        same name as in the registry, e.g. ['bert-base-cased', 'bert-large-cased',
+                        'allenai/scibert_scivocab_cased'] and that the path in the registry to the model
+                        path is correct on your system. HuggingFace transformers hub will be used
+                        otherwise to fetch the model, see https://huggingface.co/models for model names
 ```
 
 
@@ -168,7 +168,7 @@ Using ELMo and training with the validation set gives a f-score of 93.09 (best m
 Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
 
 ```sh
-> python3 delft/applications/nerTagger.py --architecture bert-base-en --dataset-type conll2003 --fold-count 10 train_eval
+> python3 delft/applications/nerTagger.py --architecture BERF_CRF --dataset-type conll2003 --fold-count 10 --transformer bert-base-en train_eval
 ```
 
 ```text
@@ -204,10 +204,10 @@ After training a model, for tagging some text, for instance in a file `data/test
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt tag
 ```
 
-For instance for tagging the text with a specific architecture: 
+For instance for tagging the text with a specific architecture that has been previously trained: 
 
 ```sh
-> python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt --architecture bert-base-en tag
+> python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt --architecture BERT_CRF_FEATURES --transformer bert-base-en tag
 ```
 
 Note that, currently, the input text file must contain one sentence per line, so the text must be presegmented into sentences. To obtain the JSON annotations in a text file instead than in the standard output, use the parameter `--file-out`. Predictions work at around 7400 tokens per second for the BidLSTM_CRF architecture with a GeForce GTX 1080 Ti. 
@@ -264,7 +264,7 @@ This produces a JSON output with entities, scores and character offsets like thi
 
 ```
 
-For English NER tagging, the default static embeddings is Glove (`glove-840B`). Other static embeddings can be specified with the parameter `--embedding`, for instance:
+For English NER tagging, when used, the default static embeddings is Glove (`glove-840B`). Other static embeddings can be specified with the parameter `--embedding`, for instance:
 
 ```sh
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --embedding word2vec train_eval
@@ -580,6 +580,37 @@ This above work is licensed under a [Creative Commons Attribution-Noncommercial 
 ## Insult recognition
 
 A small experimental model for recognising insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually.
+
+```
+usage: insultTagger.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
+                       [--embedding EMBEDDING] [--transformer TRANSFORMER]
+                       action
+
+Experimental insult recognizer for the Wikipedia toxic comments dataset
+
+positional arguments:
+  action
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --fold-count FOLD_COUNT
+  --architecture ARCHITECTURE
+                        Type of model architecture to be used, one of ['BidLSTM_CRF', 'BidLSTM_CNN_CRF',
+                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BERT',
+                        'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
+  --embedding EMBEDDING
+                        The desired pre-trained word embeddings using their descriptions in the file. For
+                        local loading, use delft/resources-registry.json. Be sure to use here the same
+                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec'] and
+                        that the path in the registry to the embedding file is correct on your system.
+  --transformer TRANSFORMER
+                        The desired pre-trained transformer to be used in the selected architecture. For
+                        local loading use, delft/resources-registry.json, and be sure to use here the
+                        same name as in the registry, e.g. ['bert-base-cased', 'bert-large-cased',
+                        'allenai/scibert_scivocab_cased'] and that the path in the registry to the model
+                        path is correct on your system. HuggingFace transformers hub will be used
+                        otherwise to fetch the model, see https://huggingface.co/models for model names
+```
 
 For training:
 

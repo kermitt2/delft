@@ -3,7 +3,7 @@
 ********************************************************
 
 
-**** BidLSTM-CRF ***************************************
+**** BidLSTM_CRF ***************************************
 (Lample and al., 2016)
 
 
@@ -822,7 +822,7 @@ all (micro avg.)     0.9025    0.9207    0.9115      5648
 
 
 ---------------------------------------------------------
-BERT-CRF bert-base-en (cased), CoNLL 2003 NER (train without validation set)
+BERT_CRF bert-base-en (cased), CoNLL 2003 NER (train without validation set)
 ---------------------------------------------------------
 
 Average over 10 folds
