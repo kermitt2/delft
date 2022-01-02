@@ -343,7 +343,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
                                                                         maxlen=self.max_sequence_length)
 
         # truncate the batch input vectors for the max length in batch after sub-tokenization
-        max_length_x = max((_len_until_first_pad(tokens, 0) for tokens in input_ids))
+        max_length_x = max((len_until_first_pad(tokens, 0) for tokens in input_ids))
 
         batch_x = np.asarray(truncate_batch_values(input_ids, max_length_x), dtype=np.int32)
         batch_x_masks = np.asarray(truncate_batch_values(input_masks, max_length_x), dtype=np.int32)
@@ -362,7 +362,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
 
         return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y
 
-def _len_until_first_pad(tokens, pad):
+def len_until_first_pad(tokens, pad):
     for i in range(len(tokens)):
         if tokens[i] == pad:
             return i

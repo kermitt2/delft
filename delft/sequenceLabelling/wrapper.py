@@ -242,7 +242,6 @@ class Sequence(object):
                               self.embeddings, 
                               preprocessor=self.p, 
                               bert_preprocessor=self.bert_preprocessor)
-                #y_pred_pairs = tagger.tag_without_generator(x_test, output_format=None, features=features)
                 y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
                 # keep only labels
@@ -330,7 +329,6 @@ class Sequence(object):
                                     self.embeddings, 
                                     preprocessor=self.p, 
                                     bert_preprocessor=self.bert_preprocessor)
-                    #y_pred_pairs = tagger.tag_without_generator(x_test, output_format=None, features=features)
                     y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
                     # keep only labels

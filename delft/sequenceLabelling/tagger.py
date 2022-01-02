@@ -22,13 +22,6 @@ class Tagger(object):
     def tag(self, texts, output_format, features=None):
         assert isinstance(texts, list)
 
-        # if the model uses a transformer layer, we cannot use a batch generator, so
-        # we rely on a tag function customized for transformers usage 
-        '''
-        if self.model_config.transformer != None:
-            return self.tag_without_generator(texts, output_format, features=features)
-        '''
-
         if output_format == 'json':
             res = {
                 "software": "DeLFT",
@@ -92,12 +85,9 @@ class Tagger(object):
                         new_y_pred_text.append(y_pred_text[q]) 
                     new_y_pred_batch.append(new_y_pred_text)
                 preds = new_y_pred_batch
-
-                #preds = [self.preprocessor.inverse_transform(y) for y in y_pred_batch]
             else:
                 # no weirdness changes on the input 
                 preds = self.model.predict_on_batch(generator_output[0])
-                #preds = [self.preprocessor.inverse_transform(y) for y in preds]
 
             for i in range(0, len(preds)):
                 pred = [preds[i]]
@@ -117,6 +107,8 @@ class Tagger(object):
                 else:
                     tags = self._get_tags(pred)
                     prob = self._get_prob(pred)
+                    # consider truncating with padding here
+
 
                 if output_format == 'json':
                     piece = {}
@@ -180,7 +172,8 @@ class Tagger(object):
 
         return res
 
-
+    """
+    # not used ! but it works :)
     def tag_without_generator(self, texts, output_format='json', features=None):
 
         if output_format == 'json':
@@ -211,7 +204,9 @@ class Tagger(object):
             texts_tokenized = texts
 
         def chunks(l, n):
-            """Yield successive n-sized chunks from l."""
+            '''
+            Yield successive n-sized chunks from l.
+            '''
             for i in range(0, len(l), n):
                 #bound = min(n, )
                 yield l[i:i + n]
@@ -300,7 +295,7 @@ class Tagger(object):
             return res
         else:
             return list_of_tags
-
+        """
 
 def get_entities_with_offsets(seq, offsets):
     """
@@ -319,17 +314,18 @@ def get_entities_with_offsets(seq, offsets):
         >>> print(get_entities(seq))
         [('PER', 0, 2, 0, 15), ('LOC', 3, 4, 30, 41)]
     """
+
     i = 0
     chunks = []
     seq = seq + ['O']  # add sentinel
     types = [tag.split('-')[-1] for tag in seq]
-
     max_length = min(len(seq)-1, len(offsets))
+
     while i < max_length:
         if seq[i].startswith('B'):
             # if we are at the end of the offsets, we can stop immediately
             j = max_length
-            if i+2 != max_length:
+            if i+1 != max_length:
                 for j in range(i+1, max_length+1):
                     if seq[j].startswith('I') and types[j] == types[i]:
                         continue
