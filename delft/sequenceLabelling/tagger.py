@@ -20,7 +20,6 @@ class Tagger(object):
         self.embeddings = embeddings
 
     def tag(self, texts, output_format, features=None):
-        assert isinstance(texts, list)
 
         if output_format == 'json':
             res = {
@@ -146,21 +145,13 @@ class Tagger(object):
             "entities": []
         }
         chunks = get_entities_with_offsets(tags, offsets)
-        # LF: This could be combined with line 145, however currently the output list of spaces has one element missing
-        # spaces = [offsets[offsetIndex-1][1] != offsets[offsetIndex][0] for offsetIndex in range(1, len(offsets))]
-
         for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
             if prob is not None:
                 score = float(np.average(prob[chunk_start:chunk_end]))
             else:
                 score = 1.0
 
-            # LF: reconstruct the text considering initial spaces - remove space a the end of the entity
-            # text_from_tokens = ''.join([tokens[idx] + (' ' if spaces[idx] else '') for idx in range(chunk_start, chunk_end)])
-            # if text_from_tokens.endswith(' '):
-            #     text_from_tokens = text_from_tokens[0:-1]
             entity_text = original_text[pos_start: pos_end+1]
-
             entity = {
                 "text": entity_text,
                 "class": chunk_type,
@@ -172,130 +163,6 @@ class Tagger(object):
 
         return res
 
-    """
-    # not used ! but it works :)
-    def tag_without_generator(self, texts, output_format='json', features=None):
-
-        if output_format == 'json':
-            res = {
-                "software": "DeLFT",
-                "date": datetime.datetime.now().isoformat(),
-                "model": self.model_config.model_name,
-                "texts": []
-            }
-        else:
-           list_of_tags = []
-
-        if texts is None or len(texts) == 0:
-            return res
-
-        if not self.preprocessor.return_features:
-            features = None
-
-        to_tokeniz = False
-        if (len(texts)>0 and isinstance(texts[0], str)):
-            # we need to tokenize these texts
-            to_tokeniz = True
-            texts_tokenized = [
-                tokenizeAndFilterSimple(text)
-                for text in texts
-            ]
-        else:
-            texts_tokenized = texts
-
-        def chunks(l, n):
-            '''
-            Yield successive n-sized chunks from l.
-            '''
-            for i in range(0, len(l), n):
-                #bound = min(n, )
-                yield l[i:i + n]
-        
-        batch_idx = 0
-        # segment in batches corresponding to self.predict_batch_size
-        for text_batch in list(chunks(texts_tokenized, self.model_config.batch_size)):
-            features_batch = None
-            if features is not None:
-                upper_bound = min(len(texts_tokenized), (batch_idx+1)*self.model_config.batch_size)
-                features_batch = features[batch_idx*self.model_config.batch_size:upper_bound]
-
-            num_current_batch = len(text_batch)
-
-            batches = self.preprocessor.transform(text_batch)
-            chars_batch = np.asarray(batches[0])
-
-            if features is not None:
-                features_batch = self.preprocessor.transform_features(features_batch)
-
-            input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
-                                                                        text_batch, 
-                                                                        chars_batch,
-                                                                        features_batch, 
-                                                                        None,
-                                                                        maxlen=self.model_config.max_sequence_length)
-
-            batch_x = np.asarray(input_ids, dtype=np.int32)
-            batch_x_masks = np.asarray(input_masks, dtype=np.int32)
-            batch_c = np.asarray(input_chars, dtype=np.int32)
-
-            if features is None:
-                if self.preprocessor.return_chars:
-                    results = self.model.predict_on_batch([batch_x, batch_c, batch_x_masks])
-                else:
-                    results = self.model.predict_on_batch([batch_x, batch_x_masks])
-            else:
-                batch_f = np.asarray(input_features, dtype=np.int32)
-                if self.preprocessor.return_chars:
-                    results = self.model.predict_on_batch([batch_x, batch_c, batch_f, batch_x_masks])
-                else:
-                    results = self.model.predict_on_batch([batch_x, batch_f, batch_x_masks])
-
-            p = 0
-            for i, prediction in enumerate(results):
-                if p == num_current_batch:
-                    break
-                #predicted_labels = self._get_tags([prediction]) 
-                text = texts[p+(batch_idx*self.model_config.batch_size)]
-
-                y_pred_result = []
-                for q in range(len(input_tokens)):
-                    if input_tokens[i][q] == '[SEP]':
-                        break
-                    if input_tokens[i][q] in ['[PAD]', '[CLS]']:
-                        continue
-                    if input_tokens[i][q].startswith("##"): 
-                        continue
-                    y_pred_result.append(prediction[q]) 
-                p += 1
-
-                pred = y_pred_result
-                
-                if to_tokeniz:
-                   tokens, offsets = tokenizeAndFilter(text)
-                else:
-                    # it is a list of string, so a string already tokenized
-                    # note that in this case, offset are not present and json output is impossible
-                    tokens = text
-                    offsets = []
-
-                tags = self._get_tags([pred])
-                prob = self._get_prob([pred])
-
-                if output_format == 'json':
-                    piece = {}
-                    piece["text"] = text
-                    piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
-                    res["texts"].append(piece)
-                else:
-                    the_tags = list(zip(tokens, tags))
-                    list_of_tags.append(the_tags)
-            batch_idx += 1
-
-        if output_format == 'json':
-            return res
-        else:
-            return list_of_tags
-        """
 
 def get_entities_with_offsets(seq, offsets):
     """

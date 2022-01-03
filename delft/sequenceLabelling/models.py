@@ -118,6 +118,8 @@ class BaseModel(object):
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         """
+        Base class for DeLFT sequence labeling models
+
         Args:
             config (ModelConfig): DeLFT model configuration object
             ntags (integer): number of different labels of the model

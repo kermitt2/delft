@@ -21,7 +21,6 @@ PAD = '<PAD>'
 case_index = {'<PAD>': 0, 'numeric': 1, 'allLower': 2, 'allUpper': 3, 'initialUpper': 4, 'other': 5,
               'mainly_numeric': 6, 'contains_digit': 7}
 
-
 def calculate_cardinality(feature_vector, indices=None):
     """
     Calculate cardinality of each features
@@ -232,99 +231,6 @@ class BERTPreprocessor(object):
 
     def set_empty_char_vector(self, empty_char_vector):
         self.empty_char_vector = empty_char_vector    
-
-    '''
-    def create_batch_input_bert(self, texts, chars, maxlen=512):
-        """
-        Prediction usage without features: sub-tokenize and convert to ids/mask/segments input texts, no label.
-        texts is a list of texts already pre-tokenized
-        """
-        target_ids = []
-        target_type_ids = []
-        target_attention_mask  = []
-        input_tokens = []
-        target_chars = []
-
-        for i, text in enumerate(texts):
-            
-            local_chars = chars[i]
-
-            input_ids, token_type_ids, attention_mask, chars_block, _, _, tokens = self.convert_single_text(text, 
-                                                                                            local_chars, 
-                                                                                            None, None, 
-                                                                                            maxlen)
-            target_ids.append(input_ids)
-            target_type_ids.append(token_type_ids)
-            target_attention_mask.append(attention_mask)
-            input_tokens.append(tokens)
-            target_chars.append(chars_block)
-
-        return target_ids, target_type_ids, target_attention_mask, target_chars, input_tokens
-
-    def tokenize_and_align_labels(self, texts, chars, labels, maxlen=512):
-        """
-        Training/evaluation usage without features: sub-tokenize+convert to ids/mask/segments input texts and realign labels
-        given new tokens introduced by the wordpiece sub-tokenizer.
-        texts is a list of texts already pre-tokenized
-        """
-        target_ids = []
-        target_type_ids = []
-        target_attention_mask  = []
-        target_labels = []
-        input_tokens = []
-        target_chars = []
-
-        for i, text in enumerate(texts):
-            
-            local_chars = chars[i]
-            label_list = labels[i]
-            
-            input_ids, token_type_ids, attention_mask, chars_block, _, target_tags, tokens = self.convert_single_text(text, 
-                                                                                                        local_chars, 
-                                                                                                        None, 
-                                                                                                        label_list, 
-                                                                                                        maxlen)
-            target_ids.append(input_ids)
-            target_type_ids.append(token_type_ids)
-            target_attention_mask.append(attention_mask)
-            target_labels.append(target_tags)
-            input_tokens.append(tokens)
-            target_chars.append(chars_block)
-
-        return target_ids, target_type_ids, target_attention_mask, target_chars, target_labels, input_tokens
-
-    def tokenize_and_align_features(self, texts, chars, text_features, maxlen=512):
-        """
-        Prediction usage with features: sub-tokenize+convert to ids/mask/segments input texts and realign features
-        given new tokens introduced by the wordpiece sub-tokenizer.
-        texts is a list of texts already pre-tokenized
-        """
-        target_ids = []
-        target_type_ids = []
-        target_attention_mask  = []
-        target_features = []
-        input_tokens = []
-        target_chars = []
-
-        for i, text in enumerate(texts):
-            
-            local_chars = chars[i]
-            features = text_features[i]
-            
-            input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, _, tokens = self.convert_single_text(text, 
-                                                                                                            local_chars, 
-                                                                                                            features, 
-                                                                                                            None, 
-                                                                                                            maxlen)
-            target_ids.append(input_ids)
-            target_type_ids.append(token_type_ids)
-            target_attention_mask.append(attention_mask)
-            target_features.append(feature_blocks)
-            input_tokens.append(tokens)
-            target_chars.append(chars_block)
-
-        return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, input_tokens
-    '''
 
     def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
@@ -915,10 +821,8 @@ def _casing(word):
 
     return case_index[casing]
 
-
 def _lower(word):
     return word.lower()
-
 
 def _normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)

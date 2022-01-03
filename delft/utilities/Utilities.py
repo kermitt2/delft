@@ -13,9 +13,6 @@ from urllib.parse import urlparse
 from tensorflow.keras.preprocessing import text
 
 from tqdm import tqdm 
-#import langdetect
-#from textblob import TextBlob
-#from textblob.translate import NotTranslated
 from xml.sax.saxutils import escape
 
 import argparse
@@ -97,41 +94,6 @@ def split_data_and_labels(x, y, ratio):
 
 url_regex = re.compile(r"https?:\/\/[a-zA-Z0-9_\-\.]+(?:com|org|fr|de|uk|se|net|edu|gov|int|mil|biz|info|br|ca|cn|in|jp|ru|au|us|ch|it|nl|no|es|pl|ir|cz|kr|co|gr|za|tw|hu|vn|be|mx|at|tr|dk|me|ar|fi|nz)\/?\b")
 
-
-# language detection with langdetect package
-'''
-def detect_lang(x):
-    try:
-        language = langdetect.detect(x)
-    except:
-        language = 'unk'
-    return language
-'''
-
-# language detection with textblob package
-'''
-def detect_lang_textBlob(x):
-    #try:
-    theBlob = TextBlob(x)
-    language = theBlob.detect_language()
-    #except:
-    #    language = 'unk'
-    return language
-'''
-
-'''
-def translate(comment):
-    if hasattr(comment, "decode"):
-        comment = comment.decode("utf-8")
-
-    text_blob = TextBlob(comment)
-    try:
-        text_blob = text_blob.translate(to="en")
-    except NotTranslated:
-        pass
-
-    return str(text_blob)
-'''
 
 # produce some statistics
 def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None):
@@ -583,7 +545,7 @@ def download_file(url, path, filename=None):
     # check path
     if path is None or not os.path.isdir(path):
         print("Invalid destination directory:", path)
-    HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0"""}
+    HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"""}
     result = "fail"
     print("downloading", url) 
     
@@ -619,6 +581,14 @@ def download_file(url, path, filename=None):
         return destination
     else:
         return None
+
+
+def len_until_first_pad(tokens, pad):
+    for i in range(len(tokens)):
+        if tokens[i] == pad:
+            return i
+    return len(tokens)
+
 
 if __name__ == "__main__":
     # usage example - for CoNLL-2003, indicate the eng.* file to be converted:

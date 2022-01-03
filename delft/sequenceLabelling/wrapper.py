@@ -581,7 +581,7 @@ class Sequence(object):
 
         if self.model_config.transformer != None:
             self.transformer = self.model_config.transformer
-            print(self.transformer, "will be used")
+            #print(self.transformer, "will be used")
             tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=self.model_config.max_sequence_length, padding='max_length')
             self.bert_preprocessor = BERTPreprocessor(tokenizer)

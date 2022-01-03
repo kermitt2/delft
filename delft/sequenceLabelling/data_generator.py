@@ -1,5 +1,5 @@
 import numpy as np
-from delft.utilities.Utilities import truncate_batch_values
+from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view
 
 import tensorflow.keras as keras
@@ -7,10 +7,11 @@ from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_singl
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 
-# to be refactored !
 
-class DataGenerator(keras.utils.Sequence):
+class BaseGenerator(keras.utils.Sequence):
     """
+    Abstract class for data generator.
+
     Generate batch of data to feed sequence labeling model, both for training and prediction.
     
     This generator is for input based on word embeddings. We keep embeddings application outside the 
@@ -33,6 +34,7 @@ class DataGenerator(keras.utils.Sequence):
         # features here are optional additional features provided in the case of GROBID input for instance
         self.original_features = self.features = features
         self.preprocessor = preprocessor
+        self.bert_preprocessor = bert_preprocessor
         if preprocessor:
             self.labels = preprocessor.vocab_tag
         self.batch_size = batch_size
@@ -41,7 +43,7 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
-        self.on_epoch_end()
+        self.output_input_tokens = output_input_tokens
 
     def __len__(self):
         '''
@@ -55,17 +57,12 @@ class DataGenerator(keras.utils.Sequence):
         else:
             return int(np.floor(len(self.original_x) / self.batch_size) + 1)
 
+    @property
     def __getitem__(self, index):
         '''
-        Generate one batch of data, batch_l always last input, so that it can be used easily by the training scorer
+        Generate one batch of data
         '''
-        batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
-        if self.preprocessor.return_casing:
-            return [batch_x, batch_c, batch_a, batch_l], batch_y
-        elif self.preprocessor.return_features:
-            return [batch_x, batch_c, batch_f, batch_l], batch_y
-        else:
-            return [batch_x, batch_c, batch_l], batch_y
+        raise NotImplementedError("Subclasses should implement this")
 
     def on_epoch_end(self):
         '''
@@ -78,6 +75,56 @@ class DataGenerator(keras.utils.Sequence):
         # shuffle dataset at each epoch
         if self.shuffle:
             self.x, self.y, self.features = shuffle_triple_with_view(self.original_x, self.original_y, self.original_features)
+
+    @property
+    def __data_generation(self, index):
+        '''
+        Generates data containing batch_size samples
+        '''
+        raise NotImplementedError("Subclasses should implement this")
+
+
+class DataGenerator(BaseGenerator):
+    """    
+    This generator is for input based on word embeddings. We keep embeddings application outside the 
+    model to make it considerably more compact and avoid duplication of embeddings layers.
+    """
+    def __init__(self, x, y,
+                batch_size=24,
+                preprocessor=None,
+                bert_preprocessor=None,
+                char_embed_size=25,
+                embeddings=None,
+                max_sequence_length=None,
+                tokenize=False,
+                shuffle=True,
+                features=None,
+                output_input_tokens=False):
+
+        super().__init__(x, y, 
+                        batch_size=batch_size, 
+                        preprocessor=preprocessor, 
+                        bert_preprocessor=bert_preprocessor, 
+                        char_embed_size=char_embed_size, 
+                        embeddings=embeddings, 
+                        max_sequence_length=max_sequence_length, 
+                        tokenize=tokenize, 
+                        shuffle=shuffle, 
+                        features=features,
+                        output_input_tokens=output_input_tokens)
+        self.on_epoch_end()
+
+    def __getitem__(self, index):
+        '''
+        Generate one batch of data, batch_l always last input, so that it can be used easily by the training scorer
+        '''
+        batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
+        if self.preprocessor.return_casing:
+            return [batch_x, batch_c, batch_a, batch_l], batch_y
+        elif self.preprocessor.return_features:
+            return [batch_x, batch_c, batch_f, batch_l], batch_y
+        else:
+            return [batch_x, batch_c, batch_l], batch_y
 
     def __data_generation(self, index):
         '''
@@ -152,8 +199,7 @@ class DataGenerator(keras.utils.Sequence):
         return batch_x, batch_c, batch_f, batch_a, batch_l, batch_y
 
 
-
-class DataGeneratorTransformers(keras.utils.Sequence):
+class DataGeneratorTransformers(BaseGenerator):
     """
     Generate batch of data to feed sequence labeling model, both for training and prediction.
     
@@ -171,39 +217,21 @@ class DataGeneratorTransformers(keras.utils.Sequence):
                 shuffle=True,
                 features=None,
                 output_input_tokens=False):
-        # self.x and self.y are shuffled view of self.original_x and self.original_y
-        self.original_x = self.x = x
-        self.original_y = self.y = y
-        # features here are optional additional features provided in the case of GROBID input for instance
-        self.original_features = self.features = features
-        self.preprocessor = preprocessor
-        if preprocessor:
-            self.labels = preprocessor.vocab_tag
-        self.bert_preprocessor = bert_preprocessor
-        self.batch_size = batch_size
-        self.embeddings = embeddings
-        self.char_embed_size = char_embed_size
-        self.shuffle = shuffle
-        self.tokenize = tokenize
-        self.max_sequence_length = max_sequence_length
-        self.output_input_tokens = output_input_tokens
 
+        super().__init__(x, y, 
+                        batch_size=batch_size, 
+                        preprocessor=preprocessor, 
+                        bert_preprocessor=bert_preprocessor, 
+                        char_embed_size=char_embed_size, 
+                        embeddings=embeddings, 
+                        max_sequence_length=max_sequence_length, 
+                        tokenize=tokenize, 
+                        shuffle=shuffle, 
+                        features=features,
+                        output_input_tokens=output_input_tokens)
         if self.bert_preprocessor.empty_features_vector == None:
             self.bert_preprocessor.set_empty_features_vector(self.preprocessor.empty_features_vector())
-
         self.on_epoch_end()
-
-    def __len__(self):
-        '''
-        Give the number of batches per epoch
-        '''
-        # The number of batches is set so that each training sample is seen at most once per epoch
-        if self.original_x is None:
-            return 0
-        elif (len(self.original_x) % self.batch_size) == 0:
-            return int(np.floor(len(self.original_x) / self.batch_size))
-        else:
-            return int(np.floor(len(self.original_x) / self.batch_size) + 1)
 
     def __getitem__(self, index):
         '''
@@ -231,17 +259,6 @@ class DataGeneratorTransformers(keras.utils.Sequence):
 
         return return_data, batch_y
 
-    def on_epoch_end(self):
-        '''
-        In case we are training, we can shuffle the training data for the next epoch.
-        '''
-        # If we are predicting, we don't need to shuffle
-        if self.original_y is None:
-            return
-
-        # shuffle dataset at each epoch
-        if self.shuffle:
-            self.x, self.y, self.features = shuffle_triple_with_view(self.original_x, self.original_y, self.original_features)
 
     def __data_generation(self, index):
         '''
@@ -304,37 +321,7 @@ class DataGeneratorTransformers(keras.utils.Sequence):
         batch_c = batches[0]
         batch_l = batches[1]
 
-        # for input as sentence piece token index for transformer layer
-        '''
-        if self.y is None:
-            if self.preprocessor.return_features:
-                input_ids, input_masks, input_segments, input_chars, input_features, input_tokens = self.bert_preprocessor.tokenize_and_align_features(
-                                                                        x_tokenized, 
-                                                                        batch_c,
-                                                                        sub_f,
-                                                                        maxlen=self.max_sequence_length)
-
-            else:
-                input_ids, input_masks, input_segments, input_chars, input_tokens = self.bert_preprocessor.create_batch_input_bert(
-                                                                            x_tokenized, 
-                                                                            batch_c,
-                                                                            maxlen=self.max_sequence_length)
-        else:
-            if self.preprocessor.return_features:
-                input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
-                                                                        x_tokenized, 
-                                                                        batch_c,
-                                                                        sub_f,
-                                                                        batch_y,
-                                                                        maxlen=self.max_sequence_length)
-            else:
-                input_ids, input_masks, input_segments, input_chars, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_labels(
-                                                                        x_tokenized, 
-                                                                        batch_c,
-                                                                        batch_y,
-                                                                        maxlen=self.max_sequence_length)
-        '''
-
+        # to have input as sentence piece token index for transformer layer
         input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
                                                                         x_tokenized, 
                                                                         batch_c,
@@ -362,8 +349,3 @@ class DataGeneratorTransformers(keras.utils.Sequence):
 
         return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y
 
-def len_until_first_pad(tokens, pad):
-    for i in range(len(tokens)):
-        if tokens[i] == pad:
-            return i
-    return len(tokens)
