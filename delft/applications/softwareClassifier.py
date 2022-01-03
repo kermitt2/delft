@@ -109,9 +109,9 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
 
 # classify a list of texts
-def classify(texts, output_format, architecture="gru"):
+def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
-    model = Classifier('software_use', architecture=architecture, list_classes=list_classes)
+    model = Classifier('software_use', architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -184,6 +184,6 @@ if __name__ == "__main__":
         someTexts = ['Radiographic errors were recorded on individual tick sheets and the information was captured in an Excel spreadsheet (Microsoft, Redmond, WA).', 
             'This ground-up approach sits in stark contrast to the top-down one used to introduce patient access to the NHS Summary Care Record via HealthSpace, which has so far met with limited success.', 
             'The authors of the GeneWiki project have developed the WikiTrust resource (3), which works via a Firefox plug-in, to mark up Wikipedia articles according to the Wikipedian\'s reputation.']
-        result = classify(someTexts, "json", architecture=architecture)
+        result = classify(someTexts, "json", architecture=architecture, embeddings_name=embeddings_name, transformer=transformer)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
