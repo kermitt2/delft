@@ -1,9 +1,9 @@
 {
     "model_name": "citations",
-    "model_type": "bert",
-    "embeddings_name": "word2vec",
+    "architecture": "gru",
+    "embeddings_name": "glove-840B",
     "char_embedding_size": 25,
-    "word_embedding_size": 0,
+    "word_embedding_size": 300,
     "dropout": 0.5,
     "recurrent_dropout": 0.25,
     "maxlen": 150,
@@ -14,7 +14,7 @@
         "neutral",
         "positive"
     ],
-    "fold_number": 1,
-    "batch_size": 32,
-    "bert_type": "allenai/scibert_scivocab_cased"
+    "fold_number": 2,
+    "batch_size": 256,
+    "transformer": null
 }

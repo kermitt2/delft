@@ -1,7 +1,7 @@
 {
     "model_name": "dataseer",
-    "model_type": "bert",
-    "embeddings_name": "word2vec",
+    "architecture": "bert",
+    "embeddings_name": null,
     "char_embedding_size": 25,
     "word_embedding_size": 0,
     "dropout": 0.5,
@@ -15,5 +15,5 @@
     ],
     "fold_number": 1,
     "batch_size": 32,
-    "bert_type": "allenai/scibert_scivocab_cased"
+    "transformer": "bert-base-cased"
 }
