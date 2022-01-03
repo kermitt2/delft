@@ -151,8 +151,7 @@ class DataGenerator(BaseGenerator):
             # truncation of sequence at max_sequence_length
             x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length), dtype=object)
 
-        # prevent sequence of length 1 alone in a batch (this causes an error in tf
-        # TBD: it's probably fixed in TF2 ! to be checked, we could remove this fix then
+        # prevent sequence of length 1 alone in a batch (this causes an error in the Chain CRF layer)
         extend = False
         if max_length_x == 1:
             max_length_x += 1
@@ -174,7 +173,7 @@ class DataGenerator(BaseGenerator):
                 # truncation of sequence at max_sequence_length
                  batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=object)
 
-        batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')
+        batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)
         if self.preprocessor.return_features:
             sub_f = self.features[(index * self.batch_size):(index * self.batch_size) + max_iter]
             if self.max_sequence_length and max_length_f > self.max_sequence_length:
@@ -183,10 +182,10 @@ class DataGenerator(BaseGenerator):
                 sub_f = truncate_batch_values(sub_f, self.max_sequence_length)
             batch_f = self.preprocessor.transform_features(sub_f, extend=extend)
         
-        batch_a = np.zeros((max_iter, max_length_x), dtype='float32')
+        batch_a = np.zeros((max_iter, max_length_x), dtype=np.int32)
         if self.preprocessor.return_casing:
             for i in range(0, max_iter):
-                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)            
+                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x) 
 
         if self.y is not None:
             batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
@@ -285,13 +284,6 @@ class DataGeneratorTransformers(BaseGenerator):
             # truncation of sequence at max_sequence_length
             x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length), dtype=object)
 
-        # prevent sequence of length 1 alone in a batch (this causes an error in tf
-        # TBD: it's probably corrected in TF2 !?! to be checked, we could remove this fix then
-        extend = False
-        if max_length_x == 1:
-            max_length_x += 1
-            extend = True
-
         # generate data
         batch_y = None
         
@@ -312,12 +304,12 @@ class DataGeneratorTransformers(BaseGenerator):
                 max_length_f = self.max_sequence_length
                 # truncation of sequence at max_sequence_length
                 sub_f = truncate_batch_values(sub_f, self.max_sequence_length)
-            sub_f = self.preprocessor.transform_features(sub_f, extend=extend)
+            sub_f = self.preprocessor.transform_features(sub_f)
         else:
             sub_f = None
 
         # chars and length
-        batches = self.preprocessor.transform(x_tokenized, extend=extend)
+        batches = self.preprocessor.transform(x_tokenized)
         batch_c = batches[0]
         batch_l = batches[1]
 
@@ -339,13 +331,13 @@ class DataGeneratorTransformers(BaseGenerator):
         batch_input_tokens = np.asarray(truncate_batch_values(input_tokens, max_length_x), dtype=object)
 
         if self.y is not None:
-            __, batch_y = self.preprocessor.transform(x_tokenized, input_labels, extend=extend, label_indices=True)
+            __, batch_y = self.preprocessor.transform(x_tokenized, input_labels, label_indices=True)
             batch_y = np.asarray(truncate_batch_values(batch_y, max_length_x), dtype=np.int32)
 
         if self.preprocessor.return_features:
             batch_f = np.asarray(truncate_batch_values(input_features, max_length_x), dtype=np.int32)
         else:    
-            batch_f = np.zeros((batch_x.shape[0:2]), dtype='int32')            
+            batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)            
 
         return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y
 

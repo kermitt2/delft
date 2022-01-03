@@ -204,7 +204,6 @@ def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_ra
     input_layer = Input(shape=(maxlen, embed_size), )
     x = LSTM(recurrent_units, return_sequences=True, dropout=dropout_rate,
                            recurrent_dropout=dropout_rate)(input_layer)
-    #x = CuDNNLSTM(recurrent_units, return_sequences=True)(x)
     x = Dropout(dropout_rate)(x)
     x_a = GlobalMaxPool1D()(x)
     x_b = GlobalAveragePooling1D()(x)
@@ -463,7 +462,6 @@ def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", lo
         transformer_model = TFBertModel(bert_config)
 
     input_ids_in = Input(shape=(max_seq_len,), name='input_token', dtype='int32')
-
     #input_masks_in = Input(shape=(max_seq_len,), name='masked_token', dtype='int32')
     #embedding_layer = transformer_model(input_ids_in, attention_mask=input_masks_in)[1]
 

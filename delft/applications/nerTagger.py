@@ -10,7 +10,7 @@ import argparse
 import time
 
 def configure(architecture, dataset_type, lang, embeddings_name):
-    batch_size = 20
+    batch_size = 32
     max_sequence_length = 300
     patience = 5
     early_stop = True

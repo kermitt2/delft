@@ -270,7 +270,7 @@ class Sequence(object):
 
                 if nb_alignment_issues > 0:
                     print("number of alignment issues with test set:", nb_alignment_issues)
-                    print("you might need to increase the maximum sequence input length of the model and retrain")
+                    print("to solve them consider increasing the maximum sequence input length of the model and retrain")
 
                 report, report_as_map = classification_report(y_test, y_pred, digits=4)
                 print(report)
