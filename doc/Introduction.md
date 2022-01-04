@@ -26,7 +26,7 @@ Some contributions include:
 
 * Usage of dynamic data generator so that the training data do not need to stand completely in memory.
 
-* Efficiently loading and management of an unlimited volume of static pre-trained embeddings.
+* Efficient loading and management of an unlimited volume of static pre-trained embeddings.
 
 * A comprehensive evaluation framework with the standard metrics for sequence labeling and classification tasks, including n-fold cross validation. 
 
