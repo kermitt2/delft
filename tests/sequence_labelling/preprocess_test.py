@@ -140,8 +140,11 @@ class TestFeaturesPreprocessor:
             [FEATURE_VALUE_1, FEATURE_VALUE_3],
             [FEATURE_VALUE_1, FEATURE_VALUE_4]
         ]]
+        X_train = [['Word1']]
+        y_train = [['label1']]
         preprocessor.fit(features_batch)
         word_preprocessor = Preprocessor(feature_preprocessor=preprocessor)
+        word_preprocessor.fit(X_train, y_train)
 
         serialised_file_path = os.path.join(str(tmp_path), "serialised.json")
         word_preprocessor.save(file_path=serialised_file_path)
