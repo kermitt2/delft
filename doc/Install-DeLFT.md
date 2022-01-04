@@ -1,6 +1,6 @@
-# DeFLT Installation
+# DeLFT Installation
 
-Get the github repo:
+Get the Github repo:
 
 ```sh
 git clone https://github.com/kermitt2/delft

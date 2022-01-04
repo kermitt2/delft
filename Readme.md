@@ -42,7 +42,7 @@ The latest DeLFT release has been tested with python 3.7 and Tensorflow 2.7.0. A
 
 Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed information on installation, usage and models.
 
-## DeFLT Installation
+## DeLFT Installation
 
 Get the github repo:
 
