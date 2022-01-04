@@ -4,9 +4,8 @@ import os
 import numpy as np
 import pytest
 
-from delft.sequenceLabelling.preprocess import WordPreprocessor, FeaturesPreprocessor
-
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
+from delft.sequenceLabelling.preprocess import Preprocessor, FeaturesPreprocessor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -18,14 +17,14 @@ FEATURE_VALUE_4 = 'feature4'
 
 class TestWordPreprocessor:
     def test_should_be_able_to_instantiate_with_default_values(self):
-        WordPreprocessor()
+        Preprocessor()
 
     def test_should_fit_empty_dataset(self):
-        preprocessor = WordPreprocessor()
+        preprocessor = Preprocessor()
         preprocessor.fit([], [])
 
     def test_should_fit_single_word_dataset(self):
-        preprocessor = WordPreprocessor()
+        preprocessor = Preprocessor()
         X = [['Word1']]
         y = [['label1']]
         X_transformed, y_transformed = preprocessor.fit_transform(X, y)
@@ -43,7 +42,7 @@ class TestWordPreprocessor:
         assert len(y_transformed) == 1
 
     def test_should_be_able_to_inverse_transform_label(self):
-        preprocessor = WordPreprocessor()
+        preprocessor = Preprocessor()
         X = [['Word1']]
         y = [['label1']]
         _, y_transformed = preprocessor.fit_transform(X, y)
@@ -51,7 +50,7 @@ class TestWordPreprocessor:
         assert y_inverse == y[0]
 
     def test_should_transform_unseen_label(self):
-        preprocessor = WordPreprocessor(return_lengths=False, padding=False)
+        preprocessor = Preprocessor(return_lengths=False, padding=False)
         X_train = [['Word1']]
         y_train = [['label1']]
         X_test = [['Word1', 'Word1']]
@@ -61,12 +60,12 @@ class TestWordPreprocessor:
         assert y_transformed == [[1, 0]]
 
     def test_load_example(self, preprocessor1):
-        p = WordPreprocessor.load(preprocessor1)
+        p = Preprocessor.load(preprocessor1)
 
         assert len(p.vocab_char) == 70
 
     def test_load_withUmmappedVariable_shouldIgnore(self, preprocessor2: str):
-        p = WordPreprocessor.load(preprocessor2)
+        p = Preprocessor.load(preprocessor2)
 
         assert len(p.vocab_char) == 70
 
@@ -141,13 +140,16 @@ class TestFeaturesPreprocessor:
             [FEATURE_VALUE_1, FEATURE_VALUE_3],
             [FEATURE_VALUE_1, FEATURE_VALUE_4]
         ]]
+        X_train = [['Word1']]
+        y_train = [['label1']]
         preprocessor.fit(features_batch)
-        word_preprocessor = WordPreprocessor(feature_preprocessor=preprocessor)
+        word_preprocessor = Preprocessor(feature_preprocessor=preprocessor)
+        word_preprocessor.fit(X_train, y_train)
 
         serialised_file_path = os.path.join(str(tmp_path), "serialised.json")
         word_preprocessor.save(file_path=serialised_file_path)
 
-        back = WordPreprocessor.load(serialised_file_path)
+        back = Preprocessor.load(serialised_file_path)
 
         assert back is not None
         assert back.feature_preprocessor is not None

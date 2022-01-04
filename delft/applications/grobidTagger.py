@@ -7,7 +7,6 @@ import time
 from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
-from delft.sequenceLabelling.models import *
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
 from delft.utilities.misc import parse_number_ranges
@@ -233,7 +232,7 @@ if __name__ == "__main__":
 
     architectures = architectures_word_embeddings + architectures_transformers_based
 
-    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
+    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased']
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
@@ -241,7 +240,9 @@ if __name__ == "__main__":
                                                                   "cross validation.")
     parser.add_argument("--architecture", default='BidLSTM_CRF', 
                         help="Type of model architecture to be used, one of "+str(architectures))
-    parser.add_argument(
+
+    group_embeddings = parser.add_mutually_exclusive_group(required=False)
+    group_embeddings.add_argument(
         "--embedding", 
         default=None,
         help="The desired pre-trained word embeddings using their descriptions in the file. " + \
@@ -249,8 +250,8 @@ if __name__ == "__main__":
             "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
     )
-    parser.add_argument(
-        "--transformer", 
+    group_embeddings.add_argument(
+        "--transformer",
         default=None,
         help="The desired pre-trained transformer to be used in the selected architecture. " + \
             "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \

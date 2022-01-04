@@ -486,6 +486,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
         self.vocab_char = chars
         self.vocab_tag = tags
+        self.indice_tag = {i: t for t, i in self.vocab_tag.items()}
 
         return self
 
@@ -549,7 +550,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
     def inverse_transform(self, y):
         """
-        send back original label string from label index 
+        send back original label string from label index
         """
         if self.indice_tag == None:
             self.indice_tag = {i: t for t, i in self.vocab_tag.items()}
