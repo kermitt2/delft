@@ -26,7 +26,8 @@ setup(
         'torch==1.10.1',
         'truecase',
         'requests',
-        'pandas'
+        'pandas',
+        'pytest'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.7",
