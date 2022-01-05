@@ -34,7 +34,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
 from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME 
 from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
-from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME
+from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME, BERT_CRF
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
@@ -54,8 +54,7 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
-from transformers import BertTokenizer
-
+from transformers import BertTokenizer, AutoTokenizer
 
 
 class Sequence(object):
@@ -65,7 +64,7 @@ class Sequence(object):
 
     def __init__(self, 
                  model_name=None,
-                 architecture="BidLSTM_CRF",
+                 architecture=None,
                  embeddings_name=None,
                  char_emb_size=25, 
                  max_char_length=30,
@@ -108,15 +107,14 @@ class Sequence(object):
 
         # if transformer is None, no bert layer is present in the model
         self.transformer = transformer
-        if self.transformer != None:
-            tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
-                                                max_length=max_sequence_length, padding='max_length')
+        if self.transformer is not None:
+            tokenizer = AutoTokenizer.from_pretrained(self.transformer)
             print(self.transformer, "will be used")
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None
 
-        if self.embeddings_name != None:
+        if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name) 
             word_emb_size = self.embeddings.embed_size 
         else:

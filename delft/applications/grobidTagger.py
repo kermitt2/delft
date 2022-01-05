@@ -23,7 +23,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     else:
         model_name = 'grobid-' + model
 
-    if architecture.find("BERT") != -1:
+    if "BERT" in architecture:
         #if batch_size == -1:
         batch_size = 20
         if max_sequence_length == -1 or max_sequence_length > 512:
@@ -55,7 +55,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 
 # train a GROBID model with all available data
-def train(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, input_path=None, output_path=None,
+def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, output_path=None,
           features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1):
 
     print('Loading data...')
@@ -71,11 +71,11 @@ def train(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=N
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch = configure(model, 
-                                                                            architecture, 
-                                                                            output_path, 
-                                                                            max_sequence_length, 
-                                                                            batch_size, 
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch = configure(model,
+                                                                            architecture,
+                                                                            output_path,
+                                                                            max_sequence_length,
+                                                                            batch_size,
                                                                             embeddings_name,
                                                                             max_epoch)
     model = Sequence(model_name,
@@ -232,17 +232,16 @@ if __name__ == "__main__":
 
     architectures = architectures_word_embeddings + architectures_transformers_based
 
-    pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased']
+    pretrained_transformers_examples = ['bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased']
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
-    parser.add_argument("--architecture", default='BidLSTM_CRF', 
-                        help="Type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
 
-    group_embeddings = parser.add_mutually_exclusive_group(required=False)
-    group_embeddings.add_argument(
+    # group_embeddings = parser.add_mutually_exclusive_group(required=False)
+    parser.add_argument(
         "--embedding", 
         default=None,
         help="The desired pre-trained word embeddings using their descriptions in the file. " + \
@@ -250,7 +249,7 @@ if __name__ == "__main__":
             "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
             " and that the path in the registry to the embedding file is correct on your system."
     )
-    group_embeddings.add_argument(
+    parser.add_argument(
         "--transformer",
         default=None,
         help="The desired pre-trained transformer to be used in the selected architecture. " + \
@@ -290,7 +289,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     if action == Tasks.TRAIN:
-        train(model, 
+            train(model, 
             embeddings_name=embeddings_name, 
             architecture=architecture, 
             transformer=transformer,

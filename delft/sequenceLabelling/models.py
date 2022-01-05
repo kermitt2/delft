@@ -1,17 +1,14 @@
 import os
-import numpy as np
 
 from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
-import tensorflow as tf
 
-from transformers import TFBertModel, BertConfig, PretrainedConfig
+from transformers import TFBertModel, AutoConfig, TFAutoModel
 
 from delft.utilities.crf_layer import ChainCRF
-from delft.sequenceLabelling.preprocess import BERTPreprocessor
 from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
 
 """
@@ -97,7 +94,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_FEATURES(config, ntags)
 
     elif config.architecture == BERT_CRF_CHAR.name:
-        preprocessor.return_bert_embeddings = True        
+        preprocessor.return_bert_embeddings = True
         preprocessor.return_chars = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
@@ -126,7 +123,7 @@ class BaseModel(object):
             load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
                                                or not we load the pretrained weights of this transformer. For training
                                                a new model set it to True. When getting the full Keras model to load
-                                               existing weights, set it to False to avoid reloading the pretrained weights. 
+                                               existing weights, set it False to avoid reloading the pretrained weights. 
             local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
                                  pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
                                  transformers hub.
@@ -174,16 +171,16 @@ class BaseModel(object):
     def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
         if load_pretrained_weights:
             if local_path is None:
-                transformer_model = TFBertModel.from_pretrained(transformer_model_name, from_pt=True)                
+                transformer_model = TFAutoModel.from_pretrained(transformer_model_name, from_pt=True)
             else:
-                transformer_model = TFBertModel.from_pretrained(local_path, from_pt=True)
+                transformer_model = TFAutoModel.from_pretrained(local_path, from_pt=True)
             self.bert_config = transformer_model.config
         else:
             # load config in JSON format
             if local_path is None:
-                self.bert_config = BertConfig.from_pretrained(transformer_model_name, from_pt=True)
+                self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
             else:
-                self.bert_config = BertConfig.from_json_file(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
+                self.bert_config = AutoConfig.from_pretrained(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
             transformer_model = TFBertModel(self.bert_config)
         return transformer_model
 
@@ -524,10 +521,10 @@ class BERT(BaseModel):
     A Keras implementation of BERT for sequence labelling with softmax activation final layer. 
 
     For training, the BERT layer will be loaded with weights of existing pre-trained BERT model given by the 
-    field transformer of the model config (load_pretrained_weights=True). 
+    field transformer of the model config (load_pretrained_weights=True).
 
-    For an existing trained model, the BERT layer will be simply initialized (load_pretrained_weights=False), 
-    without loading pre-trained weights (the weight of the transformer layer will be loaded with the full Keras 
+    For an existing trained model, the BERT layer will be simply initialized (load_pretrained_weights=False),
+    without loading pre-trained weights (the weight of the transformer layer will be loaded with the full Keras
     saved model). 
 
     When initializing the model, we can provide a local_path to load locally the transformer config and (if 
@@ -556,7 +553,7 @@ class BERT(BaseModel):
         self.config = config
 
     def get_generator(self):
-        return DataGeneratorTransformers   
+        return DataGeneratorTransformers
 
     def get_transformer_config(self):
         '''
@@ -574,6 +571,7 @@ class BERT_CRF(BaseModel):
     name = 'BERT_CRF'
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
