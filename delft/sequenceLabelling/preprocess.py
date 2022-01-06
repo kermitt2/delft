@@ -381,8 +381,10 @@ class BERTPreprocessor(object):
         # Where "type_ids" are used to indicate whether this is the first sequence
         # or the second sequence.
 
-        input_tokens.append("[CLS]")
-        input_tokens_marked.append("[CLS]")
+        #input_tokens.append("[CLS]")
+        input_tokens.append(self.tokenizer.cls_token)
+        #input_tokens_marked.append("[CLS]")
+        input_tokens_marked.append(self.tokenizer.cls_token)
         segment_ids.append(0)
         label_ids.append("<PAD>")
         chars_blocks.append(self.empty_char_vector)
@@ -397,9 +399,11 @@ class BERTPreprocessor(object):
 
         for token in tokens_marked:
             input_tokens_marked.append(token)
-
-        input_tokens.append("[SEP]")
-        input_tokens_marked.append("[SEP]")
+ 
+        #input_tokens.append("[SEP]")
+        input_tokens.append(self.tokenizer.sep_token)
+        #input_tokens_marked.append("[SEP]")
+        input_tokens_marked.append(self.tokenizer.sep_token)
         segment_ids.append(0)
         label_ids.append("<PAD>")
         chars_blocks.append(self.empty_char_vector)
@@ -412,8 +416,8 @@ class BERTPreprocessor(object):
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
-            input_ids.append(0)
-            input_mask.append(0)
+            input_ids.append(self.tokenizer.pad_token_id)
+            input_mask.append(self.tokenizer.pad_token_id)
             segment_ids.append(0)
             label_ids.append("<PAD>")
             chars_blocks.append(self.empty_char_vector)

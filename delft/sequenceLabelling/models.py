@@ -6,7 +6,7 @@ from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
-from transformers import TFBertModel, AutoConfig, TFAutoModel
+from transformers import AutoConfig, TFAutoModel
 
 from delft.utilities.crf_layer import ChainCRF
 from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
@@ -181,7 +181,7 @@ class BaseModel(object):
                 self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
             else:
                 self.bert_config = AutoConfig.from_pretrained(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
-            transformer_model = TFBertModel(self.bert_config)
+            transformer_model = AutoConfig.from_pretrained(self.bert_config)
         return transformer_model
 
 

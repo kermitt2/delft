@@ -2,6 +2,7 @@ import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from itertools import islice
 import time
@@ -34,7 +35,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
 from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME 
 from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
-from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME, BERT_CRF
+from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
@@ -54,7 +55,7 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
-from transformers import BertTokenizer, AutoTokenizer
+from transformers import AutoTokenizer
 
 
 class Sequence(object):
@@ -108,7 +109,8 @@ class Sequence(object):
         # if transformer is None, no bert layer is present in the model
         self.transformer = transformer
         if self.transformer is not None:
-            tokenizer = AutoTokenizer.from_pretrained(self.transformer)
+            tokenizer = AutoTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
+                                                max_length=max_sequence_length, padding='max_length')
             print(self.transformer, "will be used")
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
@@ -580,7 +582,7 @@ class Sequence(object):
         if self.model_config.transformer != None:
             self.transformer = self.model_config.transformer
             #print(self.transformer, "will be used")
-            tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
+            tokenizer = AutoTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=self.model_config.max_sequence_length, padding='max_length')
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
