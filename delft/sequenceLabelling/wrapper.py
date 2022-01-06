@@ -110,7 +110,7 @@ class Sequence(object):
         self.transformer = transformer
         if self.transformer is not None:
             tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
-                                                max_length=max_sequence_length)
+                                                max_length=max_sequence_length, add_prefix_space=True)
             print(self.transformer, "will be used")
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
@@ -583,7 +583,7 @@ class Sequence(object):
             self.transformer = self.model_config.transformer
             #print(self.transformer, "will be used")
             tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
-                                                max_length=self.model_config.max_sequence_length)
+                                                max_length=self.model_config.max_sequence_length, add_prefix_space=True)
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None

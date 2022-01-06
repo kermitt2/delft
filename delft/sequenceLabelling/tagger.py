@@ -43,7 +43,7 @@ class Tagger(object):
             char_embed_size=self.model_config.char_embedding_size,
             max_sequence_length=self.model_config.max_sequence_length,
             embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, 
-            features=features, output_input_tokens=True)
+            features=features, output_input_offsets=True)
 
         steps_done = 0
         steps = len(predict_generator)

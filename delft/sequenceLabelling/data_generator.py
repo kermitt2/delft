@@ -27,7 +27,7 @@ class BaseGenerator(keras.utils.Sequence):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                output_input_tokens=False):
+                output_input_offsets=False):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -43,7 +43,7 @@ class BaseGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
-        self.output_input_tokens = output_input_tokens
+        self.output_input_offsets = output_input_offsets
 
     def __len__(self):
         '''
@@ -99,7 +99,7 @@ class DataGenerator(BaseGenerator):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                output_input_tokens=False):
+                output_input_offsets=False):
 
         super().__init__(x, y, 
                         batch_size=batch_size, 
@@ -111,7 +111,7 @@ class DataGenerator(BaseGenerator):
                         tokenize=tokenize, 
                         shuffle=shuffle, 
                         features=features,
-                        output_input_tokens=output_input_tokens)
+                        output_input_offsets=output_input_offsets)
         self.on_epoch_end()
 
     def __getitem__(self, index):
@@ -215,7 +215,7 @@ class DataGeneratorTransformers(BaseGenerator):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                output_input_tokens=False):
+                output_input_offsets=False):
 
         super().__init__(x, y, 
                         batch_size=batch_size, 
@@ -227,7 +227,7 @@ class DataGeneratorTransformers(BaseGenerator):
                         tokenize=tokenize, 
                         shuffle=shuffle, 
                         features=features,
-                        output_input_tokens=output_input_tokens)
+                        output_input_offsets=output_input_offsets)
         if self.bert_preprocessor.empty_features_vector == None:
             self.bert_preprocessor.set_empty_features_vector(self.preprocessor.empty_features_vector())
         self.on_epoch_end()
@@ -236,7 +236,7 @@ class DataGeneratorTransformers(BaseGenerator):
         '''
         Generate one batch of data. These data are the input of the models but can also be used by the training scorer
         '''
-        batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y = self.__data_generation(index)
+        batch_x, batch_x_types, batch_x_masks, batch_c, batch_f, batch_l, batch_input_offsets, batch_y = self.__data_generation(index)
 
         # careful with the order of data arrays, double-check the models input as defined in models.py before
         # modifying this
@@ -249,12 +249,14 @@ class DataGeneratorTransformers(BaseGenerator):
         if self.preprocessor.return_features:  
             return_data += [batch_f]
 
+        return_data += [batch_x_types]
+
         return_data += [batch_x_masks]
 
-        if self.output_input_tokens:
+        if self.output_input_offsets:
             # always last input, used when prediction are done to be able to restore the correct labeled sequence
             # this is never routed directly to a model input
-            return_data += [batch_input_tokens]
+            return_data += [batch_input_offsets]
 
         return return_data, batch_y
 
@@ -314,7 +316,7 @@ class DataGeneratorTransformers(BaseGenerator):
         batch_l = batches[1]
 
         # to have input as sentence piece token index for transformer layer
-        input_ids, input_masks, input_segments, input_chars, input_features, input_labels, input_tokens = self.bert_preprocessor.tokenize_and_align_features_and_labels(
+        input_ids, token_type_ids, attention_mask, input_chars, input_features, input_labels, input_offsets = self.bert_preprocessor.tokenize_and_align_features_and_labels(
                                                                         x_tokenized, 
                                                                         batch_c,
                                                                         sub_f,
@@ -325,10 +327,11 @@ class DataGeneratorTransformers(BaseGenerator):
         max_length_x = max((len_until_first_pad(tokens, 0) for tokens in input_ids))
 
         batch_x = np.asarray(truncate_batch_values(input_ids, max_length_x), dtype=np.int32)
-        batch_x_masks = np.asarray(truncate_batch_values(input_masks, max_length_x), dtype=np.int32)
+        batch_x_types = np.asarray(truncate_batch_values(token_type_ids, max_length_x), dtype=np.int32)
+        batch_x_masks = np.asarray(truncate_batch_values(attention_mask, max_length_x), dtype=np.int32)
         #batch_x_segments = np.asarray(truncate_batch_values(input_segments, max_length_x), dtype=np.int32)
         batch_c = np.asarray(truncate_batch_values(input_chars, max_length_x), dtype=np.int32)
-        batch_input_tokens = np.asarray(truncate_batch_values(input_tokens, max_length_x), dtype=object)
+        batch_input_offsets = np.asarray(truncate_batch_values(input_offsets, max_length_x), dtype=object)
 
         if self.y is not None:
             __, batch_y = self.preprocessor.transform(x_tokenized, input_labels, label_indices=True)
@@ -339,5 +342,5 @@ class DataGeneratorTransformers(BaseGenerator):
         else:    
             batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)            
 
-        return batch_x, batch_x_masks, batch_c, batch_f, batch_l, batch_input_tokens, batch_y
+        return batch_x, batch_x_types, batch_x_masks, batch_c, batch_f, batch_l, batch_input_offsets, batch_y
 

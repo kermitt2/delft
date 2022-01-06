@@ -542,14 +542,14 @@ class BERT(BaseModel):
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
         tag_logits = Dense(ntags, activation='softmax')(embedding_layer)
         
-        self.model = Model(inputs=[input_ids_in, token_type_ids], outputs=[tag_logits])
+        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[tag_logits])
         self.config = config
 
     def get_generator(self):
@@ -580,16 +580,16 @@ class BERT_CRF(BaseModel):
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
         x = Dense(ntags)(x)
         self.crf = ChainCRF()
         pred = self.crf(x)
         
-        self.model = Model(inputs=[input_ids_in, token_type_ids], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
         self.config = config
 
     def get_generator(self):
@@ -614,10 +614,10 @@ class BERT_CRF_FEATURES(BaseModel):
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # layout features input and embeddings
@@ -649,7 +649,7 @@ class BERT_CRF_FEATURES(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[pred])
         self.config = config
 
     def get_generator(self):
@@ -674,10 +674,10 @@ class BERT_CRF_CHAR(BaseModel):
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # build character based embedding
@@ -706,7 +706,7 @@ class BERT_CRF_CHAR(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, char_input, token_type_ids], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[pred])
         self.config = config
 
     def get_generator(self):
@@ -732,10 +732,10 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        #attention_mask = Input(shape=(max_len,), dtype=tf.int32)
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        #embedding = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # build character based embedding
@@ -780,7 +780,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[pred])
         self.config = config
 
     def get_generator(self):

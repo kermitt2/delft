@@ -127,7 +127,7 @@ class Trainer(object):
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid, output_input_tokens=True)
+                embeddings=self.embeddings, shuffle=False, features=f_valid, output_input_offsets=True)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
