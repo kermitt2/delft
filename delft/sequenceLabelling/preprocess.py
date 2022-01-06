@@ -15,6 +15,8 @@ LOGGER = logging.getLogger(__name__)
 from sklearn.base import BaseEstimator, TransformerMixin
 import tensorflow as tf
 
+from tokenizers import Encoding
+
 UNK = '<UNK>'
 PAD = '<PAD>'
 
@@ -286,7 +288,89 @@ class BERTPreprocessor(object):
 
     def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
-        Converts a single sequence input into a single BERT input format.
+        Converts a single sequence input into a single transformer input format using generic tokenizer
+        of the transformers library, align other channel input to the new sub-tokenization
+        """
+        if label_tokens is None:
+            # we create a dummy label list to facilitate
+            label_tokens = []
+            while len(label_tokens) < len(text_tokens):
+                label_tokens.append(0)
+
+        if features_tokens is None:
+            # we create a dummy feature list to facilitate
+            features_tokens = []
+            while len(features_tokens) < len(text_tokens):
+                features_tokens.append(self.empty_features_vector)
+
+        if chars_tokens is None:
+            # we create a dummy feature list to facilitate
+            chars_tokens = []
+            while len(chars_tokens) < len(text_tokens):
+                chars_tokens.append(self.empty_char_vector)
+
+        # sub-tokenization
+        print(text_tokens)
+        en = Encoding()
+        encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
+            max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
+
+        print(encoded_result)
+
+        input_ids = encoded_result.input_ids
+        offsets = encoded_result.offset_mapping
+        segment_ids = []
+        label_ids = []
+        chars_blocks = []
+        feature_blocks = []
+
+        previous_word_idx = -1
+        word_idx = -1
+        for i, offset in enumerate(offsets):
+
+            if offset[0] == 0 and offset[1] == 0:
+                # this is a special token
+                label_ids.append("<PAD>")
+                chars_blocks.append(self.empty_char_vector)
+                feature_blocks.append(self.empty_features_vector)
+            else:
+                if offset[0] == 0:
+                    word_idx += 1
+
+                # propagate the data to the new sub-token
+                label_ids.append(label_tokens[word_idx])
+                feature_blocks.append(features_tokens[word_idx])
+                chars_blocks.append(chars_tokens[word_idx])
+
+            segment_ids.append(0)
+            previous_word_idx = word_idx
+
+        # The mask has 1 for real tokens and 0 for padding tokens
+        input_mask = [1] * len(input_ids)
+
+        # Zero-pad up to the sequence length.
+        while len(input_ids) < max_seq_length:
+            input_ids.append(self.tokenizer.pad_token_id)
+            input_mask.append(self.tokenizer.pad_token_id)
+            segment_ids.append(0)
+            label_ids.append("<PAD>")
+            chars_blocks.append(self.empty_char_vector)
+            feature_blocks.append(self.empty_features_vector)
+
+        assert len(input_ids) == max_seq_length
+        assert len(input_mask) == max_seq_length
+        assert len(segment_ids) == max_seq_length
+        assert len(label_ids) == max_seq_length
+        assert len(chars_blocks) == max_seq_length
+        assert len(feature_blocks) == max_seq_length
+
+        return input_ids, input_mask, segment_ids, chars_blocks, feature_blocks, label_ids, offsets
+
+
+    def convert_single_text_bert(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
+        """
+        Converts a single sequence input into a single BERT input format and align other channel input to this 
+        new sub-tokenization
 
         The original BERT implementation works as follow:
 
@@ -302,12 +386,12 @@ class BERTPreprocessor(object):
             tokens: [Jim,Hen,##son,was,a,puppet,##eer]
             labels: [I-PER,I-PER,I-PER,O,O,O,O]
 
-        Notes: input and output labels are text labels, they will need to be changed into indices after
+        Notes: input and output labels are text labels, they need to be changed into indices after
         text conversion.
         """
 
         tokens = []
-        # the following is to better keep track of additional tokens added by BERT tokenizer,
+        # the following is to keep track of additional tokens added by BERT tokenizer,
         # only some of them has a prefix ## that allows to identify them downstream in the process
         tokens_marked = []
         labels = []
@@ -381,9 +465,7 @@ class BERTPreprocessor(object):
         # Where "type_ids" are used to indicate whether this is the first sequence
         # or the second sequence.
 
-        #input_tokens.append("[CLS]")
         input_tokens.append(self.tokenizer.cls_token)
-        #input_tokens_marked.append("[CLS]")
         input_tokens_marked.append(self.tokenizer.cls_token)
         segment_ids.append(0)
         label_ids.append("<PAD>")
@@ -400,9 +482,7 @@ class BERTPreprocessor(object):
         for token in tokens_marked:
             input_tokens_marked.append(token)
  
-        #input_tokens.append("[SEP]")
         input_tokens.append(self.tokenizer.sep_token)
-        #input_tokens_marked.append("[SEP]")
         input_tokens_marked.append(self.tokenizer.sep_token)
         segment_ids.append(0)
         label_ids.append("<PAD>")

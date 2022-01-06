@@ -109,8 +109,8 @@ class Sequence(object):
         # if transformer is None, no bert layer is present in the model
         self.transformer = transformer
         if self.transformer is not None:
-            tokenizer = AutoTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
-                                                max_length=max_sequence_length, padding='max_length')
+            tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+                                                max_length=max_sequence_length)
             print(self.transformer, "will be used")
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
@@ -582,8 +582,8 @@ class Sequence(object):
         if self.model_config.transformer != None:
             self.transformer = self.model_config.transformer
             #print(self.transformer, "will be used")
-            tokenizer = AutoTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
-                                                max_length=self.model_config.max_sequence_length, padding='max_length')
+            tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+                                                max_length=self.model_config.max_sequence_length)
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None
