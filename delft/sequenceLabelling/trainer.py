@@ -301,10 +301,10 @@ class Scorer(Callback):
             if isinstance(self.valid_batches, DataGeneratorTransformers):
                 y_true_batch = np.asarray(y_true_batch, dtype=object)
 
-                # we need to remove one vector of the data corresponding to the marked tokens, this vector is not 
+                # we need to remove one vector of the data corresponding to the token offsets, this vector is not 
                 # expected by the model, but we need it to restore correctly the labels (which are produced
                 # according to the sub-segmentation of wordpiece, not the expected segmentation)
-                input_tokens = data[-1]
+                input_offsets = data[-1]
                 data = data[:-1]
 
                 y_pred_batch = self.model.predict_on_batch(data)
@@ -316,16 +316,16 @@ class Scorer(Callback):
                 # for this we can use the marked tokens provided by the generator 
                 new_y_pred_batch = []
                 new_y_true_batch = []
-                for y_pred_text, y_true_text, tokens_text in zip(y_pred_batch, y_true_batch, input_tokens):
+                for y_pred_text, y_true_text, offsets_text in zip(y_pred_batch, y_true_batch, input_offsets):
                     new_y_pred_text = []
                     new_y_true_text = []
                     # this is the result per sequence, realign labels:
-                    for q in range(len(y_pred_text)):
-                        if tokens_text[q] == '[SEP]':
-                            break
-                        if tokens_text[q] in ['[PAD]', '[CLS]']:
+                    for q in range(len(offsets_text)):
+                        if offsets_text[q][0] == 0 and offsets_text[q][1] == 0:
+                            # special token
                             continue
-                        if tokens_text[q].startswith("##"): 
+                        if offsets_text[q][0] != 0: 
+                            # added sub-token
                             continue
                         new_y_pred_text.append(y_pred_text[q]) 
                         new_y_true_text.append(y_true_text[q])

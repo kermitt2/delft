@@ -310,16 +310,14 @@ class BERTPreprocessor(object):
                 chars_tokens.append(self.empty_char_vector)
 
         # sub-tokenization
-        print(text_tokens)
         en = Encoding()
         encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
             max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
 
-        print(encoded_result)
-
         input_ids = encoded_result.input_ids
         offsets = encoded_result.offset_mapping
-        segment_ids = []
+        token_type_ids = encoded_result.token_type_ids
+        attention_mask = encoded_result.attention_mask
         label_ids = []
         chars_blocks = []
         feature_blocks = []
@@ -342,29 +340,25 @@ class BERTPreprocessor(object):
                 feature_blocks.append(features_tokens[word_idx])
                 chars_blocks.append(chars_tokens[word_idx])
 
-            segment_ids.append(0)
             previous_word_idx = word_idx
-
-        # The mask has 1 for real tokens and 0 for padding tokens
-        input_mask = [1] * len(input_ids)
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(self.tokenizer.pad_token_id)
-            input_mask.append(self.tokenizer.pad_token_id)
-            segment_ids.append(0)
+            token_type_ids.append(self.tokenizer.pad_token_id)
+            attention_mask.append(0)
             label_ids.append("<PAD>")
             chars_blocks.append(self.empty_char_vector)
             feature_blocks.append(self.empty_features_vector)
 
         assert len(input_ids) == max_seq_length
-        assert len(input_mask) == max_seq_length
-        assert len(segment_ids) == max_seq_length
+        assert len(token_type_ids) == max_seq_length
+        assert len(attention_mask) == max_seq_length
         assert len(label_ids) == max_seq_length
         assert len(chars_blocks) == max_seq_length
         assert len(feature_blocks) == max_seq_length
 
-        return input_ids, input_mask, segment_ids, chars_blocks, feature_blocks, label_ids, offsets
+        return input_ids, token_type_ids, attention_mask, chars_blocks, feature_blocks, label_ids, offsets
 
 
     def convert_single_text_bert(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
