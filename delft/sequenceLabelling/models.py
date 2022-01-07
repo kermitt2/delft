@@ -127,11 +127,6 @@ class BaseModel(object):
             local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
                                  pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
                                  transformers hub.
-            
-            not used:
-            transformer_config_file_path: used only when the model contains a transformer layer - local path to the 
-                                          transformer config file to be used when not loading the pretrained weights of 
-                                          the transformer. 
         """
         self.config = config
         self.ntags = ntags
@@ -180,8 +175,9 @@ class BaseModel(object):
             if local_path is None:
                 self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
             else:
-                self.bert_config = AutoConfig.from_pretrained(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
-            transformer_model = AutoConfig.from_pretrained(self.bert_config)
+                config_path = os.path.join(".", local_path, TRANSFORMER_CONFIG_FILE_NAME)
+                self.bert_config = AutoConfig.from_pretrained(config_path)
+            transformer_model = TFAutoModel.from_config(self.bert_config)
         return transformer_model
 
 
