@@ -1,0 +1,131 @@
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BERT --transformer bert-base-cased --fold-count 10
+
+training runtime: 11087.346 seconds 
+
+Evaluation on test set:
+
+------------------------ fold 0 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights0.hdf5
+number of alignment issues with test set: 3390
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 90.94
+    precision: 90.22
+    recall: 91.66
+
+------------------------ fold 1 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights1.hdf5
+number of alignment issues with test set: 3176
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 91.16
+    precision: 90.29
+    recall: 92.05
+
+------------------------ fold 2 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights2.hdf5
+number of alignment issues with test set: 3276
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 91.29
+    precision: 90.49
+    recall: 92.10
+
+------------------------ fold 3 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights3.hdf5
+number of alignment issues with test set: 3403
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 91.18
+    precision: 90.35
+    recall: 92.03
+
+------------------------ fold 4 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights4.hdf5
+number of alignment issues with test set: 3403
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 90.96
+    precision: 90.14
+    recall: 91.80
+
+------------------------ fold 5 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights5.hdf5
+number of alignment issues with test set: 3442
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 90.93
+    precision: 90.15
+    recall: 91.73
+
+------------------------ fold 6 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights6.hdf5
+number of alignment issues with test set: 3401
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 90.79
+    precision: 89.88
+    recall: 91.71
+
+------------------------ fold 7 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights7.hdf5
+number of alignment issues with test set: 3401
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 91.17
+    precision: 90.39
+    recall: 91.96
+
+------------------------ fold 8 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights8.hdf5
+number of alignment issues with test set: 3403
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 90.80
+    precision: 89.83
+    recall: 91.78
+
+------------------------ fold 9 --------------------------------------
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights9.hdf5
+number of alignment issues with test set: 3415
+you might need to increase the maximum sequence input length of the model and retrain
+    f1: 91.07
+    precision: 90.32
+    recall: 91.84
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 6
+                  precision    recall  f1-score   support
+
+             LOC     0.9197    0.9269    0.9233      1668
+            MISC     0.7651    0.8120    0.7878       702
+             ORG     0.8778    0.9085    0.8929      1661
+             PER     0.9611    0.9617    0.9614      1617
+
+all (micro avg.)     0.8988    0.9171    0.9079      5648
+
+
+** Best ** model scores - run 2
+                  precision    recall  f1-score   support
+
+             LOC     0.9311    0.9317    0.9314      1668
+            MISC     0.7807    0.8319    0.8055       702
+             ORG     0.8863    0.9061    0.8961      1661
+             PER     0.9541    0.9641    0.9591      1617
+
+all (micro avg.)     0.9049    0.9210    0.9129      5648
+
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT/model_weights2.hdf5
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+             LOC     0.9233    0.9312    0.9272      1668
+            MISC     0.7739    0.8239    0.7981       702
+             ORG     0.8824    0.9042    0.8932      1661
+             PER     0.9600    0.9618    0.9609      1617
+
+all (micro avg.)     0.9021    0.9187    0.9103        
+
+
+
+
+
+
+
+
+
+
+

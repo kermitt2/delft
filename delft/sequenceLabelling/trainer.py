@@ -100,11 +100,11 @@ class Trainer(object):
             else:
                 local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
         else:
-            lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+            lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.training_config.learning_rate,
                 decay_steps=nb_train_steps,
                 decay_rate=0.5)
-            optimizer = keras.optimizers.Adam(learning_rate=lr_schedule)
+            optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
 
             if local_model.config.use_crf:
                 local_model.compile(loss=local_model.crf.loss, optimizer=optimizer)

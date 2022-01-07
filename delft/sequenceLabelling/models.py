@@ -591,6 +591,12 @@ class BERT_CRF(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
+
 
 class BERT_CRF_FEATURES(BaseModel):
     """
@@ -651,6 +657,12 @@ class BERT_CRF_FEATURES(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
+
 
 class BERT_CRF_CHAR(BaseModel):
     """
@@ -707,6 +719,12 @@ class BERT_CRF_CHAR(BaseModel):
 
     def get_generator(self):
         return DataGeneratorTransformers
+
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
 
 
 class BERT_CRF_CHAR_FEATURES(BaseModel):
@@ -782,3 +800,8 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
