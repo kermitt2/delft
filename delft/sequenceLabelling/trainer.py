@@ -23,6 +23,7 @@ from transformers import create_optimizer
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
 PROCESSOR_FILE_NAME = 'preprocessor.json'
+from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME
 
 def sparse_crossentropy_masked(y_true, y_pred):
     mask_value = 0
@@ -85,23 +86,30 @@ class Trainer(object):
     def compile_model(self, local_model, train_size):
 
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
-        optimizer, lr_schedule = create_optimizer(
-            init_lr=5e-5, #self.training_config.learning_rate
-            num_train_steps=nb_train_steps,
-            weight_decay_rate=0.01,
-            num_warmup_steps=0.1*nb_train_steps,
-        )
-
+        
         if self.model_config.transformer != None:
+            optimizer, lr_schedule = create_optimizer(
+                init_lr=5e-5, 
+                num_train_steps=nb_train_steps,
+                weight_decay_rate=0.01,
+                num_warmup_steps=0.1*nb_train_steps,
+            )
+
             if local_model.config.use_crf:
                 local_model.compile(loss=local_model.crf.sparse_crf_loss_masked, optimizer=optimizer)
             else:
                 local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
         else:
+            lr_schedule = keras.optimizers.schedules.ExponentialDecay(
+                initial_learning_rate=self.training_config.learning_rate,
+                decay_steps=nb_train_steps,
+                decay_rate=0.5)
+            optimizer = keras.optimizers.Adam(learning_rate=lr_schedule)
+
             if local_model.config.use_crf:
-                local_model.compile(loss=local_model.crf.loss, optimizer='adam')
+                local_model.compile(loss=local_model.crf.loss, optimizer=optimizer)
             else:
-                local_model.compile(optimizer='adam', loss='categorical_crossentropy')
+                local_model.compile(optimizer=optimizer, loss='categorical_crossentropy')
 
         return local_model
 
@@ -177,7 +185,16 @@ class Trainer(object):
 
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
-        #roc_scores = []
+
+        if self.model_config.transformer != None:
+            # save the config, preprocessor and transformer layer config on disk
+            dir_path = 'data/models/sequenceLabelling/'
+            directory = os.path.join(dir_path, self.model_config.model_name)
+            print("directory:", directory)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+            self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
+            self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
 
         for fold_id in range(0, fold_count):
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -228,10 +245,12 @@ class Trainer(object):
                 # save the model with transformer layer on disk
                 dir_path = 'data/models/sequenceLabelling/'
                 fold_path = os.path.join(dir_path, self.model_config.model_name)
+                print("fold_path:", fold_path)
                 if not os.path.exists(fold_path):
                     os.makedirs(fold_path)
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
                 foldModel.save(os.path.join(fold_path, weight_file))
+                foldModel.get_transformer_config().to_json_file(os.path.join(fold_path, TRANSFORMER_CONFIG_FILE_NAME))
                 #self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
                 #self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
 
