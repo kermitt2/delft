@@ -1,7 +1,7 @@
 # Snippet classification with DeLFT
 
 We used DeLFT for creating classifiers for various snippet types: citation contexts, software mention contexts, dataset sentences, etc. 
-Here are some application examples for this usage. 
+Here are some application examples. 
 
 #### Toxic comment classification
 
@@ -136,7 +136,7 @@ Training and evalation (ratio) with 10-folds:
 > python3 delft/applications/citationClassifier.py train_eval --fold-count 10
 ```
 
-which should produce the following evaluation (using the 2-layers Bidirectional GRU model `gru`):
+which should produce the following evaluation, using the default 2-layers Bidirectional GRU model `gru`):
 
 ```
 Evaluation on 896 instances:
@@ -159,6 +159,20 @@ Evaluation on 896 instances:
       negative        0.1712        0.6552        0.2714            29
        neutral        0.9740        0.8020        0.8797           793
       positive        0.4015        0.7162        0.5146            74
+```
+
+Using a ten-folds SciBERT ensemble classifiers:
+
+```sh
+> python3 delft/applications/citationClassifier.py train_eval --architecture bert --transformer allenai/scibert_scivocab_cased --fold-count 10
+```
+
+```
+Evaluation on 896 instances:
+                   precision        recall       f-score       support
+      negative        0.3023        0.4483        0.3611            29
+       neutral        0.9651        0.8714        0.9158           793
+      positive        0.3869        0.7162        0.5024            74
 ```
 
 To classify a set of citation contexts with default model (2-layers Bidirectional GRU model `gru`):

@@ -36,7 +36,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
-    model_name = 'dataseer-binary'
+    model_name = 'dataseer-binary_'+architecture
     class_weights = None
 
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
@@ -56,7 +56,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     print('loading reuse dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
-    model_name = 'dataseer-reuse'
+    model_name = 'dataseer-reuse_' + architecture
     class_weights = {0: 1.5, 1: 1.}
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,
@@ -74,7 +74,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     print('loading first-level dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
-    model_name = 'dataseer-first'
+    model_name = 'dataseer-first_' + architecture
 
     class_weights = None
 
@@ -115,7 +115,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     for the_class in list_classes:
         print('training', the_class)
 
-        model_name = 'dataseer-' + the_class
+        model_name = 'dataseer-' + the_class + "_" + architecture
 
         model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
             fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name, 
@@ -160,7 +160,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
 
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('dataseer', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
+    model = Classifier('dataseer_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer=transformer)
 
@@ -197,7 +197,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
 
     class_weights = {0: 1.5, 1: 1.}
 
-    model = Classifier('dataseer-reuse', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('dataseer-reuse_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer=transformer)
 
@@ -233,7 +233,7 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     class_weights = None
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('dataseer', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('dataseer_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer=transformer)
 
@@ -312,7 +312,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
 
         print('subtypes to be classified:', datatypes_list_subclasses[the_class])
 
-        model_name = 'dataseer-' + the_class
+        model_name = 'dataseer-' + the_class + "_" + architecture
 
         model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
             fold_number=fold_count, use_roc_auc=True, embeddings_name=embeddings_name, 
@@ -341,7 +341,7 @@ def classify(texts, output_format, architecture="gru", transformer=None, cascade
         Classify a list of texts with an existing model
     '''
     # load model
-    model = Classifier('dataseer', architecture=architecture, transformer=transformer, embeddings_name=embeddings_name)
+    model = Classifier('dataseer_'+architecture, architecture=architecture, transformer=transformer, embeddings_name=embeddings_name)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -362,7 +362,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
 
     print(list_classes)
 
-    model_binary = Classifier('dataseer-binary', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model_binary = Classifier('dataseer-binary_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer=transformer)
 
@@ -393,7 +393,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
 
     list_classes.remove('no_dataset')
 
-    model_first = Classifier('dataseer-first', architecture=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
+    model_first = Classifier('dataseer-first_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights)
 

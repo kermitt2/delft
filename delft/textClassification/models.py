@@ -215,11 +215,6 @@ class BaseModel(object):
 
             self.model.set_weights(best_weights)
 
-        if use_roc_auc and validation_generator != None:
-            return best_roc_auc
-        else:
-            return best_loss
-
 
     def predict(self, predict_generator, use_main_thread_only=False):
         nb_workers = 6
@@ -245,7 +240,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, tokenizer, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -255,6 +250,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
     fold_size = len(X) // fold_count
     models = []
     scores = []
+
+    bert_data = False
+    if model_config.transformer != None:
+        bert_data = True
 
     for fold_id in range(0, fold_count):
         print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -272,47 +271,49 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embeddings=embeddings, shuffle=True)
+            embeddings=embeddings, bert_data=bert_data, shuffle=True, tokenizer=tokenizer)
 
         validation_generator = None
         if training_config.early_stop:
             validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
                 maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-                embeddings=embeddings, shuffle=False)
+                embeddings=embeddings, bert_data=bert_data, shuffle=False, tokenizer=tokenizer)
 
         foldModel = getModel(model_config, training_config)
 
-        best_score = foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
-                class_weights, training_generator, validation_generator, val_y, patience=training_config.patience,
-                multiprocessing=training_config.multiprocessing, callbacks=callbacks)
-        models.append(foldModel)
-
-        #model_path = os.path.join("../data/models/textClassification/",model_name, architecture+".model{0}_weights.hdf5".format(fold_id))
-        #foldModel.save_weights(model_path, foldModel.get_weights())
-        #foldModel.save(model_path)
-        #del foldModel
-
-        scores.append(best_score)
-
-    all_scores = sum(scores)
-    avg_score = all_scores/fold_count
-
-    if (use_roc_auc):
-        print("Average best roc_auc scores over the", fold_count, "fold: ", avg_score)
-    else:
-        print("Average best log loss scores over the", fold_count, "fold: ", avg_score)
+        foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
+                class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, 
+                patience=training_config.patience, callbacks=callbacks)
+        
+        if model_config.transformer is None:
+            models.append(foldModel)
+        else:
+            if fold_id == 0:
+                models.append(foldModel)
+            # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
+            model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+            foldModel.save(model_path)
+            if fold_id != 0:
+                del foldModel
 
     return models
 
 
-def predict_folds(models, predict_generator, use_main_thread_only=False):
-    fold_count = len(models)
+def predict_folds(models, predict_generator, model_config, training_config, use_main_thread_only=False):
+    fold_count = model_config.fold_number
     y_predicts_list = []
     for fold_id in range(0, fold_count):
-        model = models[fold_id]
-        #y_predicts = model.predict(xte)
-        nb_workers = 6
 
+        if model_config.transformer is not None:
+            model = models[0]
+            if fold_id != 0:
+                # load new weight from disk
+                model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+                model.load(model_path)  
+        else:
+            model = models[fold_id]
+        
+        nb_workers = 6
         y_predicts = model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
         y_predicts_list.append(y_predicts)
 

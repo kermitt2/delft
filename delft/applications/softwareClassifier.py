@@ -54,7 +54,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
-    model_name = 'software_use'
+    model_name = 'software_use_'+architecture
     class_weights = None
 
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
@@ -84,7 +84,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
     print("\tused:", nb_used)
     print("\tnot used:", nb_unused)
 
-    model_name = 'software_use'
+    model_name = 'software_use_'+architecture
     class_weights = None
 
     # segment train and eval sets
@@ -111,7 +111,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 # classify a list of texts
 def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
-    model = Classifier('software_use', architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
+    model = Classifier('software_use_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

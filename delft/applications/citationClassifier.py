@@ -39,7 +39,7 @@ def configure(architecture):
 def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('citations', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer=transformer)
 
@@ -57,7 +57,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
 def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None): 
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('citations', architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer=transformer)
 
@@ -81,7 +81,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", embeddings_name=None, transformer=None):
     # load model
-    model = Classifier('citations', architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
+    model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

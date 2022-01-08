@@ -39,7 +39,7 @@ def configure(architecture):
 def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None): 
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('toxic', architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
+    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
         embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop, 
         transformer=transformer)
 
@@ -55,7 +55,7 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
 
 def test(architecture="gru"):
     # load model
-    model = Classifier('toxic', architecture, list_classes=list_classes, transformer=None)
+    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, transformer=None)
     model.load()
 
     print('loading test dataset...')
@@ -70,7 +70,7 @@ def test(architecture="gru"):
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
-    model = Classifier('toxic', architecture, list_classes=list_classes)
+    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

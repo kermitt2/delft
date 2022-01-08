@@ -94,12 +94,12 @@ class Classifier(object):
         self.transformer = transformer
         self.transformer_config = None
 
+        word_emb_size = 0
         if self.transformer is not None:
             self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
                                                 max_length=maxlen, padding='max_length')
             self.embeddings_name == None
             self.embeddings = None
-            word_emb_size = 0
         elif self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name) 
             word_emb_size = self.embeddings.embed_size
@@ -171,7 +171,7 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
+        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, self.tokenizer, callbacks=callbacks)
 
 
     def predict(self, texts, output_format='json', use_main_thread_only=False):
@@ -195,7 +195,11 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
 
-                result = predict_folds(self.models, predict_generator, use_main_thread_only=use_main_thread_only)
+                result = predict_folds(self.models, 
+                                       predict_generator, 
+                                       self.model_config, 
+                                       self.training_config, 
+                                       use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         if output_format == 'json':
@@ -241,7 +245,7 @@ class Classifier(object):
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
-                result = predict_folds(self.models, test_generator, use_main_thread_only=use_main_thread_only)
+                result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
         print("-----------------------------------------------")
@@ -385,9 +389,11 @@ class Classifier(object):
             if self.models == None:
                 print('Error: nfolds models have not been built')
             else:
-                for i in range(0, self.model_config.fold_number):
-                    self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
-                print('nfolds model saved')
+                # fold models having a transformer layers are already saved
+                if self.model_config.transformer is None:
+                    for i in range(0, self.model_config.fold_number):
+                        self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
+                    print('nfolds model saved')
 
         # save pretrained transformer config if used in the model
         if self.transformer is not None:
@@ -396,8 +402,7 @@ class Classifier(object):
 
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-
-        print(self.model_config.transformer)
+        #print(self.model_config.transformer)
 
         if self.model_config.transformer is None:
             # load embeddings
@@ -420,11 +425,21 @@ class Classifier(object):
             self.model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
         else:
             self.models = []
-            for i in range(0, self.model_config.fold_number):
+            if self.model_config.transformer is None:
+                for i in range(0, self.model_config.fold_number):
+                    local_model = getModel(self.model_config, 
+                                        self.training_config, 
+                                        load_pretrained_weights=False, 
+                                        local_path=os.path.join(dir_path, self.model_config.model_name))
+                    self.transformer_config = local_model.transformer_config
+                    local_model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
+                    self.models.append(local_model)
+            else:
+                # only load first fold one, the other will be loaded at prediction time
                 local_model = getModel(self.model_config, 
                                     self.training_config, 
                                     load_pretrained_weights=False, 
                                     local_path=os.path.join(dir_path, self.model_config.model_name))
                 self.transformer_config = local_model.transformer_config
-                local_model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
+                local_model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model0_weights.hdf5"))
                 self.models.append(local_model)

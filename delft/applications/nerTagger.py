@@ -31,7 +31,7 @@ def configure(architecture, dataset_type, lang, embeddings_name):
         recurrent_dropout = 0.5
     else:
         word_lstm_units = 100
-        max_epoch = 25
+        max_epoch = 50
         recurrent_dropout = 0.5
 
     # default bert model parameters
