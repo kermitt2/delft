@@ -27,9 +27,9 @@ import datetime
 
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.models import getModel
-from delft.textClassification.models import train_model
+#from delft.textClassification.models import train_model
 from delft.textClassification.models import train_folds
-from delft.textClassification.models import predict
+#from delft.textClassification.models import predict
 from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
@@ -128,8 +128,9 @@ class Classifier(object):
                                               multiprocessing=multiprocessing)
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.model, self.transformer_config = getModel(self.model_config, self.training_config)
-        
+        self.model = getModel(self.model_config, self.training_config)
+        self.transformer_config = self.model.transformer_config
+
         bert_data = False
         if self.transformer != None:
             bert_data = True
@@ -155,8 +156,7 @@ class Classifier(object):
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
-        self.model, best_roc_auc = train_model(
-            self.model, 
+        self.model.train_model(
             self.model_config.list_classes, 
             self.training_config.batch_size, 
             self.training_config.max_epoch, 
@@ -173,7 +173,7 @@ class Classifier(object):
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
 
-    
+
     def predict(self, texts, output_format='json', use_main_thread_only=False):
         bert_data = False
         if self.transformer != None:
@@ -185,7 +185,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
 
-                result = predict(self.model, predict_generator, use_main_thread_only=use_main_thread_only)
+                result = self.model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:            
@@ -232,7 +232,7 @@ class Classifier(object):
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
 
-                result = predict(self.model, test_generator, use_main_thread_only=use_main_thread_only)
+                result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:
@@ -410,19 +410,21 @@ class Classifier(object):
                                                 max_length=self.model_config.maxlen, padding='max_length')
             self.embeddings = None
 
-        self.model, self.transformer_config = getModel(self.model_config, 
+        self.model = getModel(self.model_config, 
                               self.training_config, 
                               load_pretrained_weights=False, 
                               local_path=os.path.join(dir_path, self.model_config.model_name))
+        self.transformer_config = self.model.transformer_config
         if self.model_config.fold_number == 1:
             print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
-            self.model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
+            self.model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
         else:
             self.models = []
             for i in range(0, self.model_config.fold_number):
-                local_model, self.transformer_config = getModel(self.model_config, 
-                                                                self.training_config, 
-                                                                load_pretrained_weights=False, 
-                                                                local_path=os.path.join(dir_path, self.model_config.model_name))
-                local_model.load_weights(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
+                local_model = getModel(self.model_config, 
+                                    self.training_config, 
+                                    load_pretrained_weights=False, 
+                                    local_path=os.path.join(dir_path, self.model_config.model_name))
+                self.transformer_config = local_model.transformer_config
+                local_model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                 self.models.append(local_model)
