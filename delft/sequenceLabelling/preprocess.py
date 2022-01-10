@@ -311,9 +311,6 @@ class BERTPreprocessor(object):
         encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
             max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
 
-        #print(self.tokenizer.tokenize(text_tokens, add_special_tokens=True, is_split_into_words=True,
-        #    max_length=max_seq_length, truncation=True, return_offsets_mapping=True))
-
         input_ids = encoded_result.input_ids
         offsets = encoded_result.offset_mapping
         if "token_type_ids" in encoded_result:

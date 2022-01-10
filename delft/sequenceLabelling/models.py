@@ -36,15 +36,6 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         config.use_crf = True
         return BidLSTM_CRF(config, ntags)
 
-        '''
-        elif config.architecture == BidLSTM_ChainCRF.name:
-            preprocessor.return_word_embeddings = True
-            preprocessor.return_chars = True
-            preprocessor.return_lengths = True
-            config.use_crf = True
-            return BidLSTM_ChainCRF(config, ntags)
-        '''
-
     elif config.architecture == BidLSTM_CNN.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
@@ -234,7 +225,6 @@ class BidLSTM_CRF(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        #x = Dense(ntags)(x)
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
 
@@ -245,6 +235,9 @@ class BidLSTM_CRF(BaseModel):
         self.config = config
 
 
+"""
+Not used, kept for nostalgia reasons
+"""
 class BidLSTM_ChainCRF(BaseModel):
     """
     A Keras implementation of BidLSTM-CRF for sequence labelling.
@@ -407,9 +400,6 @@ class BidLSTM_CNN_CRF(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        #x = Dense(ntags)(x)
-        #self.crf = ChainCRF()
-        #pred = self.crf(x)
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model.summary()
@@ -457,9 +447,6 @@ class BidGRU_CRF(BaseModel):
                                return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        #x = Dense(ntags)(x)
-        #self.crf = ChainCRF()
-        #pred = self.crf(x)
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
         self.model.summary()
@@ -515,9 +502,6 @@ class BidLSTM_CRF_CASING(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        #x = Dense(ntags)(x)
-        #self.crf = ChainCRF()
-        #pred = self.crf(x)
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model.summary()
@@ -580,9 +564,6 @@ class BidLSTM_CRF_FEATURES(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        #x = Dense(ntags)(x)
-        #self.crf = ChainCRF()
-        #pred = self.crf(x)
 
         self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
         self.model.summary()
@@ -623,9 +604,9 @@ class BERT(BaseModel):
         #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
         embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
-        tag_logits = Dense(ntags, activation='softmax')(embedding_layer)
+        label_logits = Dense(ntags, activation='softmax')(embedding_layer)
         
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[tag_logits])
+        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
         self.model.summary()
         self.config = config
 
@@ -663,13 +644,9 @@ class BERT_CRF(BaseModel):
         #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
         embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
-        #x = Dense(ntags)(x)
-        #self.crf = ChainCRF()
-        #pred = self.crf(x)
         
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
         self.model.summary()
-        #self.model = CRFModelWrapper(self.model, ntags)
         self.model = CRFModelWrapperForBERT(self.model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
         self.model.summary()
@@ -735,11 +712,12 @@ class BERT_CRF_FEATURES(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -799,11 +777,12 @@ class BERT_CRF_CHAR(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -880,11 +859,12 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.summary()
         self.config = config
 
     def get_generator(self):
