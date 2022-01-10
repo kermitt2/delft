@@ -6,6 +6,10 @@ from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
+import tensorflow_addons as tfa
+from tensorflow_addons.text.crf_wrapper import CRFModelWrapper
+from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
+
 from transformers import AutoConfig, TFAutoModel
 
 from delft.utilities.crf_layer import ChainCRF
@@ -31,6 +35,15 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         preprocessor.return_lengths = True
         config.use_crf = True
         return BidLSTM_CRF(config, ntags)
+
+        '''
+        elif config.architecture == BidLSTM_ChainCRF.name:
+            preprocessor.return_word_embeddings = True
+            preprocessor.return_chars = True
+            preprocessor.return_lengths = True
+            config.use_crf = True
+            return BidLSTM_ChainCRF(config, ntags)
+        '''
 
     elif config.architecture == BidLSTM_CNN.name:
         preprocessor.return_word_embeddings = True
@@ -202,7 +215,58 @@ class BidLSTM_CRF(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
+        # length of sequence not used by the model, but used by the training scorer
+        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        # combine characters and word embeddings
+        x = Concatenate()([word_input, chars])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        #x = Dense(ntags)(x)
+
+        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
+
+        self.model.summary()
+        self.model = CRFModelWrapper(self.model, ntags)
+        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
+        self.model.summary()
+        self.config = config
+
+
+class BidLSTM_ChainCRF(BaseModel):
+    """
+    A Keras implementation of BidLSTM-CRF for sequence labelling.
+
+    References
+    --
+    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
+    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
+    https://arxiv.org/abs/1603.01360
+    """
+    name = 'BidLSTM_ChainCRF'
+
+    def __init__(self, config, ntags=None):
+
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -343,11 +407,15 @@ class BidLSTM_CNN_CRF(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
+        #x = Dense(ntags)(x)
+        #self.crf = ChainCRF()
+        #pred = self.crf(x)
 
-        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
+        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapper(self.model, ntags)
+        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
+        self.model.summary()
         self.config = config
 
 
@@ -367,7 +435,7 @@ class BidGRU_CRF(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
+                                    mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -389,11 +457,15 @@ class BidGRU_CRF(BaseModel):
                                return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
+        #x = Dense(ntags)(x)
+        #self.crf = ChainCRF()
+        #pred = self.crf(x)
 
-        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
+        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapper(self.model, ntags)
+        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
+        self.model.summary()
         self.config = config
 
 
@@ -414,7 +486,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
+                                    mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -443,11 +515,15 @@ class BidLSTM_CRF_CASING(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
+        #x = Dense(ntags)(x)
+        #self.crf = ChainCRF()
+        #pred = self.crf(x)
 
-        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
+        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapper(self.model, ntags)
+        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
+        self.model.summary()
         self.config = config
 
 
@@ -468,7 +544,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
+                                    mask_zero=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -504,11 +580,15 @@ class BidLSTM_CRF_FEATURES(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
+        #x = Dense(ntags)(x)
+        #self.crf = ChainCRF()
+        #pred = self.crf(x)
 
-        self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
+        self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
+        self.model.summary()
+        self.model = CRFModelWrapper(self.model, ntags)
+        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, 1)])
+        self.model.summary()
         self.config = config
 
 
@@ -546,6 +626,7 @@ class BERT(BaseModel):
         tag_logits = Dense(ntags, activation='softmax')(embedding_layer)
         
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[tag_logits])
+        self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -565,6 +646,7 @@ class BERT_CRF(BaseModel):
     """
 
     name = 'BERT_CRF'
+    bert_config = None 
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
@@ -581,11 +663,16 @@ class BERT_CRF(BaseModel):
         #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
         embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
+        #x = Dense(ntags)(x)
+        #self.crf = ChainCRF()
+        #pred = self.crf(x)
         
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
+        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
+        self.model.summary()
+        #self.model = CRFModelWrapper(self.model, ntags)
+        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -606,6 +693,7 @@ class BERT_CRF_FEATURES(BaseModel):
     """
 
     name = 'BERT_CRF_FEATURES'
+    bert_config = None 
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         transformer_model_name = config.transformer
@@ -672,6 +760,7 @@ class BERT_CRF_CHAR(BaseModel):
     """
 
     name = 'BERT_CRF_CHAR'
+    bert_config = None 
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         transformer_model_name = config.transformer
@@ -736,6 +825,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
     """
 
     name = 'BERT_CRF_CHAR_FEATURES'
+    bert_config = None 
 
     def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
         transformer_model_name = config.transformer

@@ -188,7 +188,7 @@ class DataGenerator(BaseGenerator):
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x) 
 
         if self.y is not None:
-            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend)
+            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
@@ -329,7 +329,6 @@ class DataGeneratorTransformers(BaseGenerator):
         batch_x = np.asarray(truncate_batch_values(input_ids, max_length_x), dtype=np.int32)
         batch_x_types = np.asarray(truncate_batch_values(token_type_ids, max_length_x), dtype=np.int32)
         batch_x_masks = np.asarray(truncate_batch_values(attention_mask, max_length_x), dtype=np.int32)
-        #batch_x_segments = np.asarray(truncate_batch_values(input_segments, max_length_x), dtype=np.int32)
         batch_c = np.asarray(truncate_batch_values(input_chars, max_length_x), dtype=np.int32)
         batch_input_offsets = np.asarray(truncate_batch_values(input_offsets, max_length_x), dtype=object)
 

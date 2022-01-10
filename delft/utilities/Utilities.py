@@ -582,8 +582,15 @@ def download_file(url, path, filename=None):
     else:
         return None
 
-
 def len_until_first_pad(tokens, pad):
+    i = len(tokens)-1
+    while i>=0:
+        if tokens[i] != pad:
+            return i+1
+        i -= 1
+    return 0
+
+def len_until_first_pad_old(tokens, pad):
     for i in range(len(tokens)):
         if tokens[i] == pad:
             return i

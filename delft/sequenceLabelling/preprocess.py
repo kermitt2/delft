@@ -338,10 +338,17 @@ class BERTPreprocessor(object):
                 if offset[0] == 0:
                     word_idx += 1
 
-                # propagate the data to the new sub-token
-                label_ids.append(label_tokens[word_idx])
-                feature_blocks.append(features_tokens[word_idx])
-                chars_blocks.append(chars_tokens[word_idx])
+                    # new token
+                    label_ids.append(label_tokens[word_idx])
+                    feature_blocks.append(features_tokens[word_idx])
+                    chars_blocks.append(chars_tokens[word_idx])
+                else:
+                    # propagate the data to the new sub-token or 
+                    # dummy/empty input for sub-tokens
+                    label_ids.append("<PAD>")
+                    chars_blocks.append(self.empty_char_vector)
+                    #feature_blocks.append(self.empty_features_vector)
+                    feature_blocks.append(features_tokens[word_idx])
 
             previous_word_idx = word_idx
 

@@ -227,7 +227,7 @@ class Sequence(object):
                     embeddings=self.embeddings, shuffle=False, features=features)
 
                 # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True)
+                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
                 scorer.model = self.model
                 scorer.on_epoch_end(epoch=-1)
             else:
@@ -303,7 +303,7 @@ class Sequence(object):
                         embeddings=self.embeddings, shuffle=False, features=features)
 
                     # Build the evaluator and evaluate the model
-                    scorer = Scorer(test_generator, self.p, evaluation=True)
+                    scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
                     scorer.model = self.models[i]
                     scorer.on_epoch_end(epoch=-1)
                     f1 = scorer.f1

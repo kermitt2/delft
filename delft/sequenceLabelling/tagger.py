@@ -64,7 +64,7 @@ class Tagger(object):
                 data = data[:-1]
 
                 y_pred_batch = self.model.predict_on_batch(data)
-                y_pred_batch = np.argmax(y_pred_batch, -1)
+                #y_pred_batch = np.argmax(y_pred_batch, -1)
 
                 # results have been produced by a model using a transformer layer, so a few things to do
                 # the labels are sparse, so integers and not one hot encoded
@@ -100,14 +100,13 @@ class Tagger(object):
                     tokens = text
                     offsets = []
 
-                if isinstance(predict_generator, DataGeneratorTransformers):
-                    tags = self._get_tags_sparse(pred)
-                    prob = self._get_prob_sparse(pred)
-                else:
+                if not self.model_config.use_crf:
                     tags = self._get_tags(pred)
                     prob = self._get_prob(pred)
-                    # consider truncating with padding here
-
+                    # above consider stopping with padding to speed up a bit
+                else:
+                    tags = self._get_tags_sparse(pred)
+                    prob = self._get_prob_sparse(pred)
 
                 if output_format == 'json':
                     piece = {}

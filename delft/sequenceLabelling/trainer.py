@@ -17,6 +17,7 @@ from delft.sequenceLabelling.models import get_model
 
 import numpy as np
 import tensorflow as tf
+import tensorflow_addons
 
 from transformers import create_optimizer
 
@@ -24,21 +25,6 @@ DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
 PROCESSOR_FILE_NAME = 'preprocessor.json'
 from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME
-
-def sparse_crossentropy_masked(y_true, y_pred):
-    mask_value = 0
-    y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
-    y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
-    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
-
-def sparse_categorical_accuracy_masked(y_true, y_pred):
-    mask_value = 0
-    active_loss = tf.reshape(y_true, (-1,)) != mask_value
-    reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
-    y_true = tf.boolean_mask(tf.reshape(y_true, (-1,)), active_loss)
-    reduced_logits = tf.cast(tf.argmax(reduced_logits, axis=-1), tf.keras.backend.floatx())
-    equality = tf.equal(y_true, reduced_logits)
-    return tf.reduce_mean(tf.cast(equality, tf.keras.backend.floatx()))
 
 class Trainer(object):
 
@@ -72,7 +58,6 @@ class Trainer(object):
         """
         Train the instance self.model
         """      
-        self.model.summary()
         self.model = self.compile_model(self.model, len(x_train))
 
         # uncomment to plot graph
@@ -88,17 +73,21 @@ class Trainer(object):
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
         
         if self.model_config.transformer != None:
+            # we use a trasnformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
-                init_lr=5e-5, 
+                init_lr=2e-5, 
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
                 num_warmup_steps=0.1*nb_train_steps,
             )
 
             if local_model.config.use_crf:
-                local_model.compile(loss=local_model.crf.sparse_crf_loss_masked, optimizer=optimizer)
+                # loss is calculated by the custom CRF wrapper
+                local_model.compile(optimizer=optimizer)
             else:
-                local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
+                # we apply a mask on the predicted labels so that the weights 
+                # corresponding to special symbols are neutralized
+                local_model.compile(loss=sparse_crossentropy_masked, optimizer=optimizer)
         else:
             
             '''lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -107,12 +96,13 @@ class Trainer(object):
                 decay_rate=0.5)
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
             '''
-
             optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
             if local_model.config.use_crf:
-                local_model.compile(loss=local_model.crf.loss, optimizer=optimizer)
+                # loss is calculated by the custom CRF wrapper
+                local_model.compile(optimizer=optimizer)
             else:
-                local_model.compile(optimizer=optimizer, loss='categorical_crossentropy')
+                # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
+                local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
 
         return local_model
 
@@ -143,7 +133,7 @@ class Trainer(object):
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
                                       patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor))
+                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf)
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -159,7 +149,8 @@ class Trainer(object):
                 embeddings=self.embeddings, shuffle=True, features=feature_all)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=False)
+                                      eary_stopping=False,
+                                      use_crf=self.model_config.use_crf)
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
@@ -231,8 +222,8 @@ class Trainer(object):
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
                                load_pretrained_weights=True)
-            foldModel.summary()
             foldModel = self.compile_model(foldModel, len(train_x))
+            foldModel.summary()
             foldModel = self.train_model(foldModel, 
                                     train_x,
                                     train_y,
@@ -258,7 +249,7 @@ class Trainer(object):
                 #self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
 
 
-def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):
+def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True):
     """
     Get callbacks.
 
@@ -273,7 +264,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):
     callbacks = []
 
     if valid:
-        callbacks.append(Scorer(*valid))
+        callbacks.append(Scorer(*valid, use_crf=use_crf))
 
     if log_dir:
         if not os.path.exists(log_dir):
@@ -294,7 +285,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5):
 
 class Scorer(Callback):
 
-    def __init__(self, validation_generator, preprocessor=None, evaluation=False):
+    def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=True):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
         validation step and we will simply produce f1 score
@@ -311,6 +302,7 @@ class Scorer(Callback):
         self.report = None
         self.report_as_map = None
         self.evaluation = evaluation
+        self.use_crf = use_crf
 
     def on_epoch_end(self, epoch, logs={}):
         y_pred = None
@@ -330,7 +322,9 @@ class Scorer(Callback):
                 data = data[:-1]
 
                 y_pred_batch = self.model.predict_on_batch(data)
-                y_pred_batch = np.argmax(y_pred_batch, -1)
+
+                if not self.use_crf:
+                    y_pred_batch = np.argmax(y_pred_batch, -1)
 
                 # results have been produced by a model using a transformer layer, so a few things to do
                 # the labels are sparse, so integers and not one hot encoded
@@ -359,12 +353,12 @@ class Scorer(Callback):
                 y_true_batch = [self.p.inverse_transform(y) for y in y_true_batch]
                 y_pred_batch = [self.p.inverse_transform(y) for y in y_pred_batch]
             else:
-                y_true_batch = np.argmax(y_true_batch, -1)
-
                 # no transformer layer around, no mess to manage with the sub-tokenization...
                 y_pred_batch = self.model.predict_on_batch(data)
-                y_pred_batch = np.argmax(y_pred_batch, -1)
 
+                if not self.use_crf:
+                    y_pred_batch = np.argmax(y_pred_batch, -1)
+                
                 # one hot encoded labels, we also have the input length available 
                 sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
                 # shape of (batch_size, 1), we want (batch_size)
@@ -399,3 +393,20 @@ class Scorer(Callback):
         # save eval
         logs['f1'] = f1
         self.f1 = f1
+
+
+def sparse_crossentropy_masked(y_true, y_pred):
+    mask_value = 0
+    y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
+    y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
+    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
+
+
+def sparse_categorical_accuracy_masked(y_true, y_pred):
+    mask_value = 0
+    active_loss = tf.reshape(y_true, (-1,)) != mask_value
+    reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
+    y_true = tf.boolean_mask(tf.reshape(y_true, (-1,)), active_loss)
+    reduced_logits = tf.cast(tf.argmax(reduced_logits, axis=-1), tf.keras.backend.floatx())
+    equality = tf.equal(y_true, reduced_logits)
+    return tf.reduce_mean(tf.cast(equality, tf.keras.backend.floatx()))
