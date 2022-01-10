@@ -2,6 +2,7 @@ import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import numpy as np
 
@@ -27,9 +28,7 @@ import datetime
 
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.models import getModel
-#from delft.textClassification.models import train_model
 from delft.textClassification.models import train_folds
-#from delft.textClassification.models import predict
 from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
@@ -43,7 +42,7 @@ from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import plot_model
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
-from transformers import BertTokenizer
+from transformers import AutoTokenizer
 
 
 class Classifier(object):
@@ -96,8 +95,8 @@ class Classifier(object):
 
         word_emb_size = 0
         if self.transformer is not None:
-            self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
-                                                max_length=maxlen, padding='max_length')
+            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+                                                max_length=maxlen, add_prefix_space=True)
             self.embeddings_name == None
             self.embeddings = None
         elif self.embeddings_name is not None:
@@ -397,8 +396,9 @@ class Classifier(object):
 
         # save pretrained transformer config if used in the model
         if self.transformer is not None:
-            if self.transformer_config is not None:
-                self.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+            if self.model.get_transformer_config() is not None:
+                self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+
 
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
@@ -411,8 +411,8 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer = self.model_config.transformer
-            self.tokenizer = BertTokenizer.from_pretrained(self.transformer, do_lower_case=False, add_special_tokens=True,
-                                                max_length=self.model_config.maxlen, padding='max_length')
+            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+                                                max_length=maxlen, add_prefix_space=True)
             self.embeddings = None
 
         self.model = getModel(self.model_config, 

@@ -23,7 +23,7 @@ from sklearn.metrics import log_loss, roc_auc_score, r2_score
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
 
-from transformers import TFBertModel, BertConfig
+from transformers import AutoConfig, TFAutoModel
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 
@@ -231,6 +231,27 @@ class BaseModel(object):
         self.model.compile(loss='binary_crossentropy', 
                     optimizer='adam', 
                     metrics=['accuracy'])
+
+    def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
+        if load_pretrained_weights:
+            if local_path is None:
+                transformer_model = TFAutoModel.from_pretrained(transformer_model_name, from_pt=True)
+            else:
+                transformer_model = TFAutoModel.from_pretrained(local_path, from_pt=True)
+            self.bert_config = transformer_model.config
+        else:
+            # load config in JSON format
+            if local_path is None:
+                self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
+            else:
+                config_path = os.path.join(".", local_path, TRANSFORMER_CONFIG_FILE_NAME)
+                self.bert_config = AutoConfig.from_pretrained(config_path)
+            transformer_model = TFAutoModel.from_config(self.bert_config)
+        return transformer_model
+
+    def get_transformer_config(self):
+        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
+        return None
 
     def save(self, filepath):
         self.model.save_weights(filepath)
@@ -832,6 +853,7 @@ class bert(BaseModel):
     instanciated with a pre-trained BERT model
     """
     name = 'bert'
+    bert_config = None 
 
     # default parameters 
     parameters = {
@@ -850,21 +872,11 @@ class bert(BaseModel):
         nb_classes = len(model_config.list_classes)
 
         #def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
-        bert_model_name = self.parameters["transformer"]
-
-        if load_pretrained_weights:
-            if local_path is None:
-                transformer_model = TFBertModel.from_pretrained(bert_model_name, from_pt=True)                
-            else:
-                transformer_model = TFBertModel.from_pretrained(local_path, from_pt=True)
-            self.transformer_config = transformer_model.config
-        else:
-            # load config in JSON format
-            if local_path is None:
-                self.transformer_config = BertConfig.from_pretrained(bert_model_name, from_pt=True)
-            else:
-                self.transformer_config = BertConfig.from_json_file(os.path.join(local_path, TRANSFORMER_CONFIG_FILE_NAME))
-            transformer_model = TFBertModel(self.transformer_config)
+        transformer_model_name = self.parameters["transformer"]
+        print(transformer_model_name)
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         #input_masks_in = Input(shape=(None,), name='masked_token', dtype='int32')
@@ -883,6 +895,11 @@ class bert(BaseModel):
         optimizer = Adam(learning_rate=2e-5, clipnorm=1)
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
 
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
 
 def _get_description(name, path="delft/resources-registry.json"):
     registry_json = open(path).read()

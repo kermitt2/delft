@@ -57,9 +57,13 @@ def create_single_input_bert(text, maxlen=512, tokenizer=None):
 def create_batch_input_bert(texts, maxlen=512, tokenizer=None):
     # TBD: exception if tokenizer is not valid/None
 
+    if isinstance(texts, np.ndarray):
+        texts = texts.tolist()
+
     encoded_tokens = tokenizer.batch_encode_plus(texts, add_special_tokens=True, truncation=True, 
                                                 max_length=maxlen, padding='max_length')
-    # note: [CLS] and [SEP] are added by the tokenizer
+
+    # note: special tokens like [CLS] and [SEP] are added by the tokenizer
 
     ids = encoded_tokens["input_ids"]
     masks = encoded_tokens["token_type_ids"]
