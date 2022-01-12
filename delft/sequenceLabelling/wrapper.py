@@ -341,7 +341,10 @@ class Sequence(object):
 
                     nb_alignment_issues = 0
                     for j in range(len(y_test)):
-                        if len(y_test[i]) != len(y_pred[j]):
+                        if len(y_test[i]) != len(y_pred[i]):
+                            #print("y_test:", y_test[i])
+                            #print("y_pred:", y_pred[i])
+
                             nb_alignment_issues += 1
                             # BERT tokenizer appears to introduce some additional tokens without ## prefix,
                             # but we normally handled that well when predicting.
