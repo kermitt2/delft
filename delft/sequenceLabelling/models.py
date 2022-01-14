@@ -506,7 +506,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model.summary()
         self.model = CRFModelWrapper(self.model, ntags)
-        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
+        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None), (None, None, 1)])
         self.model.summary()
         self.config = config
 
