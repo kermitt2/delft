@@ -716,7 +716,7 @@ class BERT_CRF_FEATURES(BaseModel):
         self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
         self.model.summary()
         self.model = CRFModelWrapperForBERT(self.model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.build(input_shape=[(None, None, ), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
         self.model.summary()
         self.config = config
 
@@ -781,7 +781,7 @@ class BERT_CRF_CHAR(BaseModel):
         self.model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
         self.model.summary()
         self.model = CRFModelWrapperForBERT(self.model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
         self.model.summary()
         self.config = config
 
@@ -863,7 +863,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
         self.model.summary()
         self.model = CRFModelWrapperForBERT(self.model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
         self.model.summary()
         self.config = config
 
