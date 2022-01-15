@@ -1,8 +1,4 @@
-
-
-
-
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF --embedding glove-840B --fold-count 10
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF --embedding glove-840B --fold-count 10
 
 training runtime: 29956.487 seconds 
 
@@ -163,8 +159,7 @@ Average over 10 folds
 all (micro avg.)     0.9087    0.9119    0.9103
 
 
-
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF --embedding glove-840B --fold-count 10 --train-with-validation-set
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF --embedding glove-840B --fold-count 10 --train-with-validation-set
 
 training runtime: 75450.822 seconds 
 
@@ -326,8 +321,7 @@ all (micro avg.)     0.9117    0.9157    0.9137
 
 
 
-
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidGRU_CRF --embedding glove-840B --fold-count 10
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidGRU_CRF --embedding glove-840B --fold-count 10
 
 training runtime: 42159.586 seconds 
 
@@ -488,9 +482,168 @@ Average over 10 folds
 all (micro avg.)     0.8967    0.9068    0.9017 
 
 
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidGRU_CRF --embedding glove-840B --fold-count 10 --train-with-validation-set
+
+training runtime: 112655.109 seconds 
+
+Evaluation on test set:
+
+------------------------ fold 0 --------------------------------------
+    f1 (micro): 91.13
+                  precision    recall  f1-score   support
+
+             LOC     0.9258    0.9353    0.9305      1668
+            MISC     0.8157    0.8006    0.8081       702
+             ORG     0.8883    0.8904    0.8894      1661
+             PER     0.9425    0.9734    0.9577      1617
+
+all (micro avg.)     0.9065    0.9163    0.9113      5648
 
 
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CNN --embedding glove-840B --fold-count 10
+------------------------ fold 1 --------------------------------------
+    f1 (micro): 91.40
+                  precision    recall  f1-score   support
+
+             LOC     0.9246    0.9406    0.9325      1668
+            MISC     0.8157    0.8006    0.8081       702
+             ORG     0.8909    0.8898    0.8904      1661
+             PER     0.9579    0.9709    0.9644      1617
+
+all (micro avg.)     0.9112    0.9170    0.9140      5648
+
+
+------------------------ fold 2 --------------------------------------
+    f1 (micro): 90.90
+                  precision    recall  f1-score   support
+
+             LOC     0.9305    0.9311    0.9308      1668
+            MISC     0.8091    0.8091    0.8091       702
+             ORG     0.8669    0.8983    0.8823      1661
+             PER     0.9562    0.9592    0.9577      1617
+
+all (micro avg.)     0.9037    0.9143    0.9090      5648
+
+
+------------------------ fold 3 --------------------------------------
+    f1 (micro): 91.21
+                  precision    recall  f1-score   support
+
+             LOC     0.9242    0.9359    0.9300      1668
+            MISC     0.7943    0.7977    0.7960       702
+             ORG     0.8935    0.8989    0.8962      1661
+             PER     0.9531    0.9672    0.9601      1617
+
+all (micro avg.)     0.9075    0.9168    0.9121      5648
+
+
+------------------------ fold 4 --------------------------------------
+    f1 (micro): 90.66
+                  precision    recall  f1-score   support
+
+             LOC     0.9178    0.9311    0.9244      1668
+            MISC     0.8092    0.7792    0.7939       702
+             ORG     0.8809    0.8862    0.8836      1661
+             PER     0.9508    0.9678    0.9592      1617
+
+all (micro avg.)     0.9036    0.9095    0.9066      5648
+
+
+------------------------ fold 5 --------------------------------------
+    f1 (micro): 91.04
+                  precision    recall  f1-score   support
+
+             LOC     0.9282    0.9305    0.9293      1668
+            MISC     0.8128    0.7977    0.8052       702
+             ORG     0.8834    0.8898    0.8866      1661
+             PER     0.9537    0.9672    0.9604      1617
+
+all (micro avg.)     0.9084    0.9125    0.9104      5648
+
+
+------------------------ fold 6 --------------------------------------
+    f1 (micro): 90.61
+                  precision    recall  f1-score   support
+
+             LOC     0.9219    0.9347    0.9283      1668
+            MISC     0.7886    0.7863    0.7874       702
+             ORG     0.8757    0.8862    0.8809      1661
+             PER     0.9553    0.9654    0.9603      1617
+
+all (micro avg.)     0.9015    0.9108    0.9061      5648
+
+
+------------------------ fold 7 --------------------------------------
+    f1 (micro): 91.21
+                  precision    recall  f1-score   support
+
+             LOC     0.9265    0.9365    0.9314      1668
+            MISC     0.8057    0.8091    0.8074       702
+             ORG     0.8906    0.8922    0.8914      1661
+             PER     0.9513    0.9660    0.9586      1617
+
+all (micro avg.)     0.9082    0.9161    0.9121      5648
+
+
+------------------------ fold 8 --------------------------------------
+    f1 (micro): 91.13
+                  precision    recall  f1-score   support
+
+             LOC     0.9235    0.9335    0.9284      1668
+            MISC     0.8169    0.8006    0.8086       702
+             ORG     0.8821    0.8964    0.8892      1661
+             PER     0.9604    0.9604    0.9604      1617
+
+all (micro avg.)     0.9088    0.9138    0.9113      5648
+
+
+------------------------ fold 9 --------------------------------------
+    f1 (micro): 91.11
+                  precision    recall  f1-score   support
+
+             LOC     0.9311    0.9323    0.9317      1668
+            MISC     0.8052    0.7949    0.8000       702
+             ORG     0.8720    0.9067    0.8890      1661
+             PER     0.9622    0.9598    0.9610      1617
+
+all (micro avg.)     0.9067    0.9155    0.9111      5648
+
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 6
+                  precision    recall  f1-score   support
+
+             LOC     0.9219    0.9347    0.9283      1668
+            MISC     0.7886    0.7863    0.7874       702
+             ORG     0.8757    0.8862    0.8809      1661
+             PER     0.9553    0.9654    0.9603      1617
+
+all (micro avg.)     0.9015    0.9108    0.9061      5648
+
+
+** Best ** model scores - run 1
+                  precision    recall  f1-score   support
+
+             LOC     0.9246    0.9406    0.9325      1668
+            MISC     0.8157    0.8006    0.8081       702
+             ORG     0.8909    0.8898    0.8904      1661
+             PER     0.9579    0.9709    0.9644      1617
+
+all (micro avg.)     0.9112    0.9170    0.9140      5648
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+             LOC     0.9254    0.9341    0.9297      1668
+            MISC     0.8073    0.7976    0.8024       702
+             ORG     0.8824    0.8935    0.8879      1661
+             PER     0.9543    0.9657    0.9600      1617
+
+all (micro avg.)     0.9066    0.9143    0.9104 
+
+
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CNN --embedding glove-840B --fold-count 10
 
 training runtime: 28500.657 seconds 
 
@@ -653,7 +806,7 @@ all (micro avg.)     0.8838    0.9063    0.8949
 
 
 
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CNN_CRF --embedding glove-840B --fold-count 10
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CNN_CRF --embedding glove-840B --fold-count 10
 
 training runtime: 25486.061 seconds 
 
@@ -819,7 +972,7 @@ all (micro avg.)     0.9015    0.9115    0.9064
 
 
 
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF_CASING --embedding glove-840B --fold-count 10
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF_CASING --embedding glove-840B --fold-count 10
 
 training runtime: 30474.856 seconds 
 
@@ -1097,7 +1250,7 @@ all (micro avg.)     0.9031    0.9208    0.9119
 
 
 
-python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BERT_CRF --transformer bert-base-cased --fold-count 10
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BERT_CRF --transformer bert-base-cased --fold-count 10
 
 training runtime: 19890.326 seconds 
 
