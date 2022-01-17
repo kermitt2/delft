@@ -24,7 +24,7 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 | BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
 |               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
 
-Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax (a CRF activation layer improves f-score in average by +0.30 for sequence labelling task): 
+Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax. A CRF activation layer improves f-score in average by around +0.10 for sequence labelling task, but increase the runtime by 23%: 
 
 | Architecture  | Implementation | f-score |
 | --- | --- | --- | 

@@ -284,7 +284,7 @@ class DataGeneratorTransformers(BaseGenerator):
         if self.max_sequence_length and max_length_x > self.max_sequence_length:
             max_length_x = self.max_sequence_length
             # truncation of sequence at max_sequence_length
-            x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length), dtype=object)
+            x_tokenized = truncate_batch_values(x_tokenized, self.max_sequence_length)
 
         # generate data
         batch_y = None

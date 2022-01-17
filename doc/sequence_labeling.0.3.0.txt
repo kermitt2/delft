@@ -1796,6 +1796,118 @@ all (micro avg.)     0.9043    0.9209    0.9125
 
 
 
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BERT_CRF --transformer bert-base-cased --fold-count 10 --train-with-validation-set
+
+training runtime: 23106.79 seconds 
+
+Evaluation on test set:
+
+------------------------ fold 0 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights0.hdf5
+    f1: 91.70
+    precision: 90.99
+    recall: 92.42
+
+------------------------ fold 1 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights1.hdf5
+    f1: 91.43
+    precision: 90.47
+    recall: 92.40
+
+------------------------ fold 2 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights2.hdf5
+    f1: 91.93
+    precision: 91.07
+    recall: 92.81
+
+------------------------ fold 3 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights3.hdf5
+    f1: 91.39
+    precision: 90.46
+    recall: 92.33
+
+------------------------ fold 4 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights4.hdf5
+    f1: 91.78
+    precision: 91.21
+    recall: 92.37
+
+------------------------ fold 5 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights5.hdf5
+    f1: 91.50
+    precision: 90.87
+    recall: 92.14
+
+------------------------ fold 6 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights6.hdf5
+    f1: 91.74
+    precision: 91.02
+    recall: 92.48
+
+------------------------ fold 7 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights7.hdf5
+    f1: 91.73
+    precision: 91.07
+    recall: 92.40
+
+------------------------ fold 8 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights8.hdf5
+    f1: 91.41
+    precision: 90.51
+    recall: 92.33
+
+------------------------ fold 9 --------------------------------------
+_________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights9.hdf5
+    f1: 91.68
+    precision: 90.87
+    recall: 92.51
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 3
+                  precision    recall  f1-score   support
+
+             LOC     0.9368    0.9335    0.9351      1668
+            MISC     0.7809    0.8276    0.8036       702
+             ORG     0.8721    0.9193    0.8951      1661
+             PER     0.9639    0.9586    0.9612      1617
+
+all (micro avg.)     0.9046    0.9233    0.9139      5648
+
+
+** Best ** model scores - run 2
+                  precision    recall  f1-score   support
+
+             LOC     0.9374    0.9335    0.9354      1668
+            MISC     0.7868    0.8462    0.8154       702
+             ORG     0.8879    0.9199    0.9036      1661
+             PER     0.9654    0.9666    0.9660      1617
+
+all (micro avg.)     0.9107    0.9281    0.9193      5648
+
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_CRF/model_weights2.hdf5
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+             LOC     0.9330    0.9337    0.9333      1668
+            MISC     0.7969    0.8266    0.8114       702
+             ORG     0.8793    0.9178    0.8981      1661
+             PER     0.9651    0.9634    0.9643      1617
+
+all (micro avg.)     0.9085    0.9242    0.9163 
+
+
 
 > python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BERT_CRF_CHAR --transformer bert-base-cased --fold-count 10
 
