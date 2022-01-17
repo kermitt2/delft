@@ -1129,6 +1129,166 @@ Average over 10 folds
 all (micro avg.)     0.9015    0.9115    0.9064 
 
 
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CNN_CRF --embedding glove-840B --fold-count 10 --train-with-validation-set
+
+training runtime: 31835.516 seconds 
+
+Evaluation on test set:
+
+------------------------ fold 0 --------------------------------------
+    f1 (micro): 90.99
+                  precision    recall  f1-score   support
+
+             LOC     0.8990    0.9442    0.9211      1668
+            MISC     0.8084    0.7991    0.8037       702
+             ORG     0.9034    0.8838    0.8935      1661
+             PER     0.9537    0.9672    0.9604      1617
+
+all (micro avg.)     0.9049    0.9150    0.9099      5648
+
+
+------------------------ fold 1 --------------------------------------
+    f1 (micro): 91.04
+                  precision    recall  f1-score   support
+
+             LOC     0.9243    0.9376    0.9310      1668
+            MISC     0.8275    0.8134    0.8204       702
+             ORG     0.8768    0.8910    0.8838      1661
+             PER     0.9454    0.9641    0.9547      1617
+
+all (micro avg.)     0.9047    0.9161    0.9104      5648
+
+
+------------------------ fold 2 --------------------------------------
+    f1 (micro): 91.17
+                  precision    recall  f1-score   support
+
+             LOC     0.9254    0.9371    0.9312      1668
+            MISC     0.8158    0.7949    0.8052       702
+             ORG     0.8892    0.8989    0.8940      1661
+             PER     0.9526    0.9579    0.9553      1617
+
+all (micro avg.)     0.9093    0.9141    0.9117      5648
+
+
+------------------------ fold 3 --------------------------------------
+    f1 (micro): 91.38
+                  precision    recall  f1-score   support
+
+             LOC     0.9424    0.9317    0.9370      1668
+            MISC     0.8097    0.8120    0.8108       702
+             ORG     0.8859    0.9019    0.8938      1661
+             PER     0.9433    0.9672    0.9551      1617
+
+all (micro avg.)     0.9095    0.9182    0.9138      5648
+
+
+------------------------ fold 4 --------------------------------------
+    f1 (micro): 90.80
+                  precision    recall  f1-score   support
+
+             LOC     0.9016    0.9448    0.9227      1668
+            MISC     0.8253    0.8006    0.8127       702
+             ORG     0.8892    0.8886    0.8889      1661
+             PER     0.9502    0.9555    0.9528      1617
+
+all (micro avg.)     0.9027    0.9134    0.9080      5648
+
+
+------------------------ fold 5 --------------------------------------
+    f1 (micro): 90.79
+                  precision    recall  f1-score   support
+
+             LOC     0.9424    0.9317    0.9370      1668
+            MISC     0.8171    0.8020    0.8095       702
+             ORG     0.8487    0.9085    0.8776      1661
+             PER     0.9593    0.9468    0.9530      1617
+
+all (micro avg.)     0.9028    0.9131    0.9079      5648
+
+
+------------------------ fold 6 --------------------------------------
+    f1 (micro): 90.62
+                  precision    recall  f1-score   support
+
+             LOC     0.9178    0.9376    0.9276      1668
+            MISC     0.8343    0.7963    0.8149       702
+             ORG     0.8594    0.8977    0.8781      1661
+             PER     0.9490    0.9549    0.9519      1617
+
+all (micro avg.)     0.8992    0.9132    0.9062      5648
+
+
+------------------------ fold 7 --------------------------------------
+    f1 (micro): 90.91
+                  precision    recall  f1-score   support
+
+             LOC     0.9267    0.9323    0.9295      1668
+            MISC     0.8268    0.8091    0.8179       702
+             ORG     0.8650    0.9025    0.8833      1661
+             PER     0.9542    0.9542    0.9542      1617
+
+all (micro avg.)     0.9038    0.9145    0.9091      5648
+
+
+------------------------ fold 8 --------------------------------------
+    f1 (micro): 91.28
+                  precision    recall  f1-score   support
+
+             LOC     0.9292    0.9365    0.9328      1668
+            MISC     0.8210    0.8034    0.8121       702
+             ORG     0.8829    0.8989    0.8908      1661
+             PER     0.9614    0.9549    0.9581      1617
+
+all (micro avg.)     0.9114    0.9141    0.9128      5648
+
+
+------------------------ fold 9 --------------------------------------
+    f1 (micro): 90.86
+                  precision    recall  f1-score   support
+
+             LOC     0.9168    0.9376    0.9271      1668
+            MISC     0.8088    0.8077    0.8083       702
+             ORG     0.8811    0.8874    0.8842      1661
+             PER     0.9512    0.9641    0.9576      1617
+
+all (micro avg.)     0.9030    0.9143    0.9086      5648
+
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 6
+                  precision    recall  f1-score   support
+
+             LOC     0.9178    0.9376    0.9276      1668
+            MISC     0.8343    0.7963    0.8149       702
+             ORG     0.8594    0.8977    0.8781      1661
+             PER     0.9490    0.9549    0.9519      1617
+
+all (micro avg.)     0.8992    0.9132    0.9062      5648
+
+
+** Best ** model scores - run 3
+                  precision    recall  f1-score   support
+
+             LOC     0.9424    0.9317    0.9370      1668
+            MISC     0.8097    0.8120    0.8108       702
+             ORG     0.8859    0.9019    0.8938      1661
+             PER     0.9433    0.9672    0.9551      1617
+
+all (micro avg.)     0.9095    0.9182    0.9138      5648
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+             LOC     0.9226    0.9371    0.9297      1668
+            MISC     0.8195    0.8038    0.8115       702
+             ORG     0.8781    0.8959    0.8868      1661
+             PER     0.9520    0.9587    0.9553      1617
+
+all (micro avg.)     0.9051    0.9146    0.9098
+
 
 
 > python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BidLSTM_CRF_CASING --embedding glove-840B --fold-count 10
@@ -1633,11 +1793,6 @@ Average over 10 folds
              PER     0.9625    0.9615    0.9620      1617
 
 all (micro avg.)     0.9043    0.9209    0.9125 
-
-
-
-
-
 
 
 
