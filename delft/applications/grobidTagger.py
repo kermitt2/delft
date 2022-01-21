@@ -24,12 +24,27 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     if "BERT" in architecture:
-        #if batch_size == -1:
-        batch_size = 20
-        if max_sequence_length == -1 or max_sequence_length > 512:
-            # 512 is the largest sequence for BERT input
+        if batch_size == -1:
+            #default
+            batch_size = 20
+        if max_sequence_length == -1:
+            #default 
             max_sequence_length = 200
-        max_sequence_length = 20
+
+        if max_sequence_length > 512:
+            # 512 is the largest sequence for BERT input
+            max_sequence_length = 512
+
+        # non-default settings per model
+        if model == 'citation':
+            max_sequence_length = 130
+            batch_size = 20
+        if model == 'header':
+            max_sequence_length = 512
+            batch_size = 6
+        if model == 'date':
+            max_sequence_length = 30
+            batch_size = 80
         embeddings_name = None
         max_epoch = 60
 
@@ -124,6 +139,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             batch_size, 
                                                                             embeddings_name,
                                                                             max_epoch)
+
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,

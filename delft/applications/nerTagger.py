@@ -39,7 +39,7 @@ def configure(architecture, dataset_type, lang, embeddings_name):
         batch_size = 32
         early_stop = False
         max_sequence_length = 150
-        max_epoch = 10
+        max_epoch = 15
         embeddings_name = None
 
     return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units 
