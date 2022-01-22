@@ -24,6 +24,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     if "BERT" in architecture:
+        # architectures with some transformer layer/embeddings inside
         if batch_size == -1:
             #default
             batch_size = 20
@@ -39,21 +40,41 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         if model == 'citation':
             max_sequence_length = 130
             batch_size = 20
-        if model == 'header':
+        elif model == 'header':
             max_sequence_length = 512
             batch_size = 6
-        if model == 'date':
+        elif model == 'date':
             max_sequence_length = 30
             batch_size = 80
+        elif model == 'affiliation-address':
+            max_sequence_length = 200
+            batch_size = 20
+        elif model == "software":
+            # class are more unbalanced, so we need to extend the batch size as much as we can
+            batch_size = 30
+            max_sequence_length = 512
         embeddings_name = None
         max_epoch = 60
-
-    if model == "software":
-        if batch_size == -1:
-            # class are more unbalanced, so we need to extend the batch size
-            batch_size = 30
-        if max_sequence_length == -1:
-            max_sequence_length = 1500
+    else:
+        # RNN-only architectures
+        if model == 'citation':
+            max_sequence_length = 600
+            batch_size = 20
+        elif model == 'header':
+            max_sequence_length = 3000
+            batch_size = 10
+        elif model == 'date':
+            max_sequence_length = 50
+            batch_size = 60
+        elif model == 'affiliation-address':
+            max_sequence_length = 500
+            batch_size = 20
+        elif model == "software":
+            if batch_size == -1:
+                # class are more unbalanced, so we need to extend the batch size
+                batch_size = 30
+            if max_sequence_length == -1:
+                max_sequence_length = 1500
 
     model_name += '-' + architecture;
     
@@ -139,7 +160,6 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             batch_size, 
                                                                             embeddings_name,
                                                                             max_epoch)
-
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
