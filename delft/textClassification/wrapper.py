@@ -1,13 +1,15 @@
 import os
 
+# ask tensorflow to be quiet and not print hundred lines of logs
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+
 import numpy as np
 # seed is fixed for reproducibility
 np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
 
-# ask tensorflow to be quiet and not print hundred lines of logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' 
+import tensorflow as tf
+tf.set_random_seed(7)
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 import datetime
 
@@ -64,7 +66,7 @@ class Classifier(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
-        if embeddings_name is not None:
+        if embeddings_name is not None and model_type.find("bert") == -1:
             self.embeddings = Embeddings(embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT) 
             word_emb_size = self.embeddings.embed_size
 

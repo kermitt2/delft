@@ -19,6 +19,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
 
 import tensorflow as tf
 tf.set_random_seed(7)
+tf.logging.set_verbosity(tf.logging.ERROR)
 
 import keras.backend as K
 # Initialize Keras session
@@ -381,13 +382,13 @@ class Sequence(object):
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
-    def tag(self, texts, output_format):
+    def tag(self, texts, output_format, features=None):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
         if self.model:
             tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p)
             start_time = time.time()
-            annotations = tagger.tag(texts, output_format)
+            annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
             if output_format is 'json':
                 annotations["runtime"] = runtime

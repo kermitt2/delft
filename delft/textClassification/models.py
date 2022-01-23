@@ -939,9 +939,19 @@ class BERT_classifier():
 
         self.fold_count = fold_count
 
-        self.config_file = description["path-config"]
-        self.weight_file = description["path-weights"] # init_checkpoint
-        self.vocab_file = description["path-vocab"]
+        # note: postpone the instanciation if not available, it normally means that 
+        # we load a fine-tuned model and we don't need to look at the original
+        # pre-trained resources (this is mandatory for the vocabulary when predicting)
+        self.config_file = None
+        self.weight_file = None
+        self.vocab_file = None
+        if description != None:
+            if "path-config" in description and os.path.isfile(description["path-config"]):
+                self.config_file = description["path-config"]
+            if "path-weights" in description and os.path.isfile(description["path-weights"]+".data-00000-of-00001"):
+                self.weight_file = description["path-weights"] 
+            if "path-vocab" in description and os.path.isfile(description["path-vocab"]):
+                self.vocab_file = description["path-vocab"]
 
         self.labels = labels
 
@@ -956,11 +966,20 @@ class BERT_classifier():
         self.save_checkpoints_steps = 99999999 # <----- don't want to save any checkpoints
         self.iterations_per_loop = 1000
 
+        self.model_dir = 'data/models/textClassification/' + self.model_name
+
+        # defaulting to fine-tuned model if available
+        if self.config_file is None:
+            self.config_file = os.path.join(self.model_dir, 'bert_config.json')
+        if self.weight_file is None:
+            self.weight_file = os.path.join(self.model_dir, 'model.ckpt') 
+        if self.vocab_file is None: 
+            self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
+
         self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
         #self.processor = BERT_classifier_processor(labels=labels)
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
-        self.model_dir = 'data/models/textClassification/' + self.model_name
         
     def train(self, x_train=None, y_train=None):
         '''
@@ -977,6 +996,9 @@ class BERT_classifier():
 
         if self.fold_count == 1:
             self.train_fold(0, train_examples)
+            # model is unique so rename the fold model under the main model folder
+            shutil.rmtree(self.model_dir)
+            os.rename(self.model_dir+"0", self.model_dir)
         else:
             fold_size = len(train_examples) // self.fold_count
 
@@ -1059,7 +1081,7 @@ class BERT_classifier():
         estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
         end = time.time()
-        tf.logging.info("\nTraining complete in " + str(end - start) + " seconds")
+        print("\nTraining complete in " + str(end - start) + " seconds")
 
         # cleaning the training garbages
         os.remove(train_file)
@@ -1075,6 +1097,49 @@ class BERT_classifier():
         garbage = os.path.join(self.model_dir+str(fold_number), "model.ckpt-0.meta")
         if os.path.exists(garbage):
             os.remove(garbage)
+
+        # we need to save the vocab file and bert config files from the initial pre-trained model
+        if not self.config_file is None:
+            destination = os.path.join(self.model_dir+str(fold_number), "bert_config.json")
+            shutil.copyfile(self.config_file, destination)
+
+        if not self.vocab_file is None: 
+            destination = os.path.join(self.model_dir+str(fold_number), "vocab.txt")
+            shutil.copyfile(self.vocab_file, destination)
+
+        # we need to rename the fine-tune weight and related files as default checkpoint
+        for f in os.listdir(self.model_dir+str(fold_number)):
+            if f.endswith(".data-00000-of-00001"):
+                # get the checkpoint number
+                ind = f.find("-")
+                if ind == -1:
+                    print("warning: invalid weight file name, " + f)
+                    continue
+                ind2 = f.find(".", ind+1)
+                if ind2 == -1:
+                    print("warning: invalid weight file name, " + f)
+                    continue
+                ckpt_num = f[ind+1:ind2]
+
+                # rename weight file
+                new_name = f.replace("-"+ckpt_num, "")
+                os.rename(os.path.join(self.model_dir+str(fold_number), f), os.path.join(self.model_dir+str(fold_number), new_name))
+
+                # rename index and meta file
+                new_name = f.replace("-"+ckpt_num, "")
+                new_name = new_name.replace(".data-00000-of-00001", ".meta")
+                os.rename(os.path.join(self.model_dir+str(fold_number), f.replace(".data-00000-of-00001", ".meta")), 
+                    os.path.join(self.model_dir+str(fold_number), new_name))
+                new_name = f.replace("-"+ckpt_num, "")
+                new_name = new_name.replace(".data-00000-of-00001", ".index")
+                os.rename(os.path.join(self.model_dir+str(fold_number), f.replace(".data-00000-of-00001", ".index")), 
+                    os.path.join(self.model_dir+str(fold_number), new_name))
+                break
+
+        # finally we save the checkpoint file to point to this default checkpoint
+        destination = os.path.join(self.model_dir+str(fold_number), "checkpoint")
+        with open(destination, "w") as f:
+            f.write('model_checkpoint_path: "model.ckpt"\nall_model_checkpoint_paths: "model.ckpt-0"\n"all_model_checkpoint_paths: "model.ckpt"\n')
 
     def eval(self, x_test=None, y_test=None, run_number=0):
         '''
