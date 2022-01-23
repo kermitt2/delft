@@ -69,7 +69,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 50
             batch_size = 60
         elif model == 'affiliation-address':
-            max_sequence_length = 500
+            max_sequence_length = 600
             batch_size = 20
         elif model == "software":
             if batch_size == -1:
