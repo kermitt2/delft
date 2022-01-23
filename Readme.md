@@ -9,6 +9,9 @@
 
 # DeLFT
 
+
+**Note**: A new version of DeLFT (`0.3`) migrated to TensorFlow 2, integrating Hugging Face Transformers library, new architectures and new documentation is [well-advanced](https://github.com/kermitt2/delft/pull/120) and will be merged very soon. 
+
 __DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, focusing on sequence labelling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
 
 DeLFT has three main purposes: 
