@@ -109,6 +109,7 @@ class Sequence(object):
         # if transformer is None, no bert layer is present in the model
         self.transformer = transformer
         if self.transformer is not None:
+            # TBD: use local first
             tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
                                                 max_length=max_sequence_length, add_prefix_space=True)
             print(self.transformer, "will be used")
@@ -213,7 +214,6 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-
         if self.transformer == None:
             # we can use a data generator for evaluation
             if self.model:
@@ -224,7 +224,7 @@ class Sequence(object):
                     bert_preprocessor=self.bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features)
+                    embeddings=self.embeddings, shuffle=False, features=features, output_input_offsets=True)
 
                 # Build the evaluator and evaluate the model
                 scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
@@ -233,9 +233,12 @@ class Sequence(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:
-            # the architecture model uses a transformer layer, we need to use predict to get usable data
-            # (usable here means predicted labels well aligned with expected ones)
-            #y_pred = self.model.predict(x_test, fold_id=-1)
+            # the architecture model uses a transformer layer
+            
+            # note that we could also use the above test_generator, but as an alternative here we check the 
+            # test/prediction alignment of tokens and the validity of the maximum sequence input length
+            # wrt the length of the test sequences 
+
             if self.model:
                 tagger = Tagger(self.model, 
                               self.model_config, 
@@ -292,25 +295,7 @@ class Sequence(object):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
                 if self.transformer == None:
-                    # we can use a data generator for evaluation
-                    # Prepare test data(steps, generator)
-                    generator = self.models[i].get_generator()
-                    test_generator = generator(x_test, y_test,
-                        batch_size=self.model_config.batch_size, preprocessor=self.p,
-                        bert_preprocessor=self.bert_preprocessor,
-                        char_embed_size=self.model_config.char_embedding_size,
-                        max_sequence_length=self.model_config.max_sequence_length,
-                        embeddings=self.embeddings, shuffle=False, features=features)
-
-                    # Build the evaluator and evaluate the model
-                    scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
-                    scorer.model = self.models[i]
-                    scorer.on_epoch_end(epoch=-1)
-                    f1 = scorer.f1
-                    precision = scorer.precision
-                    recall = scorer.recall
-                    reports.append(scorer.report)
-                    reports_as_map.append(scorer.report_as_map)
+                    the_model = self.models[i]
                 else:
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
                     dir_path = 'data/models/sequenceLabelling/'
@@ -321,55 +306,27 @@ class Sequence(object):
                                load_pretrained_weights=False, 
                                local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
+                    the_model = self.model
+             
+                # we can use a data generator for evaluation
+                # Prepare test data(steps, generator)
+                generator = the_model.get_generator()
+                test_generator = generator(x_test, y_test,
+                    batch_size=self.model_config.batch_size, preprocessor=self.p,
+                    bert_preprocessor=self.bert_preprocessor,
+                    char_embed_size=self.model_config.char_embedding_size,
+                    max_sequence_length=self.model_config.max_sequence_length,
+                    embeddings=self.embeddings, shuffle=False, features=features, output_input_offsets=True)
 
-                    # the architecture model uses a transformer layer, we need to use predict to get usable data
-                    # (usable here means predicted labels well aligned with expected ones)
-                    tagger = Tagger(self.model, 
-                                    self.model_config, 
-                                    self.embeddings, 
-                                    preprocessor=self.p, 
-                                    bert_preprocessor=self.bert_preprocessor)
-                    y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
-
-                    # keep only labels
-                    y_pred = []
-                    for result in y_pred_pairs:
-                        result_labels = []
-                        for pair in result:
-                            result_labels.append(pair[1])
-                        y_pred.append(result_labels)
-
-                    nb_alignment_issues = 0
-                    for j in range(len(y_test)):
-                        if len(y_test[i]) != len(y_pred[i]):
-                            #print("y_test:", y_test[i])
-                            #print("y_pred:", y_pred[i])
-
-                            nb_alignment_issues += 1
-                            # BERT tokenizer appears to introduce some additional tokens without ## prefix,
-                            # but we normally handled that well when predicting.
-                            # To be very conservative, the following ensure the number of tokens always
-                            # match, but it should never be used in practice.
-                            if len(y_test[j]) < len(y_pred[j]):
-                                y_test[j] = y_test[j] + ["O"] * (len(y_pred[j]) - len(y_test[j]))
-                            if len(y_test[j]) > len(y_pred[j]):
-                                y_pred[j] = y_pred[j] + ["O"] * (len(y_test[j]) - len(y_pred[j]))
-
-                    if nb_alignment_issues > 0:
-                        print("number of alignment issues with test set:", nb_alignment_issues)
-                        print("you might need to increase the maximum sequence input length of the model and retrain")
-
-                    f1 = f1_score(y_test, y_pred)
-                    precision = precision_score(y_test, y_pred)
-                    recall = recall_score(y_test, y_pred)
-
-                    print("\tf1: {:04.2f}".format(f1 * 100))
-                    print("\tprecision: {:04.2f}".format(precision * 100))
-                    print("\trecall: {:04.2f}".format(recall * 100))
-
-                    report, report_as_map = classification_report(y_test, y_pred, digits=4)
-                    reports.append(report)
-                    reports_as_map.append(report_as_map)
+                # Build the evaluator and evaluate the model
+                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
+                scorer.model = the_model
+                scorer.on_epoch_end(epoch=-1)
+                f1 = scorer.f1
+                precision = scorer.precision
+                recall = scorer.recall
+                reports.append(scorer.report)
+                reports_as_map.append(scorer.report_as_map)
 
                 if best_f1 < f1:
                     best_f1 = f1
@@ -393,38 +350,38 @@ class Sequence(object):
             # field-level average over the n folds
             labels = []
             for label in sorted(self.p.vocab_tag):
-              if label == 'O' or label == '<PAD>':
-                continue
-              if label.startswith("B-") or label.startswith("S-") or label.startswith("I-") or label.startswith("E-"):
-                label = label[2:]
+                if label == 'O' or label == '<PAD>':
+                    continue
+                if label.startswith("B-") or label.startswith("S-") or label.startswith("I-") or label.startswith("E-"):
+                    label = label[2:]
 
-              if label in labels:
-                continue
-              labels.append(label)
+                if label in labels:
+                    continue
+                labels.append(label)
 
-              sum_p = 0
-              sum_r = 0
-              sum_f1 = 0
-              sum_support = 0
-              for j in range(0, self.model_config.fold_number):
-                if not label in reports_as_map[j]['labels']:
-                  continue
-                report_as_map = reports_as_map[j]['labels'][label]
-                sum_p += report_as_map["precision"]
-                sum_r += report_as_map["recall"]
-                sum_f1 += report_as_map["f1"]
-                sum_support += report_as_map["support"]
+                sum_p = 0
+                sum_r = 0
+                sum_f1 = 0
+                sum_support = 0
+                for j in range(0, self.model_config.fold_number):
+                    if not label in reports_as_map[j]['labels']:
+                        continue
+                    report_as_map = reports_as_map[j]['labels'][label]
+                    sum_p += report_as_map["precision"]
+                    sum_r += report_as_map["recall"]
+                    sum_f1 += report_as_map["f1"]
+                    sum_support += report_as_map["support"]
 
-              avg_p = sum_p / self.model_config.fold_number
-              avg_r = sum_r / self.model_config.fold_number
-              avg_f1 = sum_f1 / self.model_config.fold_number
-              avg_support = sum_support / self.model_config.fold_number
-              avg_support_dec = str(avg_support-int(avg_support))[1:]
-              if avg_support_dec != '0':
-                avg_support = math.floor(avg_support)
+                avg_p = sum_p / self.model_config.fold_number
+                avg_r = sum_r / self.model_config.fold_number
+                avg_f1 = sum_f1 / self.model_config.fold_number
+                avg_support = sum_support / self.model_config.fold_number
+                avg_support_dec = str(avg_support-int(avg_support))[1:]
+                if avg_support_dec != '0':
+                    avg_support = math.floor(avg_support)
 
-              block_label = {'precision': avg_p, 'recall': avg_r, 'support': avg_support, 'f1': avg_f1}
-              fold_average_evaluation['labels'][label] = block_label
+                block_label = {'precision': avg_p, 'recall': avg_r, 'support': avg_support, 'f1': avg_f1}
+                fold_average_evaluation['labels'][label] = block_label
 
             print("----------------------------------------------------------------------")
             print("\n** Worst ** model scores - run", str(worst_index))
@@ -435,13 +392,16 @@ class Sequence(object):
             
             if self.transformer == None:
                 self.model = self.models[best_index]
+                self.model_config.fold_number = 1
             else:
                 dir_path = 'data/models/sequenceLabelling/'
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(best_index)+".hdf5")
+                # saved config file must be updated to single fold
+                self.model_config.fold_number = 1
                 self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
             print("----------------------------------------------------------------------")
-            print("\nAverage over", self.model_config.fold_number, "folds")
+            print("\nAverage over", str(int(self.model_config.fold_number)+1), "folds")
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
@@ -584,7 +544,7 @@ class Sequence(object):
 
         if self.model_config.transformer != None:
             self.transformer = self.model_config.transformer
-            #print(self.transformer, "will be used")
+            # TBD: use local first
             tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
                                                 max_length=self.model_config.max_sequence_length, add_prefix_space=True)
             self.bert_preprocessor = BERTPreprocessor(tokenizer)

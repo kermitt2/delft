@@ -29,7 +29,7 @@
     "dropout": 0.5,
     "recurrent_dropout": 0.5,
     "use_crf": true,
-    "fold_number": 10,
+    "fold_number": 1,
     "batch_size": 20,
     "transformer": null,
     "features_map_to_index": {

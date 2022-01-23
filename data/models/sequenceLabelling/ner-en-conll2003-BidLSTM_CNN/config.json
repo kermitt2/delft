@@ -18,7 +18,7 @@
     "dropout": 0.5,
     "recurrent_dropout": 0.5,
     "use_crf": false,
-    "fold_number": 10,
+    "fold_number": 1,
     "batch_size": 32,
     "transformer": null
 }

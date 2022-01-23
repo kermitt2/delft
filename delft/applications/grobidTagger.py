@@ -36,10 +36,14 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             # 512 is the largest sequence for BERT input
             max_sequence_length = 512
 
+        embeddings_name = None
+        max_epoch = 60
+
         # non-default settings per model
         if model == 'citation':
-            max_sequence_length = 130
+            max_sequence_length = 150
             batch_size = 20
+            max_epoch = 3
         elif model == 'header':
             max_sequence_length = 512
             batch_size = 6
@@ -53,8 +57,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             # class are more unbalanced, so we need to extend the batch size as much as we can
             batch_size = 30
             max_sequence_length = 512
-        embeddings_name = None
-        max_epoch = 60
     else:
         # RNN-only architectures
         if model == 'citation':
@@ -335,7 +337,7 @@ if __name__ == "__main__":
             batch_size=batch_size)
 
     if action == Tasks.EVAL:
-        if args.fold_count is not None:
+        if args.fold_count is not None and args.fold_count > 1:
             print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use "
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
