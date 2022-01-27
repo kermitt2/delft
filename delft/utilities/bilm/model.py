@@ -1,6 +1,8 @@
-
 import numpy as np
+
 import tensorflow as tf
+#tf.compat.v1.disable_eager_execution()
+
 import h5py
 import json
 import re
@@ -14,6 +16,7 @@ DTYPE_INT = 'int64'
 class BidirectionalLanguageModel(object):
     def __init__(
             self,
+            lang,
             options_file: str,
             weight_file: str,
             use_character_inputs=True,
@@ -49,7 +52,6 @@ class BidirectionalLanguageModel(object):
                     "embedding_weight_file is required input with "
                     "not use_character_inputs"
                 )
-
         self._lang = lang
         self._options = options
         self._weight_file = weight_file
@@ -60,6 +62,7 @@ class BidirectionalLanguageModel(object):
         self._ops = {}
         self._graphs = {}
 
+    #@tf.function
     def __call__(self, ids_placeholder):
         '''
         Given the input character ids (or token ids), returns a dictionary
@@ -81,6 +84,7 @@ class BidirectionalLanguageModel(object):
             If use_character_input=False, it is shape (None, None) and
                 holds the input token ids for a batch
         '''
+        print("eager mode:", tf.executing_eagerly())
         if ids_placeholder in self._ops:
             # have already created ops for this placeholder, just return them
             ret = self._ops[ids_placeholder]
@@ -97,7 +101,7 @@ class BidirectionalLanguageModel(object):
                     use_character_inputs=self._use_character_inputs,
                     max_batch_size=self._max_batch_size)
             else:
-                with tf.variable_scope(self._lang, reuse=True):
+                with tf.compat.v1.variable_scope(self._lang, reuse=True):
                     lm_graph = BidirectionalLanguageModelGraph(self._lang,
                         self._options,
                         self._weight_file,
@@ -220,6 +224,7 @@ def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
             if varname_in_file == 'char_embed':
                 # Have added a special 0 index for padding not present
                 # in the original model.
+                print(varname_in_file)
                 char_embed_weights = fin[varname_in_file][...]
                 weights = np.zeros(
                     (char_embed_weights.shape[0] + 1,
@@ -228,6 +233,7 @@ def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
                 )
                 weights[1:, :] = char_embed_weights
             else:
+                print(varname_in_file)
                 weights = fin[varname_in_file][...]
 
     # Tensorflow initializers are callables that accept a shape parameter
@@ -248,10 +254,10 @@ class BidirectionalLanguageModelGraph(object):
     Creates the computational graph and holds the ops necessary for runnint
     a bidirectional language model
     '''
+
     def __init__(self, lang, options, weight_file, ids_placeholder,
                  use_character_inputs=True, embedding_weight_file=None,
                  max_batch_size=128):
-
         self.lang = lang
         self.options = options
         self._max_batch_size = max_batch_size
@@ -275,9 +281,10 @@ class BidirectionalLanguageModelGraph(object):
         else:
             self._n_tokens_vocab = None
 
-        with tf.variable_scope('bilm', custom_getter=custom_getter):
+        with tf.compat.v1.variable_scope('bilm', custom_getter=custom_getter, reuse=tf.compat.v1.AUTO_REUSE):
             self._build()
 
+    #@tf.function
     def _build(self):
         if self.use_character_inputs:
             self._build_word_char_embeddings()
@@ -332,7 +339,7 @@ class BidirectionalLanguageModelGraph(object):
 
         # the character embeddings
         with tf.device("/cpu:0"):
-            self.embedding_weights = tf.get_variable(
+            self.embedding_weights = tf.compat.v1.get_variable(
                     "char_embed", [n_chars, char_embed_dim],
                     dtype=DTYPE,
                     initializer=tf.random_uniform_initializer(-1.0, 1.0)
@@ -343,7 +350,7 @@ class BidirectionalLanguageModelGraph(object):
 
         # the convolutions
         def make_convolutions(inp):
-            with tf.variable_scope('CNN') as scope:
+            with tf.compat.v1.variable_scope('CNN') as scope:
                 convolutions = []
                 for i, (width, num) in enumerate(filters):
                     if cnn_options['activation'] == 'relu':
@@ -363,27 +370,27 @@ class BidirectionalLanguageModelGraph(object):
                             mean=0.0,
                             stddev=np.sqrt(1.0 / (width * char_embed_dim))
                         )
-                    w = tf.get_variable(
+                    w = tf.compat.v1.get_variable(
                         "W_cnn_%s" % i,
                         [1, width, char_embed_dim, num],
                         initializer=w_init,
                         dtype=DTYPE)
-                    b = tf.get_variable(
+                    b = tf.compat.v1.get_variable(
                         "b_cnn_%s" % i, [num], dtype=DTYPE,
                         initializer=tf.constant_initializer(0.0))
 
-                    conv = tf.nn.conv2d(
+                    conv = tf.compat.v1.nn.conv2d(
                             inp, w,
                             strides=[1, 1, 1, 1],
                             padding="VALID") + b
                     # now max pool
-                    conv = tf.nn.max_pool(
+                    conv = tf.compat.v1.nn.max_pool(
                             conv, [1, 1, max_chars-width+1, 1],
                             [1, 1, 1, 1], 'VALID')
 
                     # activation
                     conv = activation(conv)
-                    conv = tf.squeeze(conv, squeeze_dims=[2])
+                    conv = tf.compat.v1.squeeze(conv, squeeze_dims=[2])
 
                     convolutions.append(conv)
 
@@ -404,44 +411,44 @@ class BidirectionalLanguageModelGraph(object):
         # set up weights for projection
         if use_proj:
             assert n_filters > projection_dim
-            with tf.variable_scope('CNN_proj') as scope:
-                    W_proj_cnn = tf.get_variable(
+            with tf.compat.v1.variable_scope('CNN_proj') as scope:
+                    W_proj_cnn = tf.compat.v1.get_variable(
                         "W_proj", [n_filters, projection_dim],
                         initializer=tf.random_normal_initializer(
                             mean=0.0, stddev=np.sqrt(1.0 / n_filters)),
                         dtype=DTYPE)
-                    b_proj_cnn = tf.get_variable(
+                    b_proj_cnn = tf.compat.v1.get_variable(
                         "b_proj", [projection_dim],
                         initializer=tf.constant_initializer(0.0),
                         dtype=DTYPE)
 
         # apply highways layers
         def high(x, ww_carry, bb_carry, ww_tr, bb_tr):
-            carry_gate = tf.nn.sigmoid(tf.matmul(x, ww_carry) + bb_carry)
-            transform_gate = tf.nn.relu(tf.matmul(x, ww_tr) + bb_tr)
+            carry_gate = tf.compat.v1.nn.sigmoid(tf.matmul(x, ww_carry) + bb_carry)
+            transform_gate = tf.compat.v1.nn.relu(tf.matmul(x, ww_tr) + bb_tr)
             return carry_gate * transform_gate + (1.0 - carry_gate) * x
 
         if use_highway:
             highway_dim = n_filters
 
             for i in range(n_highway):
-                with tf.variable_scope('CNN_high_%s' % i) as scope:
-                    W_carry = tf.get_variable(
+                with tf.compat.v1.variable_scope('CNN_high_%s' % i) as scope:
+                    W_carry = tf.compat.v1.get_variable(
                         'W_carry', [highway_dim, highway_dim],
                         # glorit init
                         initializer=tf.random_normal_initializer(
                             mean=0.0, stddev=np.sqrt(1.0 / highway_dim)),
                         dtype=DTYPE)
-                    b_carry = tf.get_variable(
+                    b_carry = tf.compat.v1.get_variable(
                         'b_carry', [highway_dim],
                         initializer=tf.constant_initializer(-2.0),
                         dtype=DTYPE)
-                    W_transform = tf.get_variable(
+                    W_transform = tf.compat.v1.get_variable(
                         'W_transform', [highway_dim, highway_dim],
                         initializer=tf.random_normal_initializer(
                             mean=0.0, stddev=np.sqrt(1.0 / highway_dim)),
                         dtype=DTYPE)
-                    b_transform = tf.get_variable(
+                    b_transform = tf.compat.v1.get_variable(
                         'b_transform', [highway_dim],
                         initializer=tf.constant_initializer(0.0),
                         dtype=DTYPE)
@@ -467,11 +474,11 @@ class BidirectionalLanguageModelGraph(object):
 
         # the word embeddings
         with tf.device("/cpu:0"):
-            self.embedding_weights = tf.get_variable(
+            self.embedding_weights = tf.compat.v1.get_variable(
                 "embedding", [self._n_tokens_vocab, projection_dim],
                 dtype=DTYPE,
             )
-            self.embedding = tf.nn.embedding_lookup(self.embedding_weights,
+            self.embedding = tf.compat.v1.nn.embedding_lookup(self.embedding_weights,
                                                 self.ids_placeholder)
 
 
@@ -521,7 +528,7 @@ class BidirectionalLanguageModelGraph(object):
             for i in range(n_lstm_layers):
                 if projection_dim < lstm_dim:
                     # are projecting down output
-                    lstm_cell = tf.nn.rnn_cell.LSTMCell(
+                    lstm_cell = tf.compat.v1.nn.rnn_cell.LSTMCell(
                         lstm_dim, num_proj=projection_dim,
                         cell_clip=cell_clip, proj_clip=proj_clip)
                 else:
@@ -537,7 +544,7 @@ class BidirectionalLanguageModelGraph(object):
                         pass
                     else:
                         # add a skip connection
-                        lstm_cell = tf.nn.rnn_cell.ResidualWrapper(lstm_cell)
+                        lstm_cell = tf.compat.v1.nn.rnn_cell.ResidualWrapper(lstm_cell)
 
                 # collect the input state, run the dynamic rnn, collect
                 # the output
@@ -545,6 +552,7 @@ class BidirectionalLanguageModelGraph(object):
                 # the LSTMs are stateful.  To support multiple batch sizes,
                 # we'll allocate size for states up to max_batch_size,
                 # then use the first batch_size entries for each batch
+                print("init_states")
                 init_states = [
                     tf.Variable(
                         tf.zeros([self._max_batch_size, dim]),
@@ -562,12 +570,12 @@ class BidirectionalLanguageModelGraph(object):
                     i_direction = 1
                 variable_scope_name = 'RNN_{0}/RNN/MultiRNNCell/Cell{1}'.format(
                     i_direction, i)
-                with tf.variable_scope(variable_scope_name):
-                    layer_output, final_state = tf.nn.dynamic_rnn(
+                with tf.compat.v1.variable_scope(variable_scope_name):
+                    layer_output, final_state = tf.compat.v1.nn.dynamic_rnn(
                         lstm_cell,
                         layer_input,
                         sequence_length=sequence_lengths,
-                        initial_state=tf.nn.rnn_cell.LSTMStateTuple(
+                        initial_state=tf.compat.v1.nn.rnn_cell.LSTMStateTuple(
                             *batch_init_states),
                     )
 
@@ -592,7 +600,7 @@ class BidirectionalLanguageModelGraph(object):
                         new_state = tf.concat(
                             [final_state[i][:batch_size, :],
                              init_states[i][batch_size:, :]], axis=0)
-                        state_update_op = tf.assign(init_states[i], new_state)
+                        state_update_op = tf.compat.v1.assign(init_states[i], new_state)
                         update_ops.append(state_update_op)
     
                 layer_input = layer_output

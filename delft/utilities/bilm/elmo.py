@@ -1,4 +1,3 @@
-
 import tensorflow as tf
 
 def weight_layers(name, bilm_ops, l2_coef=None,
@@ -54,7 +53,7 @@ def weight_layers(name, bilm_ops, l2_coef=None,
             mean = tf.reduce_sum(input_tensor=x_masked) / N
             variance = tf.reduce_sum(input_tensor=((x_masked - mean) * broadcast_mask)**2
                                     ) / N
-            return tf.nn.batch_normalization(
+            return tf.compat.v1.nn.batch_normalization(
                 x, mean, variance, None, None, 1E-12
             )
 
@@ -75,7 +74,7 @@ def weight_layers(name, bilm_ops, l2_coef=None,
 
             # normalize the weights
             normed_weights = tf.split(
-                tf.nn.softmax(W + 1.0 / n_lm_layers), n_lm_layers
+                tf.compat.v1.nn.softmax(W + 1.0 / n_lm_layers), n_lm_layers
             )
             # split LM layers
             layers = tf.split(lm_embeddings, n_lm_layers, axis=1)
@@ -90,6 +89,7 @@ def weight_layers(name, bilm_ops, l2_coef=None,
             sum_pieces = tf.add_n(pieces)
     
             # get the regularizer 
+            scope = tf.compat.v1.get_variable_scope().name
             reg = [
                 r for r in tf.compat.v1.get_collection(
                                 tf.compat.v1.GraphKeys.REGULARIZATION_LOSSES)
