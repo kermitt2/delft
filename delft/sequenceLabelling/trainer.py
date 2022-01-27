@@ -154,8 +154,12 @@ class Trainer(object):
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
-        # warning: multiple workers might not work with transformer layers due to GPU memory limit (with GTX 1080Ti 11GB)
-        
+        # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
+        if self.embeddings and self.embeddings.use_ELMo:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
+
         local_model.fit(training_generator,
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,

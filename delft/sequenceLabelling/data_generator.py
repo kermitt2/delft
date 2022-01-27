@@ -3,7 +3,7 @@ from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view
 
 import tensorflow.keras as keras
-from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single
+from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_simple_with_elmo
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 import tensorflow as tf
 
@@ -158,9 +158,12 @@ class DataGenerator(BaseGenerator):
             extend = True
 
         # generate data
-        batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
-        for i in range(0, max_iter):
-            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+        if self.embeddings and self.embeddings.use_ELMo:
+            batch_x = to_vector_simple_with_elmo(x_tokenized, self.embeddings, max_length_x, extend=extend)
+        else:
+            batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype='float32')
+            for i in range(0, max_iter):
+                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
         # store tag embeddings
         batch_y = None

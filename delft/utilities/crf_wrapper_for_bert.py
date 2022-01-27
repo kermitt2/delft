@@ -3,18 +3,18 @@ import tensorflow as tf
 from tensorflow_addons.text import crf_log_likelihood
 from tensorflow_addons.utils import types
 
-from tensorflow_addons.text.crf_wrapper import CRFModelWrapper
+from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 
 '''
-Alternative CRF model wrapper for models having a BERT layer. 
+Alternative CRF model wrapper for models having a BERT/transformer layer. 
 Loss is modified to ignore labels corresponding to tokens being special transformer symbols (e.g. SEP, 
-CL, PAD, ...), but also introduced sub-tokens.
+CL, PAD, ...), but also those introduced sub-tokens.
 The goal is to have similar effect as in pytorch when using the -100 to ignore some labels when calculating 
-the loss.
+the loss, but less hacky.
 '''
 
 @tf.keras.utils.register_keras_serializable(package="Addons")
-class CRFModelWrapperForBERT(CRFModelWrapper):
+class CRFModelWrapperForBERT(CRFModelWrapperDefault):
 
     def train_step(self, data):
         x, y, sample_weight = self.unpack_training_data(data)

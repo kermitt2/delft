@@ -503,6 +503,72 @@ def load_data_and_labels_conll(filename):
     return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
 
 
+def load_data_and_labels_conll_with_document_context(filename, max_context_window=400):
+    """
+    Load data and label from a file. In this alternative, we do not segment by sentence and 
+    we keep a maximum of document context according to a context window size.
+
+    Args:
+        filename (str): path to the file.
+
+        The file format is tab-separated values.
+        A blank line is required at the end of a sentence.
+
+        For example:
+        ```
+        EU  B-ORG
+        rejects O
+        German  B-MISC
+        call    O
+        to  O
+        boycott O
+        British B-MISC
+        lamb    O
+        .   O
+
+        Peter   B-PER
+        Blackburn   I-PER
+        ...
+        ```
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+
+    """
+
+    # TBD: ideally, for consistency, the tokenization in the CoNLL files should not be enforced, 
+    # only the standard DeLFT tokenization should be used, in line with the word embeddings
+    documents, sents, labels = [], [], []
+    with open(filename, encoding="UTF-8") as f:
+        words, tags = [], []
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('-DOCSTART-') or line.startswith('#begin document'):
+                if len(words) != 0:
+                    sents.append(words)
+                    labels.append(tags)
+                    words, tags = [], []
+                if len(sents) != 0:
+                    documents.append(sents)
+                    sents = []
+            elif len(line) == 0:
+                if len(words) != 0:
+                    sents.append(words)
+                    labels.append(tags)
+                    words, tags = [], []
+            else:
+                if len(line.split('\t')) == 2:
+                    word, tag = line.split('\t')
+                else:
+                    word, _, tag = line.split('\t')
+                words.append(word)
+                tags.append(tag)
+
+    # regroup sentences according document contexts following context window
+
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
+
+
 def load_data_and_labels_lemonde(filepathXml):
     """
     Load data and label from Le Monde XML corpus file

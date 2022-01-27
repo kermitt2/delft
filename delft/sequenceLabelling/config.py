@@ -21,6 +21,7 @@ class ModelConfig(object):
                  use_crf=True,
                  fold_number=1,
                  batch_size=64,
+                 use_ELMo=False,
                  features_vocabulary_size=DEFAULT_FEATURES_VOCABULARY_SIZE,
                  features_indices=None,
                  features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
@@ -57,6 +58,8 @@ class ModelConfig(object):
         self.batch_size = batch_size # this is the batch size for prediction
 
         self.transformer = transformer
+        
+        self.use_ELMo = use_ELMo
 
     def save(self, file):
         with open(file, 'w') as f:
@@ -84,7 +87,7 @@ class TrainingConfig(object):
                  max_epoch=50, 
                  early_stop=True,
                  patience=5,
-                 max_checkpoints_to_keep=5,
+                 max_checkpoints_to_keep=0,
                  multiprocessing=True):
 
         self.batch_size = batch_size # this is the batch size for training

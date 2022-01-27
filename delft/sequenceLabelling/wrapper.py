@@ -83,7 +83,8 @@ class Sequence(object):
                  max_epoch=50, 
                  early_stop=True,
                  patience=5,
-                 max_checkpoints_to_keep=5, 
+                 max_checkpoints_to_keep=0, 
+                 use_ELMo=False,
                  log_dir=None,
                  fold_number=1,
                  multiprocessing=True,
@@ -118,7 +119,7 @@ class Sequence(object):
             self.bert_preprocessor = None
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name) 
+            self.embeddings = Embeddings(self.embeddings_name, use_ELMo=use_ELMo) 
             word_emb_size = self.embeddings.embed_size 
         else:
             self.embeddings = None
@@ -138,6 +139,7 @@ class Sequence(object):
                                         use_crf=use_crf, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
+                                        use_ELMo=use_ELMo,
                                         features_indices=features_indices,
                                         transformer=self.transformer)
 
@@ -181,6 +183,8 @@ class Sequence(object):
                           bert_preprocessor=self.bert_preprocessor
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
+        if self.embeddings and self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10, callbacks=None):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
@@ -206,6 +210,8 @@ class Sequence(object):
                           bert_preprocessor=self.bert_preprocessor
                           )
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
+        if self.embeddings and self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test, features=None):
         if self.model_config.fold_number > 1:
@@ -535,8 +541,8 @@ class Sequence(object):
         
         if self.model_config.embeddings_name != None:
             # load embeddings
-            # Do not use cache in 'production' mode
-            self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
+            # Do not use cache in 'prediction/production' mode
+            self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None

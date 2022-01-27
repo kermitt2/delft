@@ -43,7 +43,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         if model == 'citation':
             max_sequence_length = 150
             batch_size = 20
-            max_epoch = 3
         elif model == 'header':
             max_sequence_length = 512
             batch_size = 6
@@ -259,7 +258,7 @@ if __name__ == "__main__":
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
 
     architectures_word_embeddings = [
-                     'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
                      ]
 
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']

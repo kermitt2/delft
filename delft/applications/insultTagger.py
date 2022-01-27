@@ -71,7 +71,7 @@ def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None)
 if __name__ == "__main__":
 
     architectures_word_embeddings = [
-                     'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
                      ]
 
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']

@@ -46,7 +46,7 @@ def configure(architecture, dataset_type, lang, embeddings_name):
 
 
 # train a model with all available for a given dataset 
-def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None):
+def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
 
@@ -65,6 +65,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = 'ner-en-conll2003-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         model = Sequence(model_name, 
                         max_epoch=max_epoch, 
@@ -76,7 +78,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         batch_size=batch_size,
                         early_stop=early_stop,
                         patience=patience,
-                        max_sequence_length=max_sequence_length)
+                        max_sequence_length=max_sequence_length,
+                        use_ELMo=use_ELMo)
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
 
@@ -93,6 +96,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = 'ner-en-conll2012-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         model = Sequence(model_name, 
                         max_epoch=max_epoch, 
@@ -104,7 +109,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         batch_size=batch_size,
                         early_stop=early_stop,
                         patience=patience,
-                        max_sequence_length=max_sequence_length)
+                        max_sequence_length=max_sequence_length,
+                        use_ELMo=use_ELMo)
     elif (lang == 'fr'):
         print('Loading data...')
         dataset_type = 'lemonde'
@@ -113,6 +119,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = 'ner-fr-lemonde-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         model = Sequence(model_name, 
                         max_epoch=max_epoch, 
@@ -124,7 +132,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         batch_size=batch_size,
                         early_stop=early_stop,
                         patience=patience,
-                        max_sequence_length=max_sequence_length)
+                        max_sequence_length=max_sequence_length,
+                        use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return
@@ -151,7 +160,8 @@ def train_eval(embeddings_name=None,
                 transformer=None, 
                 fold_count=1, 
                 train_with_validation_set=False,
-                data_path=None): 
+                data_path=None, 
+                use_ELMo=False): 
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
 
@@ -163,6 +173,8 @@ def train_eval(embeddings_name=None,
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = 'ner-en-conll2003-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -177,7 +189,8 @@ def train_eval(embeddings_name=None,
                             batch_size=batch_size,
                             early_stop=True,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -193,7 +206,8 @@ def train_eval(embeddings_name=None,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
 
     elif (dataset_type == 'ontonotes-all') and (lang == 'en'):
         print("Loading all Ontonotes 5.0 XML data, evaluation will be on 10\% random partition")
@@ -203,6 +217,8 @@ def train_eval(embeddings_name=None,
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = 'ner-en-ontonotes-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         model = Sequence(model_name, 
                         max_epoch=max_epoch, 
@@ -215,7 +231,8 @@ def train_eval(embeddings_name=None,
                         batch_size=batch_size,
                         early_stop=early_stop,
                         patience=patience,
-                        max_sequence_length=max_sequence_length)
+                        max_sequence_length=max_sequence_length,
+                        use_ELMo=use_ELMo)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
@@ -226,6 +243,8 @@ def train_eval(embeddings_name=None,
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = 'ner-en-conll2012-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         if not train_with_validation_set: 
             model = Sequence(model_name, 
@@ -239,7 +258,8 @@ def train_eval(embeddings_name=None,
                             batch_size=batch_size,
                             early_stop=True,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -255,7 +275,8 @@ def train_eval(embeddings_name=None,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience, 
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
 
     elif (lang == 'fr') and (dataset_type == 'ftb' or dataset_type is None):
         print('Loading data...')
@@ -265,6 +286,8 @@ def train_eval(embeddings_name=None,
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = 'ner-fr-lemonde-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         model = Sequence(model_name, 
                         max_epoch=max_epoch, 
@@ -277,7 +300,8 @@ def train_eval(embeddings_name=None,
                         batch_size=batch_size,
                         early_stop=early_stop,
                         patience=patience,
-                        max_sequence_length=max_sequence_length)
+                        max_sequence_length=max_sequence_length,
+                        use_ELMo=use_ELMo)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
         print('Loading data...')
         x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_train.conll')
@@ -286,6 +310,8 @@ def train_eval(embeddings_name=None,
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = 'ner-fr-lemonde-force-split-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -300,7 +326,8 @@ def train_eval(embeddings_name=None,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -316,7 +343,8 @@ def train_eval(embeddings_name=None,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split_xml'):
         print('Loading data...')
         x_train, y_train = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.train.xml')
@@ -325,6 +353,8 @@ def train_eval(embeddings_name=None,
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = 'ner-fr-lemonde-force-split-xml-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
 
         if not train_with_validation_set: 
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -339,7 +369,8 @@ def train_eval(embeddings_name=None,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -355,7 +386,8 @@ def train_eval(embeddings_name=None,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
-                            max_sequence_length=max_sequence_length)
+                            max_sequence_length=max_sequence_length,
+                            use_ELMo=use_ELMo)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
@@ -380,7 +412,8 @@ def eval(dataset_type='conll2003',
          lang='en', 
          architecture='BidLSTM_CRF', 
          transformer=None, 
-         data_path=None): 
+         data_path=None,
+         use_ELMo=False): 
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL-2003 NER data...')
@@ -389,6 +422,8 @@ def eval(dataset_type='conll2003',
 
         # load model
         model_name = 'ner-en-conll2003-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
         model = Sequence(model_name, transformer=transformer,)
         model.load()
 
@@ -400,6 +435,8 @@ def eval(dataset_type='conll2003',
 
         # load model
         model_name = 'ner-en-conll2012-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
         model = Sequence(model_name, transformer=transformer,)
         model.load()
 
@@ -423,7 +460,8 @@ def annotate(output_format,
              architecture='BidLSTM_CRF',
              transformer=None, 
              file_in=None, 
-             file_out=None):
+             file_out=None,
+             use_ELMo=False):
     if file_in is None or not os.path.isfile(file_in):
         raise ValueError("the provided input file is not valid")
     annotations = []
@@ -431,17 +469,23 @@ def annotate(output_format,
     if (dataset_type == 'conll2003') and (lang == 'en'):
         # load model
         model_name = 'ner-en-conll2003-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
         model = Sequence(model_name, transformer=transformer)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         # load model
         model_name = 'ner-en-conll2012-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
         model = Sequence(model_name, transformer=transformer)
         model.load()
 
     elif (lang == 'fr'):
         model_name = 'ner-fr-lemonde-' + architecture
+        if use_ELMo:
+            model_name += '-with_ELMo'
         model = Sequence(model_name, transformer=transformer)
         model.load()
     else:
@@ -459,7 +503,7 @@ def annotate(output_format,
 if __name__ == "__main__":
 
     architectures_word_embeddings = [
-                     'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
                      ]
 
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
@@ -483,6 +527,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
     parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument(
         "--embedding", 
         default=None,
@@ -517,6 +562,7 @@ if __name__ == "__main__":
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
+    use_ELMo = args.use_ELMo
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
@@ -531,7 +577,8 @@ if __name__ == "__main__":
             embeddings_name=embeddings_name,
             architecture=architecture, 
             transformer=transformer,
-            data_path=data_path)
+            data_path=data_path,
+            use_ELMo=use_ELMo)
 
     if action == 'train_eval':
         if args.fold_count < 1:
@@ -544,14 +591,16 @@ if __name__ == "__main__":
             transformer=transformer,
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
-            data_path=data_path)
+            data_path=data_path,
+            use_ELMo=use_ELMo)
 
     if action == 'eval':
         eval(
             dataset_type=dataset_type, 
             lang=lang, 
             architecture=architecture, 
-            transformer=transformer)
+            transformer=transformer,
+            use_ELMo=use_ELMo)
 
     if action == 'tag':
         if lang != 'en' and lang != 'fr':
@@ -564,7 +613,8 @@ if __name__ == "__main__":
                             architecture=architecture, 
                             transformer=transformer,
                             file_in=file_in, 
-                            file_out=file_out)
+                            file_out=file_out,
+                            use_ELMo=use_ELMo)
             """
             if result is not None:
                 if file_out is None:
