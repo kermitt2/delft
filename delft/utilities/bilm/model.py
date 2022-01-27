@@ -1,7 +1,6 @@
 import numpy as np
 
 import tensorflow as tf
-#tf.compat.v1.disable_eager_execution()
 
 import h5py
 import json
@@ -21,7 +20,7 @@ class BidirectionalLanguageModel(object):
             weight_file: str,
             use_character_inputs=True,
             embedding_weight_file=None,
-            max_batch_size=128,
+            max_batch_size=128
         ):
         '''
         Creates the language model computational graph and loads weights
@@ -62,7 +61,7 @@ class BidirectionalLanguageModel(object):
         self._ops = {}
         self._graphs = {}
 
-    #@tf.function
+
     def __call__(self, ids_placeholder):
         '''
         Given the input character ids (or token ids), returns a dictionary
@@ -84,7 +83,8 @@ class BidirectionalLanguageModel(object):
             If use_character_input=False, it is shape (None, None) and
                 holds the input token ids for a batch
         '''
-        print("eager mode:", tf.executing_eagerly())
+        print("new call: eager mode:", tf.executing_eagerly())
+
         if ids_placeholder in self._ops:
             # have already created ops for this placeholder, just return them
             ret = self._ops[ids_placeholder]
@@ -93,14 +93,16 @@ class BidirectionalLanguageModel(object):
             # need to create the graph
             if len(self._ops) == 0:
                 # first time creating the graph, don't reuse variables
+                print("create graph")
                 lm_graph = BidirectionalLanguageModelGraph(self._lang,
                     self._options,
                     self._weight_file,
                     ids_placeholder,
                     embedding_weight_file=self._embedding_weight_file,
                     use_character_inputs=self._use_character_inputs,
-                    max_batch_size=self._max_batch_size)
+                    max_batch_size=self._max_batch_size)            
             else:
+                print("reuse graph")
                 with tf.compat.v1.variable_scope(self._lang, reuse=True):
                     lm_graph = BidirectionalLanguageModelGraph(self._lang,
                         self._options,
@@ -224,7 +226,6 @@ def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
             if varname_in_file == 'char_embed':
                 # Have added a special 0 index for padding not present
                 # in the original model.
-                print(varname_in_file)
                 char_embed_weights = fin[varname_in_file][...]
                 weights = np.zeros(
                     (char_embed_weights.shape[0] + 1,
@@ -233,7 +234,6 @@ def _pretrained_initializer(varname, weight_file, embedding_weight_file=None):
                 )
                 weights[1:, :] = char_embed_weights
             else:
-                print(varname_in_file)
                 weights = fin[varname_in_file][...]
 
     # Tensorflow initializers are callables that accept a shape parameter
@@ -254,15 +254,18 @@ class BidirectionalLanguageModelGraph(object):
     Creates the computational graph and holds the ops necessary for runnint
     a bidirectional language model
     '''
-
     def __init__(self, lang, options, weight_file, ids_placeholder,
                  use_character_inputs=True, embedding_weight_file=None,
                  max_batch_size=128):
+
         self.lang = lang
         self.options = options
         self._max_batch_size = max_batch_size
         self.ids_placeholder = ids_placeholder
         self.use_character_inputs = use_character_inputs
+
+        #self.init_states = init_states
+        #self.batch_init_states = None
 
         # this custom_getter will make all variables not trainable and
         # override the default initializer
@@ -284,7 +287,6 @@ class BidirectionalLanguageModelGraph(object):
         with tf.compat.v1.variable_scope('bilm', custom_getter=custom_getter, reuse=tf.compat.v1.AUTO_REUSE):
             self._build()
 
-    #@tf.function
     def _build(self):
         if self.use_character_inputs:
             self._build_word_char_embeddings()
@@ -478,9 +480,8 @@ class BidirectionalLanguageModelGraph(object):
                 "embedding", [self._n_tokens_vocab, projection_dim],
                 dtype=DTYPE,
             )
-            self.embedding = tf.compat.v1.nn.embedding_lookup(self.embedding_weights,
+            self.embedding = tf.nn.embedding_lookup(self.embedding_weights,
                                                 self.ids_placeholder)
-
 
     def _build_lstms(self):
         # now the LSTMs
@@ -552,7 +553,6 @@ class BidirectionalLanguageModelGraph(object):
                 # the LSTMs are stateful.  To support multiple batch sizes,
                 # we'll allocate size for states up to max_batch_size,
                 # then use the first batch_size entries for each batch
-                print("init_states")
                 init_states = [
                     tf.Variable(
                         tf.zeros([self._max_batch_size, dim]),

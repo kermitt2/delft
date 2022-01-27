@@ -17,7 +17,6 @@ from tqdm import tqdm
 import mmap
 import codecs
 import tensorflow as tf
-#import keras.backend as K
 
 # for fasttext binary embeddings
 fasttext_support = True
@@ -75,7 +74,9 @@ class Embeddings(object):
 
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
+        self.bilm = None
         if use_ELMo:
+            tf.compat.v1.disable_eager_execution()
             self.make_ELMo()
             self.embed_size = ELMo_embed_size + self.embed_size
             description = self.get_description('elmo-'+self.lang)
@@ -303,7 +304,6 @@ class Embeddings(object):
                 self.env = lmdb.open(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name)
 
-    #@tf.function
     def make_ELMo(self):
         # Location of pretrained BiLM for the specified language
         # TBD check if ELMo language resources are present
@@ -314,8 +314,6 @@ class Embeddings(object):
             options_file = description["path-config"]
             weight_file = description["path_weights"]
 
-            print('init ELMo')
-
             # Create a Batcher to map text to character ids
             self.batcher = Batcher(vocab_file, 50)
 
@@ -324,6 +322,7 @@ class Embeddings(object):
 
             # Input placeholders to the biLM.
             self.character_ids = tf.compat.v1.placeholder('int32', shape=(None, None, 50))
+            #self.character_ids = tf.Variable(tf.ones(shape=(None,None,50), dtype='int32'))
 
             with tf.compat.v1.variable_scope(self.lang, reuse=tf.compat.v1.AUTO_REUSE):
                 # the reuse=True scope reuses weights from the whole context 
@@ -417,9 +416,8 @@ class Embeddings(object):
 
     def get_sentence_vector_only_ELMo(self, token_list):
         """
-            Return the ELMo embeddings only for a full sentence
+        Return the ELMo embeddings only for a full sentence
         """
-
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
@@ -432,11 +430,11 @@ class Embeddings(object):
         if elmo_result is not None:
             return elmo_result
 
-        with tf.Session() as sess:
+        with tf.compat.v1.Session() as sess:
             # weird, for this cpu is faster than gpu (1080Ti !)
             with tf.device("/cpu:0"):
                 # It is necessary to initialize variables once before running inference
-                sess.run(tf.global_variables_initializer())
+                sess.run(tf.compat.v1.global_variables_initializer())
 
                 # Compute ELMo representations (2 times as a heavy warm-up)
                 elmo_result = sess.run(
@@ -447,14 +445,14 @@ class Embeddings(object):
                     self.elmo_input['weighted_op'],
                     feed_dict={self.character_ids: local_token_ids}
                 )
-                #cache computation
+                #cache computation if cache enabled
                 self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         return elmo_result
 
     def get_sentence_vector_with_ELMo(self, token_list):
         """
-            Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
-            for a full sentence
+        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
+        for a full sentence
         """
         if not self.use_ELMo:
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
@@ -482,7 +480,7 @@ class Embeddings(object):
                         self.elmo_input['weighted_op'],
                         feed_dict={self.character_ids: local_token_ids}
                     )
-                    #cache computation
+                    #cache computation if cache enabled
                     self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         
         concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
@@ -499,7 +497,7 @@ class Embeddings(object):
 
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
         """
-            Try to get the ELMo embeddings for a sequence cached in LMDB
+        Try to get the ELMo embeddings for a sequence cached in LMDB
         """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
@@ -539,7 +537,7 @@ class Embeddings(object):
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
-            Cache in LMDB the ELMo embeddings for a given sequence 
+        Cache in LMDB the ELMo embeddings for a given sequence 
         """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
@@ -553,7 +551,7 @@ class Embeddings(object):
 
     def clean_ELMo_cache(self):
         """
-            Delete ELMo embeddings cache, this takes place normally after the completion of a training
+        Delete ELMo embeddings cache, this takes place normally after the completion of a training
         """
         if self.env_ELMo is None:
             # db cache not available, nothing to clean
