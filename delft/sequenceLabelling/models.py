@@ -7,7 +7,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
 import tensorflow_addons as tfa
-from tensorflow_addons.text.crf_wrapper import CRFModelWrapper
+from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
 
 from transformers import AutoConfig, TFAutoModel
@@ -29,7 +29,14 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
     """
     Return a model instance by its name. This is a facilitator function. 
     """
-    if config.architecture == BidLSTM_CRF.name:
+    if config.architecture == BidLSTM.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = False
+        return BidLSTM(config, ntags)
+
+    elif config.architecture == BidLSTM_CRF.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
@@ -185,6 +192,46 @@ class BaseModel(object):
         return transformer_model
 
 
+class BidLSTM(BaseModel):
+    """
+    A Keras implementation of simple BidLSTM for sequence labelling with character and word inputs, and softmax final layer.
+    """
+    name = 'BidLSTM'
+
+    def __init__(self, config, ntags=None):
+
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=True,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
+        # length of sequence not used by the model, but used by the training scorer
+        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        # combine characters and word embeddings
+        x = Concatenate()([word_input, chars])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        pred = Dense(ntags, activation='softmax')(x)
+
+        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
+        self.model.summary()
+        self.config = config
+
+
 class BidLSTM_CRF(BaseModel):
     """
     A Keras implementation of BidLSTM-CRF for sequence labelling.
@@ -229,7 +276,7 @@ class BidLSTM_CRF(BaseModel):
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
 
         self.model.summary()
-        self.model = CRFModelWrapper(self.model, ntags)
+        self.model = CRFModelWrapperDefault(self.model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
         self.model.summary()
         self.config = config
@@ -403,7 +450,7 @@ class BidLSTM_CNN_CRF(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model.summary()
-        self.model = CRFModelWrapper(self.model, ntags)
+        self.model = CRFModelWrapperDefault(self.model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
         self.model.summary()
         self.config = config
@@ -450,7 +497,7 @@ class BidGRU_CRF(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
         self.model.summary()
-        self.model = CRFModelWrapper(self.model, ntags)
+        self.model = CRFModelWrapperDefault(self.model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
         self.model.summary()
         self.config = config
@@ -505,7 +552,7 @@ class BidLSTM_CRF_CASING(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model.summary()
-        self.model = CRFModelWrapper(self.model, ntags)
+        self.model = CRFModelWrapperDefault(self.model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None), (None, None, 1)])
         self.model.summary()
         self.config = config
@@ -567,7 +614,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
         self.model.summary()
-        self.model = CRFModelWrapper(self.model, ntags)
+        self.model = CRFModelWrapperDefault(self.model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, 1)])
         self.model.summary()
         self.config = config
