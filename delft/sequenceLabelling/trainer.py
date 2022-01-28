@@ -3,17 +3,17 @@ import os
 import numpy as np
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 
-#from delft.sequenceLabelling.data_generator import DataGenerator
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.utils import plot_model
 
-# seqeval
 from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compute_metrics
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.models import get_model
+from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 
 import numpy as np
 import tensorflow as tf
@@ -87,7 +87,7 @@ class Trainer(object):
             else:
                 # we apply a mask on the predicted labels so that the weights 
                 # corresponding to special symbols are neutralized
-                local_model.compile(loss=sparse_crossentropy_masked, optimizer=optimizer)
+                local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
         else:
             
             '''lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -97,9 +97,16 @@ class Trainer(object):
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
             '''
             optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
-            if local_model.config.use_crf:
-                # loss is calculated by the custom CRF wrapper
-                local_model.compile(optimizer=optimizer)
+            if local_model.config.use_chain_crf:
+                local_model.compile(optimizer=optimizer, loss=local_model.crf.loss)
+            elif local_model.config.use_crf:
+                if tf.executing_eagerly():
+                    # loss is calculated by the custom CRF wrapper
+                    local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                else:
+                    print("compile model")
+                    # expecting a loss function, but is is calculated internally by the CRF wapper
+                    local_model.compile(optimizer=optimizer, loss=dummy_loss)
             else:
                 # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
                 local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
@@ -121,19 +128,22 @@ class Trainer(object):
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=f_train)
+                embeddings=self.embeddings, 
+                shuffle=True, features=f_train, use_chain_crf=self.model_config.use_chain_crf)
 
             validation_generator = generator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid, output_input_offsets=True)
+                embeddings=self.embeddings, shuffle=False, features=f_valid, 
+                output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=True,
                                       patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf)
+                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf,
+                                      use_chain_crf=self.model_config.use_chain_crf)
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -146,11 +156,13 @@ class Trainer(object):
                 bert_preprocessor=self.bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, features=feature_all)
+                embeddings=self.embeddings, shuffle=True, 
+                features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       eary_stopping=False,
-                                      use_crf=self.model_config.use_crf)
+                                      use_crf=self.model_config.use_crf,
+                                      use_chain_crf=self.model_config.use_chain_crf)
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
@@ -252,7 +264,7 @@ class Trainer(object):
                 #self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
 
 
-def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True):
+def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True, use_chain_crf=False):
     """
     Get callbacks.
 
@@ -267,7 +279,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_cr
     callbacks = []
 
     if valid:
-        callbacks.append(Scorer(*valid, use_crf=use_crf))
+        callbacks.append(Scorer(*valid, use_crf=use_crf, use_chain_crf=use_chain_crf))
 
     if log_dir:
         if not os.path.exists(log_dir):
@@ -288,7 +300,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_cr
 
 class Scorer(Callback):
 
-    def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=True):
+    def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=False, use_chain_crf=False):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
         validation step and we will simply produce f1 score
@@ -306,6 +318,7 @@ class Scorer(Callback):
         self.report_as_map = None
         self.evaluation = evaluation
         self.use_crf = use_crf
+        self.use_chain_crf = use_chain_crf
 
     def on_epoch_end(self, epoch, logs={}):
         y_pred = None
@@ -360,12 +373,22 @@ class Scorer(Callback):
                 y_pred_batch = self.model.predict_on_batch(data)
 
                 if not self.use_crf:
+                    # one hot encoded predictions
                     y_pred_batch = np.argmax(y_pred_batch, -1)
-                
-                # one hot encoded labels, we also have the input length available 
+
+                if self.use_chain_crf:
+                    # one hot encoded predictions and labels
+                    y_pred_batch = np.argmax(y_pred_batch, -1)
+                    y_true_batch = np.argmax(y_true_batch, -1)
+
+                # we also have the input length available 
                 sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
                 # shape of (batch_size, 1), we want (batch_size)
                 sequence_lengths = np.reshape(sequence_lengths, (-1,))
+
+                #print(y_pred_batch)
+                #print(y_true_batch)
+
                 y_pred_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_pred_batch, sequence_lengths)]
                 y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]
 

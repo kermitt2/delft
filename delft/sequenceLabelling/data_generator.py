@@ -27,7 +27,8 @@ class BaseGenerator(keras.utils.Sequence):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                output_input_offsets=False):
+                output_input_offsets=False,
+                use_chain_crf=False):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -44,6 +45,7 @@ class BaseGenerator(keras.utils.Sequence):
         self.tokenize = tokenize
         self.max_sequence_length = max_sequence_length
         self.output_input_offsets = output_input_offsets
+        self.use_chain_crf = use_chain_crf
 
     def __len__(self):
         '''
@@ -99,7 +101,8 @@ class DataGenerator(BaseGenerator):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                output_input_offsets=False):
+                output_input_offsets=False,
+                use_chain_crf=False):
 
         super().__init__(x, y, 
                         batch_size=batch_size, 
@@ -111,7 +114,8 @@ class DataGenerator(BaseGenerator):
                         tokenize=tokenize, 
                         shuffle=shuffle, 
                         features=features,
-                        output_input_offsets=output_input_offsets)
+                        output_input_offsets=output_input_offsets,
+                        use_chain_crf=use_chain_crf)
         self.on_epoch_end()
 
     def __getitem__(self, index):
@@ -191,7 +195,10 @@ class DataGenerator(BaseGenerator):
                 batch_a[i] = to_casing_single(x_tokenized[i], max_length_x) 
 
         if self.y is not None:
-            batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
+            if self.use_chain_crf:
+                batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=False)
+            else:
+                batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
@@ -218,7 +225,8 @@ class DataGeneratorTransformers(BaseGenerator):
                 tokenize=False,
                 shuffle=True,
                 features=None,
-                output_input_offsets=False):
+                output_input_offsets=False,
+                use_chain_crf=False):
 
         super().__init__(x, y, 
                         batch_size=batch_size, 
@@ -230,7 +238,8 @@ class DataGeneratorTransformers(BaseGenerator):
                         tokenize=tokenize, 
                         shuffle=shuffle, 
                         features=features,
-                        output_input_offsets=output_input_offsets)
+                        output_input_offsets=output_input_offsets,
+                        use_chain_crf=use_chain_crf)
         if self.bert_preprocessor.empty_features_vector == None:
             self.bert_preprocessor.set_empty_features_vector(self.preprocessor.empty_features_vector())
         self.on_epoch_end()

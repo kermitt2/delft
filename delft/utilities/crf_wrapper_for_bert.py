@@ -5,6 +5,8 @@ from tensorflow_addons.utils import types
 
 from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 
+import numpy as np
+
 '''
 Alternative CRF model wrapper for models having a BERT/transformer layer. 
 Loss is modified to ignore labels corresponding to tokens being special transformer symbols (e.g. SEP, 
@@ -29,11 +31,23 @@ class CRFModelWrapperForBERT(CRFModelWrapperDefault):
             special_mask = tf.not_equal(y, mask_value)
             special_mask = tf.cast(special_mask, tf.float32)
             #tf.print(special_mask)
+
+            #tf.print("potentials before")
             #tf.print(potentials)
+
             # apply the mask to prediction vectors, it will put to 0
             # weights for label to ignore, normally neutralizing them for 
-            # loss calculation
+            # the loss calculation
             potentials = tf.multiply(potentials, tf.expand_dims(special_mask, -1))
+           
+            #tf.print("potentials after")
+            #tf.print(potentials)
+
+            # replace 0 by -100 because it's log-based potential
+            #the_minus = tf.fill(tf.shape(potentials), -100.0)
+            #potentials = tf.where(tf.equal(potentials, 0.0), the_minus, potentials)
+
+            #tf.print("potentials end")
             #tf.print(potentials)
 
             crf_loss = self.compute_crf_loss(
@@ -47,8 +61,8 @@ class CRFModelWrapperForBERT(CRFModelWrapperDefault):
         self.compiled_metrics.update_state(y, decoded_sequence)
         # Return a dict mapping metric names to current value
         orig_results = {m.name: m.result() for m in self.metrics}
-        #crf_results = {"loss": loss, "crf_loss": crf_loss}
-        crf_results = {"crf_loss": crf_loss}
+        crf_results = {"loss": loss, "crf_loss": crf_loss}
+        #crf_results = {"crf_loss": crf_loss}
         return {**orig_results, **crf_results}
 
     def test_step(self, data):

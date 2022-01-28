@@ -43,7 +43,8 @@ class Tagger(object):
             char_embed_size=self.model_config.char_embedding_size,
             max_sequence_length=self.model_config.max_sequence_length,
             embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, 
-            features=features, output_input_offsets=True)
+            features=features, output_input_offsets=True, 
+            use_chain_crf=self.model_config.use_chain_crf)
 
         steps_done = 0
         steps = len(predict_generator)
@@ -100,10 +101,9 @@ class Tagger(object):
                     tokens = text
                     offsets = []
 
-                if not self.model_config.use_crf:
+                if not self.model_config.use_crf or self.model_config.use_chain_crf:
                     tags = self._get_tags(pred)
                     prob = self._get_prob(pred)
-                    # above consider stopping with padding to speed up a bit
                 else:
                     tags = self._get_tags_sparse(pred)
                     prob = self._get_prob_sparse(pred)

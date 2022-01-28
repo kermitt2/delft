@@ -33,7 +33,6 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         preprocessor.return_word_embeddings = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
-        config.use_crf = False
         return BidLSTM(config, ntags)
 
     elif config.architecture == BidLSTM_CRF.name:
@@ -43,12 +42,19 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         config.use_crf = True
         return BidLSTM_CRF(config, ntags)
 
+    elif config.architecture == BidLSTM_ChainCRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        return BidLSTM_ChainCRF(config, ntags)
+
     elif config.architecture == BidLSTM_CNN.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
-        config.use_crf = False
         return BidLSTM_CNN(config, ntags)
 
     elif config.architecture == BidLSTM_CNN_CRF.name:
@@ -84,7 +90,6 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
 
     elif config.architecture == BERT.name:
         preprocessor.return_bert_embeddings = True
-        config.use_crf = False
         config.labels = preprocessor.vocab_tag
         return BERT(config, 
                     ntags, 
@@ -95,21 +100,30 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         preprocessor.return_bert_embeddings = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
-        return BERT_CRF(config, ntags)
+        return BERT_CRF(config, 
+                        ntags, 
+                        load_pretrained_weights=load_pretrained_weights, 
+                        local_path=local_path)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
         preprocessor.return_features = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
-        return BERT_CRF_FEATURES(config, ntags)
+        return BERT_CRF_FEATURES(config, 
+                                ntags, 
+                                load_pretrained_weights=load_pretrained_weights, 
+                                local_path=local_path)
 
     elif config.architecture == BERT_CRF_CHAR.name:
         preprocessor.return_bert_embeddings = True
         preprocessor.return_chars = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
-        return BERT_CRF_CHAR(config, ntags)
+        return BERT_CRF_CHAR(config, 
+                            ntags,      
+                            load_pretrained_weights=load_pretrained_weights, 
+                            local_path=local_path)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -117,7 +131,10 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         preprocessor.return_chars = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
-        return BERT_CRF_CHAR_FEATURES(config, ntags)
+        return BERT_CRF_CHAR_FEATURES(config, 
+                                    ntags, 
+                                    load_pretrained_weights=load_pretrained_weights, 
+                                    local_path=local_path)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
@@ -282,9 +299,6 @@ class BidLSTM_CRF(BaseModel):
         self.config = config
 
 
-"""
-Not used, kept for nostalgia reasons
-"""
 class BidLSTM_ChainCRF(BaseModel):
     """
     A Keras implementation of BidLSTM-CRF for sequence labelling.
@@ -306,7 +320,7 @@ class BidLSTM_ChainCRF(BaseModel):
         char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
-                                    mask_zero=True,
+                                    mask_zero=False,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)

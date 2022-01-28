@@ -74,7 +74,6 @@ class Sequence(object):
                  max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.25,
-                 use_crf=True,
                  batch_size=20, 
                  optimizer='adam', 
                  learning_rate=0.001, 
@@ -136,7 +135,6 @@ class Sequence(object):
                                         max_sequence_length=max_sequence_length, 
                                         dropout=dropout, 
                                         recurrent_dropout=recurrent_dropout, 
-                                        use_crf=use_crf, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
                                         use_ELMo=use_ELMo,
@@ -230,10 +228,12 @@ class Sequence(object):
                     bert_preprocessor=self.bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features, output_input_offsets=True)
+                    embeddings=self.embeddings, shuffle=False, features=features, 
+                    output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
+                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf, 
+                    use_chain_crf=self.model_config.use_chain_crf)
                 scorer.model = self.model
                 scorer.on_epoch_end(epoch=-1)
             else:
@@ -322,7 +322,8 @@ class Sequence(object):
                     bert_preprocessor=self.bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features, output_input_offsets=True)
+                    embeddings=self.embeddings, shuffle=False, features=features, 
+                    output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
                 scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)

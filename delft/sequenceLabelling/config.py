@@ -18,7 +18,8 @@ class ModelConfig(object):
                  max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
-                 use_crf=True,
+                 use_crf=False,
+                 use_chain_crf=False,
                  fold_number=1,
                  batch_size=64,
                  use_ELMo=False,
@@ -54,11 +55,12 @@ class ModelConfig(object):
         self.recurrent_dropout = recurrent_dropout
 
         self.use_crf = use_crf
+        self.use_chain_crf = use_chain_crf
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for prediction
 
         self.transformer = transformer
-        
+
         self.use_ELMo = use_ELMo
 
     def save(self, file):
