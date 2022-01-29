@@ -13,7 +13,7 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.models import get_model
-from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
+from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault, InnerLossPusher
 
 import numpy as np
 import tensorflow as tf
@@ -89,8 +89,8 @@ class Trainer(object):
                 # corresponding to special symbols are neutralized
                 local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
         else:
-            
-            '''lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+            '''
+            lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.training_config.learning_rate,
                 decay_steps=nb_train_steps,
                 decay_rate=0.5)
@@ -101,12 +101,17 @@ class Trainer(object):
                 local_model.compile(optimizer=optimizer, loss=local_model.crf.loss)
             elif local_model.config.use_crf:
                 if tf.executing_eagerly():
-                    # loss is calculated by the custom CRF wrapper
-                    local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                    # loss is calculated by the custom CRF wrapper, no need to specify a loss function here
+                    local_model.compile(optimizer=optimizer)
                 else:
-                    print("compile model")
-                    # expecting a loss function, but is is calculated internally by the CRF wapper
-                    local_model.compile(optimizer=optimizer, loss=dummy_loss)
+                    print("compile model, graph mode")
+                    # always expecting a loss function here, but it is calculated internally by the CRF wapper
+                    # the following will fail in graph mode because 
+                    # '<tf.Variable 'chain_kernel:0' shape=(10, 10) dtype=float32> has `None` for gradient.'
+                    # however this variable cannot be accessed, so no soluton for the moment 
+                    # (probably need not using keras fit and creating a custom training loop to get the gradient)
+                    local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                    #local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
             else:
                 # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
                 local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
@@ -427,12 +432,3 @@ def sparse_crossentropy_masked(y_true, y_pred):
     y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
     return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
 
-
-def sparse_categorical_accuracy_masked(y_true, y_pred):
-    mask_value = 0
-    active_loss = tf.reshape(y_true, (-1,)) != mask_value
-    reduced_logits = tf.boolean_mask(tf.reshape(y_pred, (-1, shape_list(y_pred)[2])), active_loss)
-    y_true = tf.boolean_mask(tf.reshape(y_true, (-1,)), active_loss)
-    reduced_logits = tf.cast(tf.argmax(reduced_logits, axis=-1), tf.keras.backend.floatx())
-    equality = tf.equal(y_true, reduced_logits)
-    return tf.reduce_mean(tf.cast(equality, tf.keras.backend.floatx()))

@@ -178,7 +178,7 @@ class DataGenerator(BaseGenerator):
 
             if self.max_sequence_length and max_length_y > self.max_sequence_length:
                 # truncation of sequence at max_sequence_length
-                 batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=object)
+                 batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=np.int32)
 
         batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)
         if self.preprocessor.return_features:
@@ -199,6 +199,7 @@ class DataGenerator(BaseGenerator):
                 batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=False)
             else:
                 batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
+            batch_y = np.asarray(truncate_batch_values(batch_y, max_length_x), dtype=np.int32)
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 

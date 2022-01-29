@@ -93,7 +93,7 @@ class BidirectionalLanguageModel(object):
             # need to create the graph
             if len(self._ops) == 0:
                 # first time creating the graph, don't reuse variables
-                print("create graph")
+                print("create ELMo graph")
                 lm_graph = BidirectionalLanguageModelGraph(self._lang,
                     self._options,
                     self._weight_file,

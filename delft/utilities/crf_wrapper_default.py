@@ -19,7 +19,7 @@ we don't get probabilities and crf_log_norm normalization is far too low
 @tf.keras.utils.register_keras_serializable(package="Addons")
 class CRFModelWrapperDefault(CRFModelWrapper):
 
-    def call(self, inputs, training=None, mask=None, return_crf_internal=False):
+    def call(self, inputs, training=None, mask=None, return_crf_internal=False):        
         base_model_outputs = self.base_model(inputs, training, mask)
 
         # change next line, if your model has more outputs
@@ -31,6 +31,8 @@ class CRFModelWrapperDefault(CRFModelWrapper):
         # Aways keep `(potentials, sequence_length, kernel), decode_sequence, `
         # as first two outputs of model.
         # current `self.train_step()` expected such settings
+        if not tf.executing_eagerly():
+            decode_sequence = tf.cast(decode_sequence, tf.float32)
         outputs = (potentials, sequence_length, kernel), decode_sequence
 
         '''
@@ -69,3 +71,18 @@ class CRFModelWrapperDefault(CRFModelWrapper):
                 return output_without_crf_internal[0]
             else:
                 return output_without_crf_internal
+
+class InnerLossPusher(tf.keras.losses.Loss):
+    '''
+    Experimental... 
+    When earger mode is disabled, Keras model.compile() requires a loss function.
+    The following custom loss function is simply retrieving the inner model loss calculation
+    returning it as explicit loss function for Keras fit() 
+    '''
+    def __init__(self, model, name="custom_inner_loss_pusher"):
+        super().__init__(name=name)
+        self.model = model
+
+    def call(self, y_true, y_pred):
+        print(self.model.losses)
+        return self.model.losses

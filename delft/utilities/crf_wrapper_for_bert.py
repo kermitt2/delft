@@ -31,24 +31,16 @@ class CRFModelWrapperForBERT(CRFModelWrapperDefault):
             special_mask = tf.not_equal(y, mask_value)
             special_mask = tf.cast(special_mask, tf.float32)
             #tf.print(special_mask)
-
-            #tf.print("potentials before")
             #tf.print(potentials)
-
             # apply the mask to prediction vectors, it will put to 0
             # weights for label to ignore, normally neutralizing them for 
-            # the loss calculation
+            # loss calculation
             potentials = tf.multiply(potentials, tf.expand_dims(special_mask, -1))
-           
-            #tf.print("potentials after")
             #tf.print(potentials)
 
-            # replace 0 by -100 because it's log-based potential
+            # experiment: replace 0 by -100 because it's log-based potential
             #the_minus = tf.fill(tf.shape(potentials), -100.0)
             #potentials = tf.where(tf.equal(potentials, 0.0), the_minus, potentials)
-
-            #tf.print("potentials end")
-            #tf.print(potentials)
 
             crf_loss = self.compute_crf_loss(
                 potentials, sequence_length, kernel, y, sample_weight
