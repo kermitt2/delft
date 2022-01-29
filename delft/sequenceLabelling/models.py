@@ -105,6 +105,16 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
                         load_pretrained_weights=load_pretrained_weights, 
                         local_path=local_path)
 
+    elif config.architecture == BERT_ChainCRF.name:
+        preprocessor.return_bert_embeddings = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_ChainCRF(config, 
+                        ntags, 
+                        load_pretrained_weights=load_pretrained_weights, 
+                        local_path=local_path)
+
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
         preprocessor.return_features = True
@@ -301,7 +311,7 @@ class BidLSTM_CRF(BaseModel):
 
 class BidLSTM_ChainCRF(BaseModel):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling.
+    A Keras implementation of BidLSTM-CRF for sequence labelling with an alternative CRF layer implementation.
 
     References
     --
@@ -710,6 +720,50 @@ class BERT_CRF(BaseModel):
         self.model.summary()
         self.model = CRFModelWrapperForBERT(self.model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.summary()
+        self.config = config
+
+    def get_generator(self):
+        return DataGeneratorTransformers
+
+    def get_transformer_config(self):
+        '''
+        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        '''
+        return self.bert_config
+
+
+class BERT_ChainCRF(BaseModel):
+    """
+    A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
+    of existing pre-trained BERT model given by the field transformer in the config. 
+
+    This architecture uses an alternative CRF layer implementation.
+    """
+
+    name = 'BERT_ChainCRF'
+    bert_config = None 
+
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
+        transformer_model_name = config.transformer
+
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+                                                          load_pretrained_weights=load_pretrained_weights, 
+                                                          local_path=local_path)
+
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
+
+        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        embedding_layer = Dropout(0.1)(embedding_layer)
+        x = Dense(ntags)(embedding_layer)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
         self.model.summary()
         self.config = config
 

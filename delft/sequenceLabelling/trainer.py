@@ -81,7 +81,9 @@ class Trainer(object):
                 num_warmup_steps=0.1*nb_train_steps,
             )
 
-            if local_model.config.use_crf:
+            if local_model.config.use_chain_crf:
+                local_model.compile(optimizer=optimizer, loss=local_model.crf.sparse_crf_loss_bert_masked)
+            elif local_model.config.use_crf:
                 # loss is calculated by the custom CRF wrapper
                 local_model.compile(optimizer=optimizer)
             else:
@@ -347,6 +349,9 @@ class Scorer(Callback):
                 if not self.use_crf:
                     y_pred_batch = np.argmax(y_pred_batch, -1)
 
+                if self.use_chain_crf:
+                    y_pred_batch = np.argmax(y_pred_batch, -1)
+
                 # results have been produced by a model using a transformer layer, so a few things to do
                 # the labels are sparse, so integers and not one hot encoded
                 # we need to restore back the labels for wordpiece to the labels for normal tokens
@@ -390,9 +395,6 @@ class Scorer(Callback):
                 sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
                 # shape of (batch_size, 1), we want (batch_size)
                 sequence_lengths = np.reshape(sequence_lengths, (-1,))
-
-                #print(y_pred_batch)
-                #print(y_true_batch)
 
                 y_pred_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_pred_batch, sequence_lengths)]
                 y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]

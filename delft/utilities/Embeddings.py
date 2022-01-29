@@ -327,6 +327,7 @@ class Embeddings(object):
             with tf.compat.v1.variable_scope(self.lang, reuse=tf.compat.v1.AUTO_REUSE):
                 # the reuse=True scope reuses weights from the whole context 
                 self.embeddings_op = self.bilm(self.character_ids)
+                # get an op to compute ELMo vectors
                 self.elmo_input = weight_layers('input', self.embeddings_op, l2_coef=0.0)
 
     def get_description(self, name):
@@ -432,21 +433,21 @@ class Embeddings(object):
 
         with tf.compat.v1.Session() as sess:
             # weird, for this cpu is faster than gpu (1080Ti !)
-            with tf.device("/cpu:0"):
-                # It is necessary to initialize variables once before running inference
-                sess.run(tf.compat.v1.global_variables_initializer())
+            #with tf.device("/cpu:0"):
+            # It is necessary to initialize variables once before running inference
+            sess.run(tf.compat.v1.global_variables_initializer())
 
-                # Compute ELMo representations (2 times as a heavy warm-up)
-                elmo_result = sess.run(
-                    self.elmo_input['weighted_op'],
-                    feed_dict={self.character_ids: local_token_ids}
-                )
-                elmo_result = sess.run(
-                    self.elmo_input['weighted_op'],
-                    feed_dict={self.character_ids: local_token_ids}
-                )
-                #cache computation if cache enabled
-                self.cache_ELMo_lmdb_vector(token_list, elmo_result)
+            # Compute ELMo representations (2 times as a heavy warm-up)
+            elmo_result = sess.run(
+                self.elmo_input['weighted_op'],
+                feed_dict={self.character_ids: local_token_ids}
+            )
+            elmo_result = sess.run(
+                self.elmo_input['weighted_op'],
+                feed_dict={self.character_ids: local_token_ids}
+            )
+            #cache computation if cache enabled
+            self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         return elmo_result
 
     def get_sentence_vector_with_ELMo(self, token_list):
@@ -467,32 +468,27 @@ class Embeddings(object):
         if elmo_result is None:
             with tf.compat.v1.Session() as sess:
                 # weird, for this cpu is faster than gpu (1080Ti !)
-                with tf.device("/cpu:0"):
-                    # It is necessary to initialize variables once before running inference
-                    sess.run(tf.compat.v1.global_variables_initializer())
+                #with tf.device("/cpu:0"):
+                # It is necessary to initialize variables once before running inference
+                sess.run(tf.compat.v1.global_variables_initializer())
 
-                    # Compute ELMo representations (2 times as a heavy warm-up)
-                    elmo_result = sess.run(
-                        self.elmo_input['weighted_op'],
-                        feed_dict={self.character_ids: local_token_ids}
-                    )
-                    elmo_result = sess.run(
-                        self.elmo_input['weighted_op'],
-                        feed_dict={self.character_ids: local_token_ids}
-                    )
-                    #cache computation if cache enabled
-                    self.cache_ELMo_lmdb_vector(token_list, elmo_result)
+                # Compute ELMo representations (2 times as a heavy warm-up)
+                elmo_result = sess.run(
+                    self.elmo_input['weighted_op'],
+                    feed_dict={self.character_ids: local_token_ids}
+                )
+                elmo_result = sess.run(
+                    self.elmo_input['weighted_op'],
+                    feed_dict={self.character_ids: local_token_ids}
+                )
+                #cache computation if cache enabled
+                self.cache_ELMo_lmdb_vector(token_list, elmo_result)
         
         concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
         #concatenated_result = np.random.rand(elmo_result.shape[0], max_size_sentence-2, self.embed_size)
         for i in range(0, len(token_list)):
             for j in range(0, len(token_list[i])):
-                #if is_int(token_list[i][j]) or is_float(token_list[i][j]):
-                #dummy_result = np.zeros((elmo_result.shape[2]), dtype=np.float32)
-                #concatenated_result[i][j] = np.concatenate((dummy_result, self.get_word_vector(token_list[i][j])), )
-                #else:
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
-                #concatenated_result[i][j] = np.concatenate((self.get_word_vector(token_list[i][j]), elmo_result[i][j]), )
         return concatenated_result
 
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
@@ -548,6 +544,13 @@ class Embeddings(object):
             the_hash = list_digest(token_list[i])
             txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))  
         txn.commit()
+
+    def cache_ELMo_lmdb_vectors(self, token_lists, ELMo_vectors):
+        """
+        Cache in LMDB the ELMo embeddings for a list of sequences 
+        """
+        for token_list, ELMo_vector in zip(token_lists, ELMo_vectors):
+            self.cache_ELMo_lmdb_vector(token_list, ELMo_vector)
 
     def clean_ELMo_cache(self):
         """

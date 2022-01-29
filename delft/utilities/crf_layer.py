@@ -336,6 +336,19 @@ class ChainCRF(Layer):
         y_pred_masked = tf.ragged.boolean_mask(y_pred, tf.not_equal(y_true, mask_value)).to_tensor()
         return self.sparse_loss(y_true_masked, y_pred_masked)
 
+    def sparse_crf_loss_bert_masked(self, y_true, y_pred):
+        mask_value = 0
+        
+        # create a boolean mask with False for labels to be ignored
+        special_mask = tf.not_equal(y_true, mask_value)
+        special_mask = tf.cast(special_mask, tf.float32)
+        # apply the mask to true & prediction vectors, it will put to 0
+        # weights for label to ignore, normally neutralizing them for 
+        # loss calculation
+        y_pred_masked = tf.multiply(y_pred, tf.expand_dims(special_mask, -1))
+
+        return self.sparse_loss(y_true, y_pred_masked)
+
     def sparse_loss(self, y_true, y_pred):
         """
         Linear Chain Conditional Random Field loss function with sparse
@@ -343,7 +356,7 @@ class ChainCRF(Layer):
         """
         y_true = tf.cast(y_true, 'int32')
 
-        # note: nothing to squeeze here with sparse tags which are 2D
+        # note: nothing to squeeze here with sparse labels which are 2D
         #y_true = tf.squeeze(y_true, [2])
         mask = self._fetch_mask()
         return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
