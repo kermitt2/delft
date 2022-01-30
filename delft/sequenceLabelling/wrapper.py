@@ -326,7 +326,7 @@ class Sequence(object):
                     output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf)
+                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf, use_chain_crf=self.model_config.use_chain_crf)
                 scorer.model = the_model
                 scorer.on_epoch_end(epoch=-1)
                 f1 = scorer.f1
@@ -397,6 +397,7 @@ class Sequence(object):
             print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
             
+            fold_nb = self.model_config.fold_number
             if self.transformer == None:
                 self.model = self.models[best_index]
                 self.model_config.fold_number = 1
@@ -408,7 +409,7 @@ class Sequence(object):
                 self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
             print("----------------------------------------------------------------------")
-            print("\nAverage over", str(int(self.model_config.fold_number)+1), "folds")
+            print("\nAverage over", str(int(fold_nb)), "folds")
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
