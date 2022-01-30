@@ -24,7 +24,7 @@ def configure(architecture):
 
     return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None): 
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False): 
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
 
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
@@ -38,9 +38,13 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None):
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    model = Sequence('insult', max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
+    model_name = 'insult-' + architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
+
+    model = Sequence(model_name, max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
         embeddings_name=embeddings_name, architecture=architecture, patience=patience, early_stop=early_stop,
-        transformer=transformer)
+        transformer=transformer, use_ELMo=use_ELMo)
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
@@ -49,11 +53,15 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None):
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None):
+def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False):
     annotations = []
 
+    model_name = 'insult-' + architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
+
     # load model
-    model = Sequence('insult', architecture=architecture, transformer=transformer)
+    model = Sequence(model_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
     model.load()
 
     start_time = time.time()
@@ -71,13 +79,13 @@ def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None)
 if __name__ == "__main__":
 
     architectures_word_embeddings = [
-                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
                      ]
 
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
 
     architectures_transformers_based = [
-                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
+                    'BERT', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
                      ]
 
     architectures = architectures_word_embeddings + architectures_transformers_based
@@ -108,6 +116,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     
     args = parser.parse_args()
 
@@ -117,18 +126,19 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
     architecture = args.architecture
     transformer = args.transformer
+    use_ELMo = args.use_ELMo
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer)
+        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
                      'This is a fucking test.']
-        result = annotate(someTexts, "json", architecture=architecture, transformer=transformer)
+        result = annotate(someTexts, "json", architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 

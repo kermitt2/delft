@@ -14,7 +14,7 @@ from delft.utilities.misc import parse_number_ranges
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
 
 
-def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1):
+def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1, use_ELMo=False):
     '''
     Set up the default parameters based on the model type.
     '''
@@ -78,6 +78,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 max_sequence_length = 1500
 
     model_name += '-' + architecture;
+
+    if use_ELMo:
+        model_name += '-with_ELMo'
     
     if batch_size == -1:
         batch_size = 20
@@ -93,7 +96,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, output_path=None,
-          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1):
+          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
 
     print('Loading data...')
     if input_path == None:
@@ -114,7 +117,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                                                                             max_sequence_length,
                                                                             batch_size,
                                                                             embeddings_name,
-                                                                            max_epoch)
+                                                                            max_epoch,
+                                                                            use_ELMo)
     model = Sequence(model_name,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
@@ -123,7 +127,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      batch_size=batch_size,
                      max_sequence_length=max_sequence_length,
                      features_indices=features_indices,
-                     max_epoch=max_epoch)
+                     max_epoch=max_epoch, 
+                     use_ELMo=use_ELMo)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -140,7 +145,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1):
+               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
     print('Loading data...')
     if input_path == None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -160,7 +165,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             max_sequence_length, 
                                                                             batch_size, 
                                                                             embeddings_name,
-                                                                            max_epoch)
+                                                                            max_epoch,
+                                                                            use_ELMo)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -170,7 +176,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     batch_size=batch_size,
                     fold_number=fold_count,
                     features_indices=features_indices,
-                    max_epoch=max_epoch)
+                    max_epoch=max_epoch, 
+                    use_ELMo=use_ELMo)
 
     start_time = time.time()
 
@@ -194,7 +201,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None):
+def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False):
     print('Loading data...')
     if input_path == None:
         # it should never be the case
@@ -207,6 +214,8 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None):
 
     model_name = 'grobid-' + model
     model_name += '-'+architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
 
     start_time = time.time()
 
@@ -224,12 +233,14 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', transformer=None, features=None):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', transformer=None, features=None, use_ELMo=False):
     annotations = []
 
     # load model
     model_name = 'grobid-'+model
     model_name += '-'+architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
 
     model = Sequence(model_name)
     model.load()
@@ -258,13 +269,13 @@ if __name__ == "__main__":
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
 
     architectures_word_embeddings = [
-                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
                      ]
 
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
 
     architectures_transformers_based = [
-                    'BERT', 'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
+                    'BERT', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
                      ]
 
     architectures = architectures_word_embeddings + architectures_transformers_based
@@ -276,6 +287,7 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
     parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument(
@@ -320,6 +332,7 @@ if __name__ == "__main__":
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer
+    use_ELMo = args.use_ELMo
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
@@ -333,7 +346,8 @@ if __name__ == "__main__":
             input_path=input_path, 
             output_path=output,
             max_sequence_length=max_sequence_length,
-            batch_size=batch_size)
+            batch_size=batch_size,
+            use_ELMo=use_ELMo)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -354,7 +368,8 @@ if __name__ == "__main__":
                 output_path=output, 
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
-                batch_size=batch_size)
+                batch_size=batch_size,
+                use_ELMo=use_ELMo)
 
     if action == Tasks.TAG:
         someTexts = []
@@ -378,7 +393,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, transformer=transformer)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
