@@ -120,9 +120,9 @@
     "embeddings-contextualized": [
         {
             "name": "elmo-en",
-            "path-config": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
-            "path_weights": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5",
-            "path-vocab": "data/models/ELMo/en/vocab_test.txt",
+            "path-config": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
+            "path_weights": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5",
+            "path-vocab": "data/models/ELMo/en/vocab.txt",
             "path-cache": "data/models/ELMo/en/",
             "cache-training": true,
             "lang": "en",
@@ -131,9 +131,10 @@
         },
         {
             "name": "elmo-fr",
-            "path-config": "/media/lopez/T51/embeddings/elmo_fr_020_options.json",
-            "path_weights": "/media/lopez/T51/embeddings/elmo_fr_020_weights.hdf5",
-            "path-vocab": "data/models/ELMo/fr/vocab_test.txt",
+            "path": "/media/lopez/T51/embeddings/elmo_fr_020/",
+            "path-config": "/media/lopez/T51/embeddings/elmo_fr_020/options.json",
+            "path_weights": "/media/lopez/T51/embeddings/frELMo/weights.hdf5",
+            "path-vocab": "data/models/ELMo/elmo_fr_020/vocab.txt",
             "path-cache": "data/models/ELMo/fr/",
             "cache-training": true,
             "lang": "fr",
