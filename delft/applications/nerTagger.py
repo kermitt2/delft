@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 import argparse
 import time
 
-def configure(architecture, dataset_type, lang, embeddings_name):
+def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
     batch_size = 32
     max_sequence_length = 300
     patience = 5
@@ -34,6 +34,9 @@ def configure(architecture, dataset_type, lang, embeddings_name):
         max_epoch = 50
         recurrent_dropout = 0.5
 
+    #if use_ELMo:
+    #    batch_size = 100
+
     # default bert model parameters
     if architecture.find("BERT") != -1:
         batch_size = 32
@@ -48,7 +51,7 @@ def configure(architecture, dataset_type, lang, embeddings_name):
 # train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False):
 
-    batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
+    batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -163,7 +166,7 @@ def train_eval(embeddings_name=None,
                 data_path=None, 
                 use_ELMo=False): 
 
-    batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name)
+    batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
