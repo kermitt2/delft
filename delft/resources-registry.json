@@ -130,6 +130,17 @@
             "url_weights": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5"
         },
         {
+            "name": "elmo-pubmed",
+            "path-config": "/media/lopez/T51/embeddings/elmo-pubmed/elmo_2x4096_512_2048cnn_2xhighway_options_pubmed.json",
+            "path_weights": "/media/lopez/T51/embeddings/elmo-pubmed/elmo_2x4096_512_2048cnn_2xhighway_weights_PubMed_only.hdf5",
+            "path-vocab": "data/models/ELMo/en/vocab.txt",
+            "path-cache": "data/models/ELMo/en/",
+            "cache-training": true,
+            "lang": "en",
+            "url_config": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/contributed/pubmed/elmo_2x4096_512_2048cnn_2xhighway_options.json",
+            "url_weights": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/contributed/pubmed/elmo_2x4096_512_2048cnn_2xhighway_weights_PubMed_only.hdf5"
+        },
+        {
             "name": "elmo-fr",
             "path": "/media/lopez/T51/embeddings/elmo_fr_020/",
             "path-config": "/media/lopez/T51/embeddings/elmo_fr_020/options.json",

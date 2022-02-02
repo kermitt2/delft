@@ -35,7 +35,8 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
         recurrent_dropout = 0.5
 
     #if use_ELMo:
-    #    batch_size = 100
+    #    # following should be done for predicting if max sequence length permits, it boosts the runtime with ELMo embeddings signicantly
+    #    batch_size = 128
 
     # default bert model parameters
     if architecture.find("BERT") != -1:

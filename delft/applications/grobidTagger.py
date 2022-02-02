@@ -270,6 +270,7 @@ if __name__ == "__main__":
 
     architectures_word_embeddings = [
                      'BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 
+                     'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES', 
                      ]
 
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']

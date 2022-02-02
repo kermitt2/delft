@@ -316,6 +316,8 @@ class Embeddings(object):
             options_file = description["path-config"]
             weight_file = description["path_weights"]
 
+            print("ELMo weights used:", weight_file)
+
             graph = tf.Graph()
             with graph.as_default() as elmo_graph:
                 self.elmo_model = ElmoModel()

@@ -80,6 +80,15 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         config.use_crf = True
         return BidLSTM_CRF_FEATURES(config, ntags)
 
+    elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        return BidLSTM_ChainCRF_FEATURES(config, ntags)
+
     elif config.architecture == BidLSTM_CRF_CASING.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
@@ -640,6 +649,68 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         self.model.summary()
         self.model = CRFModelWrapperDefault(self.model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, 1)])
+        self.model.summary()
+        self.config = config
+
+
+class BidLSTM_ChainCRF_FEATURES(BaseModel):
+    """
+    A Keras implementation of BidLSTM-CRF for sequence labelling using tokens combined with 
+    additional generic discrete features information and with an alternative CRF layer implementation.
+    """
+
+    name = 'BidLSTM_ChainCRF_FEATURES'
+
+    def __init__(self, config, ntags=None):
+
+        # build input, directly feed with word embedding by the data generator
+        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                    output_dim=config.char_embedding_size,
+                                    mask_zero=False,
+                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
+                                    name='char_embeddings'
+                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
+                                                   return_sequences=False)))(char_embeddings)
+
+        # layout features input and embeddings
+        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
+
+        # The input dimension is calculated by
+        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
+        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
+                                       output_dim=config.features_embedding_size,
+                                       # mask_zero=True,
+                                       trainable=False,
+                                       name='features_embedding'), name="features_embedding_td")(features_input)
+
+        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
+                                                 name="features_embedding_td_2")(features_embedding)
+
+        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
+
+        # length of sequence not used by the model, but used by the training scorer
+        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+
+        # combine characters and word embeddings
+        x = Concatenate()([word_input, chars, features_embedding_out])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        x = Dense(ntags)(x)
+        self.crf = ChainCRF()
+        pred = self.crf(x)
+
+        self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
         self.model.summary()
         self.config = config
 
