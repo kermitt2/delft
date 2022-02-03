@@ -1,25 +1,14 @@
 import os
 
 import numpy as np
+import tensorflow as tf
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
-
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import Callback, TensorBoard, EarlyStopping, ModelCheckpoint
-from tensorflow.keras.utils import plot_model
-
-from delft.sequenceLabelling.evaluation import accuracy_score, get_report, compute_metrics
-from delft.sequenceLabelling.evaluation import classification_report
-from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+from transformers import create_optimizer
 
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
+from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
+from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
-from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault, InnerLossPusher
-
-import numpy as np
-import tensorflow as tf
-import tensorflow_addons
-
-from transformers import create_optimizer
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -73,7 +62,7 @@ class Trainer(object):
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
         
         if self.model_config.transformer != None:
-            # we use a trasnformer layer in the architecture
+            # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
                 init_lr=2e-5, 
                 num_train_steps=nb_train_steps,

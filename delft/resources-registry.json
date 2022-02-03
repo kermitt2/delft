@@ -102,11 +102,16 @@
             "url": "https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip"
         },
         {
-            "name": "allenai/scibert_scivocab_cased",
-            "model_dir": "/media/lopez/T51/embeddings/scibert_scivocab_cased",
-            "path-config": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_config.json",
-            "path-weights": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_model.ckpt",
-            "path-vocab": "/media/lopez/T51/embeddings/scibert_scivocab_cased/vocab.txt",
+            "name": "allenai/scibert_scivocab_cased2",
+            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased",
+            "path-config": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/bert_config.json",
+            "path-weights": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/bert_model.ckpt",
+            "path-vocab": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/vocab.txt",
+            "lang": "en"
+        },
+        {
+            "name": "portiz/matbert",
+            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matbert",
             "lang": "en"
         },
         {

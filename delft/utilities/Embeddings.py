@@ -52,18 +52,19 @@ ELMo_embed_size = 1024
 class Embeddings(object):
 
     def __init__(self, name, 
-        path='delft/resources-registry.json', 
+        resource_registry=None,
         lang='en', 
         extension='vec', 
         use_ELMo=False, 
         use_cache=True,
         load=True):
+        
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
         self.vocab_size = 0
         self.model = {}
-        self.registry = self._load_embedding_registry(path)
+        self.registry = resource_registry
         self.lang = lang
         self.extension = extension
         self.embedding_lmdb_path = None
@@ -95,15 +96,6 @@ class Embeddings(object):
     def __getattr__(self, name):
         return getattr(self.model, name)
 
-    def _load_embedding_registry(self, path='delft/resources-registry.json'):
-        """
-        Load the description of available embeddings. Each description provides a name, 
-        a file path (used only if necessary) and a embeddings type (to take into account
-        small variation of format)
-        """
-        registry_json = open(path).read()
-        return json.loads(registry_json)
-
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
         print('loading embeddings...')
@@ -120,8 +112,7 @@ class Embeddings(object):
             else:
                 with open(embeddings_path, encoding='utf8') as f:
                     for line in f:
-                        line = line.strip()
-                        line = line.split(' ')
+                        line = line.strip().split(' ')
                         if begin:
                             begin = False
                             nb_words, embed_size = _fetch_header_if_available(line)

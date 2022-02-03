@@ -5,12 +5,11 @@ from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
+from transformers import TFAutoModel, AutoConfig
 
-import tensorflow_addons as tfa
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME
 from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
-
-from transformers import AutoConfig, TFAutoModel
 
 from delft.utilities.crf_layer import ChainCRF
 from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
@@ -22,8 +21,6 @@ Each model is a class implementing a Keras architecture.
 The class can also define the data generator class object to be used, the loss function,
 the metrics and the optimizer.
 """
-
-TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 
 def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
     """

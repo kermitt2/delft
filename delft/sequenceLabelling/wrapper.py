@@ -1,7 +1,9 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+from delft.utilities.Transformer import Transformer
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from itertools import islice
@@ -9,7 +11,6 @@ import time
 import json
 import re
 import math
-import shutil
 
 import numpy as np
 
@@ -46,12 +47,9 @@ from delft.sequenceLabelling.trainer import Scorer
 from delft.sequenceLabelling.evaluation import get_report
 
 from delft.utilities.Embeddings import Embeddings
-from delft.utilities.Utilities import merge_folders
 from delft.utilities.numpy import concatenate_or_none
 
-from delft.sequenceLabelling.evaluation import accuracy_score
 from delft.sequenceLabelling.evaluation import classification_report
-from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
@@ -88,14 +86,14 @@ class Sequence(object):
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 transformer=None):
+                 transformer_name=None):
         if model_name == None:
             # add a dummy name based on the architecture
             model_name = architecture
             if embeddings_name != None:
                 model_name += "_" + embeddings_name
-            if transformer != None:
-                model_name += "_" + transformer
+            if transformer_name != None:
+                model_name += "_" + transformer_name
 
         self.model = None
         self.models = None
@@ -105,20 +103,25 @@ class Sequence(object):
 
         word_emb_size = 0
         self.embeddings = None
+        self.model_local_path = None
 
         # if transformer is None, no bert layer is present in the model
-        self.transformer = transformer
-        if self.transformer is not None:
-            # TBD: use local first
-            tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
-                                                max_length=max_sequence_length, add_prefix_space=True)
-            print(self.transformer, "will be used")
-            self.bert_preprocessor = BERTPreprocessor(tokenizer)
+        self.transformer = None
+
+        self.registry = Sequence.load_resource_registry("delft/resources-registry.json")
+
+        if transformer_name is not None:
+            self.transformer = Transformer(resource_registry=self.registry)
+            # LF: not sure if to load everything in the constructor...
+            self.transformer.load(transformer_name, max_sequence_length)
+            print(transformer_name, "will be used")
+            self.bert_preprocessor = BERTPreprocessor(self.transformer.get_tokenizer())
+            self.model_local_path = self.transformer.get_model_local_path()
         else:
             self.bert_preprocessor = None
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, use_ELMo=use_ELMo) 
+            self.embeddings = Embeddings(self.embeddings_name, self.registry, use_ELMo=use_ELMo)
             word_emb_size = self.embeddings.embed_size 
         else:
             self.embeddings = None
@@ -205,8 +208,8 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          bert_preprocessor=self.bert_preprocessor
-                          )
+                          bert_preprocessor=self.bert_preprocessor)
+
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
@@ -218,7 +221,7 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-        if self.transformer == None:
+        if self.transformer is None:
             # we can use a data generator for evaluation
             if self.model:
                 # Prepare test data(steps, generator)
@@ -570,6 +573,16 @@ class Sequence(object):
                                local_path=os.path.join(dir_path, self.model_config.model_name))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
+
+    @classmethod
+    def load_resource_registry(self, path='delft/resources-registry.json'):
+        """
+        Load the resource registry file in memory. Each description provides a name,
+        a file path (used only if necessary) and an embeddings type (to take into account
+        small variation of format)
+        """
+        registry_json = open(path).read()
+        return json.loads(registry_json)
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]
