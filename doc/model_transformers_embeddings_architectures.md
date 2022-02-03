@@ -1,5 +1,13 @@
 # Models, Embeddings and Transformers
 
+Two main phases: 
+ - train, train_eval: the original transformer data needs to be loaded to initialise the weights in the layers
+ - eval, tag: the DeLFT model and tokenizer is loaded from the DeLFT directory  
+
+
+## Train/Train_eval
+
+### Loading sources 
 
 | Transformer                    | description                               | registry?                                                   | huggingface? | Loading method                                   |  
 |--------------------------------|-------------------------------------------|-------------------------------------------------------------|--------------|--------------------------------------------------|
