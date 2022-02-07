@@ -2830,8 +2830,247 @@ all (micro avg.)     0.8558    0.8789    0.8672
 
 
 
-header
-======
+> python3 delft/applications/grobidTagger.py affiliation-address train_eval --architecture BidLSTM_ChainCRF_FEATURES --embedding glove-840B --use-ELMo --input data/sequenceLabelling/grobid/affiliation-address/affiliation-address-060518.train --fold-count 10
+
+training runtime: 6800.839 seconds 
+
+Evaluation:
+
+------------------------ fold 0 --------------------------------------
+  f1 (micro): 87.20
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7869    0.7742    0.7805        62
+       <country>     0.9632    0.9937    0.9782       158
+    <department>     0.7811    0.7857    0.7834       168
+   <institution>     0.8127    0.8465    0.8293       241
+    <laboratory>     0.6286    0.6286    0.6286        35
+        <marker>     0.9592    0.9895    0.9741        95
+       <postBox>     0.4444    0.6667    0.5333         6
+      <postCode>     0.9076    0.9391    0.9231       115
+        <region>     0.9091    0.8929    0.9009        56
+    <settlement>     0.9072    0.9167    0.9119       192
+
+all (micro avg.)     0.8622    0.8821    0.8720      1128
+
+
+------------------------ fold 1 --------------------------------------
+  f1 (micro): 86.69
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7500    0.7742    0.7619        62
+       <country>     0.9634    1.0000    0.9814       158
+    <department>     0.7740    0.8155    0.7942       168
+   <institution>     0.7814    0.8008    0.7910       241
+    <laboratory>     0.6286    0.6286    0.6286        35
+        <marker>     0.9789    0.9789    0.9789        95
+       <postBox>     0.5714    0.6667    0.6154         6
+      <postCode>     0.9153    0.9391    0.9270       115
+        <region>     0.9091    0.8929    0.9009        56
+    <settlement>     0.9124    0.9219    0.9171       192
+
+all (micro avg.)     0.8564    0.8777    0.8669      1128
+
+
+------------------------ fold 2 --------------------------------------
+  f1 (micro): 86.95
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7869    0.7742    0.7805        62
+       <country>     0.9634    1.0000    0.9814       158
+    <department>     0.7208    0.8452    0.7781       168
+   <institution>     0.8217    0.7842    0.8025       241
+    <laboratory>     0.6562    0.6000    0.6269        35
+        <marker>     0.9495    0.9895    0.9691        95
+       <postBox>     0.7143    0.8333    0.7692         6
+      <postCode>     0.9322    0.9565    0.9442       115
+        <region>     0.8421    0.8571    0.8496        56
+    <settlement>     0.9319    0.9271    0.9295       192
+
+all (micro avg.)     0.8590    0.8803    0.8695      1128
+
+
+------------------------ fold 3 --------------------------------------
+  f1 (micro): 87.78
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.8033    0.7903    0.7967        62
+       <country>     0.9630    0.9873    0.9750       158
+    <department>     0.8012    0.7917    0.7964       168
+   <institution>     0.8024    0.8423    0.8219       241
+    <laboratory>     0.6389    0.6571    0.6479        35
+        <marker>     0.9596    1.0000    0.9794        95
+       <postBox>     0.5714    0.6667    0.6154         6
+      <postCode>     0.9237    0.9478    0.9356       115
+        <region>     0.9091    0.8929    0.9009        56
+    <settlement>     0.9091    0.9375    0.9231       192
+
+all (micro avg.)     0.8675    0.8883    0.8778      1128
+
+
+------------------------ fold 4 --------------------------------------
+  f1 (micro): 88.01
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.8033    0.7903    0.7967        62
+       <country>     0.9634    1.0000    0.9814       158
+    <department>     0.7988    0.8036    0.8012       168
+   <institution>     0.8320    0.8423    0.8371       241
+    <laboratory>     0.6389    0.6571    0.6479        35
+        <marker>     0.9691    0.9895    0.9792        95
+       <postBox>     0.5556    0.8333    0.6667         6
+      <postCode>     0.9083    0.9478    0.9277       115
+        <region>     0.8727    0.8571    0.8649        56
+    <settlement>     0.9175    0.9271    0.9223       192
+
+all (micro avg.)     0.8721    0.8883    0.8801      1128
+
+
+------------------------ fold 5 --------------------------------------
+  f1 (micro): 87.13
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7619    0.7742    0.7680        62
+       <country>     0.9458    0.9937    0.9691       158
+    <department>     0.7892    0.7798    0.7844       168
+   <institution>     0.7962    0.8589    0.8263       241
+    <laboratory>     0.6562    0.6000    0.6269        35
+        <marker>     0.9592    0.9895    0.9741        95
+       <postBox>     0.5714    0.6667    0.6154         6
+      <postCode>     0.9083    0.9478    0.9277       115
+        <region>     0.8621    0.8929    0.8772        56
+    <settlement>     0.9128    0.9271    0.9199       192
+
+all (micro avg.)     0.8575    0.8856    0.8713      1128
+
+
+------------------------ fold 6 --------------------------------------
+  f1 (micro): 87.48
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7101    0.7903    0.7481        62
+       <country>     0.9693    1.0000    0.9844       158
+    <department>     0.7709    0.8214    0.7954       168
+   <institution>     0.8361    0.8465    0.8412       241
+    <laboratory>     0.6207    0.5143    0.5625        35
+        <marker>     0.9495    0.9895    0.9691        95
+       <postBox>     0.6667    0.6667    0.6667         6
+      <postCode>     0.9052    0.9130    0.9091       115
+        <region>     0.9107    0.9107    0.9107        56
+    <settlement>     0.9309    0.9115    0.9211       192
+
+all (micro avg.)     0.8668    0.8830    0.8748      1128
+
+
+------------------------ fold 7 --------------------------------------
+  f1 (micro): 87.10
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.6957    0.7742    0.7328        62
+       <country>     0.9573    0.9937    0.9752       158
+    <department>     0.7798    0.7798    0.7798       168
+   <institution>     0.8101    0.8672    0.8377       241
+    <laboratory>     0.6176    0.6000    0.6087        35
+        <marker>     0.9691    0.9895    0.9792        95
+       <postBox>     0.5714    0.6667    0.6154         6
+      <postCode>     0.9231    0.9391    0.9310       115
+        <region>     0.8727    0.8571    0.8649        56
+    <settlement>     0.9086    0.9323    0.9203       192
+
+all (micro avg.)     0.8568    0.8856    0.8710      1128
+
+
+------------------------ fold 8 --------------------------------------
+  f1 (micro): 87.61
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7705    0.7581    0.7642        62
+       <country>     0.9753    1.0000    0.9875       158
+    <department>     0.7898    0.8274    0.8081       168
+   <institution>     0.8000    0.8299    0.8147       241
+    <laboratory>     0.7600    0.5429    0.6333        35
+        <marker>     0.9495    0.9895    0.9691        95
+       <postBox>     0.5556    0.8333    0.6667         6
+      <postCode>     0.9310    0.9391    0.9351       115
+        <region>     0.9091    0.8929    0.9009        56
+    <settlement>     0.9077    0.9219    0.9147       192
+
+all (micro avg.)     0.8685    0.8839    0.8761      1128
+
+
+------------------------ fold 9 --------------------------------------
+  f1 (micro): 87.48
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7656    0.7903    0.7778        62
+       <country>     0.9632    0.9937    0.9782       158
+    <department>     0.7917    0.7917    0.7917       168
+   <institution>     0.8347    0.8382    0.8364       241
+    <laboratory>     0.5952    0.7143    0.6494        35
+        <marker>     0.9691    0.9895    0.9792        95
+       <postBox>     0.7143    0.8333    0.7692         6
+      <postCode>     0.9310    0.9391    0.9351       115
+        <region>     0.8727    0.8571    0.8649        56
+    <settlement>     0.8974    0.9115    0.9044       192
+
+all (micro avg.)     0.8668    0.8830    0.8748      1128
+
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 1
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7500    0.7742    0.7619        62
+       <country>     0.9634    1.0000    0.9814       158
+    <department>     0.7740    0.8155    0.7942       168
+   <institution>     0.7814    0.8008    0.7910       241
+    <laboratory>     0.6286    0.6286    0.6286        35
+        <marker>     0.9789    0.9789    0.9789        95
+       <postBox>     0.5714    0.6667    0.6154         6
+      <postCode>     0.9153    0.9391    0.9270       115
+        <region>     0.9091    0.8929    0.9009        56
+    <settlement>     0.9124    0.9219    0.9171       192
+
+all (micro avg.)     0.8564    0.8777    0.8669      1128
+
+
+** Best ** model scores - run 4
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.8033    0.7903    0.7967        62
+       <country>     0.9634    1.0000    0.9814       158
+    <department>     0.7988    0.8036    0.8012       168
+   <institution>     0.8320    0.8423    0.8371       241
+    <laboratory>     0.6389    0.6571    0.6479        35
+        <marker>     0.9691    0.9895    0.9792        95
+       <postBox>     0.5556    0.8333    0.6667         6
+      <postCode>     0.9083    0.9478    0.9277       115
+        <region>     0.8727    0.8571    0.8649        56
+    <settlement>     0.9175    0.9271    0.9223       192
+
+all (micro avg.)     0.8721    0.8883    0.8801      1128
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+      <addrLine>     0.7634    0.7790    0.7707        62
+       <country>     0.9627    0.9962    0.9792       158
+    <department>     0.7797    0.8042    0.7913       168
+   <institution>     0.8127    0.8357    0.8238       241
+    <laboratory>     0.6441    0.6143    0.6261        35
+        <marker>     0.9613    0.9895    0.9751        95
+       <postBox>     0.5937    0.7333    0.6533         6
+      <postCode>     0.9186    0.9409    0.9296       115
+        <region>     0.8869    0.8804    0.8836        56
+    <settlement>     0.9136    0.9234    0.9184       192
+
+all (micro avg.)     0.8634    0.8838    0.8734  
+
+
+header model
+============
 
 > python3 delft/applications/grobidTagger.py header train_eval --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased --input data/sequenceLabelling/grobid/header/header-050721.train --fold-count 10
 
@@ -3173,7 +3412,7 @@ all (micro avg.)     0.7561    0.8335    0.7929       781
 loading model weights data/models/sequenceLabelling/grobid-header-BERT_CRF/model_weights7.hdf5
 ----------------------------------------------------------------------
 
-Average over 2 folds
+Average over 10 folds
                   precision    recall  f1-score   support
 
       <abstract>     0.7423    0.8365    0.7862        63
@@ -3234,19 +3473,6 @@ all (micro avg.)     0.7629    0.8323    0.7961       781
 
 
 ------------------------ fold 1 --------------------------------------
-__________________________________________________________________________________________________
-Model: "crf_model_wrapper_for_bert_11"
-_________________________________________________________________
- Layer (type)                Output Shape              Param #   
-=================================================================
- crf_11 (CRF)                multiple                  5358      
-                                                                 
- model_11 (Functional)       (None, None, 100)         110661480 
-                                                                 
-=================================================================
-Total params: 110,666,838
-Trainable params: 110,665,778
-Non-trainable params: 1,060
 _________________________________________________________________
 loading model weights data/models/sequenceLabelling/grobid-header-BERT_CRF_FEATURES/model_weights1.hdf5
   f1 (micro): 76.72
@@ -3551,7 +3777,7 @@ all (micro avg.)     0.7629    0.8323    0.7961       781
 loading model weights data/models/sequenceLabelling/grobid-header-BERT_CRF_FEATURES/model_weights0.hdf5
 ----------------------------------------------------------------------
 
-Average over 2 folds
+Average over 10 folds
                   precision    recall  f1-score   support
 
       <abstract>     0.7358    0.8556    0.7908        63
@@ -3574,3 +3800,5 @@ Average over 2 folds
            <web>     0.6667    0.8000    0.7200         2
 
 all (micro avg.)     0.7457    0.8164    0.7794    
+
+

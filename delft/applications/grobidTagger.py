@@ -64,6 +64,8 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         elif model == 'header':
             max_sequence_length = 3000
             batch_size = 10
+            if use_ELMo:
+                max_sequence_length = 1500
         elif model == 'date':
             max_sequence_length = 50
             batch_size = 60
