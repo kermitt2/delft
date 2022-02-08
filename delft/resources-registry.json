@@ -103,7 +103,6 @@
         },
         {
             "name": "allenai/scibert_scivocab_cased2",
-            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased",
             "path-config": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/bert_config.json",
             "path-weights": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/bert_model.ckpt",
             "path-vocab": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/vocab.txt",
