@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.Transformer import Transformer
+from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -36,7 +36,6 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
 from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME 
 from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
-from delft.sequenceLabelling.models import TRANSFORMER_CONFIG_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
@@ -113,7 +112,7 @@ class Sequence(object):
         if transformer_name is not None:
             self.transformer = Transformer(resource_registry=self.registry)
             # LF: not sure if to load everything in the constructor...
-            self.transformer.load(transformer_name, max_sequence_length)
+            self.transformer.load_tokenizer(transformer_name, max_sequence_length)
             print(transformer_name, "will be used")
             self.bert_preprocessor = BERTPreprocessor(self.transformer.get_tokenizer())
             self.model_local_path = self.transformer.get_model_local_path()
@@ -173,7 +172,8 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
+        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True,
+                               transformer=self.transformer)
         trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,

@@ -1,13 +1,10 @@
-import os
-
 from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
-from transformers import TFAutoModel, AutoConfig
 
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME
+from delft.utilities.Transformer import Transformer
 from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
 
@@ -22,7 +19,7 @@ The class can also define the data generator class object to be used, the loss f
 the metrics and the optimizer.
 """
 
-def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
+def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None, transformer: Transformer =None):
     """
     Return a model instance by its name. This is a facilitator function. 
     """
@@ -100,7 +97,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT(config, 
                     ntags, 
                     load_pretrained_weights=load_pretrained_weights, 
-                    local_path=local_path)
+                    local_path=local_path, transformer=transformer)
 
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
@@ -109,7 +106,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF(config, 
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path)
+                        local_path=local_path, transformer=transformer)
 
     elif config.architecture == BERT_ChainCRF.name:
         preprocessor.return_bert_embeddings = True
@@ -119,7 +116,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_ChainCRF(config, 
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path)
+                        local_path=local_path, transformer=transformer)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -129,7 +126,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_FEATURES(config, 
                                 ntags, 
                                 load_pretrained_weights=load_pretrained_weights, 
-                                local_path=local_path)
+                                local_path=local_path, transformer=transformer)
 
     elif config.architecture == BERT_CRF_CHAR.name:
         preprocessor.return_bert_embeddings = True
@@ -139,7 +136,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_CHAR(config, 
                             ntags,      
                             load_pretrained_weights=load_pretrained_weights, 
-                            local_path=local_path)
+                            local_path=local_path, transformer=transformer)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -150,7 +147,7 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_CHAR_FEATURES(config, 
                                     ntags, 
                                     load_pretrained_weights=load_pretrained_weights, 
-                                    local_path=local_path)
+                                    local_path=local_path, transformer=transformer)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
@@ -206,24 +203,6 @@ class BaseModel(object):
     def get_transformer_config(self):
         # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
         return None
-
-    def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
-        if load_pretrained_weights:
-            if local_path is None:
-                transformer_model = TFAutoModel.from_pretrained(transformer_model_name, from_pt=True)
-            else:
-                transformer_model = TFAutoModel.from_pretrained(local_path, from_pt=True)
-            self.bert_config = transformer_model.config
-        else:
-            # load config in JSON format
-            if local_path is None:
-                self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
-            else:
-                config_path = os.path.join(".", local_path, TRANSFORMER_CONFIG_FILE_NAME)
-                self.bert_config = AutoConfig.from_pretrained(config_path)
-            transformer_model = TFAutoModel.from_config(self.bert_config)
-        return transformer_model
-
 
 class BidLSTM(BaseModel):
     """
@@ -661,6 +640,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
     def __init__(self, config, ntags=None):
 
         # build input, directly feed with word embedding by the data generator
+        super().__init__(config, ntags)
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
 
         # build character based embedding
@@ -729,10 +709,12 @@ class BERT(BaseModel):
     name = 'BERT'
     bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path=None,
+                 transformer: Transformer = None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
         transformer_model_name = config.transformer
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+        transformer_model = transformer.instantiate_layer(transformer_model_name,
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
@@ -768,11 +750,11 @@ class BERT_CRF(BaseModel):
     name = 'BERT_CRF'
     bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None, transformer: Transformer =None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
         transformer_model_name = config.transformer
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+        transformer_model = transformer.instantiate_layer(transformer_model_name,
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
@@ -855,10 +837,11 @@ class BERT_CRF_FEATURES(BaseModel):
     name = 'BERT_CRF_FEATURES'
     bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None, transformer: Transformer =None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
         transformer_model_name = config.transformer
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
+        transformer_model = self.instanciate_transformer_layer(transformer_model_name,
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
 
@@ -923,7 +906,7 @@ class BERT_CRF_CHAR(BaseModel):
     name = 'BERT_CRF_CHAR'
     bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None, transformer: Transformer =None):
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
@@ -989,7 +972,9 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
     name = 'BERT_CRF_CHAR_FEATURES'
     bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None,
+                 transformer: Transformer = None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
         transformer_model_name = config.transformer
 
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
