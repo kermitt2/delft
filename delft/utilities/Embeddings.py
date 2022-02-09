@@ -1,25 +1,24 @@
 # Manage pre-trained embeddings 
-
-from tensorflow.keras.preprocessing import text, sequence
-import numpy as np
-import sys
+import gzip
+import hashlib
+import io
+import logging
+import mmap
 import os
 import os.path
-import json
-import lmdb
-import io
-import zipfile
-import gzip
-import shutil
 import pickle
-import hashlib, struct
-from tqdm import tqdm
-import mmap
-import codecs
+import shutil
+import struct
+import sys
+import zipfile
+
+import lmdb
+import numpy as np
 import tensorflow as tf
+from tqdm import tqdm
 
 from delft.utilities.simple_elmo import ElmoModel, elmo
-import logging
+
 logging.basicConfig()
 logging.getLogger().setLevel(logging.ERROR)
 
@@ -30,7 +29,6 @@ try:
 except ImportError as e:
     fasttext_support = False
 
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import download_file
 
 # for ELMo embeddings
@@ -44,21 +42,21 @@ from delft.utilities.Utilities import download_file
 # this is the default init size of a lmdb database for embeddings
 # based on https://github.com/kermitt2/nerd/blob/master/src/main/java/com/scienceminer/nerd/kb/db/KBDatabase.java
 # and https://github.com/kermitt2/nerd/blob/0.0.3/src/main/java/com/scienceminer/nerd/kb/db/KBDatabaseFactory.java#L368
-map_size = 100 * 1024 * 1024 * 1024 
+map_size = 100 * 1024 * 1024 * 1024
 
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
 
 class Embeddings(object):
 
-    def __init__(self, name, 
+    def __init__(self, name,
         resource_registry=None,
-        lang='en', 
-        extension='vec', 
-        use_ELMo=False, 
+        lang='en',
+        extension='vec',
+        use_ELMo=False,
         use_cache=True,
         load=True):
-        
+
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
@@ -68,7 +66,7 @@ class Embeddings(object):
         self.lang = lang
         self.extension = extension
         self.embedding_lmdb_path = None
-        if self.registry is not None:
+        if self.registry is not None and "embedding-lmdb-path" in self.registry:
             self.embedding_lmdb_path = self.registry["embedding-lmdb-path"]
         self.env = None
         if load:
@@ -192,7 +190,7 @@ class Embeddings(object):
                     vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
                 else:
                     vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
-            
+
                 #vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
             except:
                 print(len(line))
@@ -202,8 +200,8 @@ class Embeddings(object):
             if self.embed_size == 0:
                 self.embed_size = len(vector)
 
-            if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():   
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))  
+            if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
+                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
                 #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
                 i += 1
 
@@ -215,7 +213,7 @@ class Embeddings(object):
         embedding_file.close()
 
         #if i % batch_size != 0:
-        txn.commit()   
+        txn.commit()
         if nbWords == 0:
             nbWords = i
         self.vocab_size = nbWords
@@ -240,7 +238,7 @@ class Embeddings(object):
             self.extension = description["format"]
 
         if self.extension == "bin":
-            if fasttext_support == True:
+            if fasttext_support:
                 print("embeddings are of .bin format, so they will be loaded in memory...")
                 self.make_embeddings_simple_in_memory(name)
             else:
@@ -251,8 +249,16 @@ class Embeddings(object):
 
         elif self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
             print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
+            embeddings_path = None
+            if "path" in description:
+                embeddings_path = description["path"]
+            self.lang = description["lang"]
+            if embeddings_path is None or not os.path.isfile(embeddings_path):
+                raise ValueError("Embedding path for", description['name'], "is not valid", embeddings_path)
+
             self.make_embeddings_simple_in_memory(name)
-        else:    
+
+        else:
             # if the path to the lmdb database files does not exist, we create it
             if not os.path.isdir(self.embedding_lmdb_path):
                 # conservative check (likely very useless)
@@ -294,7 +300,7 @@ class Embeddings(object):
                         self.env.close()
                         self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
 
-            if load_db: 
+            if load_db:
                 # create and load the database in write mode
                 self.env = lmdb.open(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name)
@@ -312,11 +318,11 @@ class Embeddings(object):
             graph = tf.Graph()
             with graph.as_default() as elmo_graph:
                 self.elmo_model = ElmoModel()
-                self.elmo_model.load(vocab_file=vocab_file, 
-                                    options_file=options_file, 
+                self.elmo_model.load(vocab_file=vocab_file,
+                                    options_file=options_file,
                                     weight_file=weight_file,
-                                    max_batch_size=128, 
-                                    limit=50, 
+                                    max_batch_size=128,
+                                    limit=50,
                                     full=False)
 
             # initialize session for reuse
@@ -348,7 +354,7 @@ class Embeddings(object):
         if self.env is None or self.extension == 'bin':
             # db not available or embeddings in bin format, the embeddings should be available in memory (normally!)
             return self.get_word_vector_in_memory(word)
-        try:    
+        try:
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
@@ -387,9 +393,9 @@ class Embeddings(object):
     def get_embedding_path(self, description):
         embeddings_path = None
         if "path" in description:
-            embeddings_path = description["path"]    
+            embeddings_path = description["path"]
         self.lang = description["lang"]
-        
+
         if embeddings_path is None or not os.path.isfile(embeddings_path):
             print("error: embedding path for", description['name'], "is not valid", embeddings_path)
             if "url" in description and len(description["url"])>0:
@@ -431,7 +437,7 @@ class Embeddings(object):
 
         # cache computation if cache enabled
         self.cache_ELMo_lmdb_vector(token_list, elmo_result)
-        
+
         return elmo_result
 
     def get_sentence_vector_with_ELMo(self, token_list):
@@ -446,13 +452,13 @@ class Embeddings(object):
         local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
         max_size_sentence = local_token_ids[0].shape[0]
 
-        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence) 
+        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
         if elmo_result is None:
             elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
 
             # cache computation if cache enabled
             self.cache_ELMo_lmdb_vector(token_list, elmo_result)
-        
+
         concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
         for i in range(0, len(token_list)):
             for j in range(0, len(token_list[i])):
@@ -466,7 +472,7 @@ class Embeddings(object):
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
             return None
-        try:    
+        try:
             ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
             with self.env_ELMo.begin() as txn:
                 for i in range(0, len(token_list)):
@@ -510,7 +516,7 @@ class Embeddings(object):
         for i in range(0, len(token_list)):
             # get a hash for the token_list
             the_hash = list_digest(token_list[i])
-            txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))  
+            txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))
         txn.commit()
 
     def clean_ELMo_cache(self):
@@ -520,10 +526,10 @@ class Embeddings(object):
         if self.env_ELMo is None:
             # db cache not available, nothing to clean
             return
-        else: 
+        else:
             self.env_ELMo.close()
             self.env_ELMo = None
-            for file in os.listdir(self.embedding_ELMo_cache): 
+            for file in os.listdir(self.embedding_ELMo_cache):
                 file_path = os.path.join(self.embedding_ELMo_cache, file)
                 if os.path.isfile(file_path):
                     os.remove(file_path)
@@ -581,7 +587,7 @@ def list_digest(strings):
     return hash.hexdigest()
 
 def is_int(s):
-    try: 
+    try:
         int(s)
         return True
     except ValueError:

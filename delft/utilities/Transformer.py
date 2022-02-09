@@ -1,5 +1,5 @@
 import os
-from ctypes import Union
+from typing import Union
 
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
