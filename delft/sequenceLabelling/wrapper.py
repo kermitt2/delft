@@ -86,6 +86,7 @@ class Sequence(object):
                  multiprocessing=True,
                  features_indices=None,
                  transformer_name=None):
+
         if model_name == None:
             # add a dummy name based on the architecture
             model_name = architecture
@@ -110,12 +111,11 @@ class Sequence(object):
         self.registry = Sequence.load_resource_registry("delft/resources-registry.json")
 
         if transformer_name is not None:
-            self.transformer = Transformer(resource_registry=self.registry)
+            self.transformer = Transformer(transformer_name, resource_registry=self.registry)
             # LF: not sure if to load everything in the constructor...
-            self.transformer.load_tokenizer(transformer_name, max_sequence_length)
-            print(transformer_name, "will be used")
-            self.bert_preprocessor = BERTPreprocessor(self.transformer.get_tokenizer())
-            self.model_local_path = self.transformer.get_model_local_path()
+            tokenizer = self.transformer.load_tokenizer(max_sequence_length)
+            print(transformer_name, "will be used: ", self.transformer.loading_method)
+            self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None
 

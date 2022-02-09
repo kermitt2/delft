@@ -102,10 +102,22 @@
             "url": "https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip"
         },
         {
-            "name": "allenai/scibert_scivocab_cased2",
+            "name": "allenai/scibert_scivocab_cased_plain/tf",
             "path-config": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/bert_config.json",
             "path-weights": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/bert_model.ckpt",
             "path-vocab": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased/vocab.txt",
+            "lang": "en"
+        },
+        {
+            "name": "allenai/scibert_scivocab_cased_plain/torch",
+            "path-config": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_pt/config.json",
+            "path-weights": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_pt/pytorch_model.bin",
+            "path-vocab": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_pt/vocab.txt",
+            "lang": "en"
+        },
+        {
+            "name": "allenai/scibert_scivocab_cased_dir/torch",
+            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_pt",
             "lang": "en"
         },
         {
