@@ -4,8 +4,6 @@ import logging
 import random
 from typing import List
 import numpy as np
-from smart_open import open
-
 
 class Vocabulary(object):
     """
@@ -28,7 +26,9 @@ class Vocabulary(object):
         self._eos = -1
 
         if filename:
-            vocab_source = open(filename, 'r')  # Loading vocabulary from file
+            # Loading vocabulary from file
+            with open(filename, 'r') as file_vocab:
+                vocab_source = file_vocab.readlines()
         else:
             logging.info("No vocabulary file provided; using special tokens only.")
             vocab_source = ["<S>", "</S>", "<UNK>"]  # Creating a toy vocabulary ourselves
