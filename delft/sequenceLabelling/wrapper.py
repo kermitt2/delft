@@ -85,14 +85,14 @@ class Sequence(object):
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 transformer_name=None):
+                 transformer_name: str=None):
 
         if model_name == None:
             # add a dummy name based on the architecture
             model_name = architecture
-            if embeddings_name != None:
+            if embeddings_name is not None:
                 model_name += "_" + embeddings_name
-            if transformer_name != None:
+            if transformer_name is not None:
                 model_name += "_" + transformer_name
 
         self.model = None

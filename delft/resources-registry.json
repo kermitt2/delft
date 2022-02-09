@@ -4,7 +4,7 @@
     "embeddings": [
         {
             "name": "glove-840B",
-            "path": "/media/lopez/T5/embeddings/glove.840B.300d.txt",
+            "path": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/glove/glove.840B.300d.txt",
             "type": "glove",
             "format": "vec", 
             "lang": "en",
@@ -123,6 +123,11 @@
         {
             "name": "portiz/matbert",
             "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matbert",
+            "lang": "en"
+        },
+        {
+            "name": "m3s-iitd/matscibert/local",
+            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matscibert",
             "lang": "en"
         },
         {

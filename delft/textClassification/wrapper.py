@@ -1,7 +1,9 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3' 
+from delft.sequenceLabelling import Sequence
+
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 import numpy as np
@@ -36,10 +38,9 @@ from delft.textClassification.models import TRANSFORMER_CONFIG_FILE_NAME
 
 from delft.utilities.Embeddings import Embeddings
 
-from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_score, precision_recall_fscore_support
+from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
 
-from tensorflow.keras.utils import plot_model
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
 from transformers import AutoTokenizer
@@ -73,14 +74,15 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
-                 transformer=None):
+                 transformer_name: str=None):
+
         if model_name == None:
             # add a dummy name based on the architecture
             model_name = architecture
-            if embeddings_name != None:
+            if embeddings_name is not None:
                 model_name += "_" + embeddings_name
-            if transformer != None:
-                model_name += "_" + transformer
+            if transformer_name is not None:
+                model_name += "_" + transformer_name
 
         self.model = None
         self.models = None
@@ -90,11 +92,13 @@ class Classifier(object):
         self.tokenizer = None
 
         # if transformer is None, no bert layer is present in the model
-        self.transformer = transformer
+        self.transformer = None
         self.transformer_config = None
 
+        self.registry = Sequence.load_resource_registry("delft/resources-registry.json")
+
         word_emb_size = 0
-        if self.transformer is not None:
+        if transformer_name is not None:
             self.tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
                                                 max_length=maxlen, add_prefix_space=True)
             self.embeddings_name == None
