@@ -25,7 +25,7 @@ class Transformer(object):
                  tokenizer: AutoTokenizer = None):
         self.transformer_config = None
         self.loading_method = None
-        self.registry = resource_registry
+        # self.registry = resource_registry
         self.tokenizer = None
         self.model = None
 
@@ -37,9 +37,6 @@ class Transformer(object):
         self.local_config_file = None
         self.local_vocab_file = None
 
-        self.config_file = None
-        self.vocab_file = None
-        self.weight_file = None
         self.name = name
 
         if config_file:
@@ -50,9 +47,9 @@ class Transformer(object):
             return
 
         if resource_registry:
-            self.configure_from_registry()
+            self.configure_from_registry(resource_registry)
 
-    def configure_from_registry(self) -> None:
+    def configure_from_registry(self, resource_registry) -> None:
         """
         Fetch transformer information from the registry and infer the loading method:
             1. if no configuration is provided is using huggingface with the provided name
@@ -60,9 +57,9 @@ class Transformer(object):
             3. if the weights, config and vocab are provided (as in the vanilla models) then it will load them as BertTokenizer and BertModel
         """
 
-        if 'transformers' in self.registry:
+        if 'transformers' in resource_registry:
             filtered_resources = list(
-                filter(lambda x: 'name' in x and x['name'] == self.name, self.registry['transformers']))
+                filter(lambda x: 'name' in x and x['name'] == self.name, resource_registry['transformers']))
             if len(filtered_resources) > 0:
                 transformer_configuration = list(filtered_resources)[0]
                 if 'model_dir' in transformer_configuration:

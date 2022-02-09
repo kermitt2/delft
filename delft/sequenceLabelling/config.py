@@ -2,6 +2,9 @@ import json
 
 
 # Model parameters
+from delft.utilities.Transformer import Transformer
+
+
 class ModelConfig(object):
     DEFAULT_FEATURES_VOCABULARY_SIZE = 12
     DEFAULT_FEATURES_EMBEDDING_SIZE = 4
@@ -64,8 +67,19 @@ class ModelConfig(object):
         self.use_ELMo = use_ELMo
 
     def save(self, file):
-        with open(file, 'w') as f:
-            json.dump(vars(self), f, sort_keys=False, indent=4)
+        variables = vars(self)
+        output_dict = {}
+        for var in variables.keys():
+            if var == 'transformer' and variables['transformer'] is not None:
+                transformer_vars = variables[var].__dict__
+                output_dict[var] = {key: transformer_vars[key] if key != 'tokenizer' else None for key in transformer_vars.keys()}
+                # if 'tokenizer' in output_dict[var].keys():
+                #     del output_dict[var]['tokenizer']
+            else:
+                output_dict[var] = variables[var]
+
+        with open(file, 'w') as fp:
+            json.dump(output_dict, fp, sort_keys=False, indent=4)
 
     @classmethod
     def load(cls, file):

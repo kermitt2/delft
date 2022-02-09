@@ -337,7 +337,7 @@ if __name__ == "__main__":
     transformer = args.transformer
     use_ELMo = args.use_ELMo
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

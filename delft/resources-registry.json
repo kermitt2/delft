@@ -116,8 +116,8 @@
             "lang": "en"
         },
         {
-            "name": "allenai/scibert_scivocab_cased_dir/torch",
-            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_pt",
+            "name": "allenai/scibert_scivocab_cased_dir",
+            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_hf",
             "lang": "en"
         },
         {
