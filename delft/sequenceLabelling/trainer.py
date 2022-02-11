@@ -73,7 +73,7 @@ class Trainer(object):
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
         
         if self.model_config.transformer != None:
-            # we use a trasnformer layer in the architecture
+            # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
                 init_lr=2e-5, 
                 num_train_steps=nb_train_steps,
