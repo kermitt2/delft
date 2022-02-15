@@ -246,7 +246,7 @@ class Trainer(object):
                                     f_valid=val_f,
                                     max_epoch=self.training_config.max_epoch,
                                     callbacks=callbacks)
-            if self.model_config.transformer == None:
+            if self.model_config.transformer is None:
                 self.models.append(foldModel)
             else:
                 # save the model with transformer layer on disk

@@ -116,7 +116,7 @@
             "lang": "en"
         },
         {
-            "name": "allenai/scibert_scivocab_cased_dir",
+            "name": "allenai/scibert_scivocab_cased/dir",
             "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_hf",
             "lang": "en"
         },
