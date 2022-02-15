@@ -24,6 +24,7 @@ from sklearn.model_selection import train_test_split
 from sklearn.metrics import precision_score, precision_recall_fscore_support
 
 from transformers import AutoConfig, TFAutoModel
+from transformers import create_optimizer
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 
@@ -892,7 +893,13 @@ class bert(BaseModel):
         self.model.summary()
 
     def compile(self, train_size):
-        optimizer = Adam(learning_rate=2e-5, clipnorm=1)
+        #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
+        optimizer, lr_schedule = create_optimizer(
+                init_lr=2e-5, 
+                num_train_steps=train_size,
+                weight_decay_rate=0.01,
+                num_warmup_steps=0.1*train_size,
+            )
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
 
     def get_transformer_config(self):
