@@ -72,7 +72,7 @@ class ModelConfig(object):
         for var in variables.keys():
             if var == 'transformer' and variables['transformer'] is not None:
                 transformer_vars = variables[var].__dict__
-                output_dict[var] = {key: transformer_vars[key] if key != 'tokenizer' else None for key in transformer_vars.keys()}
+                output_dict[var] = {key: transformer_vars[key] if key not in ['tokenizer', 'transformer_config'] else None for key in transformer_vars.keys()}
                 # if 'tokenizer' in output_dict[var].keys():
                 #     del output_dict[var]['tokenizer']
             else:

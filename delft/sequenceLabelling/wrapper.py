@@ -303,7 +303,7 @@ class Sequence(object):
             for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                if self.transformer == None:
+                if self.transformer is None:
                     the_model = self.models[i]
                 else:
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
@@ -311,8 +311,8 @@ class Sequence(object):
                     weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i)+".hdf5")
                     self.model = get_model(self.model_config, 
                                self.p, 
-                               ntags=len(self.p.vocab_tag), 
-                               load_pretrained_weights=False, 
+                               ntags=len(self.p.vocab_tag),
+                               load_pretrained_weights=False,
                                local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model

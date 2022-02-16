@@ -18,11 +18,11 @@ class Transformer(object):
      1. via the hugging face name (beware this will result in several requests to huggingface.co, which could fail if the service is overloaded
      2. via a local directory
      3. by specifying the weight, config and vocabulary files separately (this is likely the scenario where the user try to load a model from the downloaded bert/scibertt model from github
-     4. loading the transformer as part of the delft model (the configuration file name will be different
+     4. loading the transformer as part of the delft model (the configuration file name will be different)
     """
 
     def __init__(self, name: str, resource_registry: dict = None, config_file: str = None,
-                 tokenizer: AutoTokenizer = None):
+                 tokenizer: AutoTokenizer = None, delft_local_path: str = None):
         self.transformer_config = None
         self.loading_method = None
         # self.registry = resource_registry
@@ -39,8 +39,9 @@ class Transformer(object):
 
         self.name = name
 
-        if config_file:
+        if delft_local_path:
             self.loading_method = LOADING_METHOD_DELFT_MODEL
+            self.local_dir_path = delft_local_path
 
         if tokenizer:
             self.tokenizer = tokenizer
@@ -56,6 +57,9 @@ class Transformer(object):
             2. if only the directory is provided it will load the model from that directory
             3. if the weights, config and vocab are provided (as in the vanilla models) then it will load them as BertTokenizer and BertModel
         """
+
+        if self.loading_method == LOADING_METHOD_DELFT_MODEL:
+            return
 
         if 'transformers' in resource_registry:
             filtered_resources = list(
@@ -113,12 +117,12 @@ class Transformer(object):
             self.tokenizer = BertTokenizer.from_pretrained(self.local_vocab_file)
 
         elif self.loading_method == LOADING_METHOD_DELFT_MODEL:
-            # TODO: implement this
-            pass
+            AutoConfig.from_pretrained()
+            self.tokenizer = AutoTokenizer.from_pretrained(config=self.transformer_config)
 
         return self.tokenizer
 
-    def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel]:
+    def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
                 self.transformer_config = AutoConfig.from_pretrained(self.name)
@@ -151,6 +155,4 @@ class Transformer(object):
             # TODO: revise this
             config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
             self.transformer_config = AutoConfig.from_pretrained(config_path)
-            raise NotImplementedError(
-                "To be finished")
-
+            return TFAutoModel.from_config(self.transformer_config)

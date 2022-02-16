@@ -126,7 +126,7 @@
             "lang": "en"
         },
         {
-            "name": "m3s-iitd/matscibert/local",
+            "name": "m3rg-iitd/matscibert/local",
             "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matscibert",
             "lang": "en"
         },
