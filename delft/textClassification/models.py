@@ -310,9 +310,17 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
         if model_config.transformer is None:
             models.append(foldModel)
         else:
+            # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
+            directory = os.path.join("data/models/textClassification/", model_config.model_name)
+            if not os.path.exists(directory):
+                os.makedirs(directory)
+
             if fold_id == 0:
                 models.append(foldModel)
-            # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
+                # save transformer config
+                if foldModel.get_transformer_config() is not None:
+                    foldModel.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+
             model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
             foldModel.save(model_path)
             if fold_id != 0:

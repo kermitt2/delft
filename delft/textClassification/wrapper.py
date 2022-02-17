@@ -394,8 +394,8 @@ class Classifier(object):
                         self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                     print('nfolds model saved')
 
-        # save pretrained transformer config if used in the model
-        if self.transformer is not None:
+        # save pretrained transformer config if used in the model and if single fold (otherwise it is saved in the nfold process)
+        if self.transformer is not None and self.model_config.fold_number == 1:
             if self.model.get_transformer_config() is not None:
                 self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
 

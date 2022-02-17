@@ -485,7 +485,7 @@ if __name__ == "__main__":
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
     pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
 
-    parser.add_argument("action")
+    parser.add_argument("action", help="one of [train, train_eval, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--cascaded", action="store_true", help="Use models in cascade (train, eval, predict)") 
