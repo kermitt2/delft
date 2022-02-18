@@ -71,3 +71,7 @@ data/models/textClassification/*8
 data/models/textClassification/*9
 
 .pytest_cache
+
+citationClassifierV.py
+citations_v
+requirements-v.txt
