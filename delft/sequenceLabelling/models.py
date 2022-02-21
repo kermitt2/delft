@@ -450,13 +450,10 @@ class BERT_Sequence(BaseModel):
         # we get the BERT pretrained files from the embeddings registry
         description = _get_description(self.model_type)
 
-        #if description is None:
-        #    raise Exception('no embeddings description found for ' + self.model_type)
-
         self.fold_count = config.fold_number
 
-        # note: postpone the instanciation if not available, it normally means that 
-        # we load a fine-tuned model and we don't need to look at the original
+        # note: postpone the instantiation if not available, it normally means that
+        # we load a fine-tuned model, and we don't need to look at the original
         # pre-trained resources (this is mandatory for the vocabulary when predicting)
         self.config_file = None
         self.weight_file = None
@@ -465,7 +462,7 @@ class BERT_Sequence(BaseModel):
             if "path-config" in description and os.path.isfile(description["path-config"]):
                 self.config_file = description["path-config"]
             if "path-weights" in description and os.path.isfile(description["path-weights"]+".data-00000-of-00001"):
-                self.weight_file = description["path-weights"] 
+                self.weight_file = description["path-weights"]
             if "path-vocab" in description and os.path.isfile(description["path-vocab"]):
                 self.vocab_file = description["path-vocab"]
 
@@ -504,12 +501,12 @@ class BERT_Sequence(BaseModel):
             self.model_dir = dir_path + self.model_name 
 
         # defaulting to fine-tuned model if available
-        if not self.model_dir is None:
+        if self.model_dir is not None:
             if self.config_file is None:
                 self.config_file = os.path.join(self.model_dir, 'bert_config.json')
             if self.weight_file is None:
-                self.weight_file = os.path.join(self.model_dir, 'model.ckpt') 
-            if self.vocab_file is None: 
+                self.weight_file = os.path.join(self.model_dir, 'model.ckpt')
+            if self.vocab_file is None:
                 self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
 
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
@@ -519,18 +516,13 @@ class BERT_Sequence(BaseModel):
         self.loaded_estimator = None
 
     def train(self, x_train=None, y_train=None):
-        '''
+        """
         Train the sequence labelling model. We train fold_count classifiers if fold_count>1. 
-        '''
+        """
+
         start = time.time()
 
-        # remove possible previous model(s)
-        for fold_number in range(0, self.fold_count):
-            if os.path.exists(self.model_dir+str(fold_number)):
-                shutil.rmtree(self.model_dir+str(fold_number))
-
-        if os.path.exists(self.model_dir):
-            shutil.rmtree(self.model_dir)
+        self.cleanup_previous_models(self.model_dir, self.fold_count)
 
         train_examples = self.processor.get_train_examples(x_train, y_train)
 
@@ -546,6 +538,17 @@ class BERT_Sequence(BaseModel):
         end = time.time()
         tf.logging.info("\nTotal training complete in " + str(end - start) + " seconds")
 
+    @staticmethod
+    def cleanup_previous_models(model_dir, fold_count=10):
+        """
+        remove possible previous model(s)
+        """
+
+        for fold_number in range(0, fold_count):
+            if os.path.exists(model_dir + str(fold_number)):
+                shutil.rmtree(model_dir + str(fold_number))
+        if os.path.exists(model_dir):
+            shutil.rmtree(model_dir)
 
     def train_fold(self, fold_number, train_examples):
         '''
@@ -574,7 +577,7 @@ class BERT_Sequence(BaseModel):
               config=run_config,
               train_batch_size=self.train_batch_size)
               
-        # create dir if does not exist
+        # create dir if it does not exist
         if fold_number == -1:
             suffix = ""
         else:
@@ -607,11 +610,11 @@ class BERT_Sequence(BaseModel):
         end = time.time()
         tf.logging.info("\nTraining complete in " + str(end - start) + " seconds")
 
-        # cleaning the training garbages
+        # cleaning the training garbage
         os.remove(train_file)
 
         # the initial check point has prefix model.ckpt-0* and can be removed
-        # (given that there is a 1.3 GB file, it's better!) 
+        # (given that is a 1.3 GB file, it's better!)
         garbage = os.path.join(self.model_dir+suffix, "model.ckpt-0.data-00000-of-00001")
         if os.path.exists(garbage):
             os.remove(garbage)
@@ -623,11 +626,11 @@ class BERT_Sequence(BaseModel):
             os.remove(garbage)
 
         # we need to save the vocab file and bert config files from the initial pre-trained model
-        if not self.config_file is None:
+        if self.config_file is not None:
             destination = os.path.join(self.model_dir+suffix, "bert_config.json")
             shutil.copyfile(self.config_file, destination)
 
-        if not self.vocab_file is None: 
+        if self.vocab_file is not None:
             destination = os.path.join(self.model_dir+suffix, "vocab.txt")
             shutil.copyfile(self.vocab_file, destination)
 
@@ -652,11 +655,11 @@ class BERT_Sequence(BaseModel):
                 # rename index and meta file
                 new_name = f.replace("-"+ckpt_num, "")
                 new_name = new_name.replace(".data-00000-of-00001", ".meta")
-                os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".meta")), 
+                os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".meta")),
                     os.path.join(self.model_dir+suffix, new_name))
                 new_name = f.replace("-"+ckpt_num, "")
                 new_name = new_name.replace(".data-00000-of-00001", ".index")
-                os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".index")), 
+                os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".index")),
                     os.path.join(self.model_dir+suffix, new_name))
                 break
 
@@ -907,11 +910,15 @@ class BERT_Sequence(BaseModel):
                 predicts = tf.argmax(probabilities, axis=-1)
                 return (loss, logits, predicts)
 
-
     def load_model(self, fold_id=-1):
+        print("Loading model for fold_id", fold_id)
         # default
         num_train_steps = int(10000 / self.train_batch_size * self.num_train_epochs)
         num_warmup_steps = int(num_train_steps * self.warmup_proportion)
+
+        print("weights: ", self.weight_file)
+
+        run_config = self._get_run_config(fold_id)
 
         model_fn = self.model_fn_builder(
               bert_config=self.bert_config,
@@ -922,7 +929,7 @@ class BERT_Sequence(BaseModel):
               num_warmup_steps=num_warmup_steps,
               use_one_hot_embeddings=True)
 
-        run_config = self._get_run_config(fold_id)
+
 
         self.loaded_estimator = FastPredict(tf.contrib.tpu.TPUEstimator(
               use_tpu=False,
