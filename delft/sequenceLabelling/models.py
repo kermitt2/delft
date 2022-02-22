@@ -443,6 +443,7 @@ class BERT_Sequence(BaseModel):
     """
 
     def __init__(self, config, ntags=None, dir_path=None):
+        super().__init__(config, ntags)
         self.graph = tf.get_default_graph()
 
         self.model_name = config.model_name
@@ -459,7 +460,7 @@ class BERT_Sequence(BaseModel):
         self.config_file = None
         self.weight_file = None
         self.vocab_file = None
-        if description != None:
+        if description is not None:
             if "path-config" in description and os.path.isfile(description["path-config"]):
                 self.config_file = description["path-config"]
             if "path-weights" in description and os.path.isfile(description["path-weights"]+".data-00000-of-00001"):
@@ -537,7 +538,7 @@ class BERT_Sequence(BaseModel):
             for fold_id in range(0, self.fold_count):
                 print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
                 # no validation set used during training (it's just used for setting the hyper-parameters)
-                # so it's simply repeating n times a tranining with the test set
+                # so it's simply repeating n times a training with the test set
                 self.train_fold(fold_id, train_examples)
 
         end = time.time()
@@ -938,8 +939,6 @@ class BERT_Sequence(BaseModel):
               num_train_steps=num_train_steps,
               num_warmup_steps=num_warmup_steps,
               use_one_hot_embeddings=True)
-
-
 
         self.loaded_estimator = FastPredict(tf.contrib.tpu.TPUEstimator(
               use_tpu=False,
