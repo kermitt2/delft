@@ -22,6 +22,7 @@ np.random.seed(7)
 import tensorflow as tf
 tf.set_random_seed(7)
 
+
 def get_model(config, preprocessor, ntags=None, dir_path=None):
     if config.model_type == BidLSTM_CRF.name:
         preprocessor.return_casing = False
@@ -509,6 +510,10 @@ class BERT_Sequence(BaseModel):
             if self.vocab_file is None:
                 self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
 
+        print("Config file", self.config_file)
+        print("Weight file", self.weight_file)
+        print("Vocab file", self.vocab_file)
+
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
         self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
         self.processor = NERProcessor(self.labels)
@@ -605,7 +610,7 @@ class BERT_Sequence(BaseModel):
             drop_remainder=False,
             batch_size=self.train_batch_size)
             
-        estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
+        estimator.train(input_fn=train_input_fn, max_steps=1)
 
         end = time.time()
         tf.logging.info("\nTraining complete in " + str(end - start) + " seconds")
@@ -648,17 +653,22 @@ class BERT_Sequence(BaseModel):
                     continue
                 ckpt_num = f[ind+1:ind2]
 
+                print("Checkpoint number", ckpt_num)
+
                 # rename weight file
                 new_name = f.replace("-"+ckpt_num, "")
+                print("Rename weight file to", new_name)
                 os.rename(os.path.join(self.model_dir+suffix, f), os.path.join(self.model_dir+suffix, new_name))
 
                 # rename index and meta file
                 new_name = f.replace("-"+ckpt_num, "")
                 new_name = new_name.replace(".data-00000-of-00001", ".meta")
+                print("Rename index file to", new_name)
                 os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".meta")),
                     os.path.join(self.model_dir+suffix, new_name))
                 new_name = f.replace("-"+ckpt_num, "")
                 new_name = new_name.replace(".data-00000-of-00001", ".index")
+                print("Rename meta file to", new_name)
                 os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".index")),
                     os.path.join(self.model_dir+suffix, new_name))
                 break
