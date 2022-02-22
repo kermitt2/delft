@@ -610,7 +610,7 @@ class BERT_Sequence(BaseModel):
             drop_remainder=False,
             batch_size=self.train_batch_size)
             
-        estimator.train(input_fn=train_input_fn, max_steps=1)
+        estimator.train(input_fn=train_input_fn, max_steps=num_train_steps)
 
         end = time.time()
         tf.logging.info("\nTraining complete in " + str(end - start) + " seconds")
