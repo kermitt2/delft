@@ -663,7 +663,7 @@ class BERT_Sequence(BaseModel):
         # finally we save the checkpoint file to point to this default checkpoint
         destination = os.path.join(self.model_dir+suffix, "checkpoint")
         with open(destination, "w") as f:
-            f.write('model_checkpoint_path: "model.ckpt"\nall_model_checkpoint_paths: "model.ckpt-0"\n"all_model_checkpoint_paths: "model.ckpt"\n')
+            f.write('model_checkpoint_path: "model.ckpt"\nall_model_checkpoint_paths: "model.ckpt-0"\nall_model_checkpoint_paths: "model.ckpt"\n')
 
     def predict(self, texts, fold_id=-1):
         if self.loaded_estimator is None:

@@ -1139,7 +1139,7 @@ class BERT_classifier():
         # finally we save the checkpoint file to point to this default checkpoint
         destination = os.path.join(self.model_dir+str(fold_number), "checkpoint")
         with open(destination, "w") as f:
-            f.write('model_checkpoint_path: "model.ckpt"\nall_model_checkpoint_paths: "model.ckpt-0"\n"all_model_checkpoint_paths: "model.ckpt"\n')
+            f.write('model_checkpoint_path: "model.ckpt"\nall_model_checkpoint_paths: "model.ckpt-0"\nall_model_checkpoint_paths: "model.ckpt"\n')
 
     def eval(self, x_test=None, y_test=None, run_number=0):
         '''
