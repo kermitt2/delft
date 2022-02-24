@@ -79,7 +79,6 @@ class BaseModel(object):
         self.model.save_weights(filepath)
 
     def load(self, filepath):
-        print('loading model weights', filepath)
         self.model.load_weights(filepath=filepath)
 
     def __getattr__(self, name):
@@ -511,10 +510,6 @@ class BERT_Sequence(BaseModel):
             if self.vocab_file is None:
                 self.vocab_file = os.path.join(self.model_dir, 'vocab.txt')
 
-        print("Config file", self.config_file)
-        print("Weight file", self.weight_file)
-        print("Vocab file", self.vocab_file)
-
         self.bert_config = modeling.BertConfig.from_json_file(self.config_file)
         self.tokenizer = tokenization.FullTokenizer(vocab_file=self.vocab_file, do_lower_case=self.do_lower_case)
         self.processor = NERProcessor(self.labels)
@@ -654,22 +649,18 @@ class BERT_Sequence(BaseModel):
                     continue
                 ckpt_num = f[ind+1:ind2]
 
-                print("Checkpoint number", ckpt_num)
 
                 # rename weight file
                 new_name = f.replace("-"+ckpt_num, "")
-                print("Rename weight file to", new_name)
                 os.rename(os.path.join(self.model_dir+suffix, f), os.path.join(self.model_dir+suffix, new_name))
 
                 # rename index and meta file
                 new_name = f.replace("-"+ckpt_num, "")
                 new_name = new_name.replace(".data-00000-of-00001", ".meta")
-                print("Rename index file to", new_name)
                 os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".meta")),
                     os.path.join(self.model_dir+suffix, new_name))
                 new_name = f.replace("-"+ckpt_num, "")
                 new_name = new_name.replace(".data-00000-of-00001", ".index")
-                print("Rename meta file to", new_name)
                 os.rename(os.path.join(self.model_dir+suffix, f.replace(".data-00000-of-00001", ".index")),
                     os.path.join(self.model_dir+suffix, new_name))
                 break
@@ -922,12 +913,9 @@ class BERT_Sequence(BaseModel):
                 return (loss, logits, predicts)
 
     def load_model(self, fold_id=-1):
-        print("Loading model for fold_id", fold_id)
         # default
         num_train_steps = int(10000 / self.train_batch_size * self.num_train_epochs)
         num_warmup_steps = int(num_train_steps * self.warmup_proportion)
-
-        print("weights: ", self.weight_file)
 
         run_config = self._get_run_config(fold_id)
 
