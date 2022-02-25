@@ -1,30 +1,18 @@
-import numpy as np
-import sys, os
-import argparse
-import math
 import json
-import time
-import shutil
+import math
+import os
 
-from delft.textClassification.data_generator import DataGenerator
-
-from tensorflow.keras import initializers, regularizers, constraints
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, Embedding, Input, InputLayer, concatenate
-from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, SpatialDropout1D, AveragePooling1D, GlobalAveragePooling1D, TimeDistributed, Masking, Lambda 
-from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten, BatchNormalization
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.optimizers import RMSprop, Adam, Nadam, schedules
-from tensorflow.keras.preprocessing import text, sequence
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow import keras
-
+import numpy as np
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score, precision_recall_fscore_support
-
+from tensorflow.keras.layers import Dense, Input, concatenate
+from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten
+from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import RMSprop
 from transformers import AutoConfig, TFAutoModel
 from transformers import create_optimizer
+
+from delft.textClassification.data_generator import DataGenerator
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 
@@ -49,30 +37,30 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
     # awww Python has no case/switch statement :D
     if (architecture == 'bidLstm_simple'):
-        model = bidLstm_simple(model_config, training_config)
+        model = BidLSTM_simple(model_config, training_config)
     elif (architecture == 'lstm'):
-        model = lstm(model_config, training_config)
+        model = LSTM(model_config, training_config)
     elif (architecture == 'cnn'):
-        model = cnn(model_config, training_config)
+        model = CNN(model_config, training_config)
     elif (architecture == 'cnn2'):
-        model = cnn2(model_config, training_config)
+        model = CNN2(model_config, training_config)
     elif (architecture == 'cnn3'):
-        model = cnn3(model_config, training_config)
+        model = CNN3(model_config, training_config)
     elif (architecture == 'lstm_cnn'):
-        model = lstm_cnn(model_config, training_config)
+        model = LSTM_CNN(model_config, training_config)
     elif (architecture == 'conv'):
-        model = dpcnn(model_config, training_config)
-    elif (architecture == 'mix1'):
-        model = mix1(model_config, training_config)
+        model = DPCNN(model_config, training_config)
     elif (architecture == 'dpcnn'):
-        model = dpcnn(model_config, training_config)
+        model = DPCNN(model_config, training_config)
     elif (architecture == 'gru'):
-        model = gru(model_config, training_config)
+        model = GRU(model_config, training_config)
+    elif (architecture == 'gru_lstm'):
+        model = GRU_LSTM(model_config, training_config)
     elif (architecture == 'gru_simple'):
-        model = gru_simple(model_config, training_config)
+        model = GRU_simple(model_config, training_config)
     elif (architecture == 'bert'):
         print(model_config.transformer, "will be used")
-        model = bert(model_config, training_config, 
+        model = BERT(model_config, training_config,
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path)
     else:
@@ -356,7 +344,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
     return y_predicts    
 
 
-class lstm(BaseModel):
+class LSTM(BaseModel):
     """
     A Keras implementation of a LSTM classifier
     """
@@ -376,6 +364,7 @@ class lstm(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -398,7 +387,7 @@ class lstm(BaseModel):
         self.model.summary()
         
 
-class bidLstm_simple(BaseModel):
+class BidLSTM_simple(BaseModel):
     """
     A Keras implementation of a bidirectional LSTM  classifier
     """
@@ -419,6 +408,7 @@ class bidLstm_simple(BaseModel):
 
     # bidirectional LSTM 
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -440,7 +430,7 @@ class bidLstm_simple(BaseModel):
         self.model.summary()
 
 
-class cnn(BaseModel):
+class CNN(BaseModel):
     """
     A Keras implementation of a CNN classifier
     """
@@ -461,6 +451,7 @@ class cnn(BaseModel):
 
     # conv+GRU with embeddings
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -483,7 +474,7 @@ class cnn(BaseModel):
         self.model.summary()  
 
 
-class cnn2(BaseModel):
+class CNN2(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
@@ -503,6 +494,7 @@ class cnn2(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -522,7 +514,7 @@ class cnn2(BaseModel):
         self.model.summary()  
 
 
-class cnn3(BaseModel):
+class CNN3(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
@@ -542,6 +534,7 @@ class cnn3(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -566,7 +559,7 @@ class cnn3(BaseModel):
         self.model.summary()  
 
 
-class conv(BaseModel):
+class Conv(BaseModel):
     """
     A Keras implementation of a multiple level Convolutional classifier (variant)
     """
@@ -586,6 +579,7 @@ class conv(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -610,7 +604,7 @@ class conv(BaseModel):
         self.model.summary()  
 
 
-class lstm_cnn(BaseModel):
+class LSTM_CNN(BaseModel):
     """
     A Keras implementation of a LSTM + CNN classifier
     """
@@ -631,6 +625,7 @@ class lstm_cnn(BaseModel):
 
     # LSTM + conv
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -658,7 +653,7 @@ class lstm_cnn(BaseModel):
         self.model.summary()
 
 
-class gru(BaseModel):
+class GRU(BaseModel):
     """
     A Keras implementation of a Bidirectional GRU classifier
     """
@@ -679,6 +674,7 @@ class gru(BaseModel):
 
     # 2 bid. GRU 
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -705,7 +701,7 @@ class gru(BaseModel):
                       metrics=['accuracy'])
 
 
-class gru_simple(BaseModel):
+class GRU_simple(BaseModel):
     """
     A Keras implementation of a one layer Bidirectional GRU classifier
     """
@@ -726,6 +722,7 @@ class gru_simple(BaseModel):
 
     # 1 layer bid GRU
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -749,7 +746,7 @@ class gru_simple(BaseModel):
                       metrics=['accuracy'])
 
 
-class gru_lstm(BaseModel):
+class GRU_LSTM(BaseModel):
     """
     A Keras implementation of a mixed Bidirectional GRU and LSTM classifier
     """
@@ -770,6 +767,7 @@ class gru_lstm(BaseModel):
 
     # bid GRU + bid LSTM
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -796,7 +794,7 @@ class gru_lstm(BaseModel):
                       metrics=['accuracy'])
 
 
-class dpcnn(BaseModel):
+class DPCNN(BaseModel):
     """
     A Keras implementation of a DPCNN classifier
     """
@@ -817,6 +815,7 @@ class dpcnn(BaseModel):
 
     # DPCNN
     def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
@@ -856,7 +855,7 @@ class dpcnn(BaseModel):
         self.model.summary()
 
 
-class bert(BaseModel):
+class BERT(BaseModel):
     """
     A Keras implementation of a BERT classifier for fine-tuning, with BERT layer to be 
     instanciated with a pre-trained BERT model
@@ -875,6 +874,7 @@ class bert(BaseModel):
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
+        super().__init__(model_config, training_config, load_pretrained_weights, local_path)
         self.model_config = model_config
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
