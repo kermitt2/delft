@@ -12,6 +12,7 @@ target
 *.obj
 *.zip
 *.gz
+!data/textClassification/software/*.gz
 data/db/*
 data/training
 data/eval
