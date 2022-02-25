@@ -16,8 +16,8 @@ import numpy as np
 
 import warnings
 warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
-warnings.filterwarnings("ignore", category=UserWarning) 
+warnings.filterwarnings("ignore", category=DeprecationWarning)
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import tensorflow as tf
 tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
@@ -34,7 +34,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 #disable_eager_execution()
 
 from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
-from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME 
+from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME
 from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
@@ -51,35 +51,35 @@ from delft.utilities.numpy import concatenate_or_none
 from delft.sequenceLabelling.evaluation import classification_report
 
 import transformers
-transformers.logging.set_verbosity(transformers.logging.ERROR) 
+transformers.logging.set_verbosity(transformers.logging.ERROR)
 from transformers import AutoTokenizer
 
 
 class Sequence(object):
 
-    # number of parallel worker for the data generator 
+    # number of parallel worker for the data generator
     nb_workers = 6
 
-    def __init__(self, 
+    def __init__(self,
                  model_name=None,
                  architecture=None,
                  embeddings_name=None,
-                 char_emb_size=25, 
+                 char_emb_size=25,
                  max_char_length=30,
                  char_lstm_units=25,
-                 word_lstm_units=100, 
+                 word_lstm_units=100,
                  max_sequence_length=300,
-                 dropout=0.5, 
+                 dropout=0.5,
                  recurrent_dropout=0.25,
-                 batch_size=20, 
-                 optimizer='adam', 
-                 learning_rate=0.001, 
+                 batch_size=20,
+                 optimizer='adam',
+                 learning_rate=0.001,
                  lr_decay=0.9,
-                 clip_gradients=5.0, 
-                 max_epoch=50, 
+                 clip_gradients=5.0,
+                 max_epoch=50,
                  early_stop=True,
                  patience=5,
-                 max_checkpoints_to_keep=0, 
+                 max_checkpoints_to_keep=0,
                  use_ELMo=False,
                  log_dir=None,
                  fold_number=1,
@@ -121,23 +121,23 @@ class Sequence(object):
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, self.registry, use_ELMo=use_ELMo)
-            word_emb_size = self.embeddings.embed_size 
+            word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
             word_emb_size = 0
 
-        self.model_config = ModelConfig(model_name=model_name, 
-                                        architecture=architecture, 
-                                        embeddings_name=embeddings_name, 
-                                        word_embedding_size=word_emb_size, 
-                                        char_emb_size=char_emb_size, 
-                                        char_lstm_units=char_lstm_units, 
+        self.model_config = ModelConfig(model_name=model_name,
+                                        architecture=architecture,
+                                        embeddings_name=embeddings_name,
+                                        word_embedding_size=word_emb_size,
+                                        char_emb_size=char_emb_size,
+                                        char_lstm_units=char_lstm_units,
                                         max_char_length=max_char_length,
                                         word_lstm_units=word_lstm_units,
-                                        max_sequence_length=max_sequence_length, 
-                                        dropout=dropout, 
-                                        recurrent_dropout=recurrent_dropout, 
-                                        fold_number=fold_number, 
+                                        max_sequence_length=max_sequence_length,
+                                        dropout=dropout,
+                                        recurrent_dropout=recurrent_dropout,
+                                        fold_number=fold_number,
                                         batch_size=batch_size,
                                         use_ELMo=use_ELMo,
                                         features_indices=features_indices,
@@ -145,7 +145,7 @@ class Sequence(object):
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
-                                              early_stop, patience, 
+                                              early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):
@@ -159,13 +159,13 @@ class Sequence(object):
 
         if not y_valid is None:
             y_all = np.concatenate((y_train, y_valid), axis=0)
-        else: 
+        else:
             y_all = y_train
 
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-        if self.bert_preprocessor != None:
+        if self.bert_preprocessor is not None:
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
@@ -180,7 +180,7 @@ class Sequence(object):
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p, 
+                          preprocessor=self.p,
                           bert_preprocessor=self.bert_preprocessor
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
@@ -193,15 +193,15 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-        if self.bert_preprocessor != None:
+        if self.bert_preprocessor is not None:
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
-        
+
         self.models = []
-        trainer = Trainer(self.model, 
+        trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
                           self.model_config,
@@ -231,11 +231,11 @@ class Sequence(object):
                     bert_preprocessor=self.bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features, 
+                    embeddings=self.embeddings, shuffle=False, features=features,
                     output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf, 
+                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf,
                     use_chain_crf=self.model_config.use_chain_crf)
                 scorer.model = self.model
                 scorer.on_epoch_end(epoch=-1)
@@ -243,16 +243,16 @@ class Sequence(object):
                 raise (OSError('Could not find a model.'))
         else:
             # the architecture model uses a transformer layer
-            
+
             # note that we could also use the above test_generator, but as an alternative here we check the 
             # test/prediction alignment of tokens and the validity of the maximum sequence input length
             # wrt the length of the test sequences 
 
             if self.model:
-                tagger = Tagger(self.model, 
-                              self.model_config, 
-                              self.embeddings, 
-                              preprocessor=self.p, 
+                tagger = Tagger(self.model,
+                              self.model_config,
+                              self.embeddings,
+                              preprocessor=self.p,
                               bert_preprocessor=self.bert_preprocessor)
                 y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
@@ -309,14 +309,14 @@ class Sequence(object):
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
                     dir_path = 'data/models/sequenceLabelling/'
                     weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i)+".hdf5")
-                    self.model = get_model(self.model_config, 
-                               self.p, 
+                    self.model = get_model(self.model_config,
+                               self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
                                local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
-             
+
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)
                 generator = the_model.get_generator()
@@ -325,7 +325,7 @@ class Sequence(object):
                     bert_preprocessor=self.bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features, 
+                    embeddings=self.embeddings, shuffle=False, features=features,
                     output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
@@ -399,7 +399,7 @@ class Sequence(object):
 
             print("\n** Best ** model scores - run", str(best_index))
             print(reports[best_index])
-            
+
             fold_nb = self.model_config.fold_number
             if self.transformer == None:
                 self.model = self.models[best_index]
@@ -503,17 +503,17 @@ class Sequence(object):
                               out.write(jsonString)
 
             runtime = round(time.time() - start_time, 3)
-            if not directDump: 
+            if not directDump:
                 jsonString = "\n    ],\n"
                 jsonString += '    "runtime": ' + str(runtime)
                 jsonString += "\n}\n"
                 if file_out == None:
                     print(jsonString)
                 else:
-                    out.write(jsonString) 
+                    out.write(jsonString)
 
             if file_out != None:
-                out.close() 
+                out.close()
             #print("runtime: %s seconds " % (runtime))
         else:
             raise (OSError('Could not find a model.'))
@@ -538,13 +538,13 @@ class Sequence(object):
             # save pretrained transformer config if used in the model
             if self.model.get_transformer_config() is not None:
                 self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-        
+
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, CONFIG_FILE_NAME))
-        
-        if self.model_config.embeddings_name != None:
+
+        if self.model_config.embeddings_name is not None:
             # load embeddings
             # Do not use cache in 'prediction/production' mode
             self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_cache=False)
@@ -553,10 +553,10 @@ class Sequence(object):
             self.embeddings = None
             self.model_config.word_embedding_size = 0
 
-        if self.model_config.transformer != None:
+        if self.model_config.transformer is not None:
             self.transformer = self.model_config.transformer
             # TBD: use local first
-            tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+            tokenizer = AutoTokenizer.from_pretrained(self.transformer['name'], add_special_tokens=True,
                                                 max_length=self.model_config.max_sequence_length, add_prefix_space=True)
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
@@ -567,9 +567,9 @@ class Sequence(object):
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
-        self.model = get_model(self.model_config, 
-                               self.p, ntags=len(self.p.vocab_tag), 
-                               load_pretrained_weights=False, 
+        self.model = get_model(self.model_config,
+                               self.p, ntags=len(self.p.vocab_tag),
+                               load_pretrained_weights=False,
                                local_path=os.path.join(dir_path, self.model_config.model_name))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))

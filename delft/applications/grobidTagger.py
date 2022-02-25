@@ -15,9 +15,9 @@ MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citatio
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1, use_ELMo=False):
-    '''
+    """
     Set up the default parameters based on the model type.
-    '''
+    """
     if output_path:
         model_name = model
     else:

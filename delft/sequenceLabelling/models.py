@@ -162,6 +162,26 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         raise (OSError('Model name does exist: ' + config.architecture))
 
 
+class TransformerBase(object):
+    """
+    This class contains the transformer specific code and characteristics
+    """
+    bert_config = None
+
+    def get_transformer_config(self):
+        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
+        return None
+
+    def init_transformer(self, config, transformer, load_pretrained_weights, local_path):
+        if config.transformer is not None and transformer is None:
+            name = config.transformer.name
+            transformer = Transformer(name, config_file=config.transformer.transformer_config, delft_local_path=local_path)
+
+        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        self.bert_config = transformer.transformer_config
+
+        return transformer_model
+
 class BaseModel(object):
 
     def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None):
@@ -212,9 +232,6 @@ class BaseModel(object):
         # default generator
         return DataGenerator
 
-    def get_transformer_config(self):
-        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
-        return None
 
 class BidLSTM(BaseModel):
     """
@@ -729,11 +746,11 @@ class BERT(BaseModel):
     name = 'BERT'
     bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path:str=None,
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None,
                  transformer: Transformer = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -758,7 +775,7 @@ class BERT(BaseModel):
         return self.bert_config
 
 
-class BERT_CRF(BaseModel):
+class BERT_CRF(BaseModel, TransformerBase):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
     of existing pre-trained BERT model given by the field transformer in the config. 
@@ -767,16 +784,11 @@ class BERT_CRF(BaseModel):
     name = 'BERT_CRF'
     bert_config = None
 
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights=True, local_path:str=None,
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None,
                  transformer: Transformer =None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        if config.transformer is not None and transformer is None:
-            name = config.transformer.name
-            transformer = Transformer(name, config_file=config.transformer.transformer_config, delft_local_path=local_path)
-
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
-        self.bert_config = transformer.transformer_config
+        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -803,7 +815,7 @@ class BERT_CRF(BaseModel):
         return self.bert_config
 
 
-class BERT_ChainCRF(BaseModel):
+class BERT_ChainCRF(BaseModel, TransformerBase):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
     of existing pre-trained BERT model given by the field transformer in the config. 
@@ -818,7 +830,7 @@ class BERT_ChainCRF(BaseModel):
                  transformer: Transformer=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -845,7 +857,7 @@ class BERT_ChainCRF(BaseModel):
         return self.bert_config
 
 
-class BERT_CRF_FEATURES(BaseModel):
+class BERT_CRF_FEATURES(BaseModel, TransformerBase):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     additional generic discrete features information. The BERT layer will be loaded with weights
@@ -859,7 +871,7 @@ class BERT_CRF_FEATURES(BaseModel):
                  transformer: Transformer =None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -912,7 +924,7 @@ class BERT_CRF_FEATURES(BaseModel):
         return self.bert_config
 
 
-class BERT_CRF_CHAR(BaseModel):
+class BERT_CRF_CHAR(BaseModel, TransformerBase):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     a character input channel. The BERT layer will be loaded with weights of existing 
@@ -926,7 +938,7 @@ class BERT_CRF_CHAR(BaseModel):
                  transformer: Transformer = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -976,7 +988,7 @@ class BERT_CRF_CHAR(BaseModel):
         return self.bert_config
 
 
-class BERT_CRF_CHAR_FEATURES(BaseModel):
+class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     additional generic discrete features information and a character input channel. The 
@@ -991,7 +1003,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
                  transformer: Transformer = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')

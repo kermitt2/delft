@@ -192,7 +192,7 @@ class Trainer(object):
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
 
-        if self.model_config.transformer != None:
+        if self.model_config.transformer is not None:
             # save the config, preprocessor and transformer layer config on disk
             dir_path = 'data/models/sequenceLabelling/'
             directory = os.path.join(dir_path, self.model_config.model_name)
