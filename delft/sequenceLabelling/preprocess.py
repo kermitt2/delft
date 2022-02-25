@@ -8,12 +8,10 @@ from typing import List, Iterable, Set
 import numpy as np
 
 from delft.sequenceLabelling.config import ModelConfig
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 LOGGER = logging.getLogger(__name__)
 
 from sklearn.base import BaseEstimator, TransformerMixin
-import tensorflow as tf
 
 UNK = '<UNK>'
 PAD = '<PAD>'

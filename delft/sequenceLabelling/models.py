@@ -172,7 +172,7 @@ class TransformerBase(object):
         # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
         return None
 
-    def init_transformer(self, config, transformer, load_pretrained_weights, local_path):
+    def init_transformer(self, config, transformer: Transformer, load_pretrained_weights, local_path):
         if config.transformer is not None and transformer is None:
             name = config.transformer.name
             transformer = Transformer(name, config_file=config.transformer.transformer_config, delft_local_path=local_path)

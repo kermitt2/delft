@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME
+from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -52,8 +52,6 @@ from delft.sequenceLabelling.evaluation import classification_report
 
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
-from transformers import AutoTokenizer
-
 
 class Sequence(object):
 
@@ -97,7 +95,7 @@ class Sequence(object):
 
         self.model = None
         self.models = None
-        self.p = None
+        self.p: Preprocessor = None
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
 
@@ -530,7 +528,11 @@ class Sequence(object):
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print('preprocessor saved')
 
-        if self.model == None and self.model_config.fold_number > 1:
+        if self.model_config.transformer:
+            self.model_config.transformer.save_tokenizer(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+            print('transformer tokenizer saved')
+
+        if self.model is None and self.model_config.fold_number > 1:
             print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
         else:
             self.model.save(os.path.join(directory, weight_file))
@@ -542,7 +544,8 @@ class Sequence(object):
         print('model saved')
 
     def load(self, dir_path='data/models/sequenceLabelling/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
-        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, CONFIG_FILE_NAME))
+        model_path = os.path.join(dir_path, self.model_config.model_name)
+        self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
         if self.model_config.embeddings_name is not None:
             # load embeddings
@@ -553,24 +556,26 @@ class Sequence(object):
             self.embeddings = None
             self.model_config.word_embedding_size = 0
 
+        transformer = None
         if self.model_config.transformer is not None:
             self.transformer = self.model_config.transformer
-            # TBD: use local first
-            tokenizer = AutoTokenizer.from_pretrained(self.transformer['name'], add_special_tokens=True,
-                                                max_length=self.model_config.max_sequence_length, add_prefix_space=True)
+            transformer = Transformer(self.transformer['name'], delft_local_path=model_path)
+            tokenizer = transformer.load_tokenizer(add_special_tokens=True,
+                                       max_sequence_length=self.model_config.max_sequence_length, add_prefix_space=True)
+
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None
 
         self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
-        if self.bert_preprocessor != None:
+        if self.bert_preprocessor is not None:
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
 
         self.model = get_model(self.model_config,
                                self.p, ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path=os.path.join(dir_path, self.model_config.model_name))
+                               local_path=os.path.join(dir_path, self.model_config.model_name), transformer=transformer)
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 

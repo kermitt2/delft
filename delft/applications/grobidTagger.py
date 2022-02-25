@@ -244,7 +244,7 @@ def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', trans
     if use_ELMo:
         model_name += '-with_ELMo'
 
-    model = Sequence(model_name)
+    model = Sequence(model_name, transformer_name=transformer)
     model.load()
 
     start_time = time.time()

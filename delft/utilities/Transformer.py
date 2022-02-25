@@ -4,6 +4,7 @@ from typing import Union
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
+DEFAULT_TRANSFORMER_TOKENIZER_DIR = "transformer-tokenizer"
 
 LOADING_METHOD_LOCAL_MODEL_DIR = "local_model_dir"
 LOADING_METHOD_HUGGINGFACE_NAME = "huggingface"
@@ -117,10 +118,14 @@ class Transformer(object):
             self.tokenizer = BertTokenizer.from_pretrained(self.local_vocab_file)
 
         elif self.loading_method == LOADING_METHOD_DELFT_MODEL:
-            AutoConfig.from_pretrained()
-            self.tokenizer = AutoTokenizer.from_pretrained(config=self.transformer_config)
+            config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+            self.transformer_config = AutoConfig.from_pretrained(config_path)
+            self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR), config=self.transformer_config)
 
         return self.tokenizer
+
+    def save_tokenizer(self, output_directory):
+        self.tokenizer.save_pretrained(output_directory)
 
     def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
