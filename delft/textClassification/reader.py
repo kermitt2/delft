@@ -276,6 +276,64 @@ def load_software_use_corpus_json(json_gz_file_path):
     return texts_list_final, classes_list_final
 
 
+def load_software_context_corpus_json(json_gz_file_path):
+    """
+    Load texts and classes from the corresponding Softcite mention corpus export in gzipped json format
+
+    Classification of the software usage is multiclass/multilabel
+
+    Returns:
+        tuple(numpy array, numpy array): 
+            texts, classes_list
+
+    """
+
+    texts_list = []
+    classes_list = []
+
+    with gzip.GzipFile(json_gz_file_path, 'r') as fin:
+        data = json.loads(fin.read().decode('utf-8'))
+        if not "documents" in data:
+            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            return None, None 
+        for document in data["documents"]:
+            for segment in document["texts"]:
+                if "entity_spans" in segment:
+                    if not "text" in segment:
+                        continue
+                    text = segment["text"]
+                    for entity_span in segment["entity_spans"]:
+                        if entity_span["type"] == "software":
+                            texts_list.append(text)
+                            classes = []
+                            if "used" in entity_span and entity_span["used"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            if "contribution" in entity_span and entity_span["contribution"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            if "shared" in entity_span and entity_span["shared"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)    
+
+                            classes_list.append(classes)
+
+    #list_possible_classes = np.unique(classes_list)
+    #classes_list_final = normalize_classes(classes_list, list_possible_classes)
+
+    texts_list_final = np.asarray(texts_list)
+    classes_list_final = np.asarray(classes_list)
+    
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+
+    return texts_list_final, classes_list_final
+
+
 def normalize_classes(y, list_classes):
     '''
     Replace string values of classes by their index in the list of classes
