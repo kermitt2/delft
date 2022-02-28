@@ -1,5 +1,5 @@
 import os
-from typing import Union
+from typing import Union, Iterable
 
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
@@ -100,8 +100,11 @@ class Transformer(object):
             self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
             print("No configuration for", self.name, "Loading from Hugging face.")
 
-    def load_tokenizer(self, max_sequence_length: int, add_special_tokens: bool = True,
-                       add_prefix_space: bool = True) -> Union[AutoTokenizer, BertTokenizer]:
+    def init_preprocessor(self, max_sequence_length: int,
+                       add_special_tokens: bool = True,
+                       add_prefix_space: bool = True,
+                       empty_features_vector: Iterable[int] =None,
+                       empty_char_vector: Iterable[int] = None) -> BERTPreprocessor:
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -125,16 +128,9 @@ class Transformer(object):
             self.transformer_config = AutoConfig.from_pretrained(config_path)
             self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR), config=self.transformer_config)
 
-        return self.tokenizer
-
-    def get_bert_preprocessor(self, empty_features_vector: list =None, empty_char_vector: list=None):
-        self.bert_preprocessor = BERTPreprocessor(self.tokenizer)
-        if self.bert_preprocessor:
-            self.bert_preprocessor.set_empty_features_vector(empty_features_vector)
-            self.bert_preprocessor.set_empty_char_vector(empty_char_vector)
+        self.bert_preprocessor = BERTPreprocessor(self.tokenizer, empty_features_vector, empty_char_vector)
 
         return self.bert_preprocessor
-
 
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)

@@ -92,7 +92,7 @@ def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices
 
 
 def reduce_features_vector(feature_vector, features_max_vector_size):
-    '''
+    """
     Reduce the features vector.
     First it calculates the cardinality for each value that each feature can assume, then
     removes features with cardinality above features_max_vector_size.
@@ -102,7 +102,7 @@ def reduce_features_vector(feature_vector, features_max_vector_size):
     :param feature_vector: feature vector to be reduced
     :param features_max_vector_size maximum size of the one-hot-encoded values
     :return:
-    '''
+    """
 
     # Compute frequencies for each column
     columns_length = []
@@ -208,9 +208,10 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
         return output
 
-    def empty_features_vector(self):
+    def empty_features_vector(self) -> Iterable[int]:
         features_count = len(self.features_indices)
         return [0] * features_count
+
 
 class BERTPreprocessor(object):
     """
@@ -663,15 +664,13 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         #else:
         #    return labels_final
 
-    def empty_features_vector(self):
-        if self.feature_preprocessor != None:
+    def empty_features_vector(self) -> Iterable[int]:
+        if self.feature_preprocessor is not None:
             return self.feature_preprocessor.empty_features_vector()
-        elif self.feature_preprocessor != None:
-            self.empty_features_vector = self.feature_preprocessor.empty_features_vector()
         else:
             return None
 
-    def empty_char_vector(self):
+    def empty_char_vector(self) -> Iterable[int]:
         return [0] * self.max_char_length
 
     def save(self, file_path):

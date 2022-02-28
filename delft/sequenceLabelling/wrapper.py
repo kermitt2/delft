@@ -110,10 +110,7 @@ class Sequence(object):
 
         if transformer_name is not None:
             self.transformer = Transformer(transformer_name, resource_registry=self.registry)
-            self.transformer.load_tokenizer(max_sequence_length)
             print(transformer_name, "will be used: ", self.transformer.loading_method)
-        else:
-            self.bert_preprocessor = None
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, self.registry, use_ELMo=use_ELMo)
@@ -162,7 +159,9 @@ class Sequence(object):
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
         if self.transformer is not None:
-            self.transformer.get_bert_preprocessor(self.p.empty_features_vector(), self.p.empty_char_vector())
+            self.transformer.init_preprocessor(self.model_config.max_sequence_length,
+                                               empty_features_vector=self.p.empty_features_vector(),
+                                               empty_char_vector=self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
@@ -187,10 +186,14 @@ class Sequence(object):
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
+        config = self.model_config
+
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
 
         if self.transformer is not None:
-            self.transformer.get_bert_preprocessor(self.p.empty_features_vector(), self.p.empty_char_vector())
+            self.transformer.init_preprocessor(config.max_sequence_length,
+                                                empty_features_vector=self.p.empty_features_vector(),
+                                                empty_char_vector=self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
@@ -223,7 +226,6 @@ class Sequence(object):
                 generator = self.model.get_generator()
                 test_generator = generator(x_test, y_test,
                     batch_size=self.model_config.batch_size, preprocessor=self.p,
-                    bert_preprocessor=self.bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
                     embeddings=self.embeddings, shuffle=False, features=features,
@@ -248,7 +250,7 @@ class Sequence(object):
                               self.model_config,
                               self.embeddings,
                               preprocessor=self.p,
-                              bert_preprocessor=self.bert_preprocessor)
+                              transformer=self.transformer)
                 y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
                 # keep only labels
@@ -285,7 +287,7 @@ class Sequence(object):
                 raise (OSError('Could not find a model.'))
 
     def eval_nfold(self, x_test, y_test, features=None):
-        if self.models != None:
+        if self.models is not None:
             total_f1 = 0
             best_f1 = 0
             best_index = 0
@@ -300,6 +302,7 @@ class Sequence(object):
 
                 if self.transformer is None:
                     the_model = self.models[i]
+                    bert_preprocessor = None
                 else:
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
                     dir_path = 'data/models/sequenceLabelling/'
@@ -308,16 +311,18 @@ class Sequence(object):
                                self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path= os.path.join(dir_path, self.model_config.model_name))
+                               local_path= os.path.join(dir_path, self.model_config.model_name),
+                                    transformer=self.transformer)
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
+                    bert_preprocessor = self.transformer.get_bert_preprocessor(self.preprocessor.empty_features_vector(), self.preprocessor.empty_char_vector())
 
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)
                 generator = the_model.get_generator()
                 test_generator = generator(x_test, y_test,
                     batch_size=self.model_config.batch_size, preprocessor=self.p,
-                    bert_preprocessor=self.bert_preprocessor,
+                    bert_preprocessor=bert_preprocessor,
                     char_embed_size=self.model_config.char_embedding_size,
                     max_sequence_length=self.model_config.max_sequence_length,
                     embeddings=self.embeddings, shuffle=False, features=features,
@@ -415,7 +420,7 @@ class Sequence(object):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
         if self.model:
-            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
+            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, transformer=self.transformer)
             start_time = time.time()
             annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
@@ -433,7 +438,7 @@ class Sequence(object):
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
         if self.model:
-            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, bert_preprocessor=self.bert_preprocessor)
+            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, transformer=self.transformer)
             start_time = time.time()
             if file_out != None:
                 out = open(file_out,'w')
@@ -553,15 +558,15 @@ class Sequence(object):
             self.embeddings = None
             self.model_config.word_embedding_size = 0
 
+        self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
+
         if self.model_config.transformer_name is not None:
             self.transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
-            self.transformer.load_tokenizer(add_special_tokens=True,
-                                            max_sequence_length=self.model_config.max_sequence_length,
-                                            add_prefix_space=True)
-
-        self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
-        if self.transformer is not None:
-            self.transformer.get_bert_preprocessor(self.p.empty_features_vector(), self.p.empty_char_vector())
+            self.transformer.init_preprocessor(add_special_tokens=True,
+                                               max_sequence_length=self.model_config.max_sequence_length,
+                                               add_prefix_space=True,
+                                               empty_features_vector=self.p.empty_features_vector(),
+                                               empty_char_vector=self.p.empty_char_vector())
 
 
         self.model = get_model(self.model_config,

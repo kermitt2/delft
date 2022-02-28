@@ -175,7 +175,7 @@ class TransformerBase(object):
     def init_transformer(self, config, transformer: Transformer, load_pretrained_weights, local_path):
         if config.transformer_name is not None and transformer is None:
             name = config.transformer_name
-            transformer = Transformer(name, config_file=config.transformer.transformer_config, delft_local_path=local_path)
+            transformer = Transformer(name, config_file=config.transformer_name, delft_local_path=local_path)
 
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.bert_config = transformer.transformer_config

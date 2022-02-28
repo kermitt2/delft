@@ -41,7 +41,7 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-        self.transformer: Transformer  = transformer
+        self.transformer: Transformer = transformer
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -150,7 +150,7 @@ class Trainer(object):
 
             training_generator = generator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.bert_preprocessor,
+                bert_preprocessor=bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=True, 
