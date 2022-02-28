@@ -106,7 +106,7 @@ class DataGenerator(BaseGenerator):
 
         super().__init__(x, y, 
                         batch_size=batch_size, 
-                        preprocessor=preprocessor, 
+                        preprocessor=preprocessor,
                         bert_preprocessor=bert_preprocessor, 
                         char_embed_size=char_embed_size, 
                         embeddings=embeddings, 
@@ -241,7 +241,8 @@ class DataGeneratorTransformers(BaseGenerator):
                         features=features,
                         output_input_offsets=output_input_offsets,
                         use_chain_crf=use_chain_crf)
-        if self.bert_preprocessor.empty_features_vector == None:
+
+        if self.bert_preprocessor.empty_features_vector is None:
             self.bert_preprocessor.set_empty_features_vector(self.preprocessor.empty_features_vector())
         self.on_epoch_end()
 

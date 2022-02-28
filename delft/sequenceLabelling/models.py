@@ -173,8 +173,8 @@ class TransformerBase(object):
         return None
 
     def init_transformer(self, config, transformer: Transformer, load_pretrained_weights, local_path):
-        if config.transformer is not None and transformer is None:
-            name = config.transformer.name
+        if config.transformer_name is not None and transformer is None:
+            name = config.transformer_name
             transformer = Transformer(name, config_file=config.transformer.transformer_config, delft_local_path=local_path)
 
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
@@ -729,7 +729,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
         self.config = config
 
 
-class BERT(BaseModel):
+class BERT(BaseModel, TransformerBase):
     """
     A Keras implementation of BERT for sequence labelling with softmax activation final layer. 
 
@@ -750,14 +750,14 @@ class BERT(BaseModel):
                  transformer: Transformer = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
         #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
         label_logits = Dense(ntags, activation='softmax')(embedding_layer)
 
@@ -788,14 +788,14 @@ class BERT_CRF(BaseModel, TransformerBase):
                  transformer: Transformer =None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
@@ -830,14 +830,14 @@ class BERT_ChainCRF(BaseModel, TransformerBase):
                  transformer: Transformer=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
         x = Dense(ntags)(embedding_layer)
         self.crf = ChainCRF()
@@ -871,14 +871,14 @@ class BERT_CRF_FEATURES(BaseModel, TransformerBase):
                  transformer: Transformer =None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # layout features input and embeddings
@@ -938,14 +938,14 @@ class BERT_CRF_CHAR(BaseModel, TransformerBase):
                  transformer: Transformer = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # build character based embedding
@@ -1003,14 +1003,14 @@ class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
                  transformer: Transformer = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # build character based embedding

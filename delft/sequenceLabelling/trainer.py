@@ -61,7 +61,7 @@ class Trainer(object):
 
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
         
-        if self.model_config.transformer is not None:
+        if self.model_config.transformer_name is not None:
             # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
                 init_lr=2e-5, 
@@ -192,7 +192,7 @@ class Trainer(object):
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
 
-        if self.model_config.transformer is not None:
+        if self.model_config.transformer_name is not None:
             # save the config, preprocessor and transformer layer config on disk
             dir_path = 'data/models/sequenceLabelling/'
             directory = os.path.join(dir_path, self.model_config.model_name)
@@ -234,7 +234,7 @@ class Trainer(object):
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
                                load_pretrained_weights=True,
-                                  transformer=self.model_config.transformer)
+                                  transformer=self.transformer)
 
             foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 
@@ -246,7 +246,8 @@ class Trainer(object):
                                     f_valid=val_f,
                                     max_epoch=self.training_config.max_epoch,
                                     callbacks=callbacks)
-            if self.model_config.transformer is None:
+
+            if self.model_config.transformer_name is None:
                 self.models.append(foldModel)
             else:
                 # save the model with transformer layer on disk

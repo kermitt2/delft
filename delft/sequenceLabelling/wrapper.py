@@ -85,7 +85,7 @@ class Sequence(object):
                  features_indices=None,
                  transformer_name: str=None):
 
-        if model_name == None:
+        if model_name is None:
             # add a dummy name based on the architecture
             model_name = architecture
             if embeddings_name is not None:
@@ -110,7 +110,6 @@ class Sequence(object):
 
         if transformer_name is not None:
             self.transformer = Transformer(transformer_name, resource_registry=self.registry)
-            # LF: not sure if to load everything in the constructor...
             tokenizer = self.transformer.load_tokenizer(max_sequence_length)
             print(transformer_name, "will be used: ", self.transformer.loading_method)
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
@@ -139,7 +138,7 @@ class Sequence(object):
                                         batch_size=batch_size,
                                         use_ELMo=use_ELMo,
                                         features_indices=features_indices,
-                                        transformer=self.transformer)
+                                        transformer_name=transformer_name)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, max_epoch,
@@ -191,6 +190,7 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+
         if self.bert_preprocessor is not None:
             self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
             self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
@@ -528,8 +528,8 @@ class Sequence(object):
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print('preprocessor saved')
 
-        if self.model_config.transformer:
-            self.model_config.transformer.save_tokenizer(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+        if self.transformer is not None:
+            self.transformer.save_tokenizer(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
             print('transformer tokenizer saved')
 
         if self.model is None and self.model_config.fold_number > 1:
@@ -556,11 +556,9 @@ class Sequence(object):
             self.embeddings = None
             self.model_config.word_embedding_size = 0
 
-        transformer = None
-        if self.model_config.transformer is not None:
-            self.transformer = self.model_config.transformer
-            transformer = Transformer(self.transformer['name'], delft_local_path=model_path)
-            tokenizer = transformer.load_tokenizer(add_special_tokens=True,
+        if self.model_config.transformer_name is not None:
+            self.transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
+            tokenizer = self.transformer.load_tokenizer(add_special_tokens=True,
                                        max_sequence_length=self.model_config.max_sequence_length, add_prefix_space=True)
 
             self.bert_preprocessor = BERTPreprocessor(tokenizer)
@@ -575,7 +573,7 @@ class Sequence(object):
         self.model = get_model(self.model_config,
                                self.p, ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path=os.path.join(dir_path, self.model_config.model_name), transformer=transformer)
+                               local_path=os.path.join(dir_path, self.model_config.model_name), transformer=self.transformer)
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
