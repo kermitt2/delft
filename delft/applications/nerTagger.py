@@ -1,10 +1,8 @@
 import os
 import numpy as np
 from delft.sequenceLabelling import Sequence
-from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import stats
-from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
+from delft.sequenceLabelling.reader import load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
 import argparse
 import time
@@ -77,7 +75,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         recurrent_dropout=recurrent_dropout,
                         embeddings_name=embeddings_name,
                         architecture=architecture,
-                        transformer=transformer,
+                        transformer_name=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         early_stop=early_stop,
@@ -108,7 +106,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         recurrent_dropout=recurrent_dropout,
                         embeddings_name=embeddings_name, 
                         architecture=architecture,
-                        transformer=transformer,
+                        transformer_name=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         early_stop=early_stop,
@@ -131,7 +129,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         recurrent_dropout=recurrent_dropout,
                         embeddings_name=embeddings_name, 
                         architecture=architecture,
-                        transformer=transformer,
+                        transformer_name=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         early_stop=early_stop,
@@ -188,7 +186,7 @@ def train_eval(embeddings_name=None,
                             embeddings_name=embeddings_name, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             early_stop=True,
@@ -206,7 +204,7 @@ def train_eval(embeddings_name=None,
                             early_stop=False, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
@@ -230,7 +228,7 @@ def train_eval(embeddings_name=None,
                         embeddings_name=embeddings_name, 
                         fold_number=fold_count,
                         architecture=architecture,
-                        transformer=transformer,
+                        transformer_name=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         early_stop=early_stop,
@@ -257,7 +255,7 @@ def train_eval(embeddings_name=None,
                             embeddings_name=embeddings_name, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             early_stop=True,
@@ -275,7 +273,7 @@ def train_eval(embeddings_name=None,
                             early_stop=False, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience, 
@@ -299,7 +297,7 @@ def train_eval(embeddings_name=None,
                         embeddings_name=embeddings_name, 
                         fold_number=fold_count,
                         architecture=architecture,
-                        transformer=transformer,
+                        transformer_name=transformer,
                         word_lstm_units=word_lstm_units,
                         batch_size=batch_size,
                         early_stop=early_stop,
@@ -326,7 +324,7 @@ def train_eval(embeddings_name=None,
                             early_stop=True, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
@@ -343,7 +341,7 @@ def train_eval(embeddings_name=None,
                             early_stop=False, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
@@ -369,7 +367,7 @@ def train_eval(embeddings_name=None,
                             early_stop=True, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
@@ -386,7 +384,7 @@ def train_eval(embeddings_name=None,
                             early_stop=False, 
                             fold_number=fold_count,
                             architecture=architecture,
-                            transformer=transformer,
+                            transformer_name=transformer,
                             word_lstm_units=word_lstm_units,
                             batch_size=batch_size,
                             patience=patience,
@@ -415,7 +413,6 @@ def train_eval(embeddings_name=None,
 def eval(dataset_type='conll2003', 
          lang='en', 
          architecture='BidLSTM_CRF', 
-         transformer=None, 
          data_path=None,
          use_ELMo=False): 
 
@@ -428,7 +425,7 @@ def eval(dataset_type='conll2003',
         model_name = 'ner-en-conll2003-' + architecture
         if use_ELMo:
             model_name += '-with_ELMo'
-        model = Sequence(model_name, transformer=transformer,)
+        model = Sequence(model_name)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -441,7 +438,7 @@ def eval(dataset_type='conll2003',
         model_name = 'ner-en-conll2012-' + architecture
         if use_ELMo:
             model_name += '-with_ELMo'
-        model = Sequence(model_name, transformer=transformer,)
+        model = Sequence(model_name)
         model.load()
 
     else:
@@ -462,7 +459,6 @@ def annotate(output_format,
              dataset_type='conll2003', 
              lang='en', 
              architecture='BidLSTM_CRF',
-             transformer=None, 
              file_in=None, 
              file_out=None,
              use_ELMo=False):
@@ -475,7 +471,7 @@ def annotate(output_format,
         model_name = 'ner-en-conll2003-' + architecture
         if use_ELMo:
             model_name += '-with_ELMo'
-        model = Sequence(model_name, transformer=transformer)
+        model = Sequence(model_name)
         model.load()
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -483,14 +479,14 @@ def annotate(output_format,
         model_name = 'ner-en-conll2012-' + architecture
         if use_ELMo:
             model_name += '-with_ELMo'
-        model = Sequence(model_name, transformer=transformer)
+        model = Sequence(model_name)
         model.load()
 
     elif (lang == 'fr'):
         model_name = 'ner-fr-lemonde-' + architecture
         if use_ELMo:
             model_name += '-with_ELMo'
-        model = Sequence(model_name, transformer=transformer)
+        model = Sequence(model_name)
         model.load()
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -580,7 +576,7 @@ if __name__ == "__main__":
             lang=lang, 
             embeddings_name=embeddings_name,
             architecture=architecture, 
-            transformer=transformer,
+            transformer_name=transformer,
             data_path=data_path,
             use_ELMo=use_ELMo)
 
@@ -592,7 +588,7 @@ if __name__ == "__main__":
             lang=lang, 
             embeddings_name=embeddings_name, 
             architecture=architecture, 
-            transformer=transformer,
+            transformer_name=transformer,
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             data_path=data_path,
@@ -603,7 +599,7 @@ if __name__ == "__main__":
             dataset_type=dataset_type, 
             lang=lang, 
             architecture=architecture, 
-            transformer=transformer,
+            transformer_name=transformer,
             use_ELMo=use_ELMo)
 
     if action == 'tag':
@@ -615,7 +611,7 @@ if __name__ == "__main__":
                             dataset_type, 
                             lang, 
                             architecture=architecture, 
-                            transformer=transformer,
+                            transformer_name=transformer,
                             file_in=file_in, 
                             file_out=file_out,
                             use_ELMo=use_ELMo)

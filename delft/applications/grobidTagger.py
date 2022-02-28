@@ -235,7 +235,7 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None, 
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', transformer=None, features=None, use_ELMo=False):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
     annotations = []
 
     # load model
@@ -244,7 +244,7 @@ def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', trans
     if use_ELMo:
         model_name += '-with_ELMo'
 
-    model = Sequence(model_name, transformer_name=transformer)
+    model = Sequence(model_name)
     model.load()
 
     start_time = time.time()
@@ -396,7 +396,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
@@ -407,5 +407,5 @@ if __name__ == "__main__":
             with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
                 input_crf_string = file.read()
             x_all, f_all = load_data_crf_string(input_crf_string)
-            result = annotate_text(x_all, model, None, architecture=architecture, transformer=transformer, features=f_all)
+            result = annotate_text(x_all, model, None, architecture=architecture, features=f_all)
             print(result)
