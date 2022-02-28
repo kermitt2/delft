@@ -3,6 +3,8 @@ from typing import Union
 
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
+from delft.sequenceLabelling.preprocess import BERTPreprocessor
+
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 DEFAULT_TRANSFORMER_TOKENIZER_DIR = "transformer-tokenizer"
 
@@ -24,10 +26,11 @@ class Transformer(object):
 
     def __init__(self, name: str, resource_registry: dict = None, config_file: str = None,
                  tokenizer: AutoTokenizer = None, delft_local_path: str = None):
+        self.bert_preprocessor = None
         self.transformer_config = None
         self.loading_method = None
         # self.registry = resource_registry
-        self.tokenizer = None
+        self.tokenizer: Union[AutoTokenizer, BertTokenizer] = None
         self.model = None
 
         # In case the model is loaded from a local directory
@@ -45,7 +48,7 @@ class Transformer(object):
             self.local_dir_path = delft_local_path
 
         if tokenizer:
-            self.tokenizer = tokenizer
+            self.tokenizer: Union[AutoTokenizer, BertTokenizer] = tokenizer
             return
 
         if resource_registry:
@@ -98,7 +101,7 @@ class Transformer(object):
             print("No configuration for", self.name, "Loading from Hugging face.")
 
     def load_tokenizer(self, max_sequence_length: int, add_special_tokens: bool = True,
-                       add_prefix_space: bool = True) -> AutoTokenizer:
+                       add_prefix_space: bool = True) -> Union[AutoTokenizer, BertTokenizer]:
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -123,6 +126,15 @@ class Transformer(object):
             self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR), config=self.transformer_config)
 
         return self.tokenizer
+
+    def get_bert_preprocessor(self, empty_features_vector: list =None, empty_char_vector: list=None):
+        self.bert_preprocessor = BERTPreprocessor(self.tokenizer)
+        if self.bert_preprocessor:
+            self.bert_preprocessor.set_empty_features_vector(empty_features_vector)
+            self.bert_preprocessor.set_empty_char_vector(empty_char_vector)
+
+        return self.bert_preprocessor
+
 
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)

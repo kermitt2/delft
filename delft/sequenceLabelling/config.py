@@ -2,8 +2,6 @@ import json
 
 
 # Model parameters
-from delft.utilities.Transformer import Transformer
-
 
 class ModelConfig(object):
     DEFAULT_FEATURES_VOCABULARY_SIZE = 12

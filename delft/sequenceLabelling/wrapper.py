@@ -39,7 +39,7 @@ from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
-from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor, BERTPreprocessor
+from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor
 from delft.sequenceLabelling.tagger import Tagger
 from delft.sequenceLabelling.trainer import Trainer
 from delft.sequenceLabelling.trainer import Scorer
@@ -83,7 +83,7 @@ class Sequence(object):
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 transformer_name: str=None):
+                 transformer_name: str = None):
 
         if model_name is None:
             # add a dummy name based on the architecture
@@ -110,9 +110,8 @@ class Sequence(object):
 
         if transformer_name is not None:
             self.transformer = Transformer(transformer_name, resource_registry=self.registry)
-            tokenizer = self.transformer.load_tokenizer(max_sequence_length)
+            self.transformer.load_tokenizer(max_sequence_length)
             print(transformer_name, "will be used: ", self.transformer.loading_method)
-            self.bert_preprocessor = BERTPreprocessor(tokenizer)
         else:
             self.bert_preprocessor = None
 
@@ -162,9 +161,8 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-        if self.bert_preprocessor is not None:
-            self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
-            self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
+        if self.transformer is not None:
+            self.transformer.get_bert_preprocessor(self.p.empty_features_vector(), self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
@@ -178,7 +176,7 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          bert_preprocessor=self.bert_preprocessor
+                          transformer=self.transformer
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -191,9 +189,8 @@ class Sequence(object):
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
 
-        if self.bert_preprocessor is not None:
-            self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
-            self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
+        if self.transformer is not None:
+            self.transformer.get_bert_preprocessor(self.p.empty_features_vector(), self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
@@ -206,7 +203,7 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          bert_preprocessor=self.bert_preprocessor)
+                          transformer=self.transformer)
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -558,27 +555,25 @@ class Sequence(object):
 
         if self.model_config.transformer_name is not None:
             self.transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
-            tokenizer = self.transformer.load_tokenizer(add_special_tokens=True,
-                                       max_sequence_length=self.model_config.max_sequence_length, add_prefix_space=True)
-
-            self.bert_preprocessor = BERTPreprocessor(tokenizer)
-        else:
-            self.bert_preprocessor = None
+            self.transformer.load_tokenizer(add_special_tokens=True,
+                                            max_sequence_length=self.model_config.max_sequence_length,
+                                            add_prefix_space=True)
 
         self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
-        if self.bert_preprocessor is not None:
-            self.bert_preprocessor.set_empty_features_vector(self.p.empty_features_vector())
-            self.bert_preprocessor.set_empty_char_vector(self.p.empty_char_vector())
+        if self.transformer is not None:
+            self.transformer.get_bert_preprocessor(self.p.empty_features_vector(), self.p.empty_char_vector())
+
 
         self.model = get_model(self.model_config,
                                self.p, ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path=os.path.join(dir_path, self.model_config.model_name), transformer=self.transformer)
+                               local_path=os.path.join(dir_path, self.model_config.model_name),
+                               transformer=self.transformer)
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
     @classmethod
-    def load_resource_registry(self, path='delft/resources-registry.json'):
+    def load_resource_registry(cls, path='delft/resources-registry.json'):
         """
         Load the resource registry file in memory. Each description provides a name,
         a file path (used only if necessary) and an embeddings type (to take into account

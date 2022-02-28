@@ -9,7 +9,7 @@ from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, Transformer
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -26,7 +26,7 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor=None, 
-                 bert_preprocessor=None
+                 transformer: Transformer=None
                  ):
 
         # for single model training
@@ -41,7 +41,7 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-        self.bert_preprocessor = bert_preprocessor
+        self.transformer: Transformer  = transformer
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -118,10 +118,11 @@ class Trainer(object):
         # todo: if valid set is None, create it as random segment of the shuffled train set
 
         generator = local_model.get_generator()
+        bert_preprocessor = self.transformer.bert_preprocessor if self.transformer is not None else None
         if self.training_config.early_stop:
             training_generator = generator(x_train, y_train, 
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.bert_preprocessor,
+                bert_preprocessor=bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, 
@@ -129,7 +130,7 @@ class Trainer(object):
 
             validation_generator = generator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.bert_preprocessor,
+                bert_preprocessor=bert_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=False, features=f_valid, 
@@ -234,7 +235,7 @@ class Trainer(object):
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
                                load_pretrained_weights=True,
-                                  transformer=self.transformer)
+                               transformer=self.transformer)
 
             foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 
