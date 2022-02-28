@@ -203,9 +203,9 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False):
+def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False):
     print('Loading data...')
-    if input_path == None:
+    if input_path is None:
         # it should never be the case
         print("A Grobid evaluation data file must be specified for evaluating a grobid model for the eval action, use parameter --input ")
         return
@@ -224,6 +224,9 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None, 
     # load the model
     model = Sequence(model_name)
     model.load()
+
+    # Workaround to avoid having evaluation ran for n time
+    model.model_config.fold_number = 1
 
     # evaluation
     print("\nEvaluation:")
