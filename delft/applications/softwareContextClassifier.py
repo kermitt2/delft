@@ -40,7 +40,7 @@ def configure(architecture):
     if architecture == "bert":
         batch_size = 32
         early_stop = False
-        max_epoch = 3
+        max_epoch = 5
         maxlen = 100
 
     return batch_size, maxlen, patience, early_stop, max_epoch
