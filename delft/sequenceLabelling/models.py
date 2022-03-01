@@ -803,7 +803,6 @@ class BERT_CRF(BaseModel):
         '''
         return self.bert_config
 
-
 class BERT_ChainCRF(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
