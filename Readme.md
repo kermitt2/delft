@@ -15,11 +15,13 @@ DeLFT has three main purposes:
 
 1. __Covering text and rich texts__: most of the existing Deep Learning works in NLP only consider simple texts as input. In addition to simple texts, we also target _rich text_ where tokens are associated to layout information (font. style, etc.), positions in structured documents, and possibly other lexical or symbolic contextual information. Text is usually coming from large documents like PDF or HTML, and not just from segments like sentences or paragraphs, and contextual features appear very useful. Rich text is the most common textual content used by humans to communicate and work.
 
-2. __Reproducibility and benchmarking__: by implementing several references/state-of-the-art models for both sequence labeling and text classification tasks, we want to offer the capacity to validate reported results and to benchmark several methods under the same conditions and criteria.
+2. __Reproducibility and benchmarking__: by implementing several references/state-of-the-art models for both sequence labeling and text classification tasks, we want to offer the capacity to easily validate reported results and to benchmark several methods under the same conditions and criteria.
 
 3. __Production level__, by offering optimzed performance, robustness and integration possibilities, we aim at supporting better engineering decisions/trade-off and successful production-level applications. 
 
 Some contributions include: 
+
+* A variety of modern NLP architectures and tasks to be used following the same API.
 
 * Reduction of the size of RNN models, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
@@ -31,7 +33,7 @@ Some contributions include:
 
 * A comprehensive evaluation framework with the standard metrics for sequence labeling and classification tasks, including n-fold cross validation. 
 
-* Integration of HuggingFace transformers as Keras layers
+* Integration of HuggingFace transformers as Keras layers.
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 

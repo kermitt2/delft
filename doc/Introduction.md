@@ -20,6 +20,8 @@ DeLFT has three main purposes:
 
 Some contributions include: 
 
+* A variety of modern NLP architectures and tasks to be used following the same API.
+
 * Reduction of the size of RNN models, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
 * Implementation of a generic support of categorical features, available in various architectures. 
