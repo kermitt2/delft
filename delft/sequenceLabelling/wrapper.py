@@ -315,7 +315,7 @@ class Sequence(object):
                                     transformer=self.transformer)
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
-                    bert_preprocessor = self.transformer.get_bert_preprocessor(self.preprocessor.empty_features_vector(), self.preprocessor.empty_char_vector())
+                    bert_preprocessor = self.transformer.bert_preprocessor
 
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)

@@ -22,146 +22,6 @@ The class can also define the data generator class object to be used, the loss f
 the metrics and the optimizer.
 """
 
-
-def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights: bool=True, local_path:str=None, transformer: Transformer =None) -> object:
-    """
-    Return a model instance by its name. This is a facilitator function. 
-    """
-    if config.architecture == BidLSTM.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        return BidLSTM(config, ntags)
-
-    elif config.architecture == BidLSTM_CRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CRF(config, ntags)
-
-    elif config.architecture == BidLSTM_ChainCRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        return BidLSTM_ChainCRF(config, ntags)
-
-    elif config.architecture == BidLSTM_CNN.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_casing = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        return BidLSTM_CNN(config, ntags)
-
-    elif config.architecture == BidLSTM_CNN_CRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_casing = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CNN_CRF(config, ntags)
-
-    elif config.architecture == BidGRU_CRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidGRU_CRF(config, ntags)
-
-    elif config.architecture == BidLSTM_CRF_FEATURES.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_features = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CRF_FEATURES(config, ntags)
-
-    elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_features = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        return BidLSTM_ChainCRF_FEATURES(config, ntags)
-
-    elif config.architecture == BidLSTM_CRF_CASING.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_casing = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CRF_CASING(config, ntags)
-
-    elif config.architecture == BERT.name:
-        preprocessor.return_bert_embeddings = True
-        config.labels = preprocessor.vocab_tag
-        return BERT(config,
-                    ntags,
-                    load_pretrained_weights=load_pretrained_weights,
-                    local_path=local_path,
-                    transformer=transformer)
-
-    elif config.architecture == BERT_CRF.name:
-        preprocessor.return_bert_embeddings = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF(config,
-                        ntags,
-                        load_pretrained_weights=load_pretrained_weights,
-                        local_path=local_path,
-                        transformer=transformer)
-
-    elif config.architecture == BERT_ChainCRF.name:
-        preprocessor.return_bert_embeddings = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_ChainCRF(config,
-                        ntags,
-                        load_pretrained_weights=load_pretrained_weights,
-                             local_path=local_path,
-                        transformer=transformer)
-
-    elif config.architecture == BERT_CRF_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_features = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF_FEATURES(config,
-                                ntags,
-                                load_pretrained_weights=load_pretrained_weights,
-                                 local_path=local_path,
-                                transformer=transformer)
-
-    elif config.architecture == BERT_CRF_CHAR.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_chars = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF_CHAR(config,
-                            ntags,
-                            load_pretrained_weights=load_pretrained_weights,
-                            local_path=local_path,
-                            transformer=transformer)
-
-    elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_features = True
-        preprocessor.return_chars = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF_CHAR_FEATURES(config,
-                                    ntags,
-                                    load_pretrained_weights=load_pretrained_weights,
-                                    local_path=local_path,
-                                    transformer=transformer)
-    else:
-        raise (OSError('Model name does exist: ' + config.architecture))
-
-
 class TransformerBase(object):
     """
     This class contains the transformer specific code and characteristics
@@ -1067,3 +927,144 @@ class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
+
+
+def get_model(config: ModelConfig, preprocessor, ntags=None,
+              load_pretrained_weights: bool=True, local_path:str=None,
+              transformer: Transformer =None) -> BaseModel:
+    """
+    Return a model instance by its name. This is a facilitator function.
+    """
+    if config.architecture == BidLSTM.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        return BidLSTM(config, ntags)
+
+    elif config.architecture == BidLSTM_CRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CRF(config, ntags)
+
+    elif config.architecture == BidLSTM_ChainCRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        return BidLSTM_ChainCRF(config, ntags)
+
+    elif config.architecture == BidLSTM_CNN.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        return BidLSTM_CNN(config, ntags)
+
+    elif config.architecture == BidLSTM_CNN_CRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CNN_CRF(config, ntags)
+
+    elif config.architecture == BidGRU_CRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidGRU_CRF(config, ntags)
+
+    elif config.architecture == BidLSTM_CRF_FEATURES.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CRF_FEATURES(config, ntags)
+
+    elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        return BidLSTM_ChainCRF_FEATURES(config, ntags)
+
+    elif config.architecture == BidLSTM_CRF_CASING.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CRF_CASING(config, ntags)
+
+    elif config.architecture == BERT.name:
+        preprocessor.return_bert_embeddings = True
+        config.labels = preprocessor.vocab_tag
+        return BERT(config,
+                    ntags,
+                    load_pretrained_weights=load_pretrained_weights,
+                    local_path=local_path,
+                    transformer=transformer)
+
+    elif config.architecture == BERT_CRF.name:
+        preprocessor.return_bert_embeddings = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF(config,
+                        ntags,
+                        load_pretrained_weights=load_pretrained_weights,
+                        local_path=local_path,
+                        transformer=transformer)
+
+    elif config.architecture == BERT_ChainCRF.name:
+        preprocessor.return_bert_embeddings = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_ChainCRF(config,
+                        ntags,
+                        load_pretrained_weights=load_pretrained_weights,
+                             local_path=local_path,
+                        transformer=transformer)
+
+    elif config.architecture == BERT_CRF_FEATURES.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_FEATURES(config,
+                                ntags,
+                                load_pretrained_weights=load_pretrained_weights,
+                                 local_path=local_path,
+                                transformer=transformer)
+
+    elif config.architecture == BERT_CRF_CHAR.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_chars = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_CHAR(config,
+                            ntags,
+                            load_pretrained_weights=load_pretrained_weights,
+                            local_path=local_path,
+                            transformer=transformer)
+
+    elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_CHAR_FEATURES(config,
+                                    ntags,
+                                    load_pretrained_weights=load_pretrained_weights,
+                                    local_path=local_path,
+                                    transformer=transformer)
+    else:
+        raise (OSError('Model name does exist: ' + config.architecture))
