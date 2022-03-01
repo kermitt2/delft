@@ -1,6 +1,6 @@
-from keras import backend as K
-from keras.engine.topology import Layer
-from keras import initializers, regularizers, constraints
+from tensorflow.keras import backend as K
+from tensorflow.keras.engine.topology import Layer
+from tensorflow.keras import initializers, regularizers, constraints
 from delft.utilities.Utilities import dot_product
 
 

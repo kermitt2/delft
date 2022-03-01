@@ -1,16 +1,9 @@
 import itertools
 import regex as re
 import numpy as np
-# seed is fixed for reproducibility
-np.random.seed(7)
-from tensorflow import set_random_seed
-set_random_seed(7)
 
 from unidecode import unidecode
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-from delft.utilities.bert.run_classifier_delft import DataProcessor
-import delft.utilities.bert.tokenization as tokenization
-from delft.utilities.bert.run_classifier_delft import InputExample
 
 special_character_removal = re.compile(r'[^A-Za-z\.\-\?\!\,\#\@\% ]',re.IGNORECASE)
 
@@ -34,163 +27,46 @@ def to_vector_single(text, embeddings, maxlen=300):
 
     return x
 
-def to_vector_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on ELMo contextualized embeddings
-    """
-    subtokens = []
-    for i in range(0, len(tokens)):
-        local_tokens = []
-        for j in range(0, min(len(tokens[i]), maxlen)):
-            if lowercase:
-                local_tokens.append(lower(tokens[i][j]))
-            else:
-                local_tokens.append(tokens[i][j])
-        subtokens.append(local_tokens)
-    return embeddings.get_sentence_vector_only_ELMo(subtokens)
-    """
-    if use_token_dump:
-        return embeddings.get_sentence_vector_ELMo_with_token_dump(tokens)
-    """
-
-def to_vector_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the BERT contextualized embeddings, introducing
-    padding token when appropriate
-    """
-    subtokens = []
-    for i in range(0, len(tokens)):
-        local_tokens = []
-        for j in range(0, min(len(tokens[i]), maxlen)):
-            if lowercase:
-                local_tokens.append(lower(tokens[i][j]))
-            else:
-                local_tokens.append(tokens[i][j])
-        subtokens.append(local_tokens)
-    vector = embeddings.get_sentence_vector_only_BERT(subtokens)
-    return vector
-
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the concatenation of the provided static embeddings and 
-    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
-    padding token vector when appropriate
-    """
-    subtokens = []
-    for i in range(0, len(tokens)):
-        local_tokens = []
-        for j in range(0, min(len(tokens[i]), maxlen)):
-            if lowercase:
-                local_tokens.append(lower(tokens[i][j]))
-            else:
-                local_tokens.append(tokens[i][j])
-        if len(tokens[i]) < maxlen:
-            for i in range(0, maxlen-len(tokens[i])):
-                local_tokens.append(" ")
-        subtokens.append(local_tokens)
-    return embeddings.get_sentence_vector_with_ELMo(subtokens)
-
-def to_vector_simple_with_bert(tokens, embeddings, maxlen=300, lowercase=False, num_norm=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the concatenation of the provided static embeddings and 
-    the BERT contextualized embeddings, introducing padding token vector 
-    when appropriate
-    """
-    subtokens = []
-    for i in range(0, len(tokens)):
-        local_tokens = []
-        for j in range(0, min(len(tokens[i]), maxlen)):
-            if lowercase:
-                local_tokens.append(lower(tokens[i][j]))
-            else:
-                local_tokens.append(tokens[i][j])
-        if len(tokens[i]) < maxlen:
-            for i in range(0, maxlen-len(tokens[i])):
-                local_tokens.append(" ")
-        subtokens.append(local_tokens)
-    return embeddings.get_sentence_vector_with_BERT(subtokens)
-
 def clean_text(text):
     x_ascii = unidecode(text)
     x_clean = special_character_removal.sub('',x_ascii)
     return x_clean
 
-
 def lower(word):
     return word.lower() 
-
 
 def normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
 
+def create_single_input_bert(text, maxlen=512, tokenizer=None):
+    '''
+    Note: use batch method preferably for better performance
+    '''
 
-class BERT_classifier_processor(DataProcessor):
-    """
-    BERT data processor for classification
-    """
-    def __init__(self, labels=None, x_train=None, y_train=None, x_test=None, y_test=None):
-        self.list_classes = labels
-        self.x_train = x_train
-        self.y_train = y_train
-        self.x_test = x_test
-        self.y_test = y_test
+    # TBD: exception if tokenizer is not valid/None
+    encoded_tokens = tokenizer.encode_plus(text, truncation=True, add_special_tokens=True, 
+                                                max_length=maxlen, padding='max_length')
+    # note: [CLS] and [SEP] are added by the tokenizer
 
-    def get_train_examples(self, x_train=None, y_train=None):
-        """See base class."""
-        if x_train is not None:
-            self.x_train = x_train
-        if y_train is not None:
-            self.y_train = y_train
-        examples, _ = self.create_examples(self.x_train, self.y_train)
-        return examples
+    ids = encoded_tokens["input_ids"]
+    masks = encoded_tokens["token_type_ids"]
+    segments = encoded_tokens["attention_mask"]
 
-    def get_labels(self):
-        """See base class."""
-        return self.list_classes
+    return ids, masks, segments
 
-    def get_test_examples(self, x_test=None, y_test=None):
-        """See base class."""
-        if x_test is not None:
-            self.x_test = x_test
-        if y_test is not None:
-            self.y_test = y_test
-        examples, results = self.create_examples(self.x_test, self.y_test)
-        return examples, results
+def create_batch_input_bert(texts, maxlen=512, tokenizer=None):
+    # TBD: exception if tokenizer is not valid/None
 
-    def create_examples(self, x_s, y_s=None):
-        examples = []
-        valid_classes = np.zeros((y_s.shape[0],len(self.list_classes)))
-        accumul = 0
-        for (i, x) in enumerate(x_s):
-            y = y_s[i]
-            guid = i
-            text_a = tokenization.convert_to_unicode(x)
-            #the_class = self._rewrite_classes(y, i)
-            ind, = np.where(y == 1)
-            the_class = self.list_classes[ind[0]]
-            if the_class is None:
-                #print(text_a)
-                continue
-            if the_class not in self.list_classes:
-                #the_class = 'other'
-                continue
-            label = tokenization.convert_to_unicode(the_class)
-            examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-            valid_classes[accumul] = y
-            accumul += 1
+    if isinstance(texts, np.ndarray):
+        texts = texts.tolist()
 
-        return examples, valid_classes 
+    encoded_tokens = tokenizer.batch_encode_plus(texts, add_special_tokens=True, truncation=True, 
+                                                max_length=maxlen, padding='max_length')
 
-    def create_inputs(self, x_s, dummy_label='dummy'):
-        examples = []
-        # dummy label to avoid breaking the bert base code
-        label = tokenization.convert_to_unicode(dummy_label)
-        for (i, x) in enumerate(x_s):
-            guid = i
-            text_a = tokenization.convert_to_unicode(x) 
-            examples.append(InputExample(guid=guid, text_a=text_a, text_b=None, label=label))
-        return examples
+    # note: special tokens like [CLS] and [SEP] are added by the tokenizer
+
+    ids = encoded_tokens["input_ids"]
+    masks = encoded_tokens["token_type_ids"]
+    segments = encoded_tokens["attention_mask"]
+
+    return ids, masks, segments

@@ -10,7 +10,6 @@ pattern = re.compile('('+regex+')')
 
 blanks = ' \t\n'
 
-
 def tokenizeAndFilter(text):
     """
     Tokenization following the above pattern with offset information

@@ -1,9 +1,9 @@
 from collections import defaultdict
 import numpy as np
 import datetime
-from delft.sequenceLabelling.data_generator import DataGenerator
+from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.utilities.Tokenizer import tokenizeAndFilter
-
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 class Tagger(object):
 
@@ -11,16 +11,17 @@ class Tagger(object):
                 model, 
                 model_config, 
                 embeddings=None, 
-                preprocessor=None):
+                preprocessor=None, 
+                bert_preprocessor=None):
         self.model = model
         self.preprocessor = preprocessor
+        self.bert_preprocessor = bert_preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
 
     def tag(self, texts, output_format, features=None):
-        assert isinstance(texts, list)
 
-        if output_format is 'json':
+        if output_format == 'json':
             res = {
                 "software": "DeLFT",
                 "date": datetime.datetime.now().isoformat(),
@@ -33,14 +34,66 @@ class Tagger(object):
         to_tokeniz = False
         if (len(texts)>0 and isinstance(texts[0], str)):
             to_tokeniz = True
+        
+        generator = self.model.get_generator()
+        predict_generator = generator(texts, None, 
+            batch_size=self.model_config.batch_size, 
+            preprocessor=self.preprocessor, 
+            bert_preprocessor=self.bert_preprocessor,
+            char_embed_size=self.model_config.char_embedding_size,
+            max_sequence_length=self.model_config.max_sequence_length,
+            embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, 
+            features=features, output_input_offsets=True, 
+            use_chain_crf=self.model_config.use_chain_crf)
 
-        if 'bert' in self.model_config.model_type.lower():
-            preds = self.model.predict(texts, fold_id=-1)
-            for i in range(0,len(preds)):
-                pred = preds[i]
-                text = texts[i]
+        steps_done = 0
+        steps = len(predict_generator)
+        for generator_output in predict_generator:
+            if steps_done == steps:
+                break
 
-                if (isinstance(text, str)):
+            if isinstance(predict_generator, DataGeneratorTransformers):
+                # the model uses transformer embeddings, so we need the input tokens to realign correctly the 
+                # labels and the inpit label texts 
+
+                # we need to remove one vector of the data corresponding to the marked tokens, this vector is not 
+                # expected by the model, but we need it to restore correctly the labels (which are produced
+                # according to the sub-segmentation of wordpiece, not the expected segmentation)
+                data = generator_output[0]
+
+                input_offsets = data[-1]
+                data = data[:-1]
+
+                y_pred_batch = self.model.predict_on_batch(data)
+                #y_pred_batch = np.argmax(y_pred_batch, -1)
+
+                # results have been produced by a model using a transformer layer, so a few things to do
+                # the labels are sparse, so integers and not one hot encoded
+                # we need to restore back the labels for wordpiece to the labels for normal tokens
+                # for this we can use the marked tokens provided by the generator 
+                new_y_pred_batch = []
+                for y_pred_text, offsets_text in zip(y_pred_batch, input_offsets):
+                    new_y_pred_text = []
+                    # this is the result per sequence, realign labels:
+                    for q in range(len(offsets_text)):
+                        if offsets_text[q][0] == 0 and offsets_text[q][1] == 0:
+                            # special token
+                            continue
+                        if offsets_text[q][0] != 0: 
+                            # added sub-token
+                            continue
+                        new_y_pred_text.append(y_pred_text[q]) 
+                    new_y_pred_batch.append(new_y_pred_text)
+                preds = new_y_pred_batch
+            else:
+                # no weirdness changes on the input 
+                preds = self.model.predict_on_batch(generator_output[0])
+
+            for i in range(0, len(preds)):
+                pred = [preds[i]]
+                text = texts[i+(steps_done*self.model_config.batch_size)]
+
+                if to_tokeniz:
                    tokens, offsets = tokenizeAndFilter(text)
                 else:
                     # it is a list of string, so a string already tokenized
@@ -48,10 +101,14 @@ class Tagger(object):
                     tokens = text
                     offsets = []
 
-                tags = pred
-                prob = None
+                if not self.model_config.use_crf or self.model_config.use_chain_crf:
+                    tags = self._get_tags(pred)
+                    prob = self._get_prob(pred)
+                else:
+                    tags = self._get_tags_sparse(pred)
+                    prob = self._get_prob_sparse(pred)
 
-                if output_format is 'json':
+                if output_format == 'json':
                     piece = {}
                     piece["text"] = text
                     piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
@@ -59,58 +116,9 @@ class Tagger(object):
                 else:
                     the_tags = list(zip(tokens, tags))
                     list_of_tags.append(the_tags)
+            steps_done += 1
 
-        else:
-            predict_generator = DataGenerator(texts, None, 
-                batch_size=self.model_config.batch_size, 
-                preprocessor=self.preprocessor, 
-                char_embed_size=self.model_config.char_embedding_size,
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, features=features)
-
-            nb_workers = 6
-            multiprocessing = True
-            # multiple workers will not work with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-            if self.embeddings.use_ELMo:
-                # worker at 0 means the training will be executed in the main thread
-                nb_workers = 0
-                multiprocessing = False
-                # dump token context independent data for train set, done once for the training
-
-            steps_done = 0
-            steps = len(predict_generator)
-            for generator_output in predict_generator:
-                if steps_done == steps:
-                    break
-                preds = self.model.predict_on_batch(generator_output[0])
-
-                for i in range(0, len(preds)):
-                    pred = [preds[i]]
-                    text = texts[i+(steps_done*self.model_config.batch_size)]
-
-                    #if (isinstance(text, str)):
-                    if to_tokeniz:
-                       tokens, offsets = tokenizeAndFilter(text)
-                    else:
-                        # it is a list of string, so a string already tokenized
-                        # note that in this case, offset are not present and json output is impossible
-                        tokens = text
-                        offsets = []
-
-                    tags = self._get_tags(pred)
-                    prob = self._get_prob(pred)
-
-                    if output_format is 'json':
-                        piece = {}
-                        piece["text"] = text
-                        piece["entities"] = self._build_json_response(text, tokens, tags, prob, offsets)["entities"]
-                        res["texts"].append(piece)
-                    else:
-                        the_tags = list(zip(tokens, tags))
-                        list_of_tags.append(the_tags)
-                steps_done += 1
-
-        if output_format is 'json':
+        if output_format == 'json':
             return res
         else:
             return list_of_tags
@@ -118,34 +126,31 @@ class Tagger(object):
     def _get_tags(self, pred):
         pred = np.argmax(pred, -1)
         tags = self.preprocessor.inverse_transform(pred[0])
+        return tags
 
+    def _get_tags_sparse(self, pred):
+        tags = self.preprocessor.inverse_transform(pred[0])
         return tags
 
     def _get_prob(self, pred):
         prob = np.max(pred, -1)[0]
-
         return prob
+
+    def _get_prob_sparse(self, pred):
+        return [1.0] * len(pred[0])
 
     def _build_json_response(self, original_text, tokens, tags, prob, offsets):
         res = {
             "entities": []
         }
         chunks = get_entities_with_offsets(tags, offsets)
-        # LF: This could be combined with line 145, however currently the output list of spaces has one element missing
-        # spaces = [offsets[offsetIndex-1][1] != offsets[offsetIndex][0] for offsetIndex in range(1, len(offsets))]
-
         for chunk_type, chunk_start, chunk_end, pos_start, pos_end in chunks:
             if prob is not None:
                 score = float(np.average(prob[chunk_start:chunk_end]))
             else:
                 score = 1.0
 
-            # LF: reconstruct the text considering initial spaces - remove space a the end of the entity
-            # text_from_tokens = ''.join([tokens[idx] + (' ' if spaces[idx] else '') for idx in range(chunk_start, chunk_end)])
-            # if text_from_tokens.endswith(' '):
-            #     text_from_tokens = text_from_tokens[0:-1]
             entity_text = original_text[pos_start: pos_end+1]
-
             entity = {
                 "text": entity_text,
                 "class": chunk_type,
@@ -175,16 +180,18 @@ def get_entities_with_offsets(seq, offsets):
         >>> print(get_entities(seq))
         [('PER', 0, 2, 0, 15), ('LOC', 3, 4, 30, 41)]
     """
+
     i = 0
     chunks = []
     seq = seq + ['O']  # add sentinel
     types = [tag.split('-')[-1] for tag in seq]
     max_length = min(len(seq)-1, len(offsets))
+
     while i < max_length:
         if seq[i].startswith('B'):
             # if we are at the end of the offsets, we can stop immediately
             j = max_length
-            if i+2 != max_length:
+            if i+1 != max_length:
                 for j in range(i+1, max_length+1):
                     if seq[j].startswith('I') and types[j] == types[i]:
                         continue

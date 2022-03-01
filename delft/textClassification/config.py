@@ -5,7 +5,7 @@ class ModelConfig(object):
 
     def __init__(self, 
                  model_name="",
-                 model_type="gru",
+                 architecture="gru",
                  embeddings_name="glove-840B", 
                  list_classes=[],
                  char_emb_size=0, 
@@ -15,16 +15,14 @@ class ModelConfig(object):
                  use_char_feature=False,
                  maxlen=300,
                  fold_number=1,
-                 batch_size=64, 
-                 use_ELMo=False, 
-                 use_BERT=False
+                 batch_size=64,
+                 dense_size=32,
+                 transformer=None
                  ):
 
         self.model_name = model_name
-        self.model_type = model_type
+        self.architecture = architecture
         self.embeddings_name = embeddings_name
-        self.use_ELMo = use_ELMo
-        self.use_BERT = use_BERT
 
         #self.vocab_size = None
         #self.char_vocab_size = None
@@ -34,11 +32,14 @@ class ModelConfig(object):
         self.dropout = dropout
         self.recurrent_dropout = recurrent_dropout
         self.maxlen = maxlen
+        self.dense_size = dense_size
 
         self.use_char_feature = use_char_feature
         self.list_classes = list_classes
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for test and prediction
+
+        self.transformer = transformer
 
     def save(self, file):
         with open(file, 'w') as f:
@@ -65,6 +66,7 @@ class TrainingConfig(object):
                  clip_gradients=5.0, 
                  max_epoch=50, 
                  patience=5,
+                 early_stop=True,
                  use_roc_auc=True,
                  class_weights=None,
                  multiprocessing=True):
@@ -79,3 +81,5 @@ class TrainingConfig(object):
         self.use_roc_auc = use_roc_auc
         self.class_weights = class_weights
         self.multiprocessing = multiprocessing
+        self.early_stop = early_stop
+        

@@ -1,0 +1,155 @@
+{
+    "embedding-lmdb-path": "data/db",
+    "embedding-download-path": "data/download",
+    "embeddings": [
+        {
+            "name": "glove-840B",
+            "path": "/media/lopez/T5/embeddings/glove.840B.300d.txt",
+            "type": "glove",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word",
+            "url": "http://nlp.stanford.edu/data/wordvecs/glove.840B.300d.zip"
+        },
+        {
+            "name": "fasttext-crawl",
+            "path": "/media/lopez/T5/embeddings/crawl-300d-2M.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word",
+            "url": "https://dl.fbaipublicfiles.com/fasttext/vectors-english/crawl-300d-2M.vec.zip"
+        },
+        {
+            "name": "fasttext-wiki-bin",
+            "path": "/media/lopez/T5/embeddings/wiki.en.bin",
+            "type": "fasttext",
+            "format": "bin", 
+            "lang": "en",
+            "item": "word",
+            "url": "https://dl.fbaipublicfiles.com/fasttext/vectors-wiki/wiki.en.zip"
+        },
+        {
+            "name": "fasttext-wiki",
+            "path": "/media/lopez/T5/embeddings/wiki.en.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word",
+            "url": "https://dl.fbaipublicfiles.com/fasttext/vectors-wiki/wiki.en.vec"
+        },
+        {
+            "name": "word2vec",
+            "path": "/media/lopez/T5/embeddings/GoogleNews-vectors-negative300.vec",
+            "type": "w2v",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word",
+            "url": "https://science-miner.s3-us-west-2.amazonaws.com/embeddings/GoogleNews-vectors-negative300.vec.gz"
+        },
+        {
+            "name": "word2vec-pmc",
+            "path": "/media/lopez/T5/embeddings/wikipedia-pubmed-and-PMC-w2v.vec",
+            "type": "w2v",
+            "format": "vec", 
+            "lang": "en",
+            "item": "word",
+            "url": ""
+        },
+        {
+            "name": "wiki.fr",
+            "path": "/media/lopez/T5/embeddings/wiki.fr.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "fr",
+            "item": "word",
+            "url": "https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.vec.gz"
+        },
+        {
+            "name": "cc.fr",
+            "path": "/media/lopez/T5/embeddings/cc.fr.300.vec",
+            "type": "fasttext",
+            "format": "vec", 
+            "lang": "fr",
+            "item": "word",
+            "url": ""
+        }
+    ],
+    "transformers": [
+        {
+            "name": "bert-base-cased",
+            "model_dir": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12",
+            "path-config": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/bert_config.json",
+            "path-weights": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T51/embeddings/cased_L-12_H-768_A-12/vocab.txt",
+            "lang": "en",
+            "url": "https://storage.googleapis.com/bert_models/2018_10_18/cased_L-12_H-768_A-12.zip"
+        },
+        {
+            "name": "bert-large-cased",
+            "path-config": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/wwm_cased_L-24_H-1024_A-16/vocab.txt",
+            "lang": "en",
+            "url": "https://storage.googleapis.com/bert_models/2019_05_30/wwm_cased_L-24_H-1024_A-16.zip"
+        },
+        {
+            "name": "bert-base-multi-cased",
+            "path-config": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T5/embeddings/multi_cased_L-12_H-768_A-12/vocab.txt",
+            "lang": "multi",
+            "url": "https://storage.googleapis.com/bert_models/2018_11_23/multi_cased_L-12_H-768_A-12.zip"
+        },
+        {
+            "name": "allenai/scibert_scivocab_cased",
+            "model_dir": "/media/lopez/T51/embeddings/scibert_scivocab_cased",
+            "path-config": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_config.json",
+            "path-weights": "/media/lopez/T51/embeddings/scibert_scivocab_cased/bert_model.ckpt",
+            "path-vocab": "/media/lopez/T51/embeddings/scibert_scivocab_cased/vocab.txt",
+            "lang": "en"
+        },
+        {
+            "name": "dmis-lab/biobert-base-cased-v1.2",
+            "path-config": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/model.ckpt-1000000",
+            "path-vocab": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/vocab.txt",
+            "lang": "en"
+        }
+    ],
+    "embeddings-contextualized": [
+        {
+            "name": "elmo-en",
+            "path-config": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
+            "path_weights": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5",
+            "path-vocab": "data/models/ELMo/en/vocab.txt",
+            "path-cache": "data/models/ELMo/en/",
+            "cache-training": true,
+            "lang": "en",
+            "url_config": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
+            "url_weights": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5"
+        },
+        {
+            "name": "elmo-pubmed",
+            "path-config": "/media/lopez/T51/embeddings/elmo-pubmed/elmo_2x4096_512_2048cnn_2xhighway_options_pubmed.json",
+            "path_weights": "/media/lopez/T51/embeddings/elmo-pubmed/elmo_2x4096_512_2048cnn_2xhighway_weights_PubMed_only.hdf5",
+            "path-vocab": "data/models/ELMo/en/vocab.txt",
+            "path-cache": "data/models/ELMo/en/",
+            "cache-training": true,
+            "lang": "en",
+            "url_config": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/contributed/pubmed/elmo_2x4096_512_2048cnn_2xhighway_options.json",
+            "url_weights": "https://s3-us-west-2.amazonaws.com/allennlp/models/elmo/contributed/pubmed/elmo_2x4096_512_2048cnn_2xhighway_weights_PubMed_only.hdf5"
+        },
+        {
+            "name": "elmo-fr",
+            "path": "/media/lopez/T51/embeddings/elmo_fr_020/",
+            "path-config": "/media/lopez/T51/embeddings/elmo_fr_020/options.json",
+            "path_weights": "/media/lopez/T51/embeddings/frELMo/weights.hdf5",
+            "path-vocab": "data/models/ELMo/elmo_fr_020/vocab.txt",
+            "path-cache": "data/models/ELMo/fr/",
+            "cache-training": true,
+            "lang": "fr",
+            "url": "https://traces1.inria.fr/oscar/files/models/cc/fr.zip"
+        }
+    ]
+}

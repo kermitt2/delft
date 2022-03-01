@@ -71,7 +71,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = 'O'
             for token in localTokens:
                 self.tokens.append(token)
@@ -87,10 +87,10 @@ class TEIContentHandler(xml.sax.ContentHandler):
         self.accumulated += content
 
     def getSents(self):
-        return np.asarray(self.sents)
+        return np.asarray(self.sents, dtype=object)
 
     def getAllLabels(self):
-        return np.asarray(self.allLabels)
+        return np.asarray(self.allLabels, dtype=object)
 
     def clear(self): # clear the accumulator for re-use
         self.accumulated = ""
@@ -173,7 +173,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                     mainType = attrs.getValue("type")
                 if "TYPE" in attrs:
                     mainType = attrs.getValue("TYPE")
-                if mainType is None:
+                if mainType == None:
                     print('ENAMEX element without type attribute!')
 
                 if "sub_type" in attrs:
@@ -204,7 +204,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = 'O'
             for token in localTokens:
                 self.tokens.append(token)
@@ -307,7 +307,7 @@ def load_data_and_labels_crf_file(filepath):
         with open(filepath) as f:
             sents, labels, featureSets = load_data_and_labels_crf_content(f)
 
-    return np.asarray(sents), np.asarray(labels), np.asarray(featureSets)
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object), np.asarray(featureSets, dtype=object)
 
 def load_data_and_labels_crf_content(the_file):
     sents = []
@@ -500,7 +500,73 @@ def load_data_and_labels_conll(filename):
                 words.append(word)
                 tags.append(tag)
 
-    return np.asarray(sents), np.asarray(labels)
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
+
+
+def load_data_and_labels_conll_with_document_context(filename, max_context_window=400):
+    """
+    Load data and label from a file. In this alternative, we do not segment by sentence and 
+    we keep a maximum of document context according to a context window size.
+
+    Args:
+        filename (str): path to the file.
+
+        The file format is tab-separated values.
+        A blank line is required at the end of a sentence.
+
+        For example:
+        ```
+        EU  B-ORG
+        rejects O
+        German  B-MISC
+        call    O
+        to  O
+        boycott O
+        British B-MISC
+        lamb    O
+        .   O
+
+        Peter   B-PER
+        Blackburn   I-PER
+        ...
+        ```
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+
+    """
+
+    # TBD: ideally, for consistency, the tokenization in the CoNLL files should not be enforced, 
+    # only the standard DeLFT tokenization should be used, in line with the word embeddings
+    documents, sents, labels = [], [], []
+    with open(filename, encoding="UTF-8") as f:
+        words, tags = [], []
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('-DOCSTART-') or line.startswith('#begin document'):
+                if len(words) != 0:
+                    sents.append(words)
+                    labels.append(tags)
+                    words, tags = [], []
+                if len(sents) != 0:
+                    documents.append(sents)
+                    sents = []
+            elif len(line) == 0:
+                if len(words) != 0:
+                    sents.append(words)
+                    labels.append(tags)
+                    words, tags = [], []
+            else:
+                if len(line.split('\t')) == 2:
+                    word, tag = line.split('\t')
+                else:
+                    word, _, tag = line.split('\t')
+                words.append(word)
+                tags.append(tag)
+
+    # regroup sentences according document contexts following context window
+
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
 
 
 def load_data_and_labels_lemonde(filepathXml):
@@ -543,9 +609,9 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
     nb_files = 0
     # map lang and subdir names
     lang_name = 'english'
-    if lang is 'zh':
+    if lang == 'zh':
         lang_name = '/chinese/'
-    elif lang is 'ar':
+    elif lang == 'ar':
         lang_name = '/arabic/'
 
     tokens = []

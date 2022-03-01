@@ -8,7 +8,7 @@ class ModelConfig(object):
 
     def __init__(self, 
                  model_name="",
-                 model_type="BidLSTM_CRF",
+                 architecture="BidLSTM_CRF",
                  embeddings_name="glove-840B",
                  word_embedding_size=300,
                  char_emb_size=25, 
@@ -18,19 +18,19 @@ class ModelConfig(object):
                  max_sequence_length=300,
                  dropout=0.5, 
                  recurrent_dropout=0.3,
-                 use_char_feature=True, 
-                 use_crf=True,
+                 use_crf=False,
+                 use_chain_crf=False,
                  fold_number=1,
                  batch_size=64,
                  use_ELMo=False,
-                 use_BERT=False,
                  features_vocabulary_size=DEFAULT_FEATURES_VOCABULARY_SIZE,
                  features_indices=None,
                  features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
-                 features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE):
+                 features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
+                 transformer=None):
 
         self.model_name = model_name
-        self.model_type = model_type
+        self.architecture = architecture
         self.embeddings_name = embeddings_name
 
         self.char_vocab_size = None
@@ -54,13 +54,14 @@ class ModelConfig(object):
         self.dropout = dropout
         self.recurrent_dropout = recurrent_dropout
 
-        self.use_char_feature = use_char_feature
         self.use_crf = use_crf
+        self.use_chain_crf = use_chain_crf
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for prediction
 
+        self.transformer = transformer
+
         self.use_ELMo = use_ELMo
-        self.use_BERT = use_BERT
 
     def save(self, file):
         with open(file, 'w') as f:
@@ -88,7 +89,7 @@ class TrainingConfig(object):
                  max_epoch=50, 
                  early_stop=True,
                  patience=5,
-                 max_checkpoints_to_keep=5,
+                 max_checkpoints_to_keep=0,
                  multiprocessing=True):
 
         self.batch_size = batch_size # this is the batch size for training
