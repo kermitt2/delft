@@ -317,7 +317,7 @@ class Classifier(object):
                     if roc_auc < 0:
                         roc_auc = 0 
                 else:
-                    roc_auc = roc_auc_score(y_test[:, j], result[:, j])
+                    roc_auc = roc_auc_score(y_test[:, j], result[:, j], labels=[0,1])
                 total_roc_auc += roc_auc
                 '''
                 print("\nClass:", self.model_config.list_classes[j])
@@ -355,16 +355,23 @@ class Classifier(object):
                 total_accuracy += accuracy
                 f1 = f1_score(y_test[i,:], result_binary[i,:], average='micro')
                 total_f1 += f1
-                loss = log_loss(y_test[i,:], result[i,:])
+                loss = log_loss(y_test[i,:], result[i,:], labels=[0.0, 1.0])
                 total_loss += loss
-                roc_auc = roc_auc_score(y_test[i,:], result[i,:])
+                if len(np.unique(y_test[i,:])) == 1:
+                    # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
+                    # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
+                    roc_auc = r2_score(y_test[i,:], result[i,:])
+                    if roc_auc < 0:
+                        roc_auc = 0 
+                else:
+                    roc_auc = roc_auc_score(y_test[i,:], result[i,:], labels=[0.0, 1.0])
                 total_roc_auc += roc_auc
 
             total_accuracy /= result.shape[0]
             total_f1 /= result.shape[0]
             total_loss /= result.shape[0]
             total_roc_auc /= result.shape[0]
-
+            
             '''
             print("\nMicro-average:")
             print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))

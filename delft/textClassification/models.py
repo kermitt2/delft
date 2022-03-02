@@ -324,10 +324,10 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
 
         if model_config.transformer is not None:
             model = models[0]
-            if fold_id != 0:
-                # load new weight from disk
-                model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
-                model.load(model_path)  
+            #if fold_id != 0:
+            # load new weight from disk
+            model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+            model.load(model_path)  
         else:
             model = models[fold_id]
         
@@ -882,7 +882,7 @@ class BERT(BaseModel):
 
         #def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
         transformer_model_name = self.parameters["transformer"]
-        print(transformer_model_name)
+        #print(transformer_model_name)
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
