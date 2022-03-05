@@ -17,8 +17,8 @@ from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorT
 """
 The sequence labeling models.
 
-Each model is a class implementing a Keras architecture. 
-The class can also define the data generator class object to be used, the loss function,
+Each architecture model is a class implementing a Keras architecture. 
+The architecture class can also define the data generator class object to be used, the loss function,
 the metrics and the optimizer.
 """
 
@@ -41,6 +41,7 @@ class TransformerBase(object):
         self.bert_config = transformer.transformer_config
 
         return transformer_model
+
 
 class BaseModel(object):
 
@@ -932,7 +933,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None,
               load_pretrained_weights: bool=True, local_path:str=None,
               transformer: Transformer =None) -> BaseModel:
     """
-    Return a model instance by its name. This is a facilitator function.
+    Return a model instance by its name with appropriate parameters. This is a facilitator function.
     """
     if config.architecture == BidLSTM.name:
         preprocessor.return_word_embeddings = True
@@ -1067,3 +1068,4 @@ def get_model(config: ModelConfig, preprocessor, ntags=None,
                                     transformer=transformer)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
+

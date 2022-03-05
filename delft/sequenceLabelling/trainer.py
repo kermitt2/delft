@@ -3,6 +3,7 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
+from tensorflow.keras.utils import plot_model
 from transformers import create_optimizer
 
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers

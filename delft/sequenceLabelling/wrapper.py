@@ -45,7 +45,7 @@ from delft.sequenceLabelling.trainer import Trainer
 from delft.sequenceLabelling.trainer import Scorer
 from delft.sequenceLabelling.evaluation import get_report
 
-from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.numpy import concatenate_or_none
 
 from delft.sequenceLabelling.evaluation import classification_report
@@ -106,14 +106,14 @@ class Sequence(object):
         # if transformer is None, no bert layer is present in the model
         self.transformer = None
 
-        self.registry = Sequence.load_resource_registry("delft/resources-registry.json")
+        self.registry = load_resource_registry("delft/resources-registry.json")
 
         if transformer_name is not None:
             self.transformer = Transformer(transformer_name, resource_registry=self.registry)
             print(transformer_name, "will be used: ", self.transformer.loading_method)
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, self.registry, use_ELMo=use_ELMo)
+            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -552,7 +552,7 @@ class Sequence(object):
         if self.model_config.embeddings_name is not None:
             # load embeddings
             # Do not use cache in 'prediction/production' mode
-            self.embeddings = Embeddings(self.model_config.embeddings_name, use_ELMo=self.model_config.use_ELMo, use_cache=False)
+            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_ELMo=self.model_config.use_ELMo, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -576,16 +576,6 @@ class Sequence(object):
                                transformer=self.transformer)
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
-
-    @classmethod
-    def load_resource_registry(cls, path='delft/resources-registry.json'):
-        """
-        Load the resource registry file in memory. Each description provides a name,
-        a file path (used only if necessary) and an embeddings type (to take into account
-        small variation of format)
-        """
-        registry_json = open(path).read()
-        return json.loads(registry_json)
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]
