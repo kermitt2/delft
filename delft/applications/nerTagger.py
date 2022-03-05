@@ -576,7 +576,7 @@ if __name__ == "__main__":
             lang=lang, 
             embeddings_name=embeddings_name,
             architecture=architecture, 
-            transformer_name=transformer,
+            transformer=transformer,
             data_path=data_path,
             use_ELMo=use_ELMo)
 
@@ -588,7 +588,7 @@ if __name__ == "__main__":
             lang=lang, 
             embeddings_name=embeddings_name, 
             architecture=architecture, 
-            transformer_name=transformer,
+            transformer=transformer,
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             data_path=data_path,
@@ -599,7 +599,7 @@ if __name__ == "__main__":
             dataset_type=dataset_type, 
             lang=lang, 
             architecture=architecture, 
-            transformer_name=transformer,
+            transformer=transformer,
             use_ELMo=use_ELMo)
 
     if action == 'tag':
@@ -611,7 +611,7 @@ if __name__ == "__main__":
                             dataset_type, 
                             lang, 
                             architecture=architecture, 
-                            transformer_name=transformer,
+                            transformer=transformer,
                             file_in=file_in, 
                             file_out=file_out,
                             use_ELMo=use_ELMo)
