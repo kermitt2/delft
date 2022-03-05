@@ -54,8 +54,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             batch_size = 20
         elif model == "software":
             # class are more unbalanced, so we need to extend the batch size as much as we can
-            batch_size = 30
+            batch_size = 7
             max_sequence_length = 512
+            max_epoch = 10
     else:
         # RNN-only architectures
         if model == 'citation':
