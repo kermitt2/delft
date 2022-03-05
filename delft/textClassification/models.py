@@ -24,7 +24,6 @@ architectures = [
     'cnn3', 
     'mix1', 
     'dpcnn', 
-    'conv', 
     "gru", 
     "gru_simple", 
     'lstm_cnn', 
@@ -48,8 +47,6 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = CNN3(model_config, training_config)
     elif (architecture == 'lstm_cnn'):
         model = LSTM_CNN(model_config, training_config)
-    elif (architecture == 'conv'):
-        model = DPCNN(model_config, training_config)
     elif (architecture == 'dpcnn'):
         model = DPCNN(model_config, training_config)
     elif (architecture == 'gru'):
@@ -59,7 +56,7 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
     elif (architecture == 'gru_simple'):
         model = GRU_simple(model_config, training_config)
     elif (architecture == 'bert'):
-        print(model_config.transformer, "will be used")
+        print(model_config.transformer_name, "will be used")
         model = BERT(model_config, training_config,
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path)
@@ -262,7 +259,7 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
     scores = []
 
     bert_data = False
-    if model_config.transformer != None:
+    if model_config.transformer_name != None:
         bert_data = True
 
     for fold_id in range(0, fold_count):
@@ -295,7 +292,7 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
                 class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, 
                 patience=training_config.patience, callbacks=callbacks)
         
-        if model_config.transformer is None:
+        if model_config.transformer_name is None:
             models.append(foldModel)
         else:
             # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
@@ -322,7 +319,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
     y_predicts_list = []
     for fold_id in range(0, fold_count):
 
-        if model_config.transformer is not None:
+        if model_config.transformer_name is not None:
             model = models[0]
             #if fold_id != 0:
             # load new weight from disk
@@ -555,51 +552,6 @@ class CNN3(BaseModel):
         x = concatenate([x_a,x_b])
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
-        self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
-
-
-class Conv(BaseModel):
-    """
-    A Keras implementation of a multiple level Convolutional classifier (variant)
-    """
-    name = 'conv'
-
-    # default parameters 
-    parameters_conv = {
-        'max_features': 200000,
-        'maxlen': 250,
-        'embed_size': 300,
-        'epoch': 25,
-        'batch_size': 256,
-        'dropout_rate': 0.3,
-        'recurrent_dropout_rate': 0.3,
-        'recurrent_units': 256,
-        'dense_size': 64
-    }
-
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
-        self.update_parameters(model_config, training_config)
-        nb_classes = len(model_config.list_classes)
-
-        #def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-        filter_kernels = [7, 7, 5, 5, 3, 3]
-        input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
-        conv = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[0], border_mode='valid', activation='relu')(input_layer)
-        conv = MaxPooling1D(pool_length=3)(conv)
-        conv1 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[1], border_mode='valid', activation='relu')(conv)
-        conv1 = MaxPooling1D(pool_length=3)(conv1)
-        conv2 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[2], border_mode='valid', activation='relu')(conv1)
-        conv3 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[3], border_mode='valid', activation='relu')(conv2)
-        conv4 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[4], border_mode='valid', activation='relu')(conv3)
-        conv5 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[5], border_mode='valid', activation='relu')(conv4)
-        conv5 = MaxPooling1D(pool_length=3)(conv5)
-        conv5 = Flatten()(conv5)
-        z = Dropout(0.5)(Dense(self.parameters["dense_size"], activation='relu')(conv5))
-        x = Dense(nb_classes, activation="sigmoid")(z)
         self.model = Model(inputs=input_layer, outputs=x)
         self.model.summary()  
 
@@ -869,7 +821,7 @@ class BERT(BaseModel):
         'max_seq_len': 512,
         'dropout_rate': 0.1,
         'batch_size': 10,
-        'transformer': 'bert-base-en'
+        'transformer_name': 'bert-base-en'
     }
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
@@ -881,7 +833,7 @@ class BERT(BaseModel):
         nb_classes = len(model_config.list_classes)
 
         #def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
-        transformer_model_name = self.parameters["transformer"]
+        transformer_model_name = self.parameters["transformer_name"]
         #print(transformer_model_name)
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 

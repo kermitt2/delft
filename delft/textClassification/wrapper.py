@@ -91,15 +91,15 @@ class Classifier(object):
         self.embeddings = None
         self.tokenizer = None
 
-        # if transformer is None, no bert layer is present in the model
-        self.transformer = None
+        # if transformer_name is None, no bert layer is present in the model
+        self.transformer_name = None
         self.transformer_config = None
 
         self.registry = Sequence.load_resource_registry("delft/resources-registry.json")
 
         word_emb_size = 0
         if transformer_name is not None:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer_name, add_special_tokens=True,
                                                 max_length=maxlen, add_prefix_space=True)
             self.embeddings_name == None
             self.embeddings = None
@@ -119,7 +119,7 @@ class Classifier(object):
                                         maxlen=maxlen, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
-                                        transformer=self.transformer)
+                                        transformer=self.transformer_name)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, 
@@ -135,7 +135,7 @@ class Classifier(object):
         self.transformer_config = self.model.transformer_config
 
         bert_data = False
-        if self.transformer != None:
+        if self.transformer_name != None:
             bert_data = True
 
         if self.training_config.early_stop:
@@ -179,7 +179,7 @@ class Classifier(object):
 
     def predict(self, texts, output_format='json', use_main_thread_only=False):
         bert_data = False
-        if self.transformer != None:
+        if self.transformer_name != None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
@@ -230,7 +230,7 @@ class Classifier(object):
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
         bert_data = False
-        if self.transformer != None:
+        if self.transformer_name != None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
@@ -400,29 +400,29 @@ class Classifier(object):
                 print('Error: nfolds models have not been built')
             else:
                 # fold models having a transformer layers are already saved
-                if self.model_config.transformer is None:
+                if self.model_config.transformer_name is None:
                     for i in range(0, self.model_config.fold_number):
                         self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
                     print('nfolds model saved')
 
         # save pretrained transformer config if used in the model and if single fold (otherwise it is saved in the nfold process)
-        if self.transformer is not None and self.model_config.fold_number == 1:
+        if self.transformer_name is not None and self.model_config.fold_number == 1:
             if self.model.get_transformer_config() is not None:
                 self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
 
 
     def load(self, dir_path='data/models/textClassification/'):
         self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
-        #print(self.model_config.transformer)
+        #print(self.model_config.transformer_name)
 
-        if self.model_config.transformer is None:
+        if self.model_config.transformer_name is None:
             # load embeddings
             # Do not use cache in 'production' mode
             self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
-            self.transformer = self.model_config.transformer
-            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
+            self.transformer_name = self.model_config.transformer_name
+            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer_name, add_special_tokens=True,
                                                 max_length=maxlen, add_prefix_space=True)
             self.embeddings = None
 
@@ -436,7 +436,7 @@ class Classifier(object):
             self.model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
         else:
             self.models = []
-            if self.model_config.transformer is None:
+            if self.model_config.transformer_name is None:
                 for i in range(0, self.model_config.fold_number):
                     local_model = getModel(self.model_config, 
                                         self.training_config, 

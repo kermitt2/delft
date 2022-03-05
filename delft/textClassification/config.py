@@ -17,7 +17,7 @@ class ModelConfig(object):
                  fold_number=1,
                  batch_size=64,
                  dense_size=32,
-                 transformer=None
+                 transformer_name=None
                  ):
 
         self.model_name = model_name
@@ -39,7 +39,7 @@ class ModelConfig(object):
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for test and prediction
 
-        self.transformer = transformer
+        self.transformer_name = transformer_name
 
     def save(self, file):
         with open(file, 'w') as f:
