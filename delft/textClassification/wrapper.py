@@ -34,9 +34,10 @@ from delft.textClassification.models import train_folds
 from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
-from delft.textClassification.models import TRANSFORMER_CONFIG_FILE_NAME
+#from delft.textClassification.models import TRANSFORMER_CONFIG_FILE_NAME
+from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
-from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Embeddings import Embeddings, load_resource_registry
 
 from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_recall_fscore_support
 from sklearn.model_selection import train_test_split
@@ -45,6 +46,7 @@ import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
 from transformers import AutoTokenizer
 
+from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
 
@@ -89,22 +91,22 @@ class Classifier(object):
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.embeddings = None
-        self.tokenizer = None
+        self.transformer_tokenizer = None
 
         # if transformer_name is None, no bert layer is present in the model
         self.transformer_name = None
         self.transformer_config = None
 
-        self.registry = Sequence.load_resource_registry("delft/resources-registry.json")
+        self.registry = load_resource_registry("delft/resources-registry.json")
 
         word_emb_size = 0
         if transformer_name is not None:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer_name, add_special_tokens=True,
+            self.transformer_tokenizer = AutoTokenizer.from_pretrained(self.transformer_name, add_special_tokens=True,
                                                 max_length=maxlen, add_prefix_space=True)
             self.embeddings_name == None
             self.embeddings = None
         elif self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name) 
+            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry) 
             word_emb_size = self.embeddings.embed_size
         
         self.model_config = ModelConfig(model_name=model_name, 
@@ -119,7 +121,7 @@ class Classifier(object):
                                         maxlen=maxlen, 
                                         fold_number=fold_number, 
                                         batch_size=batch_size,
-                                        transformer=self.transformer_name)
+                                        transformer_name=self.transformer_name)
 
         self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
                                               lr_decay, clip_gradients, 
@@ -144,16 +146,16 @@ class Classifier(object):
 
             training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, tokenizer=self.tokenizer)
+                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
             validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
         else:
             val_y = y_train
 
             training_generator = DataGenerator(x_train, y_train, batch_size=self.training_config.batch_size, 
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, tokenizer=self.tokenizer)
+                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
             validation_generator = None
 
         # uncomment to plot graph
@@ -174,7 +176,7 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, self.tokenizer, callbacks=callbacks)
+        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, self.transformer_tokenizer, callbacks=callbacks)
 
 
     def predict(self, texts, output_format='json', use_main_thread_only=False):
@@ -186,7 +188,7 @@ class Classifier(object):
             if self.model != None: 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
 
                 result = self.model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
             else:
@@ -196,7 +198,7 @@ class Classifier(object):
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
 
                 result = predict_folds(self.models, 
                                        predict_generator, 
@@ -237,7 +239,7 @@ class Classifier(object):
             if self.model != None:
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
 
                 result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
             else:
@@ -247,7 +249,7 @@ class Classifier(object):
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, tokenizer=self.tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
                 result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
@@ -418,7 +420,7 @@ class Classifier(object):
         if self.model_config.transformer_name is None:
             # load embeddings
             # Do not use cache in 'production' mode
-            self.embeddings = Embeddings(self.model_config.embeddings_name, use_cache=False)
+            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer_name = self.model_config.transformer_name

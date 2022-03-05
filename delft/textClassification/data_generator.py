@@ -15,7 +15,7 @@ class DataGenerator(keras.utils.Sequence):
     When the Keras input will feed a BERT layer, sentence piece tokenization is kept outside 
     the model so that we can serialize the model and have it more compact.  
     """
-    def __init__(self, x, y, batch_size=256, maxlen=300, list_classes=[], embeddings=(), shuffle=True, bert_data=False, tokenizer=None):
+    def __init__(self, x, y, batch_size=256, maxlen=300, list_classes=[], embeddings=(), shuffle=True, bert_data=False, transformer_tokenizer=None):
         self.x = x
         self.y = y
         self.batch_size = batch_size
@@ -24,7 +24,7 @@ class DataGenerator(keras.utils.Sequence):
         self.list_classes = list_classes
         self.shuffle = shuffle
         self.bert_data = bert_data
-        self.tokenizer = tokenizer
+        self.transformer_tokenizer = transformer_tokenizer
         self.on_epoch_end()
 
     def __len__(self):
@@ -79,7 +79,7 @@ class DataGenerator(keras.utils.Sequence):
             # for input as sentence piece token index for BERT layer
             input_ids, input_masks, input_segments = create_batch_input_bert(self.x[(index*self.batch_size):(index*self.batch_size)+max_iter], 
                                                                              maxlen=self.maxlen, 
-                                                                             tokenizer=self.tokenizer)
+                                                                             transformer_tokenizer=self.transformer_tokenizer)
             # we can use only input indices, but could be reconsidered
             batch_x = np.asarray(input_ids, dtype=np.int32)
             #batch_x_masks = np.asarray(input_masks, dtype=np.int32)

@@ -36,28 +36,28 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
     # awww Python has no case/switch statement :D
     if (architecture == 'bidLstm_simple'):
-        model = BidLSTM_simple(model_config, training_config)
+        model = bidLstm_simple(model_config, training_config)
     elif (architecture == 'lstm'):
-        model = LSTM(model_config, training_config)
+        model = lstm(model_config, training_config)
     elif (architecture == 'cnn'):
-        model = CNN(model_config, training_config)
+        model = cnn(model_config, training_config)
     elif (architecture == 'cnn2'):
-        model = CNN2(model_config, training_config)
+        model = cnn2(model_config, training_config)
     elif (architecture == 'cnn3'):
-        model = CNN3(model_config, training_config)
+        model = cnn3(model_config, training_config)
     elif (architecture == 'lstm_cnn'):
-        model = LSTM_CNN(model_config, training_config)
+        model = lstm_cnn(model_config, training_config)
     elif (architecture == 'dpcnn'):
-        model = DPCNN(model_config, training_config)
+        model = dpcnn(model_config, training_config)
     elif (architecture == 'gru'):
-        model = GRU(model_config, training_config)
+        model = gru(model_config, training_config)
     elif (architecture == 'gru_lstm'):
         model = GRU_LSTM(model_config, training_config)
     elif (architecture == 'gru_simple'):
-        model = GRU_simple(model_config, training_config)
+        model = gru_simple(model_config, training_config)
     elif (architecture == 'bert'):
         print(model_config.transformer_name, "will be used")
-        model = BERT(model_config, training_config,
+        model = bert(model_config, training_config,
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path)
     else:
@@ -218,6 +218,7 @@ class BaseModel(object):
                     optimizer='adam', 
                     metrics=['accuracy'])
 
+    '''
     def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
         if load_pretrained_weights:
             if local_path is None:
@@ -234,6 +235,18 @@ class BaseModel(object):
                 self.bert_config = AutoConfig.from_pretrained(config_path)
             transformer_model = TFAutoModel.from_config(self.bert_config)
         return transformer_model
+    '''
+
+    def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
+        if config.transformer_name is None:
+            # missing trasnformer name, no transformer layer to be initialized
+            return None
+
+        transformer = Transformer(config.transformer_name, config_file=config.transformer_name, delft_local_path=local_path)
+        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        self.bert_config = transformer.transformer_config
+
+        return transformer_model
 
     def get_transformer_config(self):
         # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
@@ -247,7 +260,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, tokenizer, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, transformer_tokenizer, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -278,13 +291,13 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embeddings=embeddings, bert_data=bert_data, shuffle=True, tokenizer=tokenizer)
+            embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=transformer_tokenizer)
 
         validation_generator = None
         if training_config.early_stop:
             validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
                 maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-                embeddings=embeddings, bert_data=bert_data, shuffle=False, tokenizer=tokenizer)
+                embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=transformer_tokenizer)
 
         foldModel = getModel(model_config, training_config)
 
@@ -341,7 +354,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
     return y_predicts    
 
 
-class LSTM(BaseModel):
+class lstm(BaseModel):
     """
     A Keras implementation of a LSTM classifier
     """
@@ -384,7 +397,7 @@ class LSTM(BaseModel):
         self.model.summary()
         
 
-class BidLSTM_simple(BaseModel):
+class bidLstm_simple(BaseModel):
     """
     A Keras implementation of a bidirectional LSTM  classifier
     """
@@ -427,7 +440,7 @@ class BidLSTM_simple(BaseModel):
         self.model.summary()
 
 
-class CNN(BaseModel):
+class cnn(BaseModel):
     """
     A Keras implementation of a CNN classifier
     """
@@ -471,7 +484,7 @@ class CNN(BaseModel):
         self.model.summary()  
 
 
-class CNN2(BaseModel):
+class cnn(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
@@ -511,7 +524,7 @@ class CNN2(BaseModel):
         self.model.summary()  
 
 
-class CNN3(BaseModel):
+class cnn3(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
@@ -556,7 +569,7 @@ class CNN3(BaseModel):
         self.model.summary()  
 
 
-class LSTM_CNN(BaseModel):
+class lstm_cnn(BaseModel):
     """
     A Keras implementation of a LSTM + CNN classifier
     """
@@ -605,7 +618,7 @@ class LSTM_CNN(BaseModel):
         self.model.summary()
 
 
-class GRU(BaseModel):
+class gru(BaseModel):
     """
     A Keras implementation of a Bidirectional GRU classifier
     """
@@ -632,7 +645,6 @@ class GRU(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["recurrent_dropout_rate"]))(input_layer)
@@ -653,7 +665,7 @@ class GRU(BaseModel):
                       metrics=['accuracy'])
 
 
-class GRU_simple(BaseModel):
+class gru_simple(BaseModel):
     """
     A Keras implementation of a one layer Bidirectional GRU classifier
     """
@@ -698,7 +710,7 @@ class GRU_simple(BaseModel):
                       metrics=['accuracy'])
 
 
-class GRU_LSTM(BaseModel):
+class gru_lstm(BaseModel):
     """
     A Keras implementation of a mixed Bidirectional GRU and LSTM classifier
     """
@@ -746,7 +758,7 @@ class GRU_LSTM(BaseModel):
                       metrics=['accuracy'])
 
 
-class DPCNN(BaseModel):
+class dpcnn(BaseModel):
     """
     A Keras implementation of a DPCNN classifier
     """
@@ -773,7 +785,6 @@ class DPCNN(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         # first block
         X_shortcut1 = input_layer
@@ -807,7 +818,7 @@ class DPCNN(BaseModel):
         self.model.summary()
 
 
-class BERT(BaseModel):
+class bert(BaseModel):
     """
     A Keras implementation of a BERT classifier for fine-tuning, with BERT layer to be 
     instanciated with a pre-trained BERT model
@@ -835,9 +846,13 @@ class BERT(BaseModel):
         #def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
         transformer_model_name = self.parameters["transformer_name"]
         #print(transformer_model_name)
+        '''
         transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
                                                           load_pretrained_weights=load_pretrained_weights, 
                                                           local_path=local_path)
+        '''
+
+        transformer_model = self.init_transformer(model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         #input_masks_in = Input(shape=(None,), name='masked_token', dtype='int32')

@@ -5,13 +5,12 @@ import io
 import logging
 import mmap
 import os
-import os.path
 import pickle
 import shutil
 import struct
 import sys
 import zipfile
-
+import json
 import lmdb
 import numpy as np
 import tensorflow as tf
@@ -619,3 +618,12 @@ def _fetch_header_if_available(line):
         embed_size = int(line[1].replace("\n", ""))
 
     return nb_words, embed_size
+
+def load_resource_registry(path='delft/resources-registry.json'):
+    """
+    Load the resource registry file in memory. Each description provides a name,
+    a file path (used only if necessary) and an embeddings type (to take into account
+    small variation of format)
+    """
+    registry_json = open(path).read()
+    return json.loads(registry_json)
