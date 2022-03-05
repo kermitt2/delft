@@ -61,7 +61,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -96,7 +96,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     if fold_count == 1:
         model.train(x_train, y_train)
@@ -111,7 +111,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 # classify a list of texts
 def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
-    model = Classifier('software_use_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
+    model = Classifier('software_use_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer_name=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

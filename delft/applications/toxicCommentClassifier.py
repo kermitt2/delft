@@ -41,7 +41,7 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
 
     model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
         embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop, 
-        transformer=transformer)
+        transformer_name=transformer)
 
     print('loading train dataset...')
     xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
@@ -55,7 +55,7 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
 
 def test(architecture="gru"):
     # load model
-    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, transformer=None)
+    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, transformer_name=None)
     model.load()
 
     print('loading test dataset...')
