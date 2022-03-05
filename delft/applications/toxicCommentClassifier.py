@@ -55,7 +55,7 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
 
 def test(architecture="gru"):
     # load model
-    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, transformer_name=None)
+    model = Classifier('toxic_'+architecture)
     model.load()
 
     print('loading test dataset...')
@@ -70,7 +70,7 @@ def test(architecture="gru"):
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
-    model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes)
+    model = Classifier('toxic_'+architecture)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

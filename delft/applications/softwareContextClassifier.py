@@ -101,7 +101,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 # classify a list of texts
 def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
-    model = Classifier('software_context_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer_name=transformer)
+    model = Classifier('software_context_'+architecture)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

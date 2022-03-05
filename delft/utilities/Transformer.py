@@ -24,13 +24,11 @@ class Transformer(object):
      4. loading the transformer as part of the delft model (the configuration file name will be different)
     """
 
-    def __init__(self, name: str, resource_registry: dict = None, config_file: str = None,
-                 tokenizer: AutoTokenizer = None, delft_local_path: str = None):
+    def __init__(self, name: str, resource_registry: dict = None, delft_local_path: str = None):
+
         self.bert_preprocessor = None
         self.transformer_config = None
         self.loading_method = None
-        # self.registry = resource_registry
-        self.tokenizer: Union[AutoTokenizer, BertTokenizer] = None
         self.model = None
 
         # In case the model is loaded from a local directory
@@ -47,9 +45,7 @@ class Transformer(object):
             self.loading_method = LOADING_METHOD_DELFT_MODEL
             self.local_dir_path = delft_local_path
 
-        if tokenizer:
-            self.tokenizer: Union[AutoTokenizer, BertTokenizer] = tokenizer
-            return
+        self.tokenizer = None
 
         if resource_registry:
             self.configure_from_registry(resource_registry)
@@ -136,6 +132,7 @@ class Transformer(object):
         self.tokenizer.save_pretrained(output_directory)
 
     def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
+        print("loading transformer layer from", self.loading_method)
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
                 self.transformer_config = AutoConfig.from_pretrained(self.name)

@@ -13,8 +13,10 @@ from transformers import AutoConfig, TFAutoModel
 from transformers import create_optimizer
 
 from delft.textClassification.data_generator import DataGenerator
+from delft.utilities.Embeddings import load_resource_registry
 
-TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
+#TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
+from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 architectures = [
     'lstm', 
@@ -69,6 +71,7 @@ class BaseModel(object):
 
     transformer_config = None
     parameters = {}
+    registry = load_resource_registry("delft/resources-registry.json")
 
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
         """
@@ -88,6 +91,7 @@ class BaseModel(object):
         self.model_config = model_config
         self.training_config = training_config
         self.model = None
+        self.transformer_config = None
 
     def update_parameters(self, model_config, training_config):
         for key in self.parameters:
@@ -242,9 +246,9 @@ class BaseModel(object):
             # missing trasnformer name, no transformer layer to be initialized
             return None
 
-        transformer = Transformer(config.transformer_name, config_file=config.transformer_name, delft_local_path=local_path)
+        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
-        self.bert_config = transformer.transformer_config
+        self.transformer_config = transformer.transformer_config
 
         return transformer_model
 
@@ -315,11 +319,13 @@ def train_folds(X, y, model_config, training_config, embeddings, transformer_tok
 
             if fold_id == 0:
                 models.append(foldModel)
-                # save transformer config
+                # save transformer config and tokenizer
                 if foldModel.get_transformer_config() is not None:
                     foldModel.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+                if transformer_tokenizer is not None:
+                    transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
-            model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+            model_path = os.path.join(directory, "model{0}_weights.hdf5".format(fold_id))
             foldModel.save(model_path)
             if fold_id != 0:
                 del foldModel
@@ -336,7 +342,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
             model = models[0]
             #if fold_id != 0:
             # load new weight from disk
-            model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+            model_path = os.path.join("data/models/textClassification/", model_config.model_name, "model{0}_weights.hdf5".format(fold_id))
             model.load(model_path)  
         else:
             model = models[fold_id]
@@ -879,9 +885,10 @@ class bert(BaseModel):
 
     def get_transformer_config(self):
         '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
+        return the pretrained config object of the transformer layer used in the mode, if any
         '''
-        return self.bert_config
+        return self.transformer_config
+    
 
 def _get_description(name, path="delft/resources-registry.json"):
     registry_json = open(path).read()

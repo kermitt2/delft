@@ -34,7 +34,6 @@ from delft.textClassification.models import train_folds
 from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
-#from delft.textClassification.models import TRANSFORMER_CONFIG_FILE_NAME
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
@@ -95,14 +94,15 @@ class Classifier(object):
 
         # if transformer_name is None, no bert layer is present in the model
         self.transformer_name = None
-        self.transformer_config = None
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
         word_emb_size = 0
         if transformer_name is not None:
-            self.transformer_tokenizer = AutoTokenizer.from_pretrained(self.transformer_name, add_special_tokens=True,
-                                                max_length=maxlen, add_prefix_space=True)
+            self.transformer_name = transformer_name
+            transformer = Transformer(self.transformer_name, resource_registry=self.registry)
+            transformer.init_preprocessor(max_sequence_length=maxlen)
+            self.transformer_tokenizer = transformer.tokenizer
             self.embeddings_name == None
             self.embeddings = None
         elif self.embeddings_name is not None:
@@ -134,12 +134,11 @@ class Classifier(object):
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
-        self.transformer_config = self.model.transformer_config
 
         bert_data = False
         if self.transformer_name != None:
             bert_data = True
-
+            
         if self.training_config.early_stop:
             # create validation set 
             xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
@@ -393,7 +392,7 @@ class Classifier(object):
 
         if self.model_config.fold_number == 1:
             if self.model != None:
-                self.model.save(os.path.join(directory, self.model_config.architecture+"."+self.weight_file))
+                self.model.save(os.path.join(directory, self.weight_file))
                 print('model saved')
             else:
                 print('Error: model has not been built')
@@ -404,17 +403,21 @@ class Classifier(object):
                 # fold models having a transformer layers are already saved
                 if self.model_config.transformer_name is None:
                     for i in range(0, self.model_config.fold_number):
-                        self.models[i].save(os.path.join(directory, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
+                        self.models[i].save(os.path.join(directory, "model{0}_weights.hdf5".format(i)))
                     print('nfolds model saved')
 
-        # save pretrained transformer config if used in the model and if single fold (otherwise it is saved in the nfold process)
+        # save pretrained transformer config and tokenizer if used in the model and if single fold (otherwise it is saved in the nfold process)
         if self.transformer_name is not None and self.model_config.fold_number == 1:
             if self.model.get_transformer_config() is not None:
                 self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+            if self.transformer_tokenizer is not None:
+                self.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
     def load(self, dir_path='data/models/textClassification/'):
-        self.model_config = ModelConfig.load(os.path.join(dir_path, self.model_config.model_name, self.config_file))
+        model_path = os.path.join(dir_path, self.model_config.model_name)
+        self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
+        
         #print(self.model_config.transformer_name)
 
         if self.model_config.transformer_name is None:
@@ -424,18 +427,18 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer_name = self.model_config.transformer_name
-            self.tokenizer = AutoTokenizer.from_pretrained(self.transformer_name, add_special_tokens=True,
-                                                max_length=maxlen, add_prefix_space=True)
+            transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
+            transformer.init_preprocessor(max_sequence_length=self.model_config.maxlen)
+            self.transformer_tokenizer = transformer.tokenizer
             self.embeddings = None
 
         self.model = getModel(self.model_config, 
                               self.training_config, 
                               load_pretrained_weights=False, 
-                              local_path=os.path.join(dir_path, self.model_config.model_name))
-        self.transformer_config = self.model.transformer_config
+                              local_path=model_path)
         if self.model_config.fold_number == 1:
-            print("load weights from", os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
-            self.model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+"."+self.weight_file))
+            print("load weights from", os.path.join(model_path, self.weight_file))
+            self.model.load(os.path.join(model_path, self.weight_file))
         else:
             self.models = []
             if self.model_config.transformer_name is None:
@@ -443,16 +446,14 @@ class Classifier(object):
                     local_model = getModel(self.model_config, 
                                         self.training_config, 
                                         load_pretrained_weights=False, 
-                                        local_path=os.path.join(dir_path, self.model_config.model_name))
-                    self.transformer_config = local_model.transformer_config
-                    local_model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model{0}_weights.hdf5".format(i)))
+                                        local_path=model_path)
+                    local_model.load(os.path.join(model_path, "model{0}_weights.hdf5".format(i)))
                     self.models.append(local_model)
             else:
                 # only load first fold one, the other will be loaded at prediction time
                 local_model = getModel(self.model_config, 
                                     self.training_config, 
                                     load_pretrained_weights=False, 
-                                    local_path=os.path.join(dir_path, self.model_config.model_name))
-                self.transformer_config = local_model.transformer_config
-                local_model.load(os.path.join(dir_path, self.model_config.model_name, self.model_config.architecture+".model0_weights.hdf5"))
+                                    local_path=model_path)
+                local_model.load(os.path.join(model_path, "model0_weights.hdf5"))
                 self.models.append(local_model)
