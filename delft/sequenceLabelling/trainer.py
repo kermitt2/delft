@@ -235,8 +235,7 @@ class Trainer(object):
             foldModel = get_model(self.model_config, 
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
-                               load_pretrained_weights=True,
-                               transformer=self.transformer)
+                               load_pretrained_weights=True)
 
             foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 

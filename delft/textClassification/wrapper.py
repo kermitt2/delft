@@ -452,10 +452,9 @@ class Classifier(object):
                     local_model.load(os.path.join(model_path, "model{0}_weights.hdf5".format(i)))
                     self.models.append(local_model)
             else:
-                # only load first fold one, the other will be loaded at prediction time
+                # only init first fold one, the other will be init at prediction time, all weights will be loaded at prediction time
                 local_model = getModel(self.model_config, 
                                     self.training_config, 
                                     load_pretrained_weights=False, 
                                     local_path=model_path)
-                local_model.load(os.path.join(model_path, "model0_weights.hdf5"))
                 self.models.append(local_model)

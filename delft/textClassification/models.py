@@ -9,13 +9,11 @@ from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, 
 from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import RMSprop
-#from transformers import AutoConfig, TFAutoModel
 from transformers import create_optimizer
 
 from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
-#TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 architectures = [
@@ -319,7 +317,6 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
 
         if model_config.transformer_name is not None:
             model = models[0]
-            #if fold_id != 0:
             # load new weight from disk
             model_path = os.path.join("data/models/textClassification/", model_config.model_name, "model{0}_weights.hdf5".format(fold_id))
             model.load(model_path)  
@@ -360,14 +357,10 @@ class lstm(BaseModel):
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
         # basic LSTM
-        #def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = LSTM(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"])(input_layer)
@@ -404,8 +397,6 @@ class bidLstm_simple(BaseModel):
     # bidirectional LSTM 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -445,8 +436,6 @@ class cnn(BaseModel):
     # conv+GRU with embeddings
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
         
@@ -487,8 +476,6 @@ class cnn(BaseModel):
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -526,8 +513,6 @@ class cnn3(BaseModel):
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -571,8 +556,6 @@ class lstm_cnn(BaseModel):
     # LSTM + conv
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -619,8 +602,6 @@ class gru(BaseModel):
     # 2 bid. GRU 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -666,8 +647,6 @@ class gru_simple(BaseModel):
     # 1 layer bid GRU
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -710,8 +689,6 @@ class gru_lstm(BaseModel):
     # bid GRU + bid LSTM
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -757,8 +734,6 @@ class dpcnn(BaseModel):
     # DPCNN
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -814,8 +789,6 @@ class bert(BaseModel):
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
         super().__init__(model_config, training_config, load_pretrained_weights, local_path)
-        #self.model_config = model_config
-        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -850,15 +823,3 @@ class bert(BaseModel):
         '''
         return self.transformer_config
     
-'''
-def _get_description(name, path="delft/resources-registry.json"):
-    registry_json = open(path).read()
-    registry = json.loads(registry_json)
-    for emb in registry["embeddings-contextualized"]:
-        if emb["name"] == name:
-            return emb
-    for emb in registry["transformers"]:
-            if emb["name"] == name:
-                return emb
-    return None
-'''
