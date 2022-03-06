@@ -54,7 +54,7 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
     elif (architecture == 'gru'):
         model = gru(model_config, training_config)
     elif (architecture == 'gru_lstm'):
-        model = GRU_LSTM(model_config, training_config)
+        model = gru_lstm(model_config, training_config)
     elif (architecture == 'gru_simple'):
         model = gru_simple(model_config, training_config)
     elif (architecture == 'bert'):
@@ -69,6 +69,7 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 class BaseModel(object):
 
     transformer_config = None
+    model = None
     parameters = {}
     registry = load_resource_registry("delft/resources-registry.json")
 
@@ -89,8 +90,6 @@ class BaseModel(object):
         """
         self.model_config = model_config
         self.training_config = training_config
-        self.model = None
-        self.transformer_config = None
 
     def update_parameters(self, model_config, training_config):
         for key in self.parameters:
@@ -405,8 +404,8 @@ class bidLstm_simple(BaseModel):
     # bidirectional LSTM 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -446,8 +445,8 @@ class cnn(BaseModel):
     # conv+GRU with embeddings
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
         
@@ -488,8 +487,8 @@ class cnn(BaseModel):
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -527,8 +526,8 @@ class cnn3(BaseModel):
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -572,8 +571,8 @@ class lstm_cnn(BaseModel):
     # LSTM + conv
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -620,8 +619,8 @@ class gru(BaseModel):
     # 2 bid. GRU 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -667,8 +666,8 @@ class gru_simple(BaseModel):
     # 1 layer bid GRU
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -711,8 +710,8 @@ class gru_lstm(BaseModel):
     # bid GRU + bid LSTM
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -758,8 +757,8 @@ class dpcnn(BaseModel):
     # DPCNN
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -815,8 +814,8 @@ class bert(BaseModel):
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
         super().__init__(model_config, training_config, load_pretrained_weights, local_path)
-        self.model_config = model_config
-        self.training_config = training_config
+        #self.model_config = model_config
+        #self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -851,7 +850,7 @@ class bert(BaseModel):
         '''
         return self.transformer_config
     
-
+'''
 def _get_description(name, path="delft/resources-registry.json"):
     registry_json = open(path).read()
     registry = json.loads(registry_json)
@@ -862,3 +861,4 @@ def _get_description(name, path="delft/resources-registry.json"):
             if emb["name"] == name:
                 return emb
     return None
+'''
