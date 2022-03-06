@@ -110,7 +110,7 @@ class Sequence(object):
 
         if transformer_name is not None:
             self.transformer = Transformer(transformer_name, resource_registry=self.registry)
-            print(transformer_name, "will be used: ", self.transformer.loading_method)
+            print(transformer_name, "will be used, loaded via", self.transformer.loading_method)
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
@@ -166,8 +166,7 @@ class Sequence(object):
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True,
-                               transformer=self.transformer)
+        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
         trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
@@ -240,7 +239,6 @@ class Sequence(object):
                 raise (OSError('Could not find a model.'))
         else:
             # the architecture model uses a transformer layer
-
             # note that we could also use the above test_generator, but as an alternative here we check the 
             # test/prediction alignment of tokens and the validity of the maximum sequence input length
             # wrt the length of the test sequences 
@@ -311,8 +309,7 @@ class Sequence(object):
                                self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path= os.path.join(dir_path, self.model_config.model_name),
-                                    transformer=self.transformer)
+                               local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
                     bert_preprocessor = self.transformer.bert_preprocessor
@@ -562,6 +559,7 @@ class Sequence(object):
 
         if self.model_config.transformer_name is not None:
             self.transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
+            print(self.model_config.transformer_name, "will be used, loaded via", self.transformer.loading_method)
             self.transformer.init_preprocessor(add_special_tokens=True,
                                                max_sequence_length=self.model_config.max_sequence_length,
                                                add_prefix_space=True,
@@ -572,8 +570,7 @@ class Sequence(object):
         self.model = get_model(self.model_config,
                                self.p, ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path=os.path.join(dir_path, self.model_config.model_name),
-                               transformer=self.transformer)
+                               local_path=os.path.join(dir_path, self.model_config.model_name))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 

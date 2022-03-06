@@ -91,10 +91,10 @@ class Transformer(object):
                         print("Missing vocab-file or not a file.")
             else:
                 self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
-                print("No configuration for", self.name, "Loading from Hugging face.")
+                #print("No configuration for", self.name, "Loading from Hugging face.")
         else:
             self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
-            print("No configuration for", self.name, "Loading from Hugging face.")
+            #print("No configuration for", self.name, "Loading from Hugging face.")
 
     def init_preprocessor(self, max_sequence_length: int,
                        add_special_tokens: bool = True,
@@ -132,14 +132,15 @@ class Transformer(object):
         self.tokenizer.save_pretrained(output_directory)
 
     def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
-        print("loading transformer layer from", self.loading_method)
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
-                self.transformer_config = AutoConfig.from_pretrained(self.name)
+                transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
+                self.transformer_config = transformer_model.config
+                return transformer_model
             else:
                 config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
-            return TFAutoModel.from_config(self.transformer_config)
+                return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             if load_pretrained_weights:
@@ -147,22 +148,30 @@ class Transformer(object):
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                self.transformer_config = AutoConfig.from_pretrained(config_path)
+                #self.transformer_config = AutoConfig.from_pretrained(self.local_dir_path)
+                return TFAutoModel.from_config(self.transformer_config)
+
+        elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
+            if load_pretrained_weights:
+                self.transformer_config = AutoConfig.from_pretrained(self.local_config_file)
+                # transformer_model = TFBertModel.from_pretrained(self.local_weight_file, from_tf=True)
+                raise NotImplementedError(
+                    "The load of TF weights from huggingface automodel classes is not yet implemented. \
+                    Please use load from Hugging Face Hub or from directory for the initial loading of the transformers weights.")
+            else:
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                self.transformer_config = AutoConfig.from_pretrained(config_path)
+                return TFBertModel.from_config(self.transformer_config)
+
+        else:
+            # TODO: revise this
+            if load_pretrained_weights:
                 transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
                 self.transformer_config = transformer_model.config
                 return transformer_model
-
-        elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
-            self.transformer_config = AutoConfig.from_pretrained(self.local_config_file)
-            if load_pretrained_weights:
-                raise NotImplementedError(
-                    "The load of TF weights from huggingface automodel classes is not yet implemented. It's a damn mess...")
-                # transformer_model = TFBertModel.from_pretrained(self.local_weight_file, from_tf=True)
             else:
-                transformer_model = TFBertModel.from_config(self.transformer_config)
-
-            return transformer_model
-        else:
-            # TODO: revise this
-            config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
-            self.transformer_config = AutoConfig.from_pretrained(config_path)
-            return TFAutoModel.from_config(self.transformer_config)
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                self.transformer_config = AutoConfig.from_pretrained(config_path)
+                return TFAutoModel.from_config(self.transformer_config)

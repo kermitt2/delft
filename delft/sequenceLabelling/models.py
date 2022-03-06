@@ -1,5 +1,3 @@
-from ctypes import Union
-
 from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
@@ -13,6 +11,7 @@ from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
 
 from delft.utilities.crf_layer import ChainCRF
 from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
+from delft.utilities.Embeddings import load_resource_registry
 
 """
 The sequence labeling models.
@@ -22,44 +21,155 @@ The architecture class can also define the data generator class object to be use
 the metrics and the optimizer.
 """
 
-class TransformerBase(object):
+def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
     """
-    This class contains the transformer specific code and characteristics
+    Return a model instance by its name. This is a facilitator function. 
     """
-    bert_config = None
+    if config.architecture == BidLSTM.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        return BidLSTM(config, ntags)
 
-    def get_transformer_config(self):
-        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
-        return None
+    elif config.architecture == BidLSTM_CRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CRF(config, ntags)
 
-    def init_transformer(self, config, transformer: Transformer, load_pretrained_weights, local_path):
-        if config.transformer_name is not None and transformer is None:
-            name = config.transformer_name
-            transformer = Transformer(name, config_file=config.transformer_name, delft_local_path=local_path)
+    elif config.architecture == BidLSTM_ChainCRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        return BidLSTM_ChainCRF(config, ntags)
 
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
-        self.bert_config = transformer.transformer_config
+    elif config.architecture == BidLSTM_CNN.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        return BidLSTM_CNN(config, ntags)
 
-        return transformer_model
+    elif config.architecture == BidLSTM_CNN_CRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CNN_CRF(config, ntags)
+
+    elif config.architecture == BidGRU_CRF.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidGRU_CRF(config, ntags)
+
+    elif config.architecture == BidLSTM_CRF_FEATURES.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CRF_FEATURES(config, ntags)
+
+    elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        return BidLSTM_ChainCRF_FEATURES(config, ntags)
+
+    elif config.architecture == BidLSTM_CRF_CASING.name:
+        preprocessor.return_word_embeddings = True
+        preprocessor.return_casing = True
+        preprocessor.return_chars = True
+        preprocessor.return_lengths = True
+        config.use_crf = True
+        return BidLSTM_CRF_CASING(config, ntags)
+
+    elif config.architecture == BERT.name:
+        preprocessor.return_bert_embeddings = True
+        config.labels = preprocessor.vocab_tag
+        return BERT(config, 
+                    ntags, 
+                    load_pretrained_weights=load_pretrained_weights, 
+                    local_path=local_path)
+
+    elif config.architecture == BERT_CRF.name:
+        preprocessor.return_bert_embeddings = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF(config, 
+                        ntags, 
+                        load_pretrained_weights=load_pretrained_weights, 
+                        local_path=local_path)
+
+    elif config.architecture == BERT_ChainCRF.name:
+        preprocessor.return_bert_embeddings = True
+        config.use_crf = True
+        config.use_chain_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_ChainCRF(config, 
+                        ntags, 
+                        load_pretrained_weights=load_pretrained_weights, 
+                        local_path=local_path)
+
+    elif config.architecture == BERT_CRF_FEATURES.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_FEATURES(config, 
+                                ntags, 
+                                load_pretrained_weights=load_pretrained_weights, 
+                                local_path=local_path)
+
+    elif config.architecture == BERT_CRF_CHAR.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_chars = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_CHAR(config, 
+                            ntags,      
+                            load_pretrained_weights=load_pretrained_weights, 
+                            local_path=local_path)
+
+    elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
+        preprocessor.return_chars = True
+        config.use_crf = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_CRF_CHAR_FEATURES(config, 
+                                    ntags, 
+                                    load_pretrained_weights=load_pretrained_weights, 
+                                    local_path=local_path)
+    else:
+        raise (OSError('Model name does exist: ' + config.architecture))
 
 
 class BaseModel(object):
+    """
+    Base class for DeLFT sequence labeling models
 
+    Args:
+        config (ModelConfig): DeLFT model configuration object
+        ntags (integer): number of different labels of the model
+        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
+                                           or not we load the pretrained weights of this transformer. For training
+                                           a new model set it to True. When getting the full Keras model to load
+                                           existing weights, set it False to avoid reloading the pretrained weights. 
+        local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
+                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
+                             transformers hub.
+    """
     def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None):
-        """
-        Base class for DeLFT sequence labeling models
-
-        Args:
-            config (ModelConfig): DeLFT model configuration object
-            ntags (integer): number of different labels of the model
-            load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
-                                               or not we load the pretrained weights of this transformer. For training
-                                               a new model set it to True. When getting the full Keras model to load
-                                               existing weights, set it False to avoid reloading the pretrained weights. 
-            local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
-                                 pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
-                                 transformers hub.
-        """
         self.config = config
         self.ntags = ntags
         self.model = None
@@ -92,6 +202,25 @@ class BaseModel(object):
     def get_generator(self):
         # default generator
         return DataGenerator
+
+
+class TransformerBase(object):
+    """
+    This class contains the transformer specific code and characteristics
+    """
+    bert_config = None
+    registry = load_resource_registry("delft/resources-registry.json")
+
+    def get_transformer_config(self):
+        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
+        return None
+
+    def init_transformer(self, config, load_pretrained_weights, local_path):
+        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        self.bert_config = transformer.transformer_config
+
+        return transformer_model
 
 
 class BidLSTM(BaseModel):
@@ -604,14 +733,14 @@ class BERT(BaseModel, TransformerBase):
     When initializing the model, we can provide a local_path to load locally the transformer config and (if 
     necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
     """
+    
     name = 'BERT'
-    bert_config = None
+    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None,
-                 transformer: Transformer = None):
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -643,13 +772,12 @@ class BERT_CRF(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF'
-    bert_config = None
+    #bert_config = None
 
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None,
-                 transformer: Transformer =None):
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -684,13 +812,12 @@ class BERT_ChainCRF(BaseModel, TransformerBase):
     """
 
     name = 'BERT_ChainCRF'
-    bert_config = None
+    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None,
-                 transformer: Transformer=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -725,13 +852,12 @@ class BERT_CRF_FEATURES(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF_FEATURES'
-    bert_config = None
+    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None,
-                 transformer: Transformer =None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -792,13 +918,12 @@ class BERT_CRF_CHAR(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF_CHAR'
-    bert_config = None
+    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None,
-                 transformer: Transformer = None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -857,13 +982,12 @@ class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF_CHAR_FEATURES'
-    bert_config = None
+    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None,
-                 transformer: Transformer = None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, transformer, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -928,7 +1052,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
         '''
         return self.bert_config
 
-
+'''
 def get_model(config: ModelConfig, preprocessor, ntags=None,
               load_pretrained_weights: bool=True, local_path:str=None,
               transformer: Transformer =None) -> BaseModel:
@@ -1068,4 +1192,4 @@ def get_model(config: ModelConfig, preprocessor, ntags=None,
                                     transformer=transformer)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
-
+'''

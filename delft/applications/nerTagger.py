@@ -462,8 +462,12 @@ def annotate(output_format,
              file_in=None, 
              file_out=None,
              use_ELMo=False):
-    if file_in is None or not os.path.isfile(file_in):
+    if file_in is None:
+        raise ValueError("an input file to be annotated must be provided")
+
+    if not os.path.isfile(file_in):
         raise ValueError("the provided input file is not valid")
+        
     annotations = []
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
@@ -599,7 +603,7 @@ if __name__ == "__main__":
             dataset_type=dataset_type, 
             lang=lang, 
             architecture=architecture, 
-            transformer=transformer,
+            #transformer=transformer,
             use_ELMo=use_ELMo)
 
     if action == 'tag':
@@ -611,7 +615,7 @@ if __name__ == "__main__":
                             dataset_type, 
                             lang, 
                             architecture=architecture, 
-                            transformer=transformer,
+                            #transformer=transformer,
                             file_in=file_in, 
                             file_out=file_out,
                             use_ELMo=use_ELMo)

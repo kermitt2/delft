@@ -9,7 +9,7 @@ from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, 
 from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import RMSprop
-from transformers import AutoConfig, TFAutoModel
+#from transformers import AutoConfig, TFAutoModel
 from transformers import create_optimizer
 
 from delft.textClassification.data_generator import DataGenerator
@@ -58,7 +58,6 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
     elif (architecture == 'gru_simple'):
         model = gru_simple(model_config, training_config)
     elif (architecture == 'bert'):
-        print(model_config.transformer_name, "will be used")
         model = bert(model_config, training_config,
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path)
@@ -221,25 +220,6 @@ class BaseModel(object):
         self.model.compile(loss='binary_crossentropy', 
                     optimizer='adam', 
                     metrics=['accuracy'])
-
-    '''
-    def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
-        if load_pretrained_weights:
-            if local_path is None:
-                transformer_model = TFAutoModel.from_pretrained(transformer_model_name, from_pt=True)
-            else:
-                transformer_model = TFAutoModel.from_pretrained(local_path, from_pt=True)
-            self.bert_config = transformer_model.config
-        else:
-            # load config in JSON format
-            if local_path is None:
-                self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
-            else:
-                config_path = os.path.join(".", local_path, TRANSFORMER_CONFIG_FILE_NAME)
-                self.bert_config = AutoConfig.from_pretrained(config_path)
-            transformer_model = TFAutoModel.from_config(self.bert_config)
-        return transformer_model
-    '''
 
     def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
         if config.transformer_name is None:
@@ -430,8 +410,6 @@ class bidLstm_simple(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(LSTM(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"]))(input_layer)
@@ -472,7 +450,6 @@ class cnn(BaseModel):
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
-        #def cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Dropout(self.parameters["dropout_rate"])(input_layer) 
@@ -516,7 +493,6 @@ class cnn(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Dropout(self.parameters["dropout_rate"])(input_layer) 
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
@@ -556,7 +532,6 @@ class cnn3(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"])(input_layer)
@@ -602,7 +577,6 @@ class lstm_cnn(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = LSTM(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"])(input_layer)
@@ -698,7 +672,6 @@ class gru_simple(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"]))(input_layer)
@@ -743,7 +716,6 @@ class gru_lstm(BaseModel):
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["recurrent_dropout_rate"]))(input_layer)
@@ -837,8 +809,7 @@ class bert(BaseModel):
         'dense_size': 512,
         'max_seq_len': 512,
         'dropout_rate': 0.1,
-        'batch_size': 10,
-        'transformer_name': 'bert-base-en'
+        'batch_size': 10
     }
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
@@ -848,15 +819,6 @@ class bert(BaseModel):
         self.training_config = training_config
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
-
-        #def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
-        transformer_model_name = self.parameters["transformer_name"]
-        #print(transformer_model_name)
-        '''
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
-        '''
 
         transformer_model = self.init_transformer(model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path)
 

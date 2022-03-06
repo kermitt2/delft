@@ -101,6 +101,7 @@ class Classifier(object):
         if transformer_name is not None:
             self.transformer_name = transformer_name
             transformer = Transformer(self.transformer_name, resource_registry=self.registry)
+            print(transformer_name, "will be used, loaded via", transformer.loading_method)
             transformer.init_preprocessor(max_sequence_length=maxlen)
             self.transformer_tokenizer = transformer.tokenizer
             self.embeddings_name == None
@@ -428,6 +429,7 @@ class Classifier(object):
         else:
             self.transformer_name = self.model_config.transformer_name
             transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
+            print(self.transformer_name, "will be used, loaded via", transformer.loading_method)
             transformer.init_preprocessor(max_sequence_length=self.model_config.maxlen)
             self.transformer_tokenizer = transformer.tokenizer
             self.embeddings = None
