@@ -90,7 +90,7 @@ class Classifier(object):
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.embeddings = None
-        self.transformer_tokenizer = None
+        #self.transformer_tokenizer = None
 
         # if transformer_name is None, no bert layer is present in the model
         self.transformer_name = None
@@ -100,10 +100,10 @@ class Classifier(object):
         word_emb_size = 0
         if transformer_name is not None:
             self.transformer_name = transformer_name
-            transformer = Transformer(self.transformer_name, resource_registry=self.registry)
-            print(transformer_name, "will be used, loaded via", transformer.loading_method)
-            transformer.init_preprocessor(max_sequence_length=maxlen)
-            self.transformer_tokenizer = transformer.tokenizer
+            #transformer = Transformer(self.transformer_name, resource_registry=self.registry)
+            #print(transformer_name, "will be used, loaded via", transformer.loading_method)
+            #transformer.init_preprocessor(max_sequence_length=maxlen)
+            #self.transformer_tokenizer = transformer.tokenizer
             self.embeddings_name == None
             self.embeddings = None
         elif self.embeddings_name is not None:
@@ -146,16 +146,16 @@ class Classifier(object):
 
             training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
             validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
         else:
             val_y = y_train
 
             training_generator = DataGenerator(x_train, y_train, batch_size=self.training_config.batch_size, 
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
             validation_generator = None
 
         # uncomment to plot graph
@@ -176,7 +176,7 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, self.transformer_tokenizer, callbacks=callbacks)
+        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
 
 
     def predict(self, texts, output_format='json', use_main_thread_only=False):
@@ -188,7 +188,7 @@ class Classifier(object):
             if self.model != None: 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
 
                 result = self.model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
             else:
@@ -198,7 +198,7 @@ class Classifier(object):
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
 
                 result = predict_folds(self.models, 
                                        predict_generator, 
@@ -239,7 +239,7 @@ class Classifier(object):
             if self.model != None:
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
 
                 result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
             else:
@@ -249,7 +249,7 @@ class Classifier(object):
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.transformer_tokenizer)
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
                 result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
@@ -411,8 +411,8 @@ class Classifier(object):
         if self.transformer_name is not None and self.model_config.fold_number == 1:
             if self.model.get_transformer_config() is not None:
                 self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-            if self.transformer_tokenizer is not None:
-                self.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+            if self.model.get_transformer_tokenizer() is not None:
+                self.model.get_transformer_tokenizer().save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
     def load(self, dir_path='data/models/textClassification/'):
@@ -428,10 +428,10 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer_name = self.model_config.transformer_name
-            transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
-            print(self.transformer_name, "will be used, loaded via", transformer.loading_method)
-            transformer.init_preprocessor(max_sequence_length=self.model_config.maxlen)
-            self.transformer_tokenizer = transformer.tokenizer
+            #transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
+            #print(self.transformer_name, "will be used, loaded via", transformer.loading_method)
+            #transformer.init_preprocessor(max_sequence_length=self.model_config.maxlen)
+            #self.transformer_tokenizer = transformer.tokenizer
             self.embeddings = None
 
         self.model = getModel(self.model_config, 

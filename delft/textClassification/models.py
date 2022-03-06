@@ -22,16 +22,18 @@ architectures = [
     'cnn', 
     'cnn2', 
     'cnn3', 
-    'mix1', 
+    'lstm_cnn', 
     'dpcnn', 
     "gru", 
     "gru_simple", 
-    'lstm_cnn', 
-    'han', 
+    'gru_lstm', 
     'bert'
 ]
 
 def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
+    """
+    Return a model instance by its name. This is a facilitator function. 
+    """
     architecture = model_config.architecture
 
     # awww Python has no case/switch statement :D
@@ -65,27 +67,27 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
 
 class BaseModel(object):
+    """
+    Base class for DeLFT text classification models
 
-    transformer_config = None
+    Args:
+        config (ModelConfig): DeLFT model configuration object
+        ntags (integer): number of classes of the model
+        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
+                                           or not we load the pretrained weights of this transformer. For training
+                                           a new model set it to True. When getting the full Keras model to load
+                                           existing weights, set it False to avoid reloading the pretrained weights. 
+        local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
+                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
+                             transformers hub.
+    """
     model = None
     parameters = {}
     registry = load_resource_registry("delft/resources-registry.json")
+    transformer_config = None
+    transformer_tokenizer = None
 
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
-        """
-        Base class for DeLFT text classification models
-
-        Args:
-            config (ModelConfig): DeLFT model configuration object
-            ntags (integer): number of classes of the model
-            load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
-                                               or not we load the pretrained weights of this transformer. For training
-                                               a new model set it to True. When getting the full Keras model to load
-                                               existing weights, set it False to avoid reloading the pretrained weights. 
-            local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
-                                 pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
-                                 transformers hub.
-        """
         self.model_config = model_config
         self.training_config = training_config
 
@@ -224,13 +226,20 @@ class BaseModel(object):
             return None
 
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.transformer_config = transformer.transformer_config
+        transformer.init_preprocessor(max_sequence_length=maxlen)
+        self.transformer_tokenizer = transformer.tokenizer
 
         return transformer_model
 
     def get_transformer_config(self):
-        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
+        # transformer config if a pretrained transformer is used in the model
+        return None
+
+    def get_transformer_tokenizer(self):
+        # transformer tokenizer if a pretrained transformer is used in the model
         return None
 
     def save(self, filepath):
@@ -241,7 +250,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, transformer_tokenizer, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -270,17 +279,17 @@ def train_folds(X, y, model_config, training_config, embeddings, transformer_tok
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
+        foldModel = getModel(model_config, training_config)
+
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=transformer_tokenizer)
+            embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=foldModel.get_transformer_tokenizer())
 
         validation_generator = None
         if training_config.early_stop:
             validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
                 maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-                embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=transformer_tokenizer)
-
-        foldModel = getModel(model_config, training_config)
+                embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=foldModel.get_transformer_tokenizer())
 
         foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
                 class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, 
