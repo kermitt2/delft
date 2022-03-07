@@ -10,7 +10,7 @@ from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, Transformer
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR, Transformer
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -27,7 +27,7 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor=None, 
-                 transformer: Transformer=None
+                 transformer_preprocessor=None
                  ):
 
         # for single model training
@@ -42,7 +42,7 @@ class Trainer(object):
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.preprocessor = preprocessor
-        self.transformer: Transformer = transformer
+        self.transformer_preprocessor = transformer_preprocessor
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -119,11 +119,10 @@ class Trainer(object):
         # todo: if valid set is None, create it as random segment of the shuffled train set
 
         generator = local_model.get_generator()
-        bert_preprocessor = self.transformer.bert_preprocessor if self.transformer is not None else None
         if self.training_config.early_stop:
             training_generator = generator(x_train, y_train, 
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=bert_preprocessor,
+                bert_preprocessor=self.transformer_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, 
@@ -131,7 +130,7 @@ class Trainer(object):
 
             validation_generator = generator(x_valid, y_valid,  
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=bert_preprocessor,
+                bert_preprocessor=self.transformer_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=False, features=f_valid, 
@@ -151,7 +150,7 @@ class Trainer(object):
 
             training_generator = generator(x_train, y_train,
                 batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=bert_preprocessor,
+                bert_preprocessor=self.transformer_preprocessor,
                 char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
                 embeddings=self.embeddings, shuffle=True, 
@@ -236,7 +235,7 @@ class Trainer(object):
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
                                load_pretrained_weights=True)
-
+            self.transformer_preprocessor = foldModel.get_transformer_preprocessor()
             foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 
                                     train_x,
@@ -259,9 +258,11 @@ class Trainer(object):
                     os.makedirs(fold_path)
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
                 foldModel.save(os.path.join(fold_path, weight_file))
-                foldModel.get_transformer_config().to_json_file(os.path.join(fold_path, TRANSFORMER_CONFIG_FILE_NAME))
-                #self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
-                #self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
+                if fold_id == 0:
+                    foldModel.get_transformer_config().to_json_file(os.path.join(fold_path, TRANSFORMER_CONFIG_FILE_NAME))
+                    if self.model_config.transformer_name is not None:
+                        transformer_preprocessor = foldModel.get_transformer_preprocessor()
+                        transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True, use_chain_crf=False):

@@ -99,7 +99,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BERT(config, 
                     ntags, 
                     load_pretrained_weights=load_pretrained_weights, 
-                    local_path=local_path)
+                    local_path=local_path,
+                    preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
@@ -108,7 +109,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BERT_CRF(config, 
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path)
+                        local_path=local_path,
+                        preprocessor=preprocessor)
 
     elif config.architecture == BERT_ChainCRF.name:
         preprocessor.return_bert_embeddings = True
@@ -118,7 +120,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BERT_ChainCRF(config, 
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path)
+                        local_path=local_path,
+                        preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -128,7 +131,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BERT_CRF_FEATURES(config, 
                                 ntags, 
                                 load_pretrained_weights=load_pretrained_weights, 
-                                local_path=local_path)
+                                local_path=local_path,
+                                preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR.name:
         preprocessor.return_bert_embeddings = True
@@ -138,7 +142,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BERT_CRF_CHAR(config, 
                             ntags,      
                             load_pretrained_weights=load_pretrained_weights, 
-                            local_path=local_path)
+                            local_path=local_path,
+                            preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -149,7 +154,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BERT_CRF_CHAR_FEATURES(config, 
                                     ntags, 
                                     load_pretrained_weights=load_pretrained_weights, 
-                                    local_path=local_path)
+                                    local_path=local_path,
+                                    preprocessor=preprocessor)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
@@ -169,7 +175,7 @@ class BaseModel(object):
                              pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
                              transformers hub.
     """
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None, preprocessor=None):
         self.config = config
         self.ntags = ntags
         self.model = None
@@ -208,17 +214,26 @@ class TransformerBase(object):
     """
     This class contains the transformer specific code and characteristics
     """
-    bert_config = None
+    transformer_config = None
+    transformer_preprocessor = None
     registry = load_resource_registry("delft/resources-registry.json")
 
     def get_transformer_config(self):
         # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
-        return None
+        return self.transformer_config
 
-    def init_transformer(self, config, load_pretrained_weights, local_path):
+    def get_transformer_preprocessor(self):
+        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
+        return self.transformer_preprocessor
+
+    def init_transformer(self, config, load_pretrained_weights, local_path, preprocessor):
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
-        self.bert_config = transformer.transformer_config
+        self.transformer_config = transformer.transformer_config
+        self.transformer_preprocessor = transformer.init_preprocessor(max_sequence_length=config.max_sequence_length, 
+                                            empty_features_vector=preprocessor.empty_features_vector(),
+                                            empty_char_vector=preprocessor.empty_char_vector())
 
         return transformer_model
 
@@ -733,14 +748,13 @@ class BERT(BaseModel, TransformerBase):
     When initializing the model, we can provide a local_path to load locally the transformer config and (if 
     necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
     """
-    
-    name = 'BERT'
-    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None):
+    name = 'BERT'
+
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -758,12 +772,13 @@ class BERT(BaseModel, TransformerBase):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    """
     def get_transformer_config(self):
         '''
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
-
+    """
 
 class BERT_CRF(BaseModel, TransformerBase):
     """
@@ -772,12 +787,11 @@ class BERT_CRF(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF'
-    #bert_config = None
 
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None):
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -797,11 +811,13 @@ class BERT_CRF(BaseModel, TransformerBase):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    """
     def get_transformer_config(self):
         '''
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
+    """
 
 class BERT_ChainCRF(BaseModel, TransformerBase):
     """
@@ -812,12 +828,11 @@ class BERT_ChainCRF(BaseModel, TransformerBase):
     """
 
     name = 'BERT_ChainCRF'
-    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None):
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool=True, local_path: str=None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -837,12 +852,13 @@ class BERT_ChainCRF(BaseModel, TransformerBase):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    """
     def get_transformer_config(self):
         '''
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
-
+    """
 
 class BERT_CRF_FEATURES(BaseModel, TransformerBase):
     """
@@ -852,12 +868,11 @@ class BERT_CRF_FEATURES(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF_FEATURES'
-    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -903,12 +918,13 @@ class BERT_CRF_FEATURES(BaseModel, TransformerBase):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    """
     def get_transformer_config(self):
         '''
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
-
+    """
 
 class BERT_CRF_CHAR(BaseModel, TransformerBase):
     """
@@ -918,12 +934,11 @@ class BERT_CRF_CHAR(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF_CHAR'
-    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -966,12 +981,13 @@ class BERT_CRF_CHAR(BaseModel, TransformerBase):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    """
     def get_transformer_config(self):
         '''
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
-
+    """
 
 class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
     """
@@ -982,12 +998,11 @@ class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
     """
 
     name = 'BERT_CRF_CHAR_FEATURES'
-    #bert_config = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
@@ -1046,11 +1061,13 @@ class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
     def get_generator(self):
         return DataGeneratorTransformers
 
+    """
     def get_transformer_config(self):
         '''
         return the PretrainedConfig object of the transformer layer used in the mode, if any
         '''
         return self.bert_config
+    """
 
 '''
 def get_model(config: ModelConfig, preprocessor, ntags=None,

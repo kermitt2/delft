@@ -103,14 +103,7 @@ class Sequence(object):
         self.embeddings = None
         self.model_local_path = None
 
-        # if transformer is None, no bert layer is present in the model
-        self.transformer = None
-
         self.registry = load_resource_registry("delft/resources-registry.json")
-
-        if transformer_name is not None:
-            self.transformer = Transformer(transformer_name, resource_registry=self.registry)
-            print(transformer_name, "will be used, loaded via", self.transformer.loading_method)
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
@@ -158,10 +151,6 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-        if self.transformer is not None:
-            self.transformer.init_preprocessor(self.model_config.max_sequence_length,
-                                               empty_features_vector=self.p.empty_features_vector(),
-                                               empty_char_vector=self.p.empty_char_vector())
 
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
@@ -174,7 +163,7 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          transformer=self.transformer
+                          transformer_preprocessor=self.model.get_transformer_preprocessor()
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -189,11 +178,6 @@ class Sequence(object):
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
 
-        if self.transformer is not None:
-            self.transformer.init_preprocessor(config.max_sequence_length,
-                                                empty_features_vector=self.p.empty_features_vector(),
-                                                empty_char_vector=self.p.empty_char_vector())
-
         self.model_config.char_vocab_size = len(self.p.vocab_char)
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
@@ -204,8 +188,7 @@ class Sequence(object):
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p,
-                          transformer=self.transformer)
+                          preprocessor=self.p)
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -218,7 +201,7 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
-        if self.transformer is None:
+        if self.model_config.transformer_name is None:
             # we can use a data generator for evaluation
             if self.model:
                 # Prepare test data(steps, generator)
@@ -248,7 +231,7 @@ class Sequence(object):
                               self.model_config,
                               self.embeddings,
                               preprocessor=self.p,
-                              transformer=self.transformer)
+                              transformer_preprocessor=self.model.get_transformer_preprocessor())
                 y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
                 # keep only labels
@@ -298,7 +281,7 @@ class Sequence(object):
             for i in range(self.model_config.fold_number):
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
-                if self.transformer is None:
+                if self.model_config.transformer_name is None:
                     the_model = self.models[i]
                     bert_preprocessor = None
                 else:
@@ -312,7 +295,7 @@ class Sequence(object):
                                local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
-                    bert_preprocessor = self.transformer.bert_preprocessor
+                    bert_preprocessor = self.model.get_transformer_preprocessor()
 
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)
@@ -326,7 +309,11 @@ class Sequence(object):
                     output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf, use_chain_crf=self.model_config.use_chain_crf)
+                scorer = Scorer(test_generator, 
+                                self.p, 
+                                evaluation=True, 
+                                use_crf=self.model_config.use_crf, 
+                                use_chain_crf=self.model_config.use_chain_crf)
                 scorer.model = the_model
                 scorer.on_epoch_end(epoch=-1)
                 f1 = scorer.f1
@@ -398,7 +385,7 @@ class Sequence(object):
             print(reports[best_index])
 
             fold_nb = self.model_config.fold_number
-            if self.transformer == None:
+            if self.model_config.transformer_name == None:
                 self.model = self.models[best_index]
                 self.model_config.fold_number = 1
             else:
@@ -417,7 +404,11 @@ class Sequence(object):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
         if self.model:
-            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, transformer=self.transformer)
+            tagger = Tagger(self.model, 
+                            self.model_config, 
+                            self.embeddings, 
+                            preprocessor=self.p, 
+                            transformer_preprocessor=self.model.get_transformer_preprocessor())
             start_time = time.time()
             annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
@@ -435,7 +426,11 @@ class Sequence(object):
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
         if self.model:
-            tagger = Tagger(self.model, self.model_config, self.embeddings, preprocessor=self.p, transformer=self.transformer)
+            tagger = Tagger(self.model, 
+                            self.model_config, 
+                            self.embeddings, 
+                            preprocessor=self.p, 
+                            transformer_preprocessor=self.model.get_transformer_preprocessor())
             start_time = time.time()
             if file_out != None:
                 out = open(file_out,'w')
@@ -527,10 +522,13 @@ class Sequence(object):
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print('preprocessor saved')
 
-        if self.transformer is not None:
-            self.transformer.save_tokenizer(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+        '''
+        if self.model_config.transformer_name is not None:
+            transformer_preprocessor = self.model.get_transformer_preprocessor()
+            transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
             print('transformer tokenizer saved')
-
+        '''
+        
         if self.model is None and self.model_config.fold_number > 1:
             print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
         else:
@@ -539,6 +537,12 @@ class Sequence(object):
             # save pretrained transformer config if used in the model
             if self.model.get_transformer_config() is not None:
                 self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+                print('transformer config saved')
+
+            if self.model.get_transformer_preprocessor() is not None:
+                transformer_preprocessor = self.model.get_transformer_preprocessor()
+                transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                print('transformer tokenizer saved')
 
         print('model saved')
 
@@ -556,19 +560,9 @@ class Sequence(object):
             self.model_config.word_embedding_size = 0
 
         self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
-
-        if self.model_config.transformer_name is not None:
-            self.transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
-            print(self.model_config.transformer_name, "will be used, loaded via", self.transformer.loading_method)
-            self.transformer.init_preprocessor(add_special_tokens=True,
-                                               max_sequence_length=self.model_config.max_sequence_length,
-                                               add_prefix_space=True,
-                                               empty_features_vector=self.p.empty_features_vector(),
-                                               empty_char_vector=self.p.empty_char_vector())
-
-
         self.model = get_model(self.model_config,
-                               self.p, ntags=len(self.p.vocab_tag),
+                               self.p, 
+                               ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
                                local_path=os.path.join(dir_path, self.model_config.model_name))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))

@@ -90,7 +90,6 @@ class Classifier(object):
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.embeddings = None
-        #self.transformer_tokenizer = None
 
         # if transformer_name is None, no bert layer is present in the model
         self.transformer_name = None
@@ -100,10 +99,6 @@ class Classifier(object):
         word_emb_size = 0
         if transformer_name is not None:
             self.transformer_name = transformer_name
-            #transformer = Transformer(self.transformer_name, resource_registry=self.registry)
-            #print(transformer_name, "will be used, loaded via", transformer.loading_method)
-            #transformer.init_preprocessor(max_sequence_length=maxlen)
-            #self.transformer_tokenizer = transformer.tokenizer
             self.embeddings_name == None
             self.embeddings = None
         elif self.embeddings_name is not None:
@@ -249,7 +244,7 @@ class Classifier(object):
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.get_transformer_tokenizer())
+                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.models[0].get_transformer_tokenizer())
                 result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find nfolds models.'))
@@ -419,8 +414,6 @@ class Classifier(object):
         model_path = os.path.join(dir_path, self.model_config.model_name)
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
         
-        #print(self.model_config.transformer_name)
-
         if self.model_config.transformer_name is None:
             # load embeddings
             # Do not use cache in 'production' mode
@@ -428,10 +421,6 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer_name = self.model_config.transformer_name
-            #transformer = Transformer(self.model_config.transformer_name, delft_local_path=model_path)
-            #print(self.transformer_name, "will be used, loaded via", transformer.loading_method)
-            #transformer.init_preprocessor(max_sequence_length=self.model_config.maxlen)
-            #self.transformer_tokenizer = transformer.tokenizer
             self.embeddings = None
 
         self.model = getModel(self.model_config, 

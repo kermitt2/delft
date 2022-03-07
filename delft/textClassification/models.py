@@ -229,18 +229,18 @@ class BaseModel(object):
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.transformer_config = transformer.transformer_config
-        transformer.init_preprocessor(max_sequence_length=maxlen)
+        transformer.init_preprocessor(max_sequence_length=config.maxlen)
         self.transformer_tokenizer = transformer.tokenizer
 
         return transformer_model
 
     def get_transformer_config(self):
         # transformer config if a pretrained transformer is used in the model
-        return None
+        return self.transformer_config
 
     def get_transformer_tokenizer(self):
         # transformer tokenizer if a pretrained transformer is used in the model
-        return None
+        return self.transformer_tokenizer
 
     def save(self, filepath):
         self.model.save_weights(filepath)
@@ -308,8 +308,8 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
                 # save transformer config and tokenizer
                 if foldModel.get_transformer_config() is not None:
                     foldModel.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-                if transformer_tokenizer is not None:
-                    transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                if foldModel.get_transformer_tokenizer() is not None:
+                    foldModel.get_transformer_tokenizer().save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
             model_path = os.path.join(directory, "model{0}_weights.hdf5".format(fold_id))
             foldModel.save(model_path)
@@ -826,9 +826,10 @@ class bert(BaseModel):
             )
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
 
+    """
     def get_transformer_config(self):
         '''
         return the pretrained config object of the transformer layer used in the mode, if any
         '''
         return self.transformer_config
-    
+    """
