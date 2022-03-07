@@ -522,13 +522,6 @@ class Sequence(object):
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print('preprocessor saved')
 
-        '''
-        if self.model_config.transformer_name is not None:
-            transformer_preprocessor = self.model.get_transformer_preprocessor()
-            transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
-            print('transformer tokenizer saved')
-        '''
-        
         if self.model is None and self.model_config.fold_number > 1:
             print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
         else:
