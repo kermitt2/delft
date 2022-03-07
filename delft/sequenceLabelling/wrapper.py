@@ -169,12 +169,10 @@ class Sequence(object):
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, fold_number=10, callbacks=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
-
-        config = self.model_config
 
         self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
 
