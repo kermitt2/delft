@@ -117,9 +117,15 @@ class BaseModel(object):
         best_loss = -1
         best_roc_auc = -1
 
+        # default worker number for multiprocessing
+        nb_workers = 6
+        if self.model_config.transformer_name != None:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
+
         if validation_generator == None:
             # no early stop
-            nb_workers = 6
             best_loss = self.model.fit(
                 training_generator,
                 use_multiprocessing=multiprocessing,
@@ -132,7 +138,6 @@ class BaseModel(object):
             best_epoch = 0
             while current_epoch <= max_epoch:
 
-                nb_workers = 6
                 loss = self.model.fit(
                     training_generator,
                     use_multiprocessing=multiprocessing,
@@ -205,8 +210,15 @@ class BaseModel(object):
 
 
     def predict(self, predict_generator, use_main_thread_only=False):
+        # default
         nb_workers = 6
         multiprocessing = True
+        '''
+        if self.model_config.transformer_name != None:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
+        '''
         y = self.model.predict(
                 predict_generator, 
                 use_multiprocessing=multiprocessing,
@@ -332,7 +344,6 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
         else:
             model = models[fold_id]
         
-        nb_workers = 6
         y_predicts = model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
         y_predicts_list.append(y_predicts)
 

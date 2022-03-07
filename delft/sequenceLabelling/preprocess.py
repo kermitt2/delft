@@ -305,7 +305,7 @@ class BERTPreprocessor(object):
             chars_tokens = []
             while len(chars_tokens) < len(text_tokens):
                 chars_tokens.append(self.empty_char_vector)
-
+        
         # sub-tokenization
         encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
             max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
@@ -321,10 +321,29 @@ class BERTPreprocessor(object):
         chars_blocks = []
         feature_blocks = []
 
-        previous_word_idx = -1
+        # trick to support sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
+        # spaces in the tokens (the encoding symbol for this space varies from one model to another)
+        new_input_ids = []
+        new_attention_mask = []
+        new_token_type_ids = []
+        new_offsets = []
+        for i in range(0, len(input_ids)):
+            if len(self.tokenizer.decode(input_ids[i])) != 0:
+                # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2 
+                # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
+                # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
+                # in sync
+                new_input_ids.append(input_ids[i])
+                new_attention_mask.append(attention_mask[i])
+                new_token_type_ids.append(token_type_ids[i])
+                new_offsets.append(offsets[i])
+        input_ids = new_input_ids
+        attention_mask = new_attention_mask
+        token_type_ids = new_token_type_ids
+        offsets = new_offsets
+
         word_idx = -1
         for i, offset in enumerate(offsets):
-
             if offset[0] == 0 and offset[1] == 0:
                 # this is a special token
                 label_ids.append("<PAD>")
@@ -343,10 +362,10 @@ class BERTPreprocessor(object):
                     # dummy/empty input for sub-tokens
                     label_ids.append("<PAD>")
                     chars_blocks.append(self.empty_char_vector)
+                    # 2 possibilities, either empty features for sub-tokens or repeating the 
+                    # feature vector of the prefix sub-token 
                     #feature_blocks.append(self.empty_features_vector)
                     feature_blocks.append(features_tokens[word_idx])
-
-            previous_word_idx = word_idx
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
