@@ -1,4 +1,3 @@
-import collections
 import itertools
 import json
 import logging
@@ -225,11 +224,6 @@ class BERTPreprocessor(object):
         self.empty_features_vector = empty_features_vector
         self.empty_char_vector = empty_char_vector
 
-    def set_empty_features_vector(self, empty_features_vector):
-        self.empty_features_vector = empty_features_vector
-
-    def set_empty_char_vector(self, empty_char_vector):
-        self.empty_char_vector = empty_char_vector    
 
     def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
@@ -239,7 +233,7 @@ class BERTPreprocessor(object):
         """
         target_ids = []
         target_type_ids = []
-        target_attention_mask  = []
+        target_attention_mask = []
         input_tokens = []
         target_chars = []
 
