@@ -29,20 +29,21 @@ from transformers import create_optimizer
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 
 architectures = [
-    'lstm', 
-    'bidLstm_simple', 
-    'cnn', 
-    'cnn2', 
-    'cnn3', 
-    'mix1', 
-    'dpcnn', 
-    'conv', 
-    "gru", 
-    "gru_simple", 
-    'lstm_cnn', 
-    'han', 
+    'lstm',
+    'bidLstm_simple',
+    'cnn',
+    'cnn2',
+    'cnn3',
+    'gru_lstm',
+    'dpcnn',
+    'conv',
+    "gru",
+    "gru_simple",
+    'lstm_cnn',
+    'han',
     'bert'
 ]
+
 
 def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
     architecture = model_config.architecture
@@ -62,8 +63,8 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = lstm_cnn(model_config, training_config)
     elif (architecture == 'conv'):
         model = dpcnn(model_config, training_config)
-    elif (architecture == 'mix1'):
-        model = mix1(model_config, training_config)
+    elif (architecture == 'gru_lstm'):
+        model = gru_lstm(model_config, training_config)
     elif (architecture == 'dpcnn'):
         model = dpcnn(model_config, training_config)
     elif (architecture == 'gru'):
@@ -72,8 +73,8 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = gru_simple(model_config, training_config)
     elif (architecture == 'bert'):
         print(model_config.transformer, "will be used")
-        model = bert(model_config, training_config, 
-                    load_pretrained_weights=load_pretrained_weights, 
+        model = bert(model_config, training_config,
+                    load_pretrained_weights=load_pretrained_weights,
                     local_path=local_path)
     else:
         raise (OSError('The model type '+architecture+' is unknown'))

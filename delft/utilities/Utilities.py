@@ -1,4 +1,5 @@
 # some convenient methods for all models
+import pandas as pd
 import regex as re
 import numpy as np
 # seed is fixed for reproducibility
@@ -13,10 +14,10 @@ from urllib.parse import urlparse
 from tensorflow.keras.preprocessing import text
 
 from tqdm import tqdm 
-from xml.sax.saxutils import escape
 
 import argparse
 import truecase
+from keras import backend as K
 
 def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
     return [
