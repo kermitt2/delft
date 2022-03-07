@@ -92,9 +92,9 @@ class Sequence(object):
         if model_name == None:
             # add a dummy name based on the architecture
             model_name = architecture
-            if embeddings_name != None:
+            if embeddings_name is not None:
                 model_name += "_" + embeddings_name
-            if transformer != None:
+            if transformer is not None:
                 model_name += "_" + transformer
 
         self.model = None

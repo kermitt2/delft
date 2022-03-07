@@ -419,7 +419,7 @@ class Classifier(object):
         else:
             self.transformer = self.model_config.transformer
             self.tokenizer = AutoTokenizer.from_pretrained(self.transformer, add_special_tokens=True,
-                                                max_length=maxlen, add_prefix_space=True)
+                                                max_length=self.model_config.maxlen, add_prefix_space=True)
             self.embeddings = None
 
         self.model = getModel(self.model_config, 
