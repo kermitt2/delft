@@ -398,7 +398,7 @@ def train_eval(embeddings_name=None,
     if fold_count == 1:
         model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     else:
-        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid, fold_number=fold_count)
+        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 

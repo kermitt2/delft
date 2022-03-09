@@ -187,7 +187,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     if fold_count == 1:
         model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, fold_number=fold_count)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
@@ -197,7 +197,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     model.eval(x_eval, y_eval, features=f_eval)
 
     # saving the model (must be called after eval for multiple fold training)
-    if (output_path):
+    if output_path:
         model.save(output_path)
     else:
         model.save()
