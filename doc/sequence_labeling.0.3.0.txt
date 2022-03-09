@@ -3156,3 +3156,188 @@ Average over 10 folds
 
 all (micro avg.)     0.9006    0.9188    0.9096   
 
+
+
+
+
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2003 --architecture BERT_ChainCRF --transformer bert-base-cased --fold-count 10
+
+training runtime: 20233.137 seconds 
+
+Evaluation on test set:
+
+------------------------ fold 0 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights0.hdf5
+    f1 (micro): 91.10
+                  precision    recall  f1-score   support
+
+             LOC     0.9312    0.9329    0.9320      1668
+            MISC     0.7607    0.8333    0.7954       702
+             ORG     0.8781    0.9061    0.8919      1661
+             PER     0.9623    0.9617    0.9620      1617
+
+all (micro avg.)     0.9014    0.9209    0.9110      5648
+
+
+------------------------ fold 1 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights1.hdf5
+    f1 (micro): 91.19
+                  precision    recall  f1-score   support
+
+             LOC     0.9342    0.9275    0.9308      1668
+            MISC     0.7751    0.8248    0.7992       702
+             ORG     0.8804    0.9127    0.8962      1661
+             PER     0.9564    0.9623    0.9593      1617
+
+all (micro avg.)     0.9037    0.9203    0.9119      5648
+
+
+------------------------ fold 2 --------------------------------------
+________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights2.hdf5
+    f1 (micro): 91.44
+                  precision    recall  f1-score   support
+
+             LOC     0.9311    0.9317    0.9314      1668
+            MISC     0.7886    0.8447    0.8157       702
+             ORG     0.8794    0.9133    0.8960      1661
+             PER     0.9570    0.9635    0.9602      1617
+
+all (micro avg.)     0.9044    0.9246    0.9144      5648
+
+
+------------------------ fold 3 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights3.hdf5
+    f1 (micro): 91.28
+                  precision    recall  f1-score   support
+
+             LOC     0.9306    0.9323    0.9314      1668
+            MISC     0.7802    0.8291    0.8039       702
+             ORG     0.8775    0.9145    0.8956      1661
+             PER     0.9576    0.9629    0.9602      1617
+
+all (micro avg.)     0.9028    0.9230    0.9128      5648
+
+
+------------------------ fold 4 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights4.hdf5
+    f1 (micro): 91.16
+                  precision    recall  f1-score   support
+
+             LOC     0.9399    0.9275    0.9336      1668
+            MISC     0.7864    0.8234    0.8045       702
+             ORG     0.8678    0.9127    0.8897      1661
+             PER     0.9592    0.9604    0.9598      1617
+
+all (micro avg.)     0.9038    0.9196    0.9116      5648
+
+
+------------------------ fold 5 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights5.hdf5
+    f1 (micro): 90.99
+                  precision    recall  f1-score   support
+
+             LOC     0.9331    0.9359    0.9345      1668
+            MISC     0.7797    0.8219    0.8003       702
+             ORG     0.8681    0.9115    0.8893      1661
+             PER     0.9577    0.9530    0.9554      1617
+
+all (micro avg.)     0.9006    0.9194    0.9099      5648
+
+
+------------------------ fold 6 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights6.hdf5
+    f1 (micro): 91.48
+                  precision    recall  f1-score   support
+
+             LOC     0.9380    0.9335    0.9357      1668
+            MISC     0.7839    0.8063    0.7949       702
+             ORG     0.8694    0.9302    0.8988      1661
+             PER     0.9693    0.9573    0.9633      1617
+
+all (micro avg.)     0.9062    0.9235    0.9148      5648
+
+
+------------------------ fold 7 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights7.hdf5
+    f1 (micro): 90.77
+                  precision    recall  f1-score   support
+
+             LOC     0.9242    0.9281    0.9261      1668
+            MISC     0.7702    0.8162    0.7925       702
+             ORG     0.8744    0.8970    0.8856      1661
+             PER     0.9670    0.9598    0.9634      1617
+
+all (micro avg.)     0.9014    0.9141    0.9077      5648
+
+
+------------------------ fold 8 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights8.hdf5
+    f1 (micro): 91.52
+                  precision    recall  f1-score   support
+
+             LOC     0.9361    0.9317    0.9339      1668
+            MISC     0.7715    0.8319    0.8005       702
+             ORG     0.8872    0.9139    0.9004      1661
+             PER     0.9623    0.9641    0.9632      1617
+
+all (micro avg.)     0.9073    0.9233    0.9152      5648
+
+
+------------------------ fold 9 --------------------------------------
+__________________________________________________________________________________________________
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights9.hdf5
+    f1 (micro): 91.24
+                  precision    recall  f1-score   support
+
+             LOC     0.9350    0.9317    0.9333      1668
+            MISC     0.7764    0.8262    0.8006       702
+             ORG     0.8787    0.9115    0.8948      1661
+             PER     0.9603    0.9586    0.9595      1617
+
+all (micro avg.)     0.9046    0.9203    0.9124      5648
+
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 7
+                  precision    recall  f1-score   support
+
+             LOC     0.9242    0.9281    0.9261      1668
+            MISC     0.7702    0.8162    0.7925       702
+             ORG     0.8744    0.8970    0.8856      1661
+             PER     0.9670    0.9598    0.9634      1617
+
+all (micro avg.)     0.9014    0.9141    0.9077      5648
+
+
+** Best ** model scores - run 8
+                  precision    recall  f1-score   support
+
+             LOC     0.9361    0.9317    0.9339      1668
+            MISC     0.7715    0.8319    0.8005       702
+             ORG     0.8872    0.9139    0.9004      1661
+             PER     0.9623    0.9641    0.9632      1617
+
+all (micro avg.)     0.9073    0.9233    0.9152      5648
+
+loading model weights data/models/sequenceLabelling/ner-en-conll2003-BERT_ChainCRF/model_weights8.hdf5
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+             LOC     0.9333    0.9312    0.9323      1668
+            MISC     0.7773    0.8258    0.8007       702
+             ORG     0.8761    0.9123    0.8938      1661
+             PER     0.9609    0.9604    0.9606      1617
+
+all (micro avg.)     0.9036    0.9209    0.9122       
+
