@@ -182,6 +182,11 @@ class BaseModel(object):
         self.local_path = local_path
         self.load_pretrained_weights = load_pretrained_weights
 
+        self.transformer_config = None
+        self.transformer_preprocessor = None
+        
+        self.registry = load_resource_registry("delft/resources-registry.json")
+
     def predict(self, X, *args, **kwargs):
         y_pred = self.model.predict(X, batch_size=1)
         return y_pred
@@ -208,15 +213,6 @@ class BaseModel(object):
     def get_generator(self):
         # default generator
         return DataGenerator
-
-
-class TransformerBase(object):
-    """
-    This class contains the transformer specific code and characteristics
-    """
-    transformer_config = None
-    transformer_preprocessor = None
-    registry = load_resource_registry("delft/resources-registry.json")
 
     def get_transformer_config(self):
         # transformer config if a pretrained transformer is used in the model
@@ -734,7 +730,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
         self.config = config
 
 
-class BERT(BaseModel, TransformerBase):
+class BERT(BaseModel):
     """
     A Keras implementation of BERT for sequence labelling with softmax activation final layer. 
 
@@ -773,7 +769,7 @@ class BERT(BaseModel, TransformerBase):
         return DataGeneratorTransformers
 
 
-class BERT_CRF(BaseModel, TransformerBase):
+class BERT_CRF(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
     of existing pre-trained BERT model given by the field transformer in the config. 
@@ -805,7 +801,7 @@ class BERT_CRF(BaseModel, TransformerBase):
         return DataGeneratorTransformers
 
 
-class BERT_ChainCRF(BaseModel, TransformerBase):
+class BERT_ChainCRF(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
     of existing pre-trained BERT model given by the field transformer in the config. 
@@ -839,7 +835,7 @@ class BERT_ChainCRF(BaseModel, TransformerBase):
         return DataGeneratorTransformers
 
 
-class BERT_CRF_FEATURES(BaseModel, TransformerBase):
+class BERT_CRF_FEATURES(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     additional generic discrete features information. The BERT layer will be loaded with weights
@@ -898,7 +894,7 @@ class BERT_CRF_FEATURES(BaseModel, TransformerBase):
         return DataGeneratorTransformers
 
 
-class BERT_CRF_CHAR(BaseModel, TransformerBase):
+class BERT_CRF_CHAR(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     a character input channel. The BERT layer will be loaded with weights of existing 
@@ -954,7 +950,7 @@ class BERT_CRF_CHAR(BaseModel, TransformerBase):
         return DataGeneratorTransformers
 
 
-class BERT_CRF_CHAR_FEATURES(BaseModel, TransformerBase):
+class BERT_CRF_CHAR_FEATURES(BaseModel):
     """
     A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
     additional generic discrete features information and a character input channel. The 
