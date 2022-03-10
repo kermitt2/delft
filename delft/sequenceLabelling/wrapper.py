@@ -163,7 +163,7 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          transformer_preprocessor=self.model.get_transformer_preprocessor()
+                          transformer_preprocessor=self.model.transformer_preprocessor
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -229,7 +229,7 @@ class Sequence(object):
                               self.model_config,
                               self.embeddings,
                               preprocessor=self.p,
-                              transformer_preprocessor=self.model.get_transformer_preprocessor())
+                              transformer_preprocessor=self.model.transformer_preprocessor)
                 y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
                 # keep only labels
@@ -293,7 +293,7 @@ class Sequence(object):
                                local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
-                    bert_preprocessor = self.model.get_transformer_preprocessor()
+                    bert_preprocessor = self.model.transformer_preprocessor
 
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)
@@ -406,7 +406,7 @@ class Sequence(object):
                             self.model_config, 
                             self.embeddings, 
                             preprocessor=self.p, 
-                            transformer_preprocessor=self.model.get_transformer_preprocessor())
+                            transformer_preprocessor=self.model.transformer_preprocessor)
             start_time = time.time()
             annotations = tagger.tag(texts, output_format, features=features)
             runtime = round(time.time() - start_time, 3)
@@ -428,7 +428,7 @@ class Sequence(object):
                             self.model_config, 
                             self.embeddings, 
                             preprocessor=self.p, 
-                            transformer_preprocessor=self.model.get_transformer_preprocessor())
+                            transformer_preprocessor=self.model.transformer_preprocessor)
             start_time = time.time()
             if file_out != None:
                 out = open(file_out,'w')
@@ -531,8 +531,7 @@ class Sequence(object):
                 print('transformer config saved')
 
             if self.model.transformer_preprocessor is not None:
-                transformer_preprocessor = self.model.get_transformer_preprocessor()
-                transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                self.model.transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
                 print('transformer tokenizer saved')
 
         print('model saved')
