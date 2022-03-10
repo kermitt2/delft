@@ -383,14 +383,13 @@ class Sequence(object):
             print(reports[best_index])
 
             fold_nb = self.model_config.fold_number
-            if self.model_config.transformer_name == None:
+            self.model_config.fold_number = 1
+            if self.model_config.transformer_name is None:
                 self.model = self.models[best_index]
-                self.model_config.fold_number = 1
             else:
                 dir_path = 'data/models/sequenceLabelling/'
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(best_index)+".hdf5")
                 # saved config file must be updated to single fold
-                self.model_config.fold_number = 1
                 self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
 
             print("----------------------------------------------------------------------")

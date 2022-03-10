@@ -6,10 +6,12 @@ from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from tensorflow.keras.utils import plot_model
 from transformers import create_optimizer
 
+from delft.sequenceLabelling.config import ModelConfig
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
+from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR, Transformer
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
@@ -22,11 +24,11 @@ class Trainer(object):
                  model,
                  models,
                  embeddings,
-                 model_config,
+                 model_config: ModelConfig,
                  training_config,
                  checkpoint_path='',
                  save_path='',
-                 preprocessor=None, 
+                 preprocessor: Preprocessor=None,
                  transformer_preprocessor=None
                  ):
 
@@ -195,15 +197,15 @@ class Trainer(object):
         fold_size = len(x_train) // fold_count
 
         dir_path = 'data/models/sequenceLabelling/'
-        directory = os.path.join(dir_path, self.model_config.model_name)
-        print("Output directory:", directory)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+        output_directory = os.path.join(dir_path, self.model_config.model_name)
+        print("Output directory:", output_directory)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
 
         if self.model_config.transformer_name is not None:
             # save the config, preprocessor and transformer layer config on disk
-            self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
-            self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
+            self.model_config.save(os.path.join(output_directory, CONFIG_FILE_NAME))
+            self.preprocessor.save(os.path.join(output_directory, PROCESSOR_FILE_NAME))
 
         for fold_id in range(0, fold_count):
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -253,18 +255,13 @@ class Trainer(object):
                 self.models.append(foldModel)
             else:
                 # save the model with transformer layer on disk
-                dir_path = 'data/models/sequenceLabelling/'
-                fold_path = os.path.join(dir_path, self.model_config.model_name)
-                print("fold_path:", fold_path)
-                if not os.path.exists(fold_path):
-                    os.makedirs(fold_path)
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
-                foldModel.save(os.path.join(fold_path, weight_file))
+                foldModel.save(os.path.join(output_directory, weight_file))
                 if fold_id == 0:
-                    foldModel.transformer_config.to_json_file(os.path.join(fold_path, TRANSFORMER_CONFIG_FILE_NAME))
+                    foldModel.transformer_config.to_json_file(os.path.join(output_directory, TRANSFORMER_CONFIG_FILE_NAME))
                     if self.model_config.transformer_name is not None:
                         transformer_preprocessor = foldModel.transformer_preprocessor
-                        transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                        transformer_preprocessor.tokenizer.save_pretrained(os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True, use_chain_crf=False):

@@ -226,9 +226,6 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False):
     model = Sequence(model_name)
     model.load()
 
-    # Workaround to avoid having evaluation ran for n time
-    model.model_config.fold_number = 1
-
     # evaluation
     print("\nEvaluation:")
     model.eval(x_all, y_all, features=f_all)
