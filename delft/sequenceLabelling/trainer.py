@@ -194,13 +194,14 @@ class Trainer(object):
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
 
+        dir_path = 'data/models/sequenceLabelling/'
+        directory = os.path.join(dir_path, self.model_config.model_name)
+        print("Output directory:", directory)
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+
         if self.model_config.transformer_name is not None:
             # save the config, preprocessor and transformer layer config on disk
-            dir_path = 'data/models/sequenceLabelling/'
-            directory = os.path.join(dir_path, self.model_config.model_name)
-            print("directory:", directory)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
             self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
             self.preprocessor.save(os.path.join(directory, PROCESSOR_FILE_NAME))
 
