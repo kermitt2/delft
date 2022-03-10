@@ -44,7 +44,7 @@
     "use_chain_crf": false,
     "fold_number": 1,
     "batch_size": 10,
-    "transformer": null,
+    "transformer_name": null,
     "use_ELMo": false,
     "features_map_to_index": {
         "9": {

@@ -44,7 +44,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, us
 
     model = Sequence(model_name, max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
         embeddings_name=embeddings_name, architecture=architecture, patience=patience, early_stop=early_stop,
-        transformer=transformer, use_ELMo=use_ELMo)
+        transformer_name=transformer, use_ELMo=use_ELMo)
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
@@ -61,7 +61,7 @@ def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None,
         model_name += '-with_ELMo'
 
     # load model
-    model = Sequence(model_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
+    model = Sequence(model_name, architecture=architecture, transformer_name=transformer, use_ELMo=use_ELMo)
     model.load()
 
     start_time = time.time()

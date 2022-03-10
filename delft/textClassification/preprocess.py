@@ -38,13 +38,13 @@ def lower(word):
 def normalize_num(word):
     return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
 
-def create_single_input_bert(text, maxlen=512, tokenizer=None):
+def create_single_input_bert(text, maxlen=512, transformer_tokenizer=None):
     '''
     Note: use batch method preferably for better performance
     '''
 
     # TBD: exception if tokenizer is not valid/None
-    encoded_tokens = tokenizer.encode_plus(text, truncation=True, add_special_tokens=True, 
+    encoded_tokens = transformer_tokenizer.encode_plus(text, truncation=True, add_special_tokens=True, 
                                                 max_length=maxlen, padding='max_length')
     # note: [CLS] and [SEP] are added by the tokenizer
 
@@ -54,13 +54,13 @@ def create_single_input_bert(text, maxlen=512, tokenizer=None):
 
     return ids, masks, segments
 
-def create_batch_input_bert(texts, maxlen=512, tokenizer=None):
+def create_batch_input_bert(texts, maxlen=512, transformer_tokenizer=None):
     # TBD: exception if tokenizer is not valid/None
 
     if isinstance(texts, np.ndarray):
         texts = texts.tolist()
 
-    encoded_tokens = tokenizer.batch_encode_plus(texts, add_special_tokens=True, truncation=True, 
+    encoded_tokens = transformer_tokenizer.batch_encode_plus(texts, add_special_tokens=True, truncation=True, 
                                                 max_length=maxlen, padding='max_length')
 
     # note: special tokens like [CLS] and [SEP] are added by the tokenizer

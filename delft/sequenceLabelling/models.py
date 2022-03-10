@@ -1,31 +1,27 @@
-import os
-
 from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate
 from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
-import tensorflow_addons as tfa
+from delft.sequenceLabelling.config import ModelConfig
+from delft.utilities.Transformer import Transformer
 from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
 
-from transformers import AutoConfig, TFAutoModel
-
 from delft.utilities.crf_layer import ChainCRF
 from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
+from delft.utilities.Embeddings import load_resource_registry
 
 """
 The sequence labeling models.
 
-Each model is a class implementing a Keras architecture. 
-The class can also define the data generator class object to be used, the loss function,
+Each architecture model is a class implementing a Keras architecture. 
+The architecture class can also define the data generator class object to be used, the loss function,
 the metrics and the optimizer.
 """
 
-TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
-
-def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
+def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
     """
     Return a model instance by its name. This is a facilitator function. 
     """
@@ -103,7 +99,8 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT(config, 
                     ntags, 
                     load_pretrained_weights=load_pretrained_weights, 
-                    local_path=local_path)
+                    local_path=local_path,
+                    preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
@@ -112,7 +109,8 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF(config, 
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path)
+                        local_path=local_path,
+                        preprocessor=preprocessor)
 
     elif config.architecture == BERT_ChainCRF.name:
         preprocessor.return_bert_embeddings = True
@@ -122,7 +120,8 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_ChainCRF(config, 
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path)
+                        local_path=local_path,
+                        preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -132,7 +131,8 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_FEATURES(config, 
                                 ntags, 
                                 load_pretrained_weights=load_pretrained_weights, 
-                                local_path=local_path)
+                                local_path=local_path,
+                                preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR.name:
         preprocessor.return_bert_embeddings = True
@@ -142,7 +142,8 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_CHAR(config, 
                             ntags,      
                             load_pretrained_weights=load_pretrained_weights, 
-                            local_path=local_path)
+                            local_path=local_path,
+                            preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -153,31 +154,39 @@ def get_model(config, preprocessor, ntags=None, load_pretrained_weights=True, lo
         return BERT_CRF_CHAR_FEATURES(config, 
                                     ntags, 
                                     load_pretrained_weights=load_pretrained_weights, 
-                                    local_path=local_path)
+                                    local_path=local_path,
+                                    preprocessor=preprocessor)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
 
 class BaseModel(object):
+    """
+    Base class for DeLFT sequence labeling models
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        """
-        Base class for DeLFT sequence labeling models
+    Args:
+        config (ModelConfig): DeLFT model configuration object
+        ntags (integer): number of different labels of the model
+        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
+                                           or not we load the pretrained weights of this transformer. For training
+                                           a new model set it to True. When getting the full Keras model to load
+                                           existing weights, set it False to avoid reloading the pretrained weights. 
+        local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
+                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
+                             transformers hub.
+    """
 
-        Args:
-            config (ModelConfig): DeLFT model configuration object
-            ntags (integer): number of different labels of the model
-            load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
-                                               or not we load the pretrained weights of this transformer. For training
-                                               a new model set it to True. When getting the full Keras model to load
-                                               existing weights, set it False to avoid reloading the pretrained weights. 
-            local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
-                                 pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
-                                 transformers hub.
-        """
+    transformer_config = None
+    transformer_preprocessor = None
+
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None, preprocessor=None):
         self.config = config
         self.ntags = ntags
         self.model = None
+        self.local_path = local_path
+        self.load_pretrained_weights = load_pretrained_weights
+        
+        self.registry = load_resource_registry("delft/resources-registry.json")
 
     def predict(self, X, *args, **kwargs):
         y_pred = self.model.predict(X, batch_size=1)
@@ -206,25 +215,15 @@ class BaseModel(object):
         # default generator
         return DataGenerator
 
-    def get_transformer_config(self):
-        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
-        return None
+    def init_transformer(self, config, load_pretrained_weights, local_path, preprocessor):
+        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
+        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        self.transformer_config = transformer.transformer_config
+        self.transformer_preprocessor = transformer.init_preprocessor(max_sequence_length=config.max_sequence_length, 
+                                            empty_features_vector=preprocessor.empty_features_vector(),
+                                            empty_char_vector=preprocessor.empty_char_vector())
 
-    def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
-        if load_pretrained_weights:
-            if local_path is None:
-                transformer_model = TFAutoModel.from_pretrained(transformer_model_name, from_pt=True)
-            else:
-                transformer_model = TFAutoModel.from_pretrained(local_path, from_pt=True)
-            self.bert_config = transformer_model.config
-        else:
-            # load config in JSON format
-            if local_path is None:
-                self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
-            else:
-                config_path = os.path.join(".", local_path, TRANSFORMER_CONFIG_FILE_NAME)
-                self.bert_config = AutoConfig.from_pretrained(config_path)
-            transformer_model = TFAutoModel.from_config(self.bert_config)
         return transformer_model
 
 
@@ -235,6 +234,7 @@ class BidLSTM(BaseModel):
     name = 'BidLSTM'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -281,6 +281,7 @@ class BidLSTM_CRF(BaseModel):
     name = 'BidLSTM_CRF'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -331,6 +332,7 @@ class BidLSTM_ChainCRF(BaseModel):
     name = 'BidLSTM_ChainCRF'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -379,6 +381,7 @@ class BidLSTM_CNN(BaseModel):
     name = 'BidLSTM_CNN'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -413,8 +416,8 @@ class BidLSTM_CNN(BaseModel):
         # combine words, custom features and characters
         x = Concatenate(axis=-1)([word_input, casing_embedding, chars])
         x = Dropout(config.dropout)(x)
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
-                               return_sequences=True, 
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         #pred = TimeDistributed(Dense(ntags, activation='softmax'))(x)
@@ -437,6 +440,7 @@ class BidLSTM_CNN_CRF(BaseModel):
     name = 'BidLSTM_CNN_CRF'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -475,8 +479,8 @@ class BidLSTM_CNN_CRF(BaseModel):
         x = Concatenate(axis=-1)([word_input, chars])
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units, 
-                               return_sequences=True, 
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
@@ -497,6 +501,7 @@ class BidGRU_CRF(BaseModel):
     name = 'BidGRU_CRF'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -545,6 +550,7 @@ class BidLSTM_CRF_CASING(BaseModel):
     name = 'BidLSTM_CRF_CASING'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -563,7 +569,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         # custom features input and embeddings
         casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
 
-        casing_embedding = Embedding(input_dim=config.case_vocab_size, 
+        casing_embedding = Embedding(input_dim=config.case_vocab_size,
                            output_dim=config.case_embedding_size,
                            #mask_zero=True,
                            trainable=False,
@@ -578,7 +584,7 @@ class BidLSTM_CRF_CASING(BaseModel):
         x = Dropout(config.dropout)(x)
 
         x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True, 
+                               return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
@@ -600,6 +606,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
     name = 'BidLSTM_CRF_FEATURES'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -662,6 +669,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
     name = 'BidLSTM_ChainCRF_FEATURES'
 
     def __init__(self, config, ntags=None):
+        super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
@@ -729,37 +737,29 @@ class BERT(BaseModel):
     When initializing the model, we can provide a local_path to load locally the transformer config and (if 
     necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
     """
+
     name = 'BERT'
-    bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        transformer_model_name = config.transformer
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
         #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
         label_logits = Dense(ntags, activation='softmax')(embedding_layer)
-        
+
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
         self.model.summary()
         self.config = config
 
     def get_generator(self):
         return DataGeneratorTransformers
-
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config
 
 
 class BERT_CRF(BaseModel):
@@ -769,24 +769,20 @@ class BERT_CRF(BaseModel):
     """
 
     name = 'BERT_CRF'
-    bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path)
-        transformer_model_name = config.transformer
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
-        
+
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
         self.model.summary()
         self.model = CRFModelWrapperForBERT(self.model, ntags)
@@ -797,11 +793,6 @@ class BERT_CRF(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config
 
 class BERT_ChainCRF(BaseModel):
     """
@@ -812,22 +803,18 @@ class BERT_ChainCRF(BaseModel):
     """
 
     name = 'BERT_ChainCRF'
-    bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path)
-        transformer_model_name = config.transformer
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool=True, local_path: str=None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         embedding_layer = Dropout(0.1)(embedding_layer)
         x = Dense(ntags)(embedding_layer)
         self.crf = ChainCRF()
@@ -840,12 +827,6 @@ class BERT_ChainCRF(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config
-
 
 class BERT_CRF_FEATURES(BaseModel):
     """
@@ -855,21 +836,18 @@ class BERT_CRF_FEATURES(BaseModel):
     """
 
     name = 'BERT_CRF_FEATURES'
-    bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        transformer_model_name = config.transformer
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # layout features input and embeddings
@@ -908,12 +886,6 @@ class BERT_CRF_FEATURES(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config
-
 
 class BERT_CRF_CHAR(BaseModel):
     """
@@ -923,21 +895,18 @@ class BERT_CRF_CHAR(BaseModel):
     """
 
     name = 'BERT_CRF_CHAR'
-    bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        transformer_model_name = config.transformer
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # build character based embedding
@@ -973,12 +942,6 @@ class BERT_CRF_CHAR(BaseModel):
     def get_generator(self):
         return DataGeneratorTransformers
 
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config
-
 
 class BERT_CRF_CHAR_FEATURES(BaseModel):
     """
@@ -989,21 +952,18 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
     """
 
     name = 'BERT_CRF_CHAR_FEATURES'
-    bert_config = None 
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path=None):
-        transformer_model_name = config.transformer
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         text_embedding_layer = Dropout(0.1)(text_embedding_layer)
 
         # build character based embedding
@@ -1054,9 +1014,3 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
 
     def get_generator(self):
         return DataGeneratorTransformers
-
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config

@@ -15,9 +15,9 @@ MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citatio
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1, use_ELMo=False):
-    '''
+    """
     Set up the default parameters based on the model type.
-    '''
+    """
     if output_path:
         model_name = model
     else:
@@ -126,7 +126,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
                      architecture=architecture,
-                     transformer=transformer, 
+                     transformer_name=transformer,
                      batch_size=batch_size,
                      max_sequence_length=max_sequence_length,
                      features_indices=features_indices,
@@ -174,7 +174,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
                     architecture=architecture,
-                    transformer=transformer, 
+                    transformer_name=transformer,
                     max_sequence_length=max_sequence_length,
                     batch_size=batch_size,
                     fold_number=fold_count,
@@ -187,7 +187,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     if fold_count == 1:
         model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, fold_number=fold_count)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
@@ -197,16 +197,16 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     model.eval(x_eval, y_eval, features=f_eval)
 
     # saving the model (must be called after eval for multiple fold training)
-    if (output_path):
+    if output_path:
         model.save(output_path)
     else:
         model.save()
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False):
+def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False):
     print('Loading data...')
-    if input_path == None:
+    if input_path is None:
         # it should never be the case
         print("A Grobid evaluation data file must be specified for evaluating a grobid model for the eval action, use parameter --input ")
         return
@@ -236,7 +236,7 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', transformer=None, 
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', transformer=None, features=None, use_ELMo=False):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
     annotations = []
 
     # load model
@@ -338,7 +338,7 @@ if __name__ == "__main__":
     transformer = args.transformer
     use_ELMo = args.use_ELMo
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
@@ -397,7 +397,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
@@ -408,5 +408,5 @@ if __name__ == "__main__":
             with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
                 input_crf_string = file.read()
             x_all, f_all = load_data_crf_string(input_crf_string)
-            result = annotate_text(x_all, model, None, architecture=architecture, transformer=transformer, features=f_all)
+            result = annotate_text(x_all, model, None, architecture=architecture, features=f_all)
             print(result)

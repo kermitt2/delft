@@ -40,7 +40,7 @@
     "use_crf": true,
     "fold_number": 1,
     "batch_size": 50,
-    "transformer": null,
+    "transformer_name": null,
     "features_map_to_index": {
         "9": {
             "LINEEND": 1,

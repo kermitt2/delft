@@ -20,5 +20,5 @@
     "use_crf": true,
     "fold_number": 10,
     "batch_size": 20,
-    "transformer": null
+    "transformer_name": null
 }

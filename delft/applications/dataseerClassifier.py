@@ -43,7 +43,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
     
     if fold_count == 1:
         model.train(xtr, y)
@@ -61,7 +61,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
     
     if fold_count == 1:
         model.train(xtr, y)
@@ -80,7 +80,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
     use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-         class_weights=class_weights, transformer=transformer)
+         class_weights=class_weights, transformer_name=transformer)
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -119,7 +119,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
         model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
             fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name, 
-            batch_size=batch_size, class_weights=class_weights, early_stop=early_stop, transformer=transformer)
+            batch_size=batch_size, class_weights=class_weights, early_stop=early_stop, transformer_name=transformer)
 
         if fold_count == 1:
             model.train(datatypes_xtr[the_class], datatypes_y[the_class])
@@ -162,7 +162,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
 
     model = Classifier('dataseer_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -199,7 +199,7 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
 
     model = Classifier('dataseer-reuse_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -235,7 +235,7 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
 
     model = Classifier('dataseer_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -317,7 +317,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
         model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
             fold_number=fold_count, use_roc_auc=True, embeddings_name=embeddings_name, 
             batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop, 
-            class_weights=class_weights, transformer=transformer)
+            class_weights=class_weights, transformer_name=transformer)
 
         # we need to vectorize the y according to the actual list of classes
         local_y = []
@@ -341,7 +341,7 @@ def classify(texts, output_format, architecture="gru", transformer=None, cascade
         Classify a list of texts with an existing model
     '''
     # load model
-    model = Classifier('dataseer_'+architecture, architecture=architecture, transformer=transformer, embeddings_name=embeddings_name)
+    model = Classifier('dataseer_'+architecture, architecture=architecture, transformer_name=transformer, embeddings_name=embeddings_name)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

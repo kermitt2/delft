@@ -4,7 +4,6 @@ import numpy as np
 # seed is fixed for reproducibility
 from numpy.random import seed
 seed(7)
-import sys
 import os.path
 import shutil
 import requests
@@ -13,7 +12,6 @@ from urllib.parse import urlparse
 from tensorflow.keras.preprocessing import text
 
 from tqdm import tqdm 
-from xml.sax.saxutils import escape
 
 import argparse
 import truecase

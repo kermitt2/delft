@@ -1,9 +1,12 @@
-from collections import defaultdict
-import numpy as np
 import datetime
+
+import numpy as np
+
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
+from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Transformer import Transformer
+
 
 class Tagger(object):
 
@@ -11,11 +14,12 @@ class Tagger(object):
                 model, 
                 model_config, 
                 embeddings=None, 
-                preprocessor=None, 
-                bert_preprocessor=None):
+                preprocessor: Preprocessor=None,
+                transformer_preprocessor=None):
+
         self.model = model
         self.preprocessor = preprocessor
-        self.bert_preprocessor = bert_preprocessor
+        self.transformer_preprocessor = transformer_preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
 
@@ -39,7 +43,7 @@ class Tagger(object):
         predict_generator = generator(texts, None, 
             batch_size=self.model_config.batch_size, 
             preprocessor=self.preprocessor, 
-            bert_preprocessor=self.bert_preprocessor,
+            bert_preprocessor=self.transformer_preprocessor,
             char_embed_size=self.model_config.char_embedding_size,
             max_sequence_length=self.model_config.max_sequence_length,
             embeddings=self.embeddings, tokenize=to_tokeniz, shuffle=False, 

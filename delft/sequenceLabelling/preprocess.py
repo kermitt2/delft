@@ -1,4 +1,3 @@
-import collections
 import itertools
 import json
 import logging
@@ -8,12 +7,10 @@ from typing import List, Iterable, Set
 import numpy as np
 
 from delft.sequenceLabelling.config import ModelConfig
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 LOGGER = logging.getLogger(__name__)
 
 from sklearn.base import BaseEstimator, TransformerMixin
-import tensorflow as tf
 
 UNK = '<UNK>'
 PAD = '<PAD>'
@@ -94,7 +91,7 @@ def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices
 
 
 def reduce_features_vector(feature_vector, features_max_vector_size):
-    '''
+    """
     Reduce the features vector.
     First it calculates the cardinality for each value that each feature can assume, then
     removes features with cardinality above features_max_vector_size.
@@ -104,7 +101,7 @@ def reduce_features_vector(feature_vector, features_max_vector_size):
     :param feature_vector: feature vector to be reduced
     :param features_max_vector_size maximum size of the one-hot-encoded values
     :return:
-    '''
+    """
 
     # Compute frequencies for each column
     columns_length = []
@@ -210,9 +207,10 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
         return output
 
-    def empty_features_vector(self):
+    def empty_features_vector(self) -> Iterable[int]:
         features_count = len(self.features_indices)
         return [0] * features_count
+
 
 class BERTPreprocessor(object):
     """
@@ -226,11 +224,6 @@ class BERTPreprocessor(object):
         self.empty_features_vector = empty_features_vector
         self.empty_char_vector = empty_char_vector
 
-    def set_empty_features_vector(self, empty_features_vector):
-        self.empty_features_vector = empty_features_vector
-
-    def set_empty_char_vector(self, empty_char_vector):
-        self.empty_char_vector = empty_char_vector    
 
     def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
@@ -240,7 +233,7 @@ class BERTPreprocessor(object):
         """
         target_ids = []
         target_type_ids = []
-        target_attention_mask  = []
+        target_attention_mask = []
         input_tokens = []
         target_chars = []
 
@@ -306,7 +299,7 @@ class BERTPreprocessor(object):
             chars_tokens = []
             while len(chars_tokens) < len(text_tokens):
                 chars_tokens.append(self.empty_char_vector)
-
+        
         # sub-tokenization
         encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
             max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
@@ -322,10 +315,29 @@ class BERTPreprocessor(object):
         chars_blocks = []
         feature_blocks = []
 
-        previous_word_idx = -1
+        # trick to support sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
+        # spaces in the tokens (the encoding symbol for this space varies from one model to another)
+        new_input_ids = []
+        new_attention_mask = []
+        new_token_type_ids = []
+        new_offsets = []
+        for i in range(0, len(input_ids)):
+            if len(self.tokenizer.decode(input_ids[i])) != 0:
+                # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2 
+                # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
+                # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
+                # in sync
+                new_input_ids.append(input_ids[i])
+                new_attention_mask.append(attention_mask[i])
+                new_token_type_ids.append(token_type_ids[i])
+                new_offsets.append(offsets[i])
+        input_ids = new_input_ids
+        attention_mask = new_attention_mask
+        token_type_ids = new_token_type_ids
+        offsets = new_offsets
+
         word_idx = -1
         for i, offset in enumerate(offsets):
-
             if offset[0] == 0 and offset[1] == 0:
                 # this is a special token
                 label_ids.append("<PAD>")
@@ -344,10 +356,10 @@ class BERTPreprocessor(object):
                     # dummy/empty input for sub-tokens
                     label_ids.append("<PAD>")
                     chars_blocks.append(self.empty_char_vector)
+                    # 2 possibilities, either empty features for sub-tokens or repeating the 
+                    # feature vector of the prefix sub-token 
                     #feature_blocks.append(self.empty_features_vector)
                     feature_blocks.append(features_tokens[word_idx])
-
-            previous_word_idx = word_idx
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
@@ -589,7 +601,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             numpy array: sentences with char sequences and length 
             numpy array: sequence of tags, either one hot encoded (default) or as indices
 
-        if label_indices parameter is true, we encode tags with index integer, otherwise ouput hot one encoded tags
+        if label_indices parameter is true, we encode tags with index integer, otherwise output hot one encoded tags
         """
         chars = []
         lengths = []
@@ -665,15 +677,13 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         #else:
         #    return labels_final
 
-    def empty_features_vector(self):
-        if self.feature_preprocessor != None:
+    def empty_features_vector(self) -> Iterable[int]:
+        if self.feature_preprocessor is not None:
             return self.feature_preprocessor.empty_features_vector()
-        elif self.feature_preprocessor != None:
-            self.empty_features_vector = self.feature_preprocessor.empty_features_vector()
         else:
             return None
 
-    def empty_char_vector(self):
+    def empty_char_vector(self) -> Iterable[int]:
         return [0] * self.max_char_length
 
     def save(self, file_path):
@@ -859,7 +869,7 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_
     subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
-    
+
 def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
     """
     Extract the token list and eventually lowercase or truncate longest sequences
