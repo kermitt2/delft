@@ -213,7 +213,7 @@ class BaseModel(object):
 
     def get_generator(self):
         # default generator
-        return DataGenerator()
+        return DataGenerator
 
     def init_transformer(self, config, load_pretrained_weights, local_path, preprocessor):
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
