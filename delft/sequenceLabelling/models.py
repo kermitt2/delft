@@ -175,15 +175,16 @@ class BaseModel(object):
                              pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
                              transformers hub.
     """
+
+    transformer_config = None
+    transformer_preprocessor = None
+
     def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None, preprocessor=None):
         self.config = config
         self.ntags = ntags
         self.model = None
         self.local_path = local_path
         self.load_pretrained_weights = load_pretrained_weights
-
-        self.transformer_config = None
-        self.transformer_preprocessor = None
         
         self.registry = load_resource_registry("delft/resources-registry.json")
 
@@ -212,15 +213,7 @@ class BaseModel(object):
 
     def get_generator(self):
         # default generator
-        return DataGenerator
-
-    def get_transformer_config(self):
-        # transformer config if a pretrained transformer is used in the model
-        return self.transformer_config
-
-    def get_transformer_preprocessor(self):
-        # transformer tokenizer if a pretrained transformer is used in the model
-        return self.transformer_preprocessor
+        return DataGenerator()
 
     def init_transformer(self, config, load_pretrained_weights, local_path, preprocessor):
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)

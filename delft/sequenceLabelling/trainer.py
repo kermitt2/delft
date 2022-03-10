@@ -163,8 +163,9 @@ class Trainer(object):
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
+
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-        if self.model_config.transformer_name != None or (self.embeddings and self.embeddings.use_ELMo):
+        if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
@@ -259,9 +260,9 @@ class Trainer(object):
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
                 foldModel.save(os.path.join(fold_path, weight_file))
                 if fold_id == 0:
-                    foldModel.get_transformer_config().to_json_file(os.path.join(fold_path, TRANSFORMER_CONFIG_FILE_NAME))
+                    foldModel.transformer_config.to_json_file(os.path.join(fold_path, TRANSFORMER_CONFIG_FILE_NAME))
                     if self.model_config.transformer_name is not None:
-                        transformer_preprocessor = foldModel.get_transformer_preprocessor()
+                        transformer_preprocessor = foldModel.transformer_preprocessor
                         transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 

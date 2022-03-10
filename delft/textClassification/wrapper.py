@@ -404,10 +404,10 @@ class Classifier(object):
 
         # save pretrained transformer config and tokenizer if used in the model and if single fold (otherwise it is saved in the nfold process)
         if self.transformer_name is not None and self.model_config.fold_number == 1:
-            if self.model.get_transformer_config() is not None:
-                self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-            if self.model.get_transformer_tokenizer() is not None:
-                self.model.get_transformer_tokenizer().save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+            if self.model.transformer_config is not None:
+                self.model.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+            if self.model.transformer_tokenizer is not None:
+                self.model.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
     def load(self, dir_path='data/models/textClassification/'):

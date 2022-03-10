@@ -601,7 +601,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             numpy array: sentences with char sequences and length 
             numpy array: sequence of tags, either one hot encoded (default) or as indices
 
-        if label_indices parameter is true, we encode tags with index integer, otherwise ouput hot one encoded tags
+        if label_indices parameter is true, we encode tags with index integer, otherwise output hot one encoded tags
         """
         chars = []
         lengths = []
@@ -869,7 +869,7 @@ def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_
     subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
     return embeddings.get_sentence_vector_with_ELMo(subtokens)
 
-    
+
 def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
     """
     Extract the token list and eventually lowercase or truncate longest sequences

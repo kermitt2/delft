@@ -526,11 +526,11 @@ class Sequence(object):
             self.model.save(os.path.join(directory, weight_file))
 
             # save pretrained transformer config if used in the model
-            if self.model.get_transformer_config() is not None:
-                self.model.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+            if self.model.transformer_config is not None:
+                self.model.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
                 print('transformer config saved')
 
-            if self.model.get_transformer_preprocessor() is not None:
+            if self.model.transformer_preprocessor is not None:
                 transformer_preprocessor = self.model.get_transformer_preprocessor()
                 transformer_preprocessor.tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
                 print('transformer tokenizer saved')

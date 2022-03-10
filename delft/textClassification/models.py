@@ -208,7 +208,6 @@ class BaseModel(object):
 
             self.model.set_weights(best_weights)
 
-
     def predict(self, predict_generator, use_main_thread_only=False):
         # default
         nb_workers = 6
@@ -245,14 +244,6 @@ class BaseModel(object):
         self.transformer_tokenizer = transformer.tokenizer
 
         return transformer_model
-
-    def get_transformer_config(self):
-        # transformer config if a pretrained transformer is used in the model
-        return self.transformer_config
-
-    def get_transformer_tokenizer(self):
-        # transformer tokenizer if a pretrained transformer is used in the model
-        return self.transformer_tokenizer
 
     def save(self, filepath):
         self.model.save_weights(filepath)
@@ -318,10 +309,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
             if fold_id == 0:
                 models.append(foldModel)
                 # save transformer config and tokenizer
-                if foldModel.get_transformer_config() is not None:
-                    foldModel.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-                if foldModel.get_transformer_tokenizer() is not None:
-                    foldModel.get_transformer_tokenizer().save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                if foldModel.transformer_config is not None:
+                    foldModel.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+                if foldModel.transformer_tokenizer is not None:
+                    foldModel.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
             model_path = os.path.join(directory, "model{0}_weights.hdf5".format(fold_id))
             foldModel.save(model_path)
@@ -836,11 +827,3 @@ class bert(BaseModel):
                 num_warmup_steps=0.1*train_size,
             )
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
-
-    """
-    def get_transformer_config(self):
-        '''
-        return the pretrained config object of the transformer layer used in the mode, if any
-        '''
-        return self.transformer_config
-    """
