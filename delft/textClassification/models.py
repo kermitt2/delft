@@ -472,7 +472,7 @@ class cnn(BaseModel):
         self.model.summary()  
 
 
-class cnn(BaseModel):
+class cnn2(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
