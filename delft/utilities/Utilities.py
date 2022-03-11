@@ -5,7 +5,6 @@ import numpy as np
 # seed is fixed for reproducibility
 from numpy.random import seed
 seed(7)
-import sys
 import os.path
 import shutil
 import requests

@@ -41,7 +41,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
 
     model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -59,7 +59,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
     model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer_name=transformer)
 
     print('loading citation sentiment corpus...')
     xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
@@ -81,7 +81,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", embeddings_name=None, transformer=None):
     # load model
-    model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer=transformer)
+    model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer_name=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)

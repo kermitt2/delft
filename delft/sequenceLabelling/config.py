@@ -2,6 +2,7 @@ import json
 
 
 # Model parameters
+
 class ModelConfig(object):
     DEFAULT_FEATURES_VOCABULARY_SIZE = 12
     DEFAULT_FEATURES_EMBEDDING_SIZE = 4
@@ -27,7 +28,7 @@ class ModelConfig(object):
                  features_indices=None,
                  features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
                  features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
-                 transformer=None):
+                 transformer_name=None):
 
         self.model_name = model_name
         self.architecture = architecture
@@ -59,7 +60,7 @@ class ModelConfig(object):
         self.fold_number = fold_number
         self.batch_size = batch_size # this is the batch size for prediction
 
-        self.transformer = transformer
+        self.transformer_name = transformer_name
 
         self.use_ELMo = use_ELMo
 

@@ -3,9 +3,9 @@ from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view
 
 import tensorflow.keras as keras
-from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_simple_with_elmo
+from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_simple_with_elmo, \
+    Preprocessor, BERTPreprocessor
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-import tensorflow as tf
 
 
 class BaseGenerator(keras.utils.Sequence):
@@ -19,16 +19,16 @@ class BaseGenerator(keras.utils.Sequence):
     """
     def __init__(self, x, y,
                 batch_size=24,
-                preprocessor=None,
-                bert_preprocessor=None,
+                preprocessor: Preprocessor = None,
+                bert_preprocessor: BERTPreprocessor = None,
                 char_embed_size=25,
                 embeddings=None,
                 max_sequence_length=None,
-                tokenize=False,
-                shuffle=True,
+                tokenize: bool =False,
+                shuffle: bool =True,
                 features=None,
-                output_input_offsets=False,
-                use_chain_crf=False):
+                output_input_offsets: bool=False,
+                use_chain_crf: bool =False):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
         self.original_y = self.y = y
@@ -106,7 +106,7 @@ class DataGenerator(BaseGenerator):
 
         super().__init__(x, y, 
                         batch_size=batch_size, 
-                        preprocessor=preprocessor, 
+                        preprocessor=preprocessor,
                         bert_preprocessor=bert_preprocessor, 
                         char_embed_size=char_embed_size, 
                         embeddings=embeddings, 
@@ -241,8 +241,10 @@ class DataGeneratorTransformers(BaseGenerator):
                         features=features,
                         output_input_offsets=output_input_offsets,
                         use_chain_crf=use_chain_crf)
-        if self.bert_preprocessor.empty_features_vector == None:
-            self.bert_preprocessor.set_empty_features_vector(self.preprocessor.empty_features_vector())
+
+        if self.bert_preprocessor.empty_features_vector is None:
+            self.bert_preprocessor.empty_features_vector = self.preprocessor.empty_features_vector()
+
         self.on_epoch_end()
 
     def __getitem__(self, index):

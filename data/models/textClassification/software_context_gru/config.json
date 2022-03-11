@@ -16,5 +16,5 @@
     ],
     "fold_number": 1,
     "batch_size": 256,
-    "transformer": null
+    "transformer_name": null
 }

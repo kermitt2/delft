@@ -1,32 +1,20 @@
-import numpy as np
-import sys, os
-import argparse
-import math
 import json
-import time
-import shutil
+import math
+import os
 
-from delft.textClassification.data_generator import DataGenerator
-
-from tensorflow.keras import initializers, regularizers, constraints
-from tensorflow.keras.models import Model, load_model
-from tensorflow.keras.layers import Dense, Embedding, Input, InputLayer, concatenate
-from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, SpatialDropout1D, AveragePooling1D, GlobalAveragePooling1D, TimeDistributed, Masking, Lambda 
-from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten, BatchNormalization
-from tensorflow.keras.losses import SparseCategoricalCrossentropy
-from tensorflow.keras.optimizers import RMSprop, Adam, Nadam, schedules
-from tensorflow.keras.preprocessing import text, sequence
-from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
-from tensorflow import keras
-
+import numpy as np
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import precision_score, precision_recall_fscore_support
-
-from transformers import AutoConfig, TFAutoModel
+from tensorflow.keras.layers import Dense, Input, concatenate
+from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten
+from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
+from tensorflow.keras.models import Model
+from tensorflow.keras.optimizers import RMSprop
 from transformers import create_optimizer
 
-TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
+from delft.textClassification.data_generator import DataGenerator
+from delft.utilities.Embeddings import load_resource_registry
+
+from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 architectures = [
     'lstm',
@@ -35,17 +23,19 @@ architectures = [
     'cnn2',
     'cnn3',
     'gru_lstm',
+    'lstm_cnn',
     'dpcnn',
-    'conv',
     "gru",
     "gru_simple",
-    'lstm_cnn',
-    'han',
+    'gru_lstm',
     'bert'
 ]
 
 
 def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
+    """
+    Return a model instance by its name. This is a facilitator function.
+    """
     architecture = model_config.architecture
 
     # awww Python has no case/switch statement :D
@@ -69,10 +59,11 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = dpcnn(model_config, training_config)
     elif (architecture == 'gru'):
         model = gru(model_config, training_config)
+    elif (architecture == 'gru_lstm'):
+        model = gru_lstm(model_config, training_config)
     elif (architecture == 'gru_simple'):
         model = gru_simple(model_config, training_config)
     elif (architecture == 'bert'):
-        print(model_config.transformer, "will be used")
         model = bert(model_config, training_config,
                     load_pretrained_weights=load_pretrained_weights,
                     local_path=local_path)
@@ -82,28 +73,29 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
 
 class BaseModel(object):
+    """
+    Base class for DeLFT text classification models
 
-    transformer_config = None
+    Args:
+        config (ModelConfig): DeLFT model configuration object
+        ntags (integer): number of classes of the model
+        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether
+                                           or not we load the pretrained weights of this transformer. For training
+                                           a new model set it to True. When getting the full Keras model to load
+                                           existing weights, set it False to avoid reloading the pretrained weights.
+        local_path (string): used only when the model contains a transformer layer - the path where to load locally the
+                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace
+                             transformers hub.
+    """
+    model = None
     parameters = {}
+    registry = load_resource_registry("delft/resources-registry.json")
+    transformer_config = None
+    transformer_tokenizer = None
 
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
-        """
-        Base class for DeLFT text classification models
-
-        Args:
-            config (ModelConfig): DeLFT model configuration object
-            ntags (integer): number of classes of the model
-            load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
-                                               or not we load the pretrained weights of this transformer. For training
-                                               a new model set it to True. When getting the full Keras model to load
-                                               existing weights, set it False to avoid reloading the pretrained weights. 
-            local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
-                                 pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
-                                 transformers hub.
-        """
         self.model_config = model_config
         self.training_config = training_config
-        self.model = None
 
     def update_parameters(self, model_config, training_config):
         for key in self.parameters:
@@ -131,9 +123,15 @@ class BaseModel(object):
         best_loss = -1
         best_roc_auc = -1
 
+        # default worker number for multiprocessing
+        nb_workers = 6
+        if self.model_config.transformer_name != None:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0
+            multiprocessing = False
+
         if validation_generator == None:
             # no early stop
-            nb_workers = 6
             best_loss = self.model.fit(
                 training_generator,
                 use_multiprocessing=multiprocessing,
@@ -146,7 +144,6 @@ class BaseModel(object):
             best_epoch = 0
             while current_epoch <= max_epoch:
 
-                nb_workers = 6
                 loss = self.model.fit(
                     training_generator,
                     use_multiprocessing=multiprocessing,
@@ -217,10 +214,16 @@ class BaseModel(object):
 
             self.model.set_weights(best_weights)
 
-
     def predict(self, predict_generator, use_main_thread_only=False):
+        # default
         nb_workers = 6
         multiprocessing = True
+        '''
+        if self.model_config.transformer_name != None:
+            # worker at 0 means the training will be executed in the main thread
+            nb_workers = 0 
+            multiprocessing = False
+        '''
         y = self.model.predict(
                 predict_generator, 
                 use_multiprocessing=multiprocessing,
@@ -234,26 +237,19 @@ class BaseModel(object):
                     optimizer='adam', 
                     metrics=['accuracy'])
 
-    def instanciate_transformer_layer(self, transformer_model_name, load_pretrained_weights=True, local_path=None):
-        if load_pretrained_weights:
-            if local_path is None:
-                transformer_model = TFAutoModel.from_pretrained(transformer_model_name, from_pt=True)
-            else:
-                transformer_model = TFAutoModel.from_pretrained(local_path, from_pt=True)
-            self.bert_config = transformer_model.config
-        else:
-            # load config in JSON format
-            if local_path is None:
-                self.bert_config = AutoConfig.from_pretrained(transformer_model_name)
-            else:
-                config_path = os.path.join(".", local_path, TRANSFORMER_CONFIG_FILE_NAME)
-                self.bert_config = AutoConfig.from_pretrained(config_path)
-            transformer_model = TFAutoModel.from_config(self.bert_config)
-        return transformer_model
+    def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
+        if config.transformer_name is None:
+            # missing trasnformer name, no transformer layer to be initialized
+            return None
 
-    def get_transformer_config(self):
-        # transformer config (PretrainedConfig) if a pretrained transformer is used in the model
-        return None
+        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
+        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        self.transformer_config = transformer.transformer_config
+        transformer.init_preprocessor(max_sequence_length=config.maxlen)
+        self.transformer_tokenizer = transformer.tokenizer
+
+        return transformer_model
 
     def save(self, filepath):
         self.model.save_weights(filepath)
@@ -263,7 +259,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, tokenizer, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -275,7 +271,7 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
     scores = []
 
     bert_data = False
-    if model_config.transformer != None:
+    if model_config.transformer_name != None:
         bert_data = True
 
     for fold_id in range(0, fold_count):
@@ -292,23 +288,23 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
+        foldModel = getModel(model_config, training_config)
+
+        training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embeddings=embeddings, bert_data=bert_data, shuffle=True, tokenizer=tokenizer)
+            embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=foldModel.get_transformer_tokenizer())
 
         validation_generator = None
         if training_config.early_stop:
             validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
                 maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-                embeddings=embeddings, bert_data=bert_data, shuffle=False, tokenizer=tokenizer)
-
-        foldModel = getModel(model_config, training_config)
+                embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=foldModel.get_transformer_tokenizer())
 
         foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
                 class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, 
                 patience=training_config.patience, callbacks=callbacks)
         
-        if model_config.transformer is None:
+        if model_config.transformer_name is None:
             models.append(foldModel)
         else:
             # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
@@ -318,11 +314,13 @@ def train_folds(X, y, model_config, training_config, embeddings, tokenizer, call
 
             if fold_id == 0:
                 models.append(foldModel)
-                # save transformer config
-                if foldModel.get_transformer_config() is not None:
-                    foldModel.get_transformer_config().to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+                # save transformer config and tokenizer
+                if foldModel.transformer_config is not None:
+                    foldModel.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
+                if foldModel.transformer_tokenizer is not None:
+                    foldModel.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
-            model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+            model_path = os.path.join(directory, "model{0}_weights.hdf5".format(fold_id))
             foldModel.save(model_path)
             if fold_id != 0:
                 del foldModel
@@ -335,16 +333,14 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
     y_predicts_list = []
     for fold_id in range(0, fold_count):
 
-        if model_config.transformer is not None:
+        if model_config.transformer_name is not None:
             model = models[0]
-            #if fold_id != 0:
             # load new weight from disk
-            model_path = os.path.join("data/models/textClassification/", model_config.model_name, model_config.architecture+".model{0}_weights.hdf5".format(fold_id))
+            model_path = os.path.join("data/models/textClassification/", model_config.model_name, "model{0}_weights.hdf5".format(fold_id))
             model.load(model_path)  
         else:
             model = models[fold_id]
-        
-        nb_workers = 6
+
         y_predicts = model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
         y_predicts_list.append(y_predicts)
 
@@ -377,14 +373,11 @@ class lstm(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
         # basic LSTM
-        #def lstm(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = LSTM(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"])(input_layer)
@@ -420,12 +413,9 @@ class bidLstm_simple(BaseModel):
 
     # bidirectional LSTM 
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
-
-        #def bidLstm_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
 
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(LSTM(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
@@ -462,11 +452,9 @@ class cnn(BaseModel):
 
     # conv+GRU with embeddings
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
-        #def cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Dropout(self.parameters["dropout_rate"])(input_layer) 
@@ -484,7 +472,7 @@ class cnn(BaseModel):
         self.model.summary()  
 
 
-class cnn2(BaseModel):
+class cnn(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
@@ -504,12 +492,10 @@ class cnn2(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def cnn2(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Dropout(self.parameters["dropout_rate"])(input_layer) 
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
@@ -543,12 +529,10 @@ class cnn3(BaseModel):
     }
 
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def cnn3(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"])(input_layer)
@@ -564,51 +548,7 @@ class cnn3(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
-
-
-class conv(BaseModel):
-    """
-    A Keras implementation of a multiple level Convolutional classifier (variant)
-    """
-    name = 'conv'
-
-    # default parameters 
-    parameters_conv = {
-        'max_features': 200000,
-        'maxlen': 250,
-        'embed_size': 300,
-        'epoch': 25,
-        'batch_size': 256,
-        'dropout_rate': 0.3,
-        'recurrent_dropout_rate': 0.3,
-        'recurrent_units': 256,
-        'dense_size': 64
-    }
-
-    def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
-        self.update_parameters(model_config, training_config)
-        nb_classes = len(model_config.list_classes)
-
-        #def conv(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
-        filter_kernels = [7, 7, 5, 5, 3, 3]
-        input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
-        conv = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[0], border_mode='valid', activation='relu')(input_layer)
-        conv = MaxPooling1D(pool_length=3)(conv)
-        conv1 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[1], border_mode='valid', activation='relu')(conv)
-        conv1 = MaxPooling1D(pool_length=3)(conv1)
-        conv2 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[2], border_mode='valid', activation='relu')(conv1)
-        conv3 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[3], border_mode='valid', activation='relu')(conv2)
-        conv4 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[4], border_mode='valid', activation='relu')(conv3)
-        conv5 = Conv1D(nb_filter=self.parameters["recurrent_units"], filter_length=filter_kernels[5], border_mode='valid', activation='relu')(conv4)
-        conv5 = MaxPooling1D(pool_length=3)(conv5)
-        conv5 = Flatten()(conv5)
-        z = Dropout(0.5)(Dense(self.parameters["dense_size"], activation='relu')(conv5))
-        x = Dense(nb_classes, activation="sigmoid")(z)
-        self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+        self.model.summary()
 
 
 class lstm_cnn(BaseModel):
@@ -632,12 +572,10 @@ class lstm_cnn(BaseModel):
 
     # LSTM + conv
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def lstm_cnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = LSTM(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"])(input_layer)
@@ -680,12 +618,10 @@ class gru(BaseModel):
 
     # 2 bid. GRU 
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def gru(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["recurrent_dropout_rate"]))(input_layer)
@@ -727,12 +663,10 @@ class gru_simple(BaseModel):
 
     # 1 layer bid GRU
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def gru_simple(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["dropout_rate"]))(input_layer)
@@ -771,12 +705,10 @@ class gru_lstm(BaseModel):
 
     # bid GRU + bid LSTM
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def mix1(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         x = Bidirectional(GRU(self.parameters["recurrent_units"], return_sequences=True, dropout=self.parameters["dropout_rate"],
                                recurrent_dropout=self.parameters["recurrent_dropout_rate"]))(input_layer)
@@ -818,12 +750,10 @@ class dpcnn(BaseModel):
 
     # DPCNN
     def __init__(self, model_config, training_config):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def dpcnn(maxlen, embed_size, recurrent_units, dropout_rate, recurrent_dropout_rate, dense_size, nb_classes):
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
         # first block
         X_shortcut1 = input_layer
@@ -870,23 +800,16 @@ class bert(BaseModel):
         'dense_size': 512,
         'max_seq_len': 512,
         'dropout_rate': 0.1,
-        'batch_size': 10,
-        'transformer': 'bert-base-en'
+        'batch_size': 10
     }
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
-        self.model_config = model_config
-        self.training_config = training_config
+        super().__init__(model_config, training_config, load_pretrained_weights, local_path)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
-        #def bert(dense_size, nb_classes, max_seq_len=512, transformer="bert-base-en", load_pretrained_weights=True, local_path=None):
-        transformer_model_name = self.parameters["transformer"]
-        #print(transformer_model_name)
-        transformer_model = self.instanciate_transformer_layer(transformer_model_name, 
-                                                          load_pretrained_weights=load_pretrained_weights, 
-                                                          local_path=local_path)
+        transformer_model = self.init_transformer(model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path)
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         #input_masks_in = Input(shape=(None,), name='masked_token', dtype='int32')
@@ -910,20 +833,3 @@ class bert(BaseModel):
                 num_warmup_steps=0.1*train_size,
             )
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
-
-    def get_transformer_config(self):
-        '''
-        return the PretrainedConfig object of the transformer layer used in the mode, if any
-        '''
-        return self.bert_config
-
-def _get_description(name, path="delft/resources-registry.json"):
-    registry_json = open(path).read()
-    registry = json.loads(registry_json)
-    for emb in registry["embeddings-contextualized"]:
-        if emb["name"] == name:
-            return emb
-    for emb in registry["transformers"]:
-            if emb["name"] == name:
-                return emb
-    return None

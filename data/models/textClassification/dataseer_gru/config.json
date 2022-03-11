@@ -15,5 +15,5 @@
     ],
     "fold_number": 1,
     "batch_size": 32,
-    "transformer": "bert-base-cased"
+    "transformer_name": "bert-base-cased"
 }
