@@ -27,7 +27,6 @@ architectures = [
     'dpcnn',
     "gru",
     "gru_simple",
-    'gru_lstm',
     'bert'
 ]
 
@@ -53,8 +52,6 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = lstm_cnn(model_config, training_config)
     elif (architecture == 'conv'):
         model = dpcnn(model_config, training_config)
-    elif (architecture == 'gru_lstm'):
-        model = gru_lstm(model_config, training_config)
     elif (architecture == 'dpcnn'):
         model = dpcnn(model_config, training_config)
     elif (architecture == 'gru'):
