@@ -11,7 +11,7 @@ from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
 from delft.utilities.misc import parse_number_ranges
 
-MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software']
+MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1, use_ELMo=False):
@@ -78,6 +78,11 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 # class are more unbalanced, so we need to extend the batch size
                 batch_size = 30
             if max_sequence_length == -1:
+                max_sequence_length = 1500
+        elif model == "reference-segmenter":
+            batch_size = 10
+            max_sequence_length = 3000
+            if use_ELMo:
                 max_sequence_length = 1500
 
     model_name += '-' + architecture;
