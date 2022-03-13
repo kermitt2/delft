@@ -13,6 +13,7 @@ target
 *.zip
 *.gz
 !data/textClassification/software/*.gz
+!data/sequenceLabelling/grobid/fulltext/fulltext-110322.train.gz
 data/db/*
 data/training
 data/eval

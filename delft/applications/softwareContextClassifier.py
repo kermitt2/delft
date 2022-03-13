@@ -15,7 +15,7 @@ import numpy as np
     the nature of the mention of software in scientific and technical literature. 
     This classifier predicts if the software introduced by a software mention in a sentence is likely:
     - used or not by the described work (class used)
-    - a contribution of the described work (class contribution)
+    - a creation of the described work (class creation)
     - shared (class shared)
 
     For the software mention recognizer, see https://github.com/ourresearch/software-mentions
@@ -24,7 +24,7 @@ import numpy as np
     Best architecture/model is fine-tuned SciBERT. 
 """
 
-list_classes = ["used", "contribution", "shared"]
+list_classes = ["used", "creation", "shared"]
 class_weights = {0: 1.,
                  1: 1.,
                  2: 1.}
@@ -114,13 +114,13 @@ def classify(texts, output_format, embeddings_name=None, architecture="gru", tra
 
 def report_training_contexts(y):
     nb_used = 0
-    nb_contribution = 0
+    nb_creation = 0
     nb_shared = 0
     for the_class in y:
         if the_class[0] == 1.0:
             nb_used += 1
         if the_class[1] == 1.0:
-            nb_contribution += 1
+            nb_creation += 1
         if the_class[2] == 1.0:
             nb_shared += 1
 
@@ -129,8 +129,8 @@ def report_training_contexts(y):
     print("\t- used contexts:", nb_used)
     print("\t  not used contexts:", str(len(y) - nb_used))
 
-    print("\t- contribution contexts:", nb_contribution)
-    print("\t  not contribution contexts:", str(len(y) - nb_contribution))
+    print("\t- creation contexts:", nb_creation)
+    print("\t  not creation contexts:", str(len(y) - nb_creation))
 
     print("\t- shared contexts:", nb_shared)
     print("\t  not shared contexts:", str(len(y) - nb_shared))

@@ -289,13 +289,13 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-            embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=foldModel.get_transformer_tokenizer())
+            embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=foldModel.transformer_tokenizer)
 
         validation_generator = None
         if training_config.early_stop:
             validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
                 maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
-                embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=foldModel.get_transformer_tokenizer())
+                embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=foldModel.transformer_tokenizer)
 
         foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
                 class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, 
