@@ -16,23 +16,12 @@ from tqdm import tqdm
 
 import argparse
 import truecase
-from keras import backend as K
 
 def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
     return [
         row[:max_sequence_length]
         for row in batch_values
     ]
-
-def dot_product(x, kernel):
-    """
-    Wrapper for dot product operation used in the attention layers
-    Args:
-        x (): input
-        kernel (): weights
-    Returns:
-    """
-    return K.squeeze(K.dot(x, K.expand_dims(kernel)), axis=-1)
 
 # read list of words (one per line), e.g. stopwords, badwords
 def read_words(words_file):

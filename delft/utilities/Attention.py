@@ -71,3 +71,14 @@ class Attention(Layer):
 
     def compute_output_shape(self, input_shape):
         return input_shape[0],  self.features_dim
+
+
+def dot_product(x, kernel):
+    """
+    Wrapper for dot product operation used in the attention layers
+    Args:
+        x (): input
+        kernel (): weights
+    Returns:
+    """
+    return K.squeeze(K.dot(x, K.expand_dims(kernel)), axis=-1)
