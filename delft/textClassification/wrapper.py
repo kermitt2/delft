@@ -102,7 +102,7 @@ class Classifier(object):
             self.embeddings_name == None
             self.embeddings = None
         elif self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry) 
+            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
             word_emb_size = self.embeddings.embed_size
         
         self.model_config = ModelConfig(model_name=model_name, 
@@ -134,7 +134,7 @@ class Classifier(object):
         bert_data = False
         if self.transformer_name != None:
             bert_data = True
-            
+
         if self.training_config.early_stop:
             # create validation set 
             xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
@@ -413,7 +413,7 @@ class Classifier(object):
     def load(self, dir_path='data/models/textClassification/'):
         model_path = os.path.join(dir_path, self.model_config.model_name)
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
-        
+
         if self.model_config.transformer_name is None:
             # load embeddings
             # Do not use cache in 'production' mode

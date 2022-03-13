@@ -17,22 +17,23 @@ from delft.utilities.Embeddings import load_resource_registry
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 architectures = [
-    'lstm', 
-    'bidLstm_simple', 
-    'cnn', 
-    'cnn2', 
-    'cnn3', 
-    'lstm_cnn', 
-    'dpcnn', 
-    "gru", 
-    "gru_simple", 
-    'gru_lstm', 
+    'lstm',
+    'bidLstm_simple',
+    'cnn',
+    'cnn2',
+    'cnn3',
+    'gru_lstm',
+    'lstm_cnn',
+    'dpcnn',
+    "gru",
+    "gru_simple",
     'bert'
 ]
 
+
 def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
     """
-    Return a model instance by its name. This is a facilitator function. 
+    Return a model instance by its name. This is a facilitator function.
     """
     architecture = model_config.architecture
 
@@ -49,6 +50,8 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = cnn3(model_config, training_config)
     elif (architecture == 'lstm_cnn'):
         model = lstm_cnn(model_config, training_config)
+    elif (architecture == 'conv'):
+        model = dpcnn(model_config, training_config)
     elif (architecture == 'dpcnn'):
         model = dpcnn(model_config, training_config)
     elif (architecture == 'gru'):
@@ -59,7 +62,7 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = gru_simple(model_config, training_config)
     elif (architecture == 'bert'):
         model = bert(model_config, training_config,
-                    load_pretrained_weights=load_pretrained_weights, 
+                    load_pretrained_weights=load_pretrained_weights,
                     local_path=local_path)
     else:
         raise (OSError('The model type '+architecture+' is unknown'))
@@ -73,12 +76,12 @@ class BaseModel(object):
     Args:
         config (ModelConfig): DeLFT model configuration object
         ntags (integer): number of classes of the model
-        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
+        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether
                                            or not we load the pretrained weights of this transformer. For training
                                            a new model set it to True. When getting the full Keras model to load
-                                           existing weights, set it False to avoid reloading the pretrained weights. 
-        local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
-                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
+                                           existing weights, set it False to avoid reloading the pretrained weights.
+        local_path (string): used only when the model contains a transformer layer - the path where to load locally the
+                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace
                              transformers hub.
     """
     model = None
@@ -121,7 +124,7 @@ class BaseModel(object):
         nb_workers = 6
         if self.model_config.transformer_name != None:
             # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0 
+            nb_workers = 0
             multiprocessing = False
 
         if validation_generator == None:
@@ -284,7 +287,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
 
         foldModel = getModel(model_config, training_config)
 
-        training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
+        training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
             embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=foldModel.transformer_tokenizer)
 
@@ -334,7 +337,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
             model.load(model_path)  
         else:
             model = models[fold_id]
-        
+
         y_predicts = model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
         y_predicts_list.append(y_predicts)
 
@@ -466,7 +469,7 @@ class cnn(BaseModel):
         self.model.summary()  
 
 
-class cnn(BaseModel):
+class cnn2(BaseModel):
     """
     A Keras implementation of a CNN classifier (variant)
     """
@@ -542,7 +545,7 @@ class cnn3(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+        self.model.summary()
 
 
 class lstm_cnn(BaseModel):

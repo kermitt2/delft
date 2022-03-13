@@ -307,10 +307,10 @@ class Sequence(object):
                     output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
                 # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, 
-                                self.p, 
-                                evaluation=True, 
-                                use_crf=self.model_config.use_crf, 
+                scorer = Scorer(test_generator,
+                                self.p,
+                                evaluation=True,
+                                use_crf=self.model_config.use_crf,
                                 use_chain_crf=self.model_config.use_chain_crf)
                 scorer.model = the_model
                 scorer.on_epoch_end(epoch=-1)
@@ -401,10 +401,10 @@ class Sequence(object):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
         if self.model:
-            tagger = Tagger(self.model, 
-                            self.model_config, 
-                            self.embeddings, 
-                            preprocessor=self.p, 
+            tagger = Tagger(self.model,
+                            self.model_config,
+                            self.embeddings,
+                            preprocessor=self.p,
                             transformer_preprocessor=self.model.transformer_preprocessor)
             start_time = time.time()
             annotations = tagger.tag(texts, output_format, features=features)
@@ -423,10 +423,10 @@ class Sequence(object):
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
         if self.model:
-            tagger = Tagger(self.model, 
-                            self.model_config, 
-                            self.embeddings, 
-                            preprocessor=self.p, 
+            tagger = Tagger(self.model,
+                            self.model_config,
+                            self.embeddings,
+                            preprocessor=self.p,
                             transformer_preprocessor=self.model.transformer_preprocessor)
             start_time = time.time()
             if file_out != None:
@@ -550,7 +550,7 @@ class Sequence(object):
 
         self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
         self.model = get_model(self.model_config,
-                               self.p, 
+                               self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
                                local_path=os.path.join(dir_path, self.model_config.model_name))
