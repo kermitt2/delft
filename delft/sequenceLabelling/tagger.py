@@ -39,6 +39,18 @@ class Tagger(object):
         if (len(texts)>0 and isinstance(texts[0], str)):
             to_tokeniz = True
         
+        # dirty fix warning! in the particular case of using tf-addons CRF layer and having a 
+        # single sequence in the input batch, a tensor shape error can happen in the CRF 
+        # viterbi_decoding loop. So to prevent this, we add a dummy second sequence in the batch
+        # that we will remove after prediction
+        dummy_case = False
+        if self.model_config.use_crf and not self.model_config.use_chain_crf and len(texts) == 1:
+            if to_tokeniz:
+                texts.append("dummy")
+            else:
+                texts.append(["dummy"])
+            dummy_case = True
+
         generator = self.model.get_generator()
         predict_generator = generator(texts, None, 
             batch_size=self.model_config.batch_size, 
@@ -53,6 +65,9 @@ class Tagger(object):
         steps_done = 0
         steps = len(predict_generator)
         for generator_output in predict_generator:
+            if dummy_case and steps_done==1:
+                break
+
             if steps_done == steps:
                 break
 

@@ -76,7 +76,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         elif model == "software":
             if batch_size == -1:
                 # class are more unbalanced, so we need to extend the batch size
-                batch_size = 30
+                batch_size = 20
             if max_sequence_length == -1:
                 max_sequence_length = 1500
         elif model == "reference-segmenter":
@@ -262,6 +262,7 @@ def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', featu
         annotations["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
+
     return annotations
 
 class Tasks:
@@ -398,7 +399,9 @@ if __name__ == "__main__":
             someTexts.append("He-Jin Wu 1 · Zhao Jin 2 · Ai-Dong Zhu 1")
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
         elif model == 'software':
+            someTexts.append("The column scores (the fraction of entirely correct columns) were  reported  in  addition  to Q-scores  for  BAliBASE 3.0. Wilcoxon  signed-ranks  tests  were  performed  to  calculate statistical  significance  of  comparisons  between  alignment programs,   which   include   ProbCons   (version   1.10)   (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
             someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
+            someTexts.append("All statistical analyses were done using computer software Prism 6 for Windows (version 6.02; GraphPad Software, San Diego, CA, USA). One-Way ANOVA was used to detect differences amongst the groups. To account for the non-normal distribution of the data, all data were sorted by rank status prior to ANOVA statistical analysis. ")
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
@@ -407,11 +410,3 @@ if __name__ == "__main__":
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
                                                 "Please supply an architecture without features. ")
-
-        # test with the use input file with features
-        if model == 'software':
-            with open("tests/sequence_labelling/test_data/input-software.crf", 'r') as file:
-                input_crf_string = file.read()
-            x_all, f_all = load_data_crf_string(input_crf_string)
-            result = annotate_text(x_all, model, None, architecture=architecture, features=f_all)
-            print(result)
