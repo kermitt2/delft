@@ -85,7 +85,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             if use_ELMo:
                 max_sequence_length = 1500
 
-    model_name += '-' + architecture;
+    model_name += '-' + architecture
 
     if use_ELMo:
         model_name += '-with_ELMo'
@@ -98,6 +98,13 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
     if max_epoch == -1:
         max_epoch = 100
+
+    print("---")
+    print("max_epoch:", max_epoch)
+    print("batch_size:", batch_size)
+    print("max_sequence_length:", max_sequence_length)
+    print("model_name:", model_name)
+    print("---")
 
     return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch
 

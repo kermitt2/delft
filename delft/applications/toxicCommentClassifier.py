@@ -21,7 +21,7 @@ class_weights = {0: 1.,
 
 def configure(architecture):
     batch_size = 256
-    maxlen = 300
+    max_sequence_length = 300
     patience = 5
     early_stop = True
     max_epoch = 30
@@ -31,9 +31,15 @@ def configure(architecture):
         batch_size = 32
         early_stop = False
         max_epoch = 3
-        maxlen = 200
+        max_sequence_length = 200
 
-    return batch_size, maxlen, patience, early_stop, max_epoch
+    print("---")
+    print("max_epoch:", max_epoch)
+    print("batch_size:", batch_size)
+    print("max_sequence_length:", max_sequence_length)
+    print("---")
+
+    return batch_size, max_sequence_length, patience, early_stop, max_epoch
 
 
 def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None): 

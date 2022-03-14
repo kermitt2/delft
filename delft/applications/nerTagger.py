@@ -44,6 +44,12 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
         max_epoch = 15
         embeddings_name = None
 
+    print("---")
+    print("max_epoch:", max_epoch)
+    print("batch_size:", batch_size)
+    print("max_sequence_length:", max_sequence_length)
+    print("---")
+
     return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units 
 
 
