@@ -75,8 +75,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             batch_size = 20
         elif model == "software":
             if batch_size == -1:
-                # class are more unbalanced, so we need to extend the batch size
-                batch_size = 30
+                batch_size = 20
             if max_sequence_length == -1:
                 max_sequence_length = 1500
         elif model == "reference-segmenter":
