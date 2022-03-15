@@ -1,8 +1,6 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.sequenceLabelling import Sequence
-
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -43,9 +41,6 @@ from sklearn.model_selection import train_test_split
 
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
-from transformers import AutoTokenizer
-
-from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
 
