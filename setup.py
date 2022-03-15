@@ -13,7 +13,7 @@ setup(
     include_package_data=True,
     python_requires='>=3.7',
     install_requires=[
-        'numpy==1.17.3',
+        'numpy==1.22.3',
         'regex==2021.11.10',
         'scikit-learn==1.0.1',
         'tqdm==4.62.3',
@@ -26,7 +26,7 @@ setup(
         'torch==1.10.1',
         'truecase',
         'requests',
-        'pandas',
+        'pandas==1.3.5',
         'pytest'
     ],
     classifiers=[
