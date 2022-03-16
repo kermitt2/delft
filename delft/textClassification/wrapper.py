@@ -230,11 +230,11 @@ class Classifier(object):
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
         bert_data = False
-        if self.transformer_name != None:
+        if self.transformer_name is not None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
-            if self.model != None:
+            if self.model is not None:
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
@@ -243,7 +243,7 @@ class Classifier(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:
-            if self.models != None:
+            if self.models is not None:
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 

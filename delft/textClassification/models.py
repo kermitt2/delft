@@ -30,7 +30,7 @@ architectures = [
     'bert'
 ]
 
-def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
+def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None, print_summary=True):
     """
     Return a model instance by its name. This is a facilitator function. 
     """
@@ -38,27 +38,27 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
     # awww Python has no case/switch statement :D
     if (architecture == 'bidLstm_simple'):
-        model = bidLstm_simple(model_config, training_config)
+        model = bidLstm_simple(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'lstm'):
-        model = lstm(model_config, training_config)
+        model = lstm(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'cnn'):
-        model = cnn(model_config, training_config)
+        model = cnn(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'cnn2'):
-        model = cnn2(model_config, training_config)
+        model = cnn2(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'cnn3'):
-        model = cnn3(model_config, training_config)
+        model = cnn3(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'lstm_cnn'):
-        model = lstm_cnn(model_config, training_config)
+        model = lstm_cnn(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'dpcnn'):
-        model = dpcnn(model_config, training_config)
+        model = dpcnn(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'gru'):
-        model = gru(model_config, training_config)
+        model = gru(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'gru_lstm'):
-        model = gru_lstm(model_config, training_config)
+        model = gru_lstm(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'gru_simple'):
-        model = gru_simple(model_config, training_config)
+        model = gru_simple(model_config, training_config, print_summary=print_summary)
     elif (architecture == 'bert'):
-        model = bert(model_config, training_config,
+        model = bert(model_config, training_config, print_summary=print_summary,
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path)
     else:
@@ -282,7 +282,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel = getModel(model_config, training_config)
+        foldModel = getModel(model_config, training_config, print_summary=fold_id == 0)
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size, 
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
@@ -366,7 +366,7 @@ class lstm(BaseModel):
         'dense_size': 32
     }
 
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -383,7 +383,8 @@ class lstm(BaseModel):
         x = Dropout(self.parameters["dropout_rate"])(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
         
 
 class bidLstm_simple(BaseModel):
@@ -406,7 +407,7 @@ class bidLstm_simple(BaseModel):
     }
 
     # bidirectional LSTM 
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -422,7 +423,8 @@ class bidLstm_simple(BaseModel):
         x = Dropout(self.parameters["dropout_rate"])(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
 
 class cnn(BaseModel):
@@ -445,7 +447,7 @@ class cnn(BaseModel):
     }
 
     # conv+GRU with embeddings
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -463,7 +465,8 @@ class cnn(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+        if print_summary:
+            self.model.summary()
 
 
 class cnn(BaseModel):
@@ -485,7 +488,7 @@ class cnn(BaseModel):
         'dense_size': 32
     }
 
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -500,7 +503,8 @@ class cnn(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+        if print_summary:
+            self.model.summary()
 
 
 class cnn3(BaseModel):
@@ -522,7 +526,7 @@ class cnn3(BaseModel):
         'dense_size': 32
     }
 
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -542,7 +546,8 @@ class cnn3(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+        if print_summary:
+            self.model.summary()
 
 
 class lstm_cnn(BaseModel):
@@ -565,7 +570,7 @@ class lstm_cnn(BaseModel):
     }
 
     # LSTM + conv
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -588,7 +593,8 @@ class lstm_cnn(BaseModel):
         x = Dropout(self.parameters["dropout_rate"])(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
 
 class gru(BaseModel):
@@ -611,7 +617,7 @@ class gru(BaseModel):
     }
 
     # 2 bid. GRU 
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -628,7 +634,8 @@ class gru(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
         
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -656,7 +663,7 @@ class gru_simple(BaseModel):
     }
 
     # 1 layer bid GRU
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -670,7 +677,8 @@ class gru_simple(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -698,7 +706,7 @@ class gru_lstm(BaseModel):
     }
 
     # bid GRU + bid LSTM
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -715,7 +723,8 @@ class gru_lstm(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -743,7 +752,7 @@ class dpcnn(BaseModel):
     }
 
     # DPCNN
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, print_summary=True):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -778,7 +787,8 @@ class dpcnn(BaseModel):
         X = Dense(nb_classes, activation='sigmoid')(X)
 
         self.model = Model(inputs = input_layer, outputs = X, name='dpcnn')
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
 
 class bert(BaseModel):
@@ -798,7 +808,7 @@ class bert(BaseModel):
     }
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
-    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
+    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None, print_summary=True):
         super().__init__(model_config, training_config, load_pretrained_weights, local_path)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
@@ -816,7 +826,8 @@ class bert(BaseModel):
 
         self.model = Model(inputs=[input_ids_in], outputs=logits)
         #self.model = Model(inputs=[input_ids_in, input_masks_in], outputs=logits)
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
 
     def compile(self, train_size):
         #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
