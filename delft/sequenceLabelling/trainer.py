@@ -3,7 +3,6 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
-from tensorflow.keras.utils import plot_model
 from transformers import create_optimizer
 
 from delft.sequenceLabelling.config import ModelConfig
@@ -12,11 +11,12 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR, Transformer
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
 PROCESSOR_FILE_NAME = 'preprocessor.json'
+
 
 class Trainer(object):
 
@@ -28,8 +28,9 @@ class Trainer(object):
                  training_config,
                  checkpoint_path='',
                  save_path='',
-                 preprocessor: Preprocessor=None,
-                 transformer_preprocessor=None
+                 temp_directory: str = 'data/models/sequenceLabelling/',
+                 preprocessor: Preprocessor = None,
+                 transformer_preprocessor=None,
                  ):
 
         # for single model training
@@ -45,32 +46,36 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
+        if not os.path.exists(temp_directory):
+            raise BlockingIOError("The temporary directory does not exists. ")
+        self.temp_directory = temp_directory
 
-    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
+    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None,
+              features_valid: np.array = None, callbacks=None):
         """
         Train the instance self.model
-        """      
+        """
         self.model = self.compile_model(self.model, len(x_train))
 
         # uncomment to plot graph
-        #plot_model(self.model,
+        # plot_model(self.model,
         #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
 
         self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
-                                  f_train=features_train, f_valid=features_valid,
-                                  max_epoch=self.training_config.max_epoch, callbacks=callbacks)
+                                      f_train=features_train, f_valid=features_valid,
+                                      max_epoch=self.training_config.max_epoch, callbacks=callbacks)
 
     def compile_model(self, local_model, train_size):
 
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
-        
+
         if self.model_config.transformer_name is not None:
             # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
-                init_lr=2e-5, 
+                init_lr=2e-5,
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
-                num_warmup_steps=0.1*nb_train_steps,
+                num_warmup_steps=0.1 * nb_train_steps,
             )
 
             if local_model.config.use_chain_crf:
@@ -83,14 +88,14 @@ class Trainer(object):
                 # corresponding to special symbols are neutralized
                 local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
         else:
-            
+
             lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.training_config.learning_rate,
                 decay_steps=nb_train_steps,
                 decay_rate=0.1)
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-            
-            #optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
+
+            # optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
             if local_model.config.use_chain_crf:
                 local_model.compile(optimizer=optimizer, loss=local_model.crf.loss)
             elif local_model.config.use_crf:
@@ -105,7 +110,7 @@ class Trainer(object):
                     # however this variable cannot be accessed, so no soluton for the moment 
                     # (probably need not using keras fit and creating a custom training loop to get the gradient)
                     local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
-                    #local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
+                    # local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
             else:
                 # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
                 local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
@@ -122,27 +127,29 @@ class Trainer(object):
 
         generator = local_model.get_generator()
         if self.training_config.early_stop:
-            training_generator = generator(x_train, y_train, 
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size, 
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, 
-                shuffle=True, features=f_train, use_chain_crf=self.model_config.use_chain_crf)
+            training_generator = generator(x_train, y_train,
+                                           batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+                                           bert_preprocessor=self.transformer_preprocessor,
+                                           char_embed_size=self.model_config.char_embedding_size,
+                                           max_sequence_length=self.model_config.max_sequence_length,
+                                           embeddings=self.embeddings,
+                                           shuffle=True, features=f_train,
+                                           use_chain_crf=self.model_config.use_chain_crf)
 
-            validation_generator = generator(x_valid, y_valid,  
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size, 
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid, 
-                output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
+            validation_generator = generator(x_valid, y_valid,
+                                             batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+                                             bert_preprocessor=self.transformer_preprocessor,
+                                             char_embed_size=self.model_config.char_embedding_size,
+                                             max_sequence_length=self.model_config.max_sequence_length,
+                                             embeddings=self.embeddings, shuffle=False, features=f_valid,
+                                             output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=True,
-                                      patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf)
+                                       eary_stopping=True,
+                                       patience=self.training_config.patience,
+                                       valid=(validation_generator, self.preprocessor),
+                                       use_crf=self.model_config.use_crf,
+                                       use_chain_crf=self.model_config.use_chain_crf)
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -151,17 +158,17 @@ class Trainer(object):
                 feature_all = np.concatenate((f_train, f_valid), axis=0)
 
             training_generator = generator(x_train, y_train,
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size, 
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, 
-                features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
+                                           batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+                                           bert_preprocessor=self.transformer_preprocessor,
+                                           char_embed_size=self.model_config.char_embedding_size,
+                                           max_sequence_length=self.model_config.max_sequence_length,
+                                           embeddings=self.embeddings, shuffle=True,
+                                           features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=False,
-                                      use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf)
+                                       eary_stopping=False,
+                                       use_crf=self.model_config.use_crf,
+                                       use_chain_crf=self.model_config.use_chain_crf)
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
@@ -169,14 +176,14 @@ class Trainer(object):
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
             # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0 
+            nb_workers = 0
             multiprocessing = False
 
         local_model.fit(training_generator,
-                                epochs=max_epoch,
-                                use_multiprocessing=multiprocessing,
-                                workers=nb_workers,
-                                callbacks=_callbacks)
+                        epochs=max_epoch,
+                        use_multiprocessing=multiprocessing,
+                        workers=nb_workers,
+                        callbacks=_callbacks)
 
         return local_model
 
@@ -196,8 +203,7 @@ class Trainer(object):
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
 
-        dir_path = 'data/models/sequenceLabelling/'
-        output_directory = os.path.join(dir_path, self.model_config.model_name)
+        output_directory = os.path.join(self.temp_directory, self.model_config.model_name)
         print("Output directory:", output_directory)
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
@@ -235,33 +241,36 @@ class Trainer(object):
                 val_y = y_valid
                 val_f = f_valid
 
-            foldModel = get_model(self.model_config, 
-                               self.preprocessor, 
-                               ntags=len(self.preprocessor.vocab_tag), 
-                               load_pretrained_weights=True)
+            foldModel = get_model(self.model_config,
+                                  self.preprocessor,
+                                  ntags=len(self.preprocessor.vocab_tag),
+                                  load_pretrained_weights=True,
+                                  print_summary=fold_id == 0)
             self.transformer_preprocessor = foldModel.transformer_preprocessor
             foldModel = self.compile_model(foldModel, len(train_x))
-            foldModel = self.train_model(foldModel, 
-                                    train_x,
-                                    train_y,
-                                    x_valid=val_x,
-                                    y_valid=val_y,
-                                    f_train=train_f,
-                                    f_valid=val_f,
-                                    max_epoch=self.training_config.max_epoch,
-                                    callbacks=callbacks)
+            foldModel = self.train_model(foldModel,
+                                         train_x,
+                                         train_y,
+                                         x_valid=val_x,
+                                         y_valid=val_y,
+                                         f_train=train_f,
+                                         f_valid=val_f,
+                                         max_epoch=self.training_config.max_epoch,
+                                         callbacks=callbacks)
 
             if self.model_config.transformer_name is None:
                 self.models.append(foldModel)
             else:
                 # save the model with transformer layer on disk
-                weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
+                weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id) + ".hdf5")
                 foldModel.save(os.path.join(output_directory, weight_file))
                 if fold_id == 0:
-                    foldModel.transformer_config.to_json_file(os.path.join(output_directory, TRANSFORMER_CONFIG_FILE_NAME))
+                    foldModel.transformer_config.to_json_file(
+                        os.path.join(output_directory, TRANSFORMER_CONFIG_FILE_NAME))
                     if self.model_config.transformer_name is not None:
                         transformer_preprocessor = foldModel.transformer_preprocessor
-                        transformer_preprocessor.tokenizer.save_pretrained(os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                        transformer_preprocessor.tokenizer.save_pretrained(
+                            os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
 def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True, use_chain_crf=False):
@@ -326,7 +335,7 @@ class Scorer(Callback):
         for i, (data, label) in enumerate(self.valid_batches):
             if i == self.valid_steps:
                 break
-            y_true_batch = label       
+            y_true_batch = label
 
             if isinstance(self.valid_batches, DataGeneratorTransformers):
                 y_true_batch = np.asarray(y_true_batch, dtype=object)
@@ -359,10 +368,10 @@ class Scorer(Callback):
                         if offsets_text[q][0] == 0 and offsets_text[q][1] == 0:
                             # special token
                             continue
-                        if offsets_text[q][0] != 0: 
+                        if offsets_text[q][0] != 0:
                             # added sub-token
                             continue
-                        new_y_pred_text.append(y_pred_text[q]) 
+                        new_y_pred_text.append(y_pred_text[q])
                         new_y_true_text.append(y_true_text[q])
                     new_y_pred_batch.append(new_y_pred_text)
                     new_y_true_batch.append(new_y_true_text)
@@ -385,7 +394,7 @@ class Scorer(Callback):
                     y_true_batch = np.argmax(y_true_batch, -1)
 
                 # we also have the input length available 
-                sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
+                sequence_lengths = data[-1]  # this is the vectors "length_input" of the models input, always last
                 # shape of (batch_size, 1), we want (batch_size)
                 sequence_lengths = np.reshape(sequence_lengths, (-1,))
 
@@ -426,4 +435,3 @@ def sparse_crossentropy_masked(y_true, y_pred):
     y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
     y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
     return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
-

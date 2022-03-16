@@ -53,6 +53,7 @@ from delft.sequenceLabelling.evaluation import classification_report
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
+
 class Sequence(object):
 
     # number of parallel worker for the data generator
@@ -78,12 +79,13 @@ class Sequence(object):
                  early_stop=True,
                  patience=5,
                  max_checkpoints_to_keep=0,
-                 use_ELMo=False,
+                 use_ELMo: bool = False,
                  log_dir=None,
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 transformer_name: str = None):
+                 transformer_name: str = None,
+                 temp_directory: str = 'data/tmp'):
 
         if model_name is None:
             # add a dummy name based on the architecture
@@ -104,6 +106,11 @@ class Sequence(object):
         self.model_local_path = None
 
         self.registry = load_resource_registry("delft/resources-registry.json")
+
+        if not os.path.exists(temp_directory):
+            os.makedirs(temp_directory)
+
+        self.temp_directory = temp_directory
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
@@ -186,7 +193,8 @@ class Sequence(object):
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
+                          preprocessor=self.p,
+                          temp_directory=self.temp_directory)
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -284,7 +292,7 @@ class Sequence(object):
                     bert_preprocessor = None
                 else:
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
-                    dir_path = 'data/models/sequenceLabelling/'
+                    dir_path = self.temp_directory
                     weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i)+".hdf5")
                     self.model = get_model(self.model_config,
                                self.p,
@@ -387,7 +395,7 @@ class Sequence(object):
             if self.model_config.transformer_name is None:
                 self.model = self.models[best_index]
             else:
-                dir_path = 'data/models/sequenceLabelling/'
+                dir_path = self.temp_directory
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(best_index)+".hdf5")
                 # saved config file must be updated to single fold
                 self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
