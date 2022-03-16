@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import numpy as np
 import tensorflow as tf
@@ -46,7 +47,7 @@ class Trainer(object):
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
         if not os.path.exists(temp_directory):
-            raise BlockingIOError("The temporary directory does not exists. ")
+            raise IOError("The temporary directory does not exists. ")
         self.temp_directory = temp_directory
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None,
@@ -203,6 +204,9 @@ class Trainer(object):
         output_directory = os.path.join(self.temp_directory, self.model_config.model_name)
         print("Output directory:", output_directory)
         if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+        else:
+            shutil.rmtree(output_directory)
             os.makedirs(output_directory)
 
         if self.model_config.transformer_name is not None:

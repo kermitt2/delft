@@ -516,7 +516,7 @@ class Sequence(object):
             raise (OSError('Could not find a model.'))
 
     def save(self, dir_path='data/models/sequenceLabelling/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
-        # create subfolder for the model if not already exists
+        # create sub folder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
