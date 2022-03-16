@@ -550,7 +550,7 @@ class cnn3(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-        self.model.summary()
+            self.model.summary()
 
 
 class lstm_cnn(BaseModel):
