@@ -144,7 +144,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print("training runtime: %s seconds " % (runtime))
 
     # saving the model
-    if (output_path):
+    if output_path:
         model.save(output_path)
     else:
         model.save()
@@ -155,7 +155,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
     print('Loading data...')
-    if input_path == None:
+    if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
     else:
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
