@@ -53,7 +53,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_casing = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
-        return BidLSTM_CNN(config, ntags)
+        return BidLSTM_CNN(config, ntags,
+                        print_summary=print_summary)
 
     elif config.architecture == BidLSTM_CNN_CRF.name:
         preprocessor.return_word_embeddings = True
@@ -61,14 +62,16 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CNN_CRF(config, ntags)
+        return BidLSTM_CNN_CRF(config, ntags,
+                        print_summary=print_summary)
 
     elif config.architecture == BidGRU_CRF.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidGRU_CRF(config, ntags)
+        return BidGRU_CRF(config, ntags,
+                        print_summary=print_summary)
 
     elif config.architecture == BidLSTM_CRF_FEATURES.name:
         preprocessor.return_word_embeddings = True
@@ -76,7 +79,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CRF_FEATURES(config, ntags)
+        return BidLSTM_CRF_FEATURES(config, ntags,
+                        print_summary=print_summary)
 
     elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
         preprocessor.return_word_embeddings = True
@@ -85,7 +89,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_lengths = True
         config.use_crf = True
         config.use_chain_crf = True
-        return BidLSTM_ChainCRF_FEATURES(config, ntags)
+        return BidLSTM_ChainCRF_FEATURES(config, ntags,
+                        print_summary=print_summary)
 
     elif config.architecture == BidLSTM_CRF_CASING.name:
         preprocessor.return_word_embeddings = True
@@ -93,7 +98,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CRF_CASING(config, ntags)
+        return BidLSTM_CRF_CASING(config, ntags,
+                        print_summary=print_summary)
 
     elif config.architecture == BERT.name:
         preprocessor.return_bert_embeddings = True
@@ -102,7 +108,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                     ntags, 
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path,
-                    preprocessor=preprocessor)
+                    preprocessor=preprocessor,
+                        print_summary=print_summary)
 
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
@@ -112,7 +119,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
                         local_path=local_path,
-                        preprocessor=preprocessor)
+                        preprocessor=preprocessor,
+                        print_summary=print_summary)
 
     elif config.architecture == BERT_ChainCRF.name:
         preprocessor.return_bert_embeddings = True
@@ -123,7 +131,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
                         local_path=local_path,
-                        preprocessor=preprocessor)
+                        preprocessor=preprocessor,
+                        print_summary=print_summary)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -134,7 +143,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                 ntags, 
                                 load_pretrained_weights=load_pretrained_weights, 
                                 local_path=local_path,
-                                preprocessor=preprocessor)
+                                preprocessor=preprocessor,
+                        print_summary=print_summary)
 
     elif config.architecture == BERT_CRF_CHAR.name:
         preprocessor.return_bert_embeddings = True
@@ -145,7 +155,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                             ntags,      
                             load_pretrained_weights=load_pretrained_weights, 
                             local_path=local_path,
-                            preprocessor=preprocessor)
+                            preprocessor=preprocessor,
+                        print_summary=print_summary)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -157,7 +168,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                     ntags, 
                                     load_pretrained_weights=load_pretrained_weights, 
                                     local_path=local_path,
-                                    preprocessor=preprocessor)
+                                    preprocessor=preprocessor,
+                        print_summary=print_summary)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
@@ -317,10 +329,10 @@ class BidLSTM_CRF(BaseModel):
 
         model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
 
-        model.summary()
         self.model = CRFModelWrapperDefault(model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
         if print_summary:
+            model.summary()
             self.model.summary()
         self.config = config
 
@@ -773,7 +785,8 @@ class BERT(BaseModel):
         label_logits = Dense(ntags, activation='softmax')(embedding_layer)
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -802,11 +815,13 @@ class BERT_CRF(BaseModel):
         embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
 
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
-        self.model.summary()
-        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
+
+        self.model = CRFModelWrapperForBERT(model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
-        self.model.summary()
+        if print_summary:
+            model.summary()
+            self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -841,7 +856,8 @@ class BERT_ChainCRF(BaseModel):
         pred = self.crf(x)
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
-        self.model.summary()
+        if print_summary:
+            self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -897,11 +913,13 @@ class BERT_CRF_FEATURES(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
-        self.model.summary()
-        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
+
+        self.model = CRFModelWrapperForBERT(model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
-        self.model.summary()
+        if print_summary:
+            model.summary()
+            self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -954,11 +972,12 @@ class BERT_CRF_CHAR(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        self.model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
-        self.model.summary()
-        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
+        self.model = CRFModelWrapperForBERT(model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
-        self.model.summary()
+        if print_summary:
+            model.summary()
+            self.model.summary()
         self.config = config
 
     def get_generator(self):
@@ -1028,11 +1047,12 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        self.model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
-        self.model.summary()
-        self.model = CRFModelWrapperForBERT(self.model, ntags)
+        model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
+        self.model = CRFModelWrapperForBERT(model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
-        self.model.summary()
+        if print_summary:
+            model.summary()
+            self.model.summary()
         self.config = config
 
     def get_generator(self):

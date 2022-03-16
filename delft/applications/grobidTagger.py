@@ -85,7 +85,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             if use_ELMo:
                 max_sequence_length = 1500
 
-    model_name += '-' + architecture;
+    model_name += '-' + architecture
 
     if use_ELMo:
         model_name += '-with_ELMo'
