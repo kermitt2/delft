@@ -1,10 +1,7 @@
 import os
 import json
-from delft.utilities.Embeddings import Embeddings
-import delft.sequenceLabelling
 from delft.sequenceLabelling import Sequence
-from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_data_and_labels_conll
+from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
@@ -14,6 +11,7 @@ def configure(architecture):
     patience = 5
     early_stop = True
     max_epoch = 50
+    embeddings_name = None
 
     # default bert model parameters
     if architecture.find("BERT") != -1:

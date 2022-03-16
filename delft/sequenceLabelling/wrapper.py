@@ -134,6 +134,14 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
+        print("---")
+        print("max_epoch:", max_epoch)
+        print("early_stop:", early_stop)
+        print("batch_size:", batch_size)
+        print("max_sequence_length:", max_sequence_length)
+        print("model_name:", model_name)
+        print("---")
+
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):
         # TBD if valid is None, segment train to get one if early_stop is True
 

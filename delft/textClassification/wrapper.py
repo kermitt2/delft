@@ -72,7 +72,7 @@ class Classifier(object):
                  multiprocessing=True,
                  transformer_name: str=None):
 
-        if model_name == None:
+        if model_name is None:
             # add a dummy name based on the architecture
             model_name = architecture
             if embeddings_name is not None:
@@ -94,7 +94,7 @@ class Classifier(object):
         word_emb_size = 0
         if transformer_name is not None:
             self.transformer_name = transformer_name
-            self.embeddings_name == None
+            self.embeddings_name = None
             self.embeddings = None
         elif self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry) 
@@ -122,6 +122,14 @@ class Classifier(object):
                                               early_stop=early_stop,
                                               class_weights=class_weights, 
                                               multiprocessing=multiprocessing)
+
+        print("---")
+        print("max_epoch:", max_epoch)
+        print("early_stop:", early_stop)
+        print("batch_size:", batch_size)
+        print("max_sequence_length:", maxlen)
+        print("model_name:", model_name)
+        print("---")
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
