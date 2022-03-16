@@ -3,7 +3,6 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
-from tensorflow.keras.utils import plot_model
 from transformers import create_optimizer
 
 from delft.sequenceLabelling.config import ModelConfig
@@ -12,7 +11,7 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR, Transformer
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'

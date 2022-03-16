@@ -1,8 +1,6 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_citation_sentiment_corpus
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time

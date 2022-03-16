@@ -1,4 +1,3 @@
-import json
 import math
 import os
 
@@ -122,7 +121,7 @@ class BaseModel(object):
 
         # default worker number for multiprocessing
         nb_workers = 6
-        if self.model_config.transformer_name != None:
+        if self.model_config.transformer_name is not None:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0
             multiprocessing = False
@@ -236,7 +235,7 @@ class BaseModel(object):
 
     def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
         if config.transformer_name is None:
-            # missing trasnformer name, no transformer layer to be initialized
+            # missing transformer name, no transformer layer to be initialized
             return None
 
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
