@@ -98,6 +98,43 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
     # saving the model
     model.save()
 
+
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None): 
+    print('loading multiclass software context dataset...')
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
+
+    report_training_contexts(y)
+    # segment train and eval sets
+    x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
+
+    for class_rank in range(len(list_classes)):
+        model_name = 'software_context_' + list_classes[class_rank] + '_'+architecture
+        class_weights = None
+
+        batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+
+        y_train_class_rank = [ [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train ]
+        y_test_class_rank = [ [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test ]
+
+        y_train_class_rank = np.array(y_train_class_rank)
+        y_test_class_rank = np.array(y_test_class_rank)
+
+        list_classes_rank = [list_classes[class_rank], "not_"+list_classes[class_rank]]
+
+        model = Classifier(model_name, architecture=architecture, list_classes=list_classes_rank, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
+            use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
+            class_weights=class_weights, transformer_name=transformer)
+
+        if fold_count == 1:
+            model.train(x_train, y_train_class_rank)
+        else:
+            model.train_nfold(x_train, y_train_class_rank)
+        model.eval(x_test, y_test_class_rank)
+
+    # saving the model
+    #model.save()
+
+
 # classify a list of texts
 def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
@@ -191,6 +228,12 @@ if __name__ == "__main__":
             raise ValueError("fold-count should be equal or more than 1")
 
         y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
+
+    if args.action == 'train_eval_binary':
+        if args.fold_count < 1:
+            raise ValueError("fold-count should be equal or more than 1")
+
+        y_test = train_and_eval_binary(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
 
     if args.action == 'classify':
         someTexts = ['Radiographic errors were recorded on individual tick sheets and the information was captured in an Excel spreadsheet (Microsoft, Redmond, WA).', 
