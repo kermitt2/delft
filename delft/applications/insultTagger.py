@@ -10,7 +10,7 @@ import time
 
 def configure(architecture):
     batch_size = 20
-    max_sequence_length = 300
+    maxlen = 300
     patience = 5
     early_stop = True
     max_epoch = 50
@@ -22,13 +22,7 @@ def configure(architecture):
         max_epoch = 3
         embeddings_name = None
 
-    print("---")
-    print("max_epoch:", max_epoch)
-    print("batch_size:", batch_size)
-    print("max_sequence_length:", max_sequence_length)
-    print("---")
-
-    return batch_size, max_sequence_length, patience, early_stop, max_epoch, embeddings_name
+    return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False): 
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
