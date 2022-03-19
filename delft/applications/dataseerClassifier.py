@@ -16,7 +16,7 @@ import numpy as np
 """
 
 def configure(architecture):
-    batch_size = 256
+    batch_size = 200
     maxlen = 300
     patience = 5
     early_stop = True
@@ -45,13 +45,14 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer_name=transformer)
     
+    '''
     if fold_count == 1:
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
-    
+    '''
 
     print('loading reuse dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
@@ -63,16 +64,17 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer_name=transformer)
     
+    '''
     if fold_count == 1:
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
     # saving the model
     model.save()
-
+    '''
 
     print('loading first-level dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
 
     model_name = 'dataseer-first_' + architecture
 
