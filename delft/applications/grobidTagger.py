@@ -23,6 +23,8 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     else:
         model_name = 'grobid-' + model
 
+    multiprocessing = True
+
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
         if batch_size == -1:
@@ -78,6 +80,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 batch_size = 20
             if max_sequence_length == -1:
                 max_sequence_length = 1500
+            multiprocessing = False
         elif model == "reference-segmenter":
             batch_size = 10
             max_sequence_length = 3000
@@ -98,7 +101,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     if max_epoch == -1:
         max_epoch = 100
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing
 
 
 # train a GROBID model with all available data
@@ -118,7 +121,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch = configure(model,
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing = configure(model,
                                                                             architecture,
                                                                             output_path,
                                                                             max_sequence_length,
@@ -135,7 +138,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      max_sequence_length=max_sequence_length,
                      features_indices=features_indices,
                      max_epoch=max_epoch, 
-                     use_ELMo=use_ELMo)
+                     use_ELMo=use_ELMo,
+                     multiprocessing=multiprocessing)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -166,7 +170,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch = configure(model, 
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing = configure(model, 
                                                                             architecture, 
                                                                             output_path, 
                                                                             max_sequence_length, 
@@ -184,7 +188,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     fold_number=fold_count,
                     features_indices=features_indices,
                     max_epoch=max_epoch, 
-                    use_ELMo=use_ELMo)
+                    use_ELMo=use_ELMo,
+                    multiprocessing=multiprocessing)
 
     start_time = time.time()
 
