@@ -14,25 +14,25 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 
 | Architecture  | Implementation | Glove only (avg / best)| Glove + valid. set (avg / best)| ELMo + Glove (avg / best)| ELMo + Glove + valid. set (avg / best)|
 | --- | --- | --- | --- | --- | --- |
-| BidLSTM-CRF   | DeLFT | __90.75__ / __91.35__  | 91.13 / 91.60 | __92.47__ / __92.71__ | __92.69__ / __93.09__ | 
+| BidLSTM-CRF   | DeLFT | __91.03__ / __91.38__  | 91.37 / 91.69 | __92.57__ / __92.80__ | __92.95__ / __93.21__ | 
 |               | [(Lample and al., 2016)](https://arxiv.org/abs/1603.01360) | - / 90.94 |      |              |               | 
-| BidLSTM-CNN-CRF | DeLFT | 90.73 / 91.07| 91.01 / 91.26 | 92.30 / 92.57| 92.67 / 93.04 |
+| BidLSTM-CNN-CRF | DeLFT | 90.64 / 91.23| 90.98 / 91.38 | 92.30 / 92.57| 92.67 / 93.04 |
 |               | [(Ma & Hovy, 2016)](https://arxiv.org/abs/1603.01354) |  - / 91.21  | | | |
 |               | [(Peters & al. 2018)](https://arxiv.org/abs/1802.05365) |  | | 92.22** / - | |
-| BidLSTM-CNN   | DeLFT | 89.23 / 89.47  | 89.35 / 89.87 | 91.66 / 92.00 | 92.01 / 92.16 |
+| BidLSTM-CNN   | DeLFT | 89.49 / 89.96  | 89.85 / 90.13 | 91.66 / 92.00 | 92.01 / 92.16 |
 |               | [(Chiu & Nichols, 2016)](https://arxiv.org/abs/1511.08308) || __90.88***__ / - | | |
-| BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
+| BidGRU-CRF    | DeLFT | 90.17 / 90.55  | 91.04 / 91.40 | 92.03 / 92.44 | 92.43 / 92.71 |
 |               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
 
 Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax. A CRF activation layer improves f-score in average by around +0.10 for sequence labelling task, but increase the runtime by 23%: 
 
 | Architecture  | Implementation | f-score |
 | --- | --- | --- | 
-| bert-base-en    | DeLFT | 90.9 |  
-| bert-base-en+CRF    | DeLFT | 91.2 |  
+| bert-base-en    | DeLFT | 91.19 |  
+| bert-base-en+CRF    | DeLFT | 91.25 |  
 | bert-base-en        | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
 
-For DeLFT, the average is obtained with 10 training runs (see [full results](https://github.com/kermitt2/delft/pull/78#issuecomment-569493805)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not reproducible, and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition (the original paper probably reported token-level metrics instead of the usual entity-level metrics, giving in our humble opinion a misleading conclusion about the performance of transformers alone for sequence labelling tasks). 
+For DeLFT, the average is obtained with 10 training runs (see latest [full results](https://github.com/kermitt2/delft/blob/master/doc/sequence_labeling.0.3.0.txt)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not easily reproducible (if reproducible), and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition. 
 
 _*_ reported f-score using Senna word embeddings and not Glove.
 
@@ -94,9 +94,9 @@ optional arguments:
 
 DeLFT comes with various trained models for the CoNLL-2003 NER dataset.
 
-By default, the BidLSTM-CRF architecture is used. With this available model, glove-840B word embeddings, and optimisation of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (best run over 10 training, using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1], or __90.75__ when averaged over 10 training. Best model f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training (best run over 10 training), as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
+By default, the BidLSTM-CRF architecture is used.  
 
-Using BidLSTM-CRF model with ELMo embeddings, following [5] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/docs/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions around 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.47__ (averaged over 10 training, __92.71__ for best model, using _train_ set for training and _testa_ for validation), or __92.69__ (averaged over 10 training, __93.09__ best model) when training with the validation set (as in the paper Peters and al., 2017).
+Using BidLSTM-CRF model with ELMo embeddings, following [7] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/docs/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), improve the f1 score on CoNLL 2003 significantly.
 
 For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` in IOB2 tagging sceheme (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/4cbfc3a1b4c4a5242e1cfbaea48d6f7e972e8881/data/conll2003/en) for instance ;) and [here](https://github.com/kermitt2/delft/tree/master/delft/utilities). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
@@ -137,7 +137,7 @@ If the model has been trained also with the validation set (`--train-with-valida
 ```text
     Evaluation on test set:
         f1 (micro): 91.60
-                 precision    recall    f1-score    support
+                 precision    recall  f1-score   support
 
             LOC     0.9219    0.9418    0.9318      1668
            MISC     0.8277    0.8077    0.8176       702
@@ -151,19 +151,16 @@ Using ELMo with the best model obtained over 10 training (not using the validati
 
 ```text
     Evaluation on test set:
-        f1 (micro): 92.71
-                      precision    recall  f1-score   support
+        f1 (micro): 92.80
+                  precision    recall  f1-score   support
 
-                 PER     0.9787    0.9672    0.9729      1617
-                 LOC     0.9368    0.9418    0.9393      1668
-                MISC     0.8237    0.8319    0.8278       702
-                 ORG     0.9072    0.9181    0.9126      1661
+             LOC     0.9401    0.9412    0.9407      1668
+            MISC     0.8104    0.8405    0.8252       702
+             ORG     0.9107    0.9151    0.9129      1661
+             PER     0.9800    0.9722    0.9761      1617
 
-    all (micro avg.)     0.9257    0.9285    0.9271      5648
-
+all (micro avg.)     0.9261    0.9299    0.9280      5648
 ```
-
-Using ELMo and training with the validation set gives a f-score of 93.09 (best model), 92.69 averaged over 10 runs (the best model is provided under `data/models/sequenceLabelling/ner-en-conll2003-BidLSTM_CRF/with_validation_set/`).
 
 Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
 
@@ -272,20 +269,19 @@ For English NER tagging, when used, the default static embeddings is Glove (`glo
 
 ## Ontonotes 5.0 CONLL 2012
 
-DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Default static embeddings for Ontonotes are `fasttext-crawl`, which can be changed with parameter `--embedding`.
+DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Static embeddings for Ontonotes can be set with parameter `--embedding`.
 
-With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score is __86.65__ averaged over these 10 trainings, with best run at  __87.01__ (provided model) when trained with the train set strictly. 
-
-With ELMo, f-score is __88.66__ averaged over these 10 trainings, and with best best run at __89.01__.
-
-For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/delft/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
+For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/delft/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), with `BidLSTM_CRF` architecture use:
 
 ```sh
-> python3 nerTagger.py --dataset-type conll2012 train_eval
+> python3 nerTagger.py --dataset-type conll2012 train_eval --architecture BidLSTM_CRF --embedding glove-840B
 ```
 
 ```text
+training runtime: 23692.0 seconds
+
 Evaluation on test set:
+
     f1 (micro): 87.01
                   precision    recall  f1-score   support
 
@@ -311,33 +307,73 @@ Evaluation on test set:
 all (micro avg.)     0.8647    0.8755    0.8701     11257
 ```
 
-With ELMo embeddings (using the default hyper-parameters, except the batch size which is increased to better learn the less frequent classes):
+With `bert-base-cased` `BERT_CRF` architecture:
 
-```text
+```sh
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2012 --architecture BERT_CRF --transformer bert-base-cased
+```
+
+```
+training runtime: 14367.8 seconds
+
 Evaluation on test set:
-  f1 (micro): 89.01
+
                   precision    recall  f1-score   support
 
-             LAW     0.7188    0.5750    0.6389        40
-         PERCENT     0.8946    0.8997    0.8971       349
-           EVENT     0.6212    0.6508    0.6357        63
-        CARDINAL     0.8616    0.7722    0.8144       935
-        QUANTITY     0.7838    0.8286    0.8056       105
-            NORP     0.9232    0.9572    0.9399       841
-             LOC     0.7459    0.7709    0.7582       179
-            DATE     0.8629    0.8252    0.8437      1602
-        LANGUAGE     0.8750    0.6364    0.7368        22
-             GPE     0.9637    0.9607    0.9622      2240
-         ORDINAL     0.8145    0.9231    0.8654       195
-             ORG     0.9033    0.8903    0.8967      1795
-           MONEY     0.8851    0.9076    0.8962       314
-             FAC     0.8257    0.6667    0.7377       135
-            TIME     0.6592    0.6934    0.6759       212
-          PERSON     0.9350    0.9477    0.9413      1988
-     WORK_OF_ART     0.6467    0.7169    0.6800       166
-         PRODUCT     0.6867    0.7500    0.7170        76
+        CARDINAL     0.8443    0.8064    0.8249       935
+            DATE     0.8474    0.8770    0.8620      1602
+           EVENT     0.7460    0.7460    0.7460        63
+             FAC     0.7163    0.7481    0.7319       135
+             GPE     0.9657    0.9437    0.9546      2240
+        LANGUAGE     0.8889    0.7273    0.8000        22
+             LAW     0.6857    0.6000    0.6400        40
+             LOC     0.6965    0.7821    0.7368       179
+           MONEY     0.8882    0.9108    0.8994       314
+            NORP     0.9350    0.9584    0.9466       841
+         ORDINAL     0.8199    0.8872    0.8522       195
+             ORG     0.8908    0.8997    0.8952      1795
+         PERCENT     0.8917    0.8968    0.8943       349
+          PERSON     0.9396    0.9472    0.9434      1988
+         PRODUCT     0.5600    0.7368    0.6364        76
+        QUANTITY     0.6187    0.8190    0.7049       105
+            TIME     0.6184    0.6651    0.6409       212
+     WORK_OF_ART     0.6138    0.6988    0.6535       166
 
-all (micro avg.)     0.8939    0.8864    0.8901     11257
+all (micro avg.)     0.8825    0.8951    0.8888     11257
+```
+
+With ELMo embeddings (using the default hyper-parameters, except the batch size which is increased to better learn the less frequent classes):
+
+```sh
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2012 --architecture BidLSTM_CRF --embedding glove-840B --use-ELMo
+```
+
+```
+training runtime: 36812.025 seconds 
+
+Evaluation on test set:
+                  precision    recall  f1-score   support
+
+        CARDINAL     0.8534    0.8342    0.8437       935
+            DATE     0.8499    0.8733    0.8615      1602
+           EVENT     0.7091    0.6190    0.6610        63
+             FAC     0.7667    0.6815    0.7216       135
+             GPE     0.9682    0.9527    0.9604      2240
+        LANGUAGE     0.9286    0.5909    0.7222        22
+             LAW     0.7000    0.5250    0.6000        40
+             LOC     0.7759    0.7542    0.7649       179
+           MONEY     0.9054    0.9140    0.9097       314
+            NORP     0.9323    0.9501    0.9411       841
+         ORDINAL     0.8082    0.9077    0.8551       195
+             ORG     0.8950    0.9019    0.8984      1795
+         PERCENT     0.9117    0.9169    0.9143       349
+          PERSON     0.9430    0.9482    0.9456      1988
+         PRODUCT     0.6410    0.6579    0.6494        76
+        QUANTITY     0.7890    0.8190    0.8037       105
+            TIME     0.6683    0.6462    0.6571       212
+     WORK_OF_ART     0.6301    0.6566    0.6431       166
+
+all (micro avg.)     0.8943    0.8956    0.8949     11257
 ```
 
 ## French model (based on Le Monde corpus)

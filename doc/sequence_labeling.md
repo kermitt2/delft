@@ -4,7 +4,7 @@
 
 The following DL architectures are supported by DeLFT:
 
-* __BidLSTM_CRF__ with words and characters input following:
+* __BidLSTM_CRF__ (CRF implementation based on recent tensorflow addons) or __BidLSTM_ChainCRF__ (CRF implementation from previous DeLFT version updated to tensorflow 2) with words and characters input following:
 
 ```
 [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
@@ -46,7 +46,16 @@ Any pre-trained TensorFlow BERT models can be used.
 
 * __BERT_CRF_CHAR_FEATURES__ transformer architecture, for fine-tuning, with a character input channel, a generic feature channel and a CRF as final activation layer. Any pre-trained TensorFlow BERT models can be used. 
 
+All RNN models (LSTM/GRU/CNN) can further uses ELMo contextualized embeddings to improve results:
+
+* [__ELMo__](https://allennlp.org/elmo) contextualised embeddings, see:
+
+```
+[7] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
+```
+
 Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme and we did not find any advantages to add alternative labelling scheme after experiments.
+
 
 ### Creating your own model
 
