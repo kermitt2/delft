@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -140,6 +140,8 @@ class Sequence(object):
         print("batch_size:", batch_size)
         print("max_sequence_length:", max_sequence_length)
         print("model_name:", model_name)
+        print("learning_rate: ", learning_rate)
+        print("use_ELMo: ", use_ELMo)
         print("---")
 
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):

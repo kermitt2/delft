@@ -129,6 +129,7 @@ class Classifier(object):
         print("batch_size:", batch_size)
         print("max_sequence_length:", maxlen)
         print("model_name:", model_name)
+        print("learning_rate: ", learning_rate)
         print("---")
 
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
