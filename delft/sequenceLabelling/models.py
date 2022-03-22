@@ -229,6 +229,11 @@ class BaseModel(object):
         # default generator
         return DataGenerator
 
+    def print_summary(self, base_model=None):
+        if base_model:
+            base_model.summary()
+        self.model.summary()
+
     def init_transformer(self, config: ModelConfig, load_pretrained_weights: bool, local_path: str,
                          preprocessor: Preprocessor):
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
@@ -280,7 +285,7 @@ class BidLSTM(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
         self.config = config
 
@@ -327,13 +332,12 @@ class BidLSTM_CRF(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
+        base_model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
 
-        self.model = CRFModelWrapperDefault(model, ntags)
+        self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
 
@@ -384,7 +388,7 @@ class BidLSTM_ChainCRF(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         self.config = config
 
 
@@ -446,7 +450,7 @@ class BidLSTM_CNN(BaseModel):
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
 
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         self.config = config
 
 
@@ -508,12 +512,11 @@ class BidLSTM_CNN_CRF(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(model, ntags)
+        base_model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
+        self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
 
@@ -557,12 +560,11 @@ class BidGRU_CRF(BaseModel):
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(model, ntags)
+        base_model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
+        self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
 
         self.config = config
 
@@ -615,12 +617,11 @@ class BidLSTM_CRF_CASING(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(model, ntags)
+        base_model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
+        self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None), (None, None, 1)])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
 
@@ -679,12 +680,11 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(model, ntags)
+        base_model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
+        self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, 1)])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
 
@@ -748,7 +748,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
 
         self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         self.config = config
 
 
@@ -786,7 +786,7 @@ class BERT(BaseModel):
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         self.config = config
 
     def get_generator(self):
@@ -815,13 +815,12 @@ class BERT_CRF(BaseModel):
         embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
         x = Dropout(0.1)(embedding_layer)
 
-        model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
+        base_model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
 
-        self.model = CRFModelWrapperForBERT(model, ntags)
+        self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
@@ -857,7 +856,7 @@ class BERT_ChainCRF(BaseModel):
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         self.config = config
 
     def get_generator(self):
@@ -913,13 +912,12 @@ class BERT_CRF_FEATURES(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
+        base_model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
 
-        self.model = CRFModelWrapperForBERT(model, ntags)
+        self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
@@ -972,12 +970,11 @@ class BERT_CRF_CHAR(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
-        self.model = CRFModelWrapperForBERT(model, ntags)
+        base_model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
+        self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
@@ -1047,12 +1044,11 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         x = Dropout(config.dropout)(x)
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
-        model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
-        self.model = CRFModelWrapperForBERT(model, ntags)
+        base_model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
+        self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
         if print_summary:
-            model.summary()
-            self.model.summary()
+            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):

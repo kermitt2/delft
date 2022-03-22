@@ -100,6 +100,11 @@ class BaseModel(object):
             elif hasattr(training_config, key):
                 self.parameters[key] = getattr(training_config, key)
 
+    def print_summary(self, base_model=None):
+        if base_model:
+            base_model.summary()
+        self.model.summary()
+
     def train_model(self, 
                 list_classes, 
                 batch_size, 
@@ -284,7 +289,8 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel = getModel(model_config, training_config, print_summary=fold_id == 0)
+        is_first_fold = fold_id == 0
+        foldModel = getModel(model_config, training_config, print_summary=is_first_fold)
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
@@ -386,7 +392,7 @@ class lstm(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         
 
 class bidLstm_simple(BaseModel):
@@ -426,7 +432,7 @@ class bidLstm_simple(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
 
 class cnn(BaseModel):
@@ -468,7 +474,7 @@ class cnn(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
 
 class cnn2(BaseModel):
@@ -506,7 +512,7 @@ class cnn2(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
 
 class cnn3(BaseModel):
@@ -549,7 +555,7 @@ class cnn3(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
 
 class lstm_cnn(BaseModel):
@@ -596,7 +602,7 @@ class lstm_cnn(BaseModel):
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
 
 class gru(BaseModel):
@@ -637,7 +643,7 @@ class gru(BaseModel):
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
         
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -680,7 +686,7 @@ class gru_simple(BaseModel):
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -726,7 +732,7 @@ class gru_lstm(BaseModel):
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -790,7 +796,7 @@ class dpcnn(BaseModel):
 
         self.model = Model(inputs = input_layer, outputs = X, name='dpcnn')
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
 
 class bert(BaseModel):
@@ -829,7 +835,7 @@ class bert(BaseModel):
         self.model = Model(inputs=[input_ids_in], outputs=logits)
         #self.model = Model(inputs=[input_ids_in, input_masks_in], outputs=logits)
         if print_summary:
-            self.model.summary()
+            self.print_summary()
 
     def compile(self, train_size):
         #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
