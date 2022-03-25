@@ -45,3 +45,18 @@ def merge_dicts(dict_list: List[dict]) -> dict:
     for d in dict_list:
         result.update(d)
     return result
+
+
+def print_parameters(batch_size=None, early_stop=None, learning_rate=None,
+                     max_epoch=None, max_sequence_length=None, model_name=None,
+                     use_ELMo=None) -> None:
+
+    print("---")
+    print("max_epoch:", max_epoch)
+    print("early_stop:", early_stop)
+    print("batch_size:", batch_size)
+    print("max_sequence_length:", max_sequence_length)
+    print("model_name:", model_name)
+    print("learning_rate: ", learning_rate)
+    print("use_ELMo: ", use_ELMo)
+    print("---")

@@ -123,15 +123,6 @@ class Classifier(object):
                                               class_weights=class_weights, 
                                               multiprocessing=multiprocessing)
 
-        print("---")
-        print("max_epoch:", max_epoch)
-        print("early_stop:", early_stop)
-        print("batch_size:", batch_size)
-        print("max_sequence_length:", maxlen)
-        print("model_name:", model_name)
-        print("learning_rate: ", learning_rate)
-        print("---")
-
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
 

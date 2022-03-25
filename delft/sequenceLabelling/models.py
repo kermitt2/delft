@@ -22,6 +22,7 @@ The architecture class can also define the data generator class object to be use
 the metrics and the optimizer.
 """
 
+
 def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
     """
     Return a model instance by its name. This is a facilitator function. 
@@ -216,9 +217,9 @@ class BaseModel(object):
         # default generator
         return DataGenerator
 
-    def print_summary(self, base_model=None):
-        if base_model:
-            base_model.summary()
+    def print_summary(self):
+        if hasattr(self.model, 'base_model'):
+            self.model.base_model.summary()
         self.model.summary()
 
     def init_transformer(self, config: ModelConfig, load_pretrained_weights: bool, local_path: str,

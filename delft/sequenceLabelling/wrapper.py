@@ -2,6 +2,7 @@ import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import print_parameters
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -134,16 +135,6 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
-        print("---")
-        print("max_epoch:", max_epoch)
-        print("early_stop:", early_stop)
-        print("batch_size:", batch_size)
-        print("max_sequence_length:", max_sequence_length)
-        print("model_name:", model_name)
-        print("learning_rate: ", learning_rate)
-        print("use_ELMo: ", use_ELMo)
-        print("---")
-
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):
         # TBD if valid is None, segment train to get one if early_stop is True
 
@@ -166,6 +157,12 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
+        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
+                         self.training_config.learning_rate, self.training_config.max_epoch,
+                         self.model_config.max_sequence_length, self.model_config.model_name,
+                         self.model_config.use_ELMo)
+        self.model.print_summary()
+
         trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
@@ -300,8 +297,7 @@ class Sequence(object):
                                self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path= os.path.join(dir_path, self.model_config.model_name),
-                                           print_summary=False)
+                               local_path= os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
                     bert_preprocessor = self.model.transformer_preprocessor
@@ -367,7 +363,7 @@ class Sequence(object):
                 sum_f1 = 0
                 sum_support = 0
                 for j in range(0, self.model_config.fold_number):
-                    if not label in reports_as_map[j]['labels']:
+                    if label not in reports_as_map[j]['labels']:
                         continue
                     report_as_map = reports_as_map[j]['labels'][label]
                     sum_p += report_as_map["precision"]

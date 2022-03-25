@@ -12,6 +12,7 @@ from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import print_parameters
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -171,11 +172,11 @@ class Trainer(object):
             nb_workers = 0 
             multiprocessing = False
 
-        local_model.fit(training_generator,
-                                epochs=max_epoch,
-                                use_multiprocessing=multiprocessing,
-                                workers=nb_workers,
-                                callbacks=_callbacks)
+        # local_model.fit(training_generator,
+        #                         epochs=max_epoch,
+        #                         use_multiprocessing=multiprocessing,
+        #                         workers=nb_workers,
+        #                         callbacks=_callbacks)
 
         return local_model
 
@@ -207,8 +208,6 @@ class Trainer(object):
             self.preprocessor.save(os.path.join(output_directory, PROCESSOR_FILE_NAME))
 
         for fold_id in range(0, fold_count):
-            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
-
             if x_valid is None:
                 # segment train and valid
                 fold_start = fold_size * fold_id
@@ -237,8 +236,16 @@ class Trainer(object):
             foldModel = get_model(self.model_config, 
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
-                               load_pretrained_weights=True,
-                               print_summary=fold_id == 0)
+                               load_pretrained_weights=True)
+
+            if fold_id == 0:
+                print_parameters(self.model_config.batch_size, self.training_config.early_stop,
+                                 self.training_config.learning_rate, self.training_config.max_epoch,
+                                 self.model_config.max_sequence_length, self.model_config.model_name,
+                                 self.model_config.use_ELMo)
+                foldModel.print_summary()
+
+            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
             self.transformer_preprocessor = foldModel.transformer_preprocessor
             foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 
