@@ -22,8 +22,7 @@ The architecture class can also define the data generator class object to be use
 the metrics and the optimizer.
 """
 
-def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None,
-              print_summary=True):
+def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
     """
     Return a model instance by its name. This is a facilitator function. 
     """
@@ -31,14 +30,14 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_word_embeddings = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
-        return BidLSTM(config, ntags, print_summary)
+        return BidLSTM(config, ntags)
 
     elif config.architecture == BidLSTM_CRF.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CRF(config, ntags, print_summary)
+        return BidLSTM_CRF(config, ntags)
 
     elif config.architecture == BidLSTM_ChainCRF.name:
         preprocessor.return_word_embeddings = True
@@ -46,15 +45,14 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_lengths = True
         config.use_crf = True
         config.use_chain_crf = True
-        return BidLSTM_ChainCRF(config, ntags, print_summary)
+        return BidLSTM_ChainCRF(config, ntags)
 
     elif config.architecture == BidLSTM_CNN.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_casing = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
-        return BidLSTM_CNN(config, ntags,
-                        print_summary=print_summary)
+        return BidLSTM_CNN(config, ntags)
 
     elif config.architecture == BidLSTM_CNN_CRF.name:
         preprocessor.return_word_embeddings = True
@@ -62,16 +60,14 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CNN_CRF(config, ntags,
-                        print_summary=print_summary)
+        return BidLSTM_CNN_CRF(config, ntags)
 
     elif config.architecture == BidGRU_CRF.name:
         preprocessor.return_word_embeddings = True
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidGRU_CRF(config, ntags,
-                        print_summary=print_summary)
+        return BidGRU_CRF(config, ntags)
 
     elif config.architecture == BidLSTM_CRF_FEATURES.name:
         preprocessor.return_word_embeddings = True
@@ -79,8 +75,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CRF_FEATURES(config, ntags,
-                        print_summary=print_summary)
+        return BidLSTM_CRF_FEATURES(config, ntags)
 
     elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
         preprocessor.return_word_embeddings = True
@@ -89,8 +84,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_lengths = True
         config.use_crf = True
         config.use_chain_crf = True
-        return BidLSTM_ChainCRF_FEATURES(config, ntags,
-                        print_summary=print_summary)
+        return BidLSTM_ChainCRF_FEATURES(config, ntags)
 
     elif config.architecture == BidLSTM_CRF_CASING.name:
         preprocessor.return_word_embeddings = True
@@ -98,8 +92,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         preprocessor.return_chars = True
         preprocessor.return_lengths = True
         config.use_crf = True
-        return BidLSTM_CRF_CASING(config, ntags,
-                        print_summary=print_summary)
+        return BidLSTM_CRF_CASING(config, ntags)
 
     elif config.architecture == BERT.name:
         preprocessor.return_bert_embeddings = True
@@ -108,8 +101,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                     ntags, 
                     load_pretrained_weights=load_pretrained_weights, 
                     local_path=local_path,
-                    preprocessor=preprocessor,
-                        print_summary=print_summary)
+                    preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
@@ -119,8 +111,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
                         local_path=local_path,
-                        preprocessor=preprocessor,
-                        print_summary=print_summary)
+                        preprocessor=preprocessor)
 
     elif config.architecture == BERT_ChainCRF.name:
         preprocessor.return_bert_embeddings = True
@@ -131,8 +122,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                         ntags, 
                         load_pretrained_weights=load_pretrained_weights, 
                         local_path=local_path,
-                        preprocessor=preprocessor,
-                        print_summary=print_summary)
+                        preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -143,8 +133,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                 ntags, 
                                 load_pretrained_weights=load_pretrained_weights, 
                                 local_path=local_path,
-                                preprocessor=preprocessor,
-                        print_summary=print_summary)
+                                preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR.name:
         preprocessor.return_bert_embeddings = True
@@ -155,8 +144,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                             ntags,      
                             load_pretrained_weights=load_pretrained_weights, 
                             local_path=local_path,
-                            preprocessor=preprocessor,
-                        print_summary=print_summary)
+                            preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
         preprocessor.return_bert_embeddings = True
@@ -168,8 +156,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                     ntags, 
                                     load_pretrained_weights=load_pretrained_weights, 
                                     local_path=local_path,
-                                    preprocessor=preprocessor,
-                        print_summary=print_summary)
+                                    preprocessor=preprocessor)
     else:
         raise (OSError('Model name does exist: ' + config.architecture))
 
@@ -193,7 +180,7 @@ class BaseModel(object):
     transformer_config = None
     transformer_preprocessor = None
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None):
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None, preprocessor=None):
         self.config = config
         self.ntags = ntags
         self.model = None
@@ -253,7 +240,7 @@ class BidLSTM(BaseModel):
     """
     name = 'BidLSTM'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -284,9 +271,7 @@ class BidLSTM(BaseModel):
         pred = Dense(ntags, activation='softmax')(x)
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
-        if print_summary:
-            self.print_summary()
-
+        self.model.summary()
         self.config = config
 
 
@@ -302,7 +287,7 @@ class BidLSTM_CRF(BaseModel):
     """
     name = 'BidLSTM_CRF'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -336,8 +321,7 @@ class BidLSTM_CRF(BaseModel):
 
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
-        if print_summary:
-            self.print_summary(base_model)
+        self.model.summary()
         self.config = config
 
 
@@ -353,7 +337,7 @@ class BidLSTM_ChainCRF(BaseModel):
     """
     name = 'BidLSTM_ChainCRF'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -387,8 +371,6 @@ class BidLSTM_ChainCRF(BaseModel):
         pred = self.crf(x)
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
-        if print_summary:
-            self.print_summary()
         self.config = config
 
 
@@ -404,7 +386,7 @@ class BidLSTM_CNN(BaseModel):
 
     name = 'BidLSTM_CNN'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -448,9 +430,6 @@ class BidLSTM_CNN(BaseModel):
         pred = Dense(ntags, activation='softmax')(x)
 
         self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
-
-        if print_summary:
-            self.print_summary()
         self.config = config
 
 
@@ -466,7 +445,7 @@ class BidLSTM_CNN_CRF(BaseModel):
 
     name = 'BidLSTM_CNN_CRF'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -515,8 +494,6 @@ class BidLSTM_CNN_CRF(BaseModel):
         base_model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
 
@@ -527,7 +504,7 @@ class BidGRU_CRF(BaseModel):
 
     name = 'BidGRU_CRF'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -563,8 +540,6 @@ class BidGRU_CRF(BaseModel):
         base_model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
-        if print_summary:
-            self.print_summary(base_model)
 
         self.config = config
 
@@ -577,7 +552,7 @@ class BidLSTM_CRF_CASING(BaseModel):
 
     name = 'BidLSTM_CRF_CASING'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -620,8 +595,6 @@ class BidLSTM_CRF_CASING(BaseModel):
         base_model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None), (None, None, 1)])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
 
@@ -633,7 +606,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
 
     name = 'BidLSTM_CRF_FEATURES'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -683,8 +656,6 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         base_model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, 1)])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
 
@@ -696,7 +667,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
 
     name = 'BidLSTM_ChainCRF_FEATURES'
 
-    def __init__(self, config, ntags=None, print_summary=True):
+    def __init__(self, config, ntags=None):
         super().__init__(config, ntags)
 
         # build input, directly feed with word embedding by the data generator
@@ -747,8 +718,6 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
         pred = self.crf(x)
 
         self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
-        if print_summary:
-            self.print_summary()
         self.config = config
 
 
@@ -769,8 +738,7 @@ class BERT(BaseModel):
 
     name = 'BERT'
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None,
-                 preprocessor=None, print_summary=True):
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
@@ -785,8 +753,6 @@ class BERT(BaseModel):
         label_logits = Dense(ntags, activation='softmax')(embedding_layer)
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
-        if print_summary:
-            self.print_summary()
         self.config = config
 
     def get_generator(self):
@@ -801,8 +767,7 @@ class BERT_CRF(BaseModel):
 
     name = 'BERT_CRF'
 
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None,
-                 preprocessor: Preprocessor=None, print_summary=True):
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
@@ -819,8 +784,6 @@ class BERT_CRF(BaseModel):
 
         self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
@@ -837,8 +800,7 @@ class BERT_ChainCRF(BaseModel):
 
     name = 'BERT_ChainCRF'
 
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool=True, local_path: str=None,
-                 preprocessor=None, print_summary=True):
+    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool=True, local_path: str=None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
@@ -855,8 +817,6 @@ class BERT_ChainCRF(BaseModel):
         pred = self.crf(x)
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
-        if print_summary:
-            self.print_summary()
         self.config = config
 
     def get_generator(self):
@@ -872,8 +832,7 @@ class BERT_CRF_FEATURES(BaseModel):
 
     name = 'BERT_CRF_FEATURES'
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None,
-                 preprocessor=None, print_summary=True):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
@@ -916,8 +875,6 @@ class BERT_CRF_FEATURES(BaseModel):
 
         self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
@@ -933,8 +890,7 @@ class BERT_CRF_CHAR(BaseModel):
 
     name = 'BERT_CRF_CHAR'
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None,
-                 preprocessor=None, print_summary=True):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
@@ -973,8 +929,6 @@ class BERT_CRF_CHAR(BaseModel):
         base_model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
         self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
@@ -991,8 +945,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
 
     name = 'BERT_CRF_CHAR_FEATURES'
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None,
-                 preprocessor=None, print_summary=True):
+    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
@@ -1047,8 +1000,6 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         base_model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
         self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
-        if print_summary:
-            self.print_summary(base_model)
         self.config = config
 
     def get_generator(self):
