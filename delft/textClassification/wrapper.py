@@ -1,6 +1,8 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
+from delft.utilities.misc import print_parameters
+
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
@@ -126,8 +128,13 @@ class Classifier(object):
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
 
+        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
+                         self.training_config.learning_rate, self.training_config.max_epoch,
+                         self.model_config.maxlen, self.model_config.model_name)
+        self.model.print_summary()
+
         bert_data = False
-        if self.transformer_name != None:
+        if self.transformer_name is None:
             bert_data = True
 
         if self.training_config.early_stop:
@@ -221,28 +228,31 @@ class Classifier(object):
             return result
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
+        if self.model is None:
+            raise (OSError('Could not find a model.'))
+
+        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
+                         self.training_config.learning_rate, self.training_config.max_epoch,
+                         self.model_config.maxlen, self.model_config.model_name)
+        self.model.print_summary()
+
         bert_data = False
         if self.transformer_name is not None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
-            if self.model is not None:
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
+            test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
 
-                result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
-            else:
-                raise (OSError('Could not find a model.'))
+            result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
         else:
-            if self.models is not None:
-                # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.models[0].transformer_tokenizer)
-                result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
-            else:
-                raise (OSError('Could not find nfolds models.'))
+            # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes
+            test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
+                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes,
+                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.models[0].transformer_tokenizer)
+            result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
+
         print("-----------------------------------------------")
         print("\nEvaluation on", x_test.shape[0], "instances:")
 

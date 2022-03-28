@@ -14,6 +14,7 @@ from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import print_parameters
 
 architectures = [
     'lstm',
@@ -272,11 +273,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
     scores = []
 
     bert_data = False
-    if model_config.transformer_name != None:
+    if model_config.transformer_name is not None:
         bert_data = True
 
     for fold_id in range(0, fold_count):
-        print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
         fold_start = fold_size * fold_id
         fold_end = fold_start + fold_size
 
@@ -290,6 +290,14 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         val_y = y[fold_start:fold_end]
 
         foldModel = getModel(model_config, training_config)
+
+        if fold_id == 0:
+            print_parameters(model_config.batch_size, training_config.early_stop,
+                             training_config.learning_rate, training_config.max_epoch,
+                             model_config.maxlen, model_config.model_name)
+            foldModel.print_summary()
+
+        print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
