@@ -33,7 +33,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None): 
+def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, output_directory=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier('toxic_'+architecture, architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, class_weights=class_weights,
@@ -47,7 +47,10 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
     else:
         model.train_nfold(xtr, y)
     # saving the model
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
 
 def test(architecture="gru"):
@@ -102,6 +105,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.")
 
     args = parser.parse_args()
 
@@ -111,6 +115,7 @@ if __name__ == "__main__":
 
     embeddings_name = args.embedding
     transformer = args.transformer
+    output = args.output
 
     architecture = args.architecture
     if architecture not in architectures:
@@ -127,7 +132,7 @@ if __name__ == "__main__":
     if action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer)
+        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer, output_directory=output)
 
     if action == 'test':
         y_test = test()    

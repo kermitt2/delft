@@ -1,8 +1,6 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_citation_sentiment_corpus
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
@@ -36,7 +34,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
@@ -50,11 +48,15 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
+
     # saving the model
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None): 
+def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
@@ -74,6 +76,11 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
     
     # saving the model
     model.save()
+
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
     model.eval(x_test, y_test)
 
@@ -120,6 +127,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.")
 
     args = parser.parse_args()
 
@@ -128,6 +136,7 @@ if __name__ == "__main__":
 
     embeddings_name = args.embedding
     transformer = args.transformer
+    output = args.output
     
     architecture = args.architecture
     if architecture not in architectures:

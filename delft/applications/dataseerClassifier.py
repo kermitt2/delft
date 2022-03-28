@@ -1,9 +1,7 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
@@ -32,7 +30,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False): 
+def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False, output_directory=None):
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
@@ -49,8 +47,12 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
+
     # saving the model
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
     
 
     print('loading reuse dataset type corpus...')
@@ -67,8 +69,12 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
+
     # saving the model
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
 
     print('loading first-level dataset type corpus...')
@@ -507,6 +513,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.")
 
     args = parser.parse_args()
 
@@ -516,6 +523,7 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
     cascaded = args.cascaded
     transformer = args.transformer
+    output = args.output
 
     architecture = args.architecture
     if architecture not in architectures:

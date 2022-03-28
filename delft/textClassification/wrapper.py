@@ -42,10 +42,8 @@ from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r
 from sklearn.model_selection import train_test_split
 
 import transformers
-transformers.logging.set_verbosity(transformers.logging.ERROR) 
-from transformers import AutoTokenizer
+transformers.logging.set_verbosity(transformers.logging.ERROR)
 
-from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
 

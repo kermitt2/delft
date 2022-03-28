@@ -24,7 +24,7 @@ def configure(architecture):
 
     return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False): 
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, output_directory=None):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
 
     root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
@@ -45,11 +45,15 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, us
     model = Sequence(model_name, max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
         embeddings_name=embeddings_name, architecture=architecture, patience=patience, early_stop=early_stop,
         transformer_name=transformer, use_ELMo=use_ELMo)
+
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
     # saving the model (must be called after eval for multiple fold training)
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
@@ -116,8 +120,9 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
+    parser.add_argument("--output", help="Directory where to save a trained model.")
+
     args = parser.parse_args()
 
     if args.action not in ('train', 'tag'):
@@ -127,13 +132,14 @@ if __name__ == "__main__":
     architecture = args.architecture
     transformer = args.transformer
     use_ELMo = args.use_ELMo
+    output = args.output
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
+        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo, output_directory=output)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 

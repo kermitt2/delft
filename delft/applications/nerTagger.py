@@ -48,7 +48,8 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
 
 
 # train a model with all available for a given dataset 
-def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False):
+def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False,
+          output_directory=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
 
@@ -151,7 +152,10 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
     print("training runtime: %s seconds " % (runtime))
 
     # saving the model
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
 
 # train and usual eval on dataset, e.g. eval with CoNLL 2003 eng.testb for CoNLL 2003 
@@ -163,7 +167,8 @@ def train_eval(embeddings_name=None,
                 fold_count=1, 
                 train_with_validation_set=False,
                 data_path=None, 
-                use_ELMo=False): 
+                use_ELMo=False,
+                output_directory=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units = configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
 
@@ -406,7 +411,10 @@ def train_eval(embeddings_name=None,
     model.eval(x_eval, y_eval)
 
     # # saving the model (must be called after eval for multiple fold training)
-    model.save()
+    if output_directory:
+        model.save(output_directory)
+    else:
+        model.save()
 
 
 # usual eval on CoNLL 2003 eng.testb 
@@ -550,6 +558,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.")
 
     args = parser.parse_args()
 
@@ -559,6 +568,7 @@ if __name__ == "__main__":
     lang = args.lang
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
+    output = args.output
     architecture = args.architecture
     if architecture not in architectures:
         print('unknown model architecture, must be one of', architectures)
@@ -582,7 +592,8 @@ if __name__ == "__main__":
             architecture=architecture, 
             transformer=transformer,
             data_path=data_path,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+        output_directory=output)
 
     if action == 'train_eval':
         if args.fold_count < 1:
@@ -596,7 +607,8 @@ if __name__ == "__main__":
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             data_path=data_path,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+        output_directory=output)
 
     if action == 'eval':
         eval(

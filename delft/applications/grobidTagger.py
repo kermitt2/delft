@@ -296,7 +296,8 @@ if __name__ == "__main__":
     parser.add_argument("action", choices=actions)
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
-    parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--architecture", choices=architectures, help="Type of model architecture to be used",
+                        required=True)
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)

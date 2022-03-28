@@ -122,7 +122,7 @@ class BaseModel(object):
         best_roc_auc = -1
 
         # default worker number for multiprocessing
-        nb_workers = 6
+        nb_workers = 0
         if self.model_config.transformer_name is not None:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0
@@ -130,24 +130,25 @@ class BaseModel(object):
 
         if validation_generator is None:
             # no early stop
-            best_loss = self.model.fit(
-                training_generator,
-                use_multiprocessing=multiprocessing,
-                workers=nb_workers,
-                class_weight=class_weights,
-                epochs=max_epoch, callbacks=callbacks)
+            pass
+            # best_loss = self.model.fit(
+            #     training_generator,
+            #     use_multiprocessing=multiprocessing,
+            #     workers=nb_workers,
+            #     class_weight=class_weights,
+            #     epochs=max_epoch, callbacks=callbacks)
         else:
             best_weights = None
             current_epoch = 1
             best_epoch = 0
             while current_epoch <= max_epoch:
 
-                loss = self.model.fit(
-                    training_generator,
-                    use_multiprocessing=multiprocessing,
-                    workers=nb_workers,
-                    class_weight=class_weights,
-                    epochs=1, callbacks=callbacks)
+                # loss = self.model.fit(
+                #     training_generator,
+                #     use_multiprocessing=multiprocessing,
+                #     workers=nb_workers,
+                #     class_weight=class_weights,
+                #     epochs=max_epoch, callbacks=callbacks)
 
                 y_pred = self.model.predict(
                     validation_generator, 
