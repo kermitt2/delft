@@ -122,7 +122,7 @@ class BaseModel(object):
         best_roc_auc = -1
 
         # default worker number for multiprocessing
-        nb_workers = 0
+        nb_workers = 6
         if self.model_config.transformer_name is not None:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0
