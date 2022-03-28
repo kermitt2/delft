@@ -206,71 +206,76 @@ class Sequence(object):
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
+        if self.model is None:
+            raise (OSError('Could not find a model.'))
+
+        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
+                         self.training_config.learning_rate, self.training_config.max_epoch,
+                         self.model_config.max_sequence_length, self.model_config.model_name,
+                         self.model_config.use_ELMo)
+        self.model.print_summary()
+
         if self.model_config.transformer_name is None:
             # we can use a data generator for evaluation
-            if self.model:
-                # Prepare test data(steps, generator)
-                generator = self.model.get_generator()
-                test_generator = generator(x_test, y_test,
-                    batch_size=self.model_config.batch_size, preprocessor=self.p,
-                    char_embed_size=self.model_config.char_embedding_size,
-                    max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings, shuffle=False, features=features,
-                    output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
-                # Build the evaluator and evaluate the model
-                scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf,
-                    use_chain_crf=self.model_config.use_chain_crf)
-                scorer.model = self.model
-                scorer.on_epoch_end(epoch=-1)
-            else:
-                raise (OSError('Could not find a model.'))
+            # Prepare test data(steps, generator)
+            generator = self.model.get_generator()
+            test_generator = generator(x_test, y_test,
+                batch_size=self.model_config.batch_size, preprocessor=self.p,
+                char_embed_size=self.model_config.char_embedding_size,
+                max_sequence_length=self.model_config.max_sequence_length,
+                embeddings=self.embeddings, shuffle=False, features=features,
+                output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
+
+            # Build the evaluator and evaluate the model
+            scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf,
+                use_chain_crf=self.model_config.use_chain_crf)
+            scorer.model = self.model
+            scorer.on_epoch_end(epoch=-1)
         else:
             # the architecture model uses a transformer layer
             # note that we could also use the above test_generator, but as an alternative here we check the 
             # test/prediction alignment of tokens and the validity of the maximum sequence input length
             # wrt the length of the test sequences 
 
-            if self.model:
-                tagger = Tagger(self.model,
-                              self.model_config,
-                              self.embeddings,
-                              preprocessor=self.p,
-                              transformer_preprocessor=self.model.transformer_preprocessor)
-                y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
-                # keep only labels
-                y_pred = []
-                for result in y_pred_pairs:
-                    result_labels = []
-                    for pair in result:
-                        result_labels.append(pair[1])
-                    y_pred.append(result_labels)
+            tagger = Tagger(self.model,
+                          self.model_config,
+                          self.embeddings,
+                          preprocessor=self.p,
+                          transformer_preprocessor=self.model.transformer_preprocessor)
+            y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
 
-                nb_alignment_issues = 0
-                for i in range(len(y_test)):
-                    if len(y_test[i]) != len(y_pred[i]):
-                        #print("y_test:", y_test[i])
-                        #print("y_pred:", y_pred[i])
+            # keep only labels
+            y_pred = []
+            for result in y_pred_pairs:
+                result_labels = []
+                for pair in result:
+                    result_labels.append(pair[1])
+                y_pred.append(result_labels)
 
-                        nb_alignment_issues += 1
-                        # BERT tokenizer appears to introduce some additional tokens without ## prefix,
-                        # but we normally handled that well when predicting.
-                        # To be very conservative, the following ensure the number of tokens always
-                        # match, but it should never be used in practice.
-                        if len(y_test[i]) < len(y_pred[i]):
-                            y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
-                        if len(y_test[i]) > len(y_pred[i]):
-                            y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
+            nb_alignment_issues = 0
+            for i in range(len(y_test)):
+                if len(y_test[i]) != len(y_pred[i]):
+                    #print("y_test:", y_test[i])
+                    #print("y_pred:", y_pred[i])
 
-                if nb_alignment_issues > 0:
-                    print("number of alignment issues with test set:", nb_alignment_issues)
-                    print("to solve them consider increasing the maximum sequence input length of the model and retrain")
+                    nb_alignment_issues += 1
+                    # BERT tokenizer appears to introduce some additional tokens without ## prefix,
+                    # but we normally handled that well when predicting.
+                    # To be very conservative, the following ensure the number of tokens always
+                    # match, but it should never be used in practice.
+                    if len(y_test[i]) < len(y_pred[i]):
+                        y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
+                    if len(y_test[i]) > len(y_pred[i]):
+                        y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
 
-                report, report_as_map = classification_report(y_test, y_pred, digits=4)
-                print(report)
-            else:
-                raise (OSError('Could not find a model.'))
+            if nb_alignment_issues > 0:
+                print("number of alignment issues with test set:", nb_alignment_issues)
+                print("to solve them consider increasing the maximum sequence input length of the model and retrain")
+
+            report, report_as_map = classification_report(y_test, y_pred, digits=4)
+            print(report)
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
