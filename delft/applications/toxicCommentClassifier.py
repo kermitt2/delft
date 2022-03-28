@@ -1,9 +1,6 @@
 import json
-from delft.utilities.Embeddings import Embeddings
-from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_texts_and_classes_pandas
 from delft.textClassification.reader import load_texts_pandas
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import pandas as pd

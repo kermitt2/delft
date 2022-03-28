@@ -75,9 +75,11 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
-                 transformer_name: str=None):
+                 transformer_name: str=None,
+                 temp_directory: str = 'data/tmp'
+                 ):
 
-        if model_name == None:
+        if model_name is None:
             # add a dummy name based on the architecture
             model_name = architecture
             if embeddings_name is not None:
@@ -96,10 +98,12 @@ class Classifier(object):
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
+        self.temp_directory = temp_directory
+
         word_emb_size = 0
         if transformer_name is not None:
             self.transformer_name = transformer_name
-            self.embeddings_name == None
+            self.embeddings_name = None
             self.embeddings = None
         elif self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
@@ -132,7 +136,7 @@ class Classifier(object):
         self.model = getModel(self.model_config, self.training_config)
 
         bert_data = False
-        if self.transformer_name != None:
+        if self.transformer_name is not None:
             bert_data = True
 
         if self.training_config.early_stop:
@@ -176,11 +180,11 @@ class Classifier(object):
 
     def predict(self, texts, output_format='json', use_main_thread_only=False):
         bert_data = False
-        if self.transformer_name != None:
+        if self.transformer_name is not None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
-            if self.model != None: 
+            if self.model is not None:
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
@@ -189,7 +193,7 @@ class Classifier(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:            
-            if self.models != None: 
+            if self.models is not None:
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 

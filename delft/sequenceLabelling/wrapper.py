@@ -528,7 +528,9 @@ class Sequence(object):
         print('preprocessor saved')
 
         if self.model is None and self.model_config.fold_number > 1:
-            print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
+            # In the future, we can change here to copy all the models instead of just the best.
+            print('Error: model not saved. Evaluation need to be called first '
+                  'to select the best fold model to be saved.')
         else:
             self.model.save(os.path.join(directory, weight_file))
 

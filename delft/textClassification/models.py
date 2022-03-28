@@ -11,6 +11,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import RMSprop
 from transformers import create_optimizer
 
+from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
@@ -122,12 +123,12 @@ class BaseModel(object):
 
         # default worker number for multiprocessing
         nb_workers = 6
-        if self.model_config.transformer_name != None:
+        if self.model_config.transformer_name is not None:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0
             multiprocessing = False
 
-        if validation_generator == None:
+        if validation_generator is None:
             # no early stop
             best_loss = self.model.fit(
                 training_generator,
@@ -256,7 +257,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, callbacks=None):
+def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig, embeddings, tmp_directory: str, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -268,7 +269,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
     scores = []
 
     bert_data = False
-    if model_config.transformer_name != None:
+    if model_config.transformer_name is not None:
         bert_data = True
 
     for fold_id in range(0, fold_count):
@@ -305,7 +306,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
             models.append(foldModel)
         else:
             # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
-            directory = os.path.join("data/models/textClassification/", model_config.model_name)
+            directory = os.path.join(tmp_directory, model_config.model_name)
             if not os.path.exists(directory):
                 os.makedirs(directory)
 
