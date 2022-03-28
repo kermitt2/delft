@@ -130,25 +130,24 @@ class BaseModel(object):
 
         if validation_generator is None:
             # no early stop
-            pass
-            # best_loss = self.model.fit(
-            #     training_generator,
-            #     use_multiprocessing=multiprocessing,
-            #     workers=nb_workers,
-            #     class_weight=class_weights,
-            #     epochs=max_epoch, callbacks=callbacks)
+            best_loss = self.model.fit(
+                training_generator,
+                use_multiprocessing=multiprocessing,
+                workers=nb_workers,
+                class_weight=class_weights,
+                epochs=max_epoch, callbacks=callbacks)
         else:
             best_weights = None
             current_epoch = 1
             best_epoch = 0
             while current_epoch <= max_epoch:
 
-                # loss = self.model.fit(
-                #     training_generator,
-                #     use_multiprocessing=multiprocessing,
-                #     workers=nb_workers,
-                #     class_weight=class_weights,
-                #     epochs=max_epoch, callbacks=callbacks)
+                loss = self.model.fit(
+                    training_generator,
+                    use_multiprocessing=multiprocessing,
+                    workers=nb_workers,
+                    class_weight=class_weights,
+                    epochs=max_epoch, callbacks=callbacks)
 
                 y_pred = self.model.predict(
                     validation_generator, 
