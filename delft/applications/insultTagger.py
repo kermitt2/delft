@@ -101,7 +101,7 @@ if __name__ == "__main__":
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--architecture", default='BidLSTM_CRF', 
-                        help="Type of model architecture to be used, one of "+str(architectures))
+                        choices=architectures, help="Type of model architecture to be used.")
     parser.add_argument(
         "--embedding", 
         default=None,
@@ -134,7 +134,7 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     output = args.output
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

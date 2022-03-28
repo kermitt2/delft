@@ -535,7 +535,7 @@ if __name__ == "__main__":
     parser.add_argument("--lang", default='en', help="language of the model as ISO 639-1 code (en, fr, de, etc.)")
     parser.add_argument("--dataset-type",default='conll2003', help="dataset to be used for training the model")
     parser.add_argument("--train-with-validation-set", action="store_true", help="Use the validation set for training together with the training set")
-    parser.add_argument("--architecture", default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--architecture", default='BidLSTM_CRF', choices=architectures, help="type of model architecture to be used.")
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
     parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
@@ -570,8 +570,6 @@ if __name__ == "__main__":
     train_with_validation_set = args.train_with_validation_set
     output = args.output
     architecture = args.architecture
-    if architecture not in architectures:
-        print('unknown model architecture, must be one of', architectures)
     transformer = args.transformer
     data_path = args.data_path
     file_in = args.file_in

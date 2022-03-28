@@ -86,7 +86,7 @@ if __name__ == "__main__":
 
     parser.add_argument("action", help="one of [train, test, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--architecture",default='gru', help="type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--architecture", choices=architectures, default='gru', help="type of model architecture to be used.")
     parser.add_argument(
         "--embedding", 
         default=None,
@@ -118,10 +118,8 @@ if __name__ == "__main__":
     output = args.output
 
     architecture = args.architecture
-    if architecture not in architectures:
-        print('unknown model architecture, must be one of '+str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
