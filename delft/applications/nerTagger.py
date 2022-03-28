@@ -2,6 +2,7 @@ import os
 import numpy as np
 from delft.sequenceLabelling import Sequence
 from delft.utilities.Utilities import stats
+from delft.utilities.numpy import shuffle_arrays
 from delft.sequenceLabelling.reader import load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
 import argparse
@@ -23,6 +24,9 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
                 embeddings_name = 'fasttext-crawl'
         elif lang == 'fr':
             embeddings_name = 'wiki.fr'
+
+    if lang == 'fr':
+        multiprocessing = False
 
     if architecture == "BidLSTM_CNN_CRF":
         word_lstm_units = 200
@@ -126,6 +130,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
         print('Loading data...')
         dataset_type = 'lemonde'
         x_all, y_all = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml')
+        shuffle_arrays([x_all, y_all])
         x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
@@ -297,8 +302,9 @@ def train_eval(embeddings_name=None,
                             multiprocessing=multiprocessing)
 
     elif (lang == 'fr') and (dataset_type == 'ftb' or dataset_type is None):
-        print('Loading data...')
+        print('Loading data for ftb...')
         x_all, y_all = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml')
+        shuffle_arrays([x_all, y_all])
         x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
         x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
@@ -322,8 +328,9 @@ def train_eval(embeddings_name=None,
                         use_ELMo=use_ELMo,
                         multiprocessing=multiprocessing)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
-        print('Loading data...')
+        print('Loading data for ftb_force_split...')
         x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_train.conll')
+        shuffle_arrays([x_train, y_train])
         x_valid, y_valid = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_dev.conll')
         x_eval, y_eval = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_test.conll')
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
@@ -367,8 +374,9 @@ def train_eval(embeddings_name=None,
                             use_ELMo=use_ELMo,
                             multiprocessing=multiprocessing)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split_xml'):
-        print('Loading data...')
+        print('Loading data for ftb_force_split_xml...')
         x_train, y_train = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.train.xml')
+        shuffle_arrays([x_train, y_train])
         x_valid, y_valid = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.dev.xml')
         x_eval, y_eval = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.test.xml')
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)

@@ -14,14 +14,14 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 
 | Architecture  | Implementation | Glove only (avg / best)| Glove + valid. set (avg / best)| ELMo + Glove (avg / best)| ELMo + Glove + valid. set (avg / best)|
 | --- | --- | --- | --- | --- | --- |
-| BidLSTM-CRF   | DeLFT | __91.03__ / __91.38__  | 91.37 / 91.69 | __92.57__ / __92.80__ | __92.95__ / __93.21__ | 
+| BidLSTM_CRF   | DeLFT | __91.03__ / __91.38__  | 91.37 / 91.69 | __92.57__ / __92.80__ | __92.95__ / __93.21__ | 
 |               | [(Lample and al., 2016)](https://arxiv.org/abs/1603.01360) | - / 90.94 |      |              |               | 
-| BidLSTM-CNN-CRF | DeLFT | 90.64 / 91.23| 90.98 / 91.38 | 92.30 / 92.57| 92.67 / 93.04 |
+| BidLSTM_CNN_CRF | DeLFT | 90.64 / 91.23| 90.98 / 91.38 | 92.30 / 92.57| 92.67 / 93.04 |
 |               | [(Ma & Hovy, 2016)](https://arxiv.org/abs/1603.01354) |  - / 91.21  | | | |
 |               | [(Peters & al. 2018)](https://arxiv.org/abs/1802.05365) |  | | 92.22** / - | |
-| BidLSTM-CNN   | DeLFT | 89.49 / 89.96  | 89.85 / 90.13 | 91.66 / 92.00 | 92.01 / 92.16 |
+| BidLSTM_CNN   | DeLFT | 89.49 / 89.96  | 89.85 / 90.13 | 91.66 / 92.00 | 92.01 / 92.16 |
 |               | [(Chiu & Nichols, 2016)](https://arxiv.org/abs/1511.08308) || __90.88***__ / - | | |
-| BidGRU-CRF    | DeLFT | 90.17 / 90.55  | 91.04 / 91.40 | 92.03 / 92.44 | 92.43 / 92.71 |
+| BidGRU_CRF    | DeLFT | 90.17 / 90.55  | 91.04 / 91.40 | 92.03 / 92.44 | 92.43 / 92.71 |
 |               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
 
 Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax. A CRF activation layer improves f-score in average by around +0.10 for sequence labelling task, but increase the runtime by 23%: 
@@ -94,9 +94,9 @@ optional arguments:
 
 DeLFT comes with various trained models for the CoNLL-2003 NER dataset.
 
-By default, the BidLSTM-CRF architecture is used.  
+By default, the `BidLSTM_CRF` architecture is used.  
 
-Using BidLSTM-CRF model with ELMo embeddings, following [7] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/docs/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), improve the f1 score on CoNLL 2003 significantly.
+Using `BidLSTM_CRF` model with ELMo embeddings, following [7] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/docs/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), improve the f1 score on CoNLL 2003 significantly.
 
 For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` in IOB2 tagging sceheme (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/4cbfc3a1b4c4a5242e1cfbaea48d6f7e972e8881/data/conll2003/en) for instance ;) and [here](https://github.com/kermitt2/delft/tree/master/delft/utilities). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
@@ -110,7 +110,7 @@ Some recent works like (Chiu & Nichols, 2016) and (Peters and al., 2017) also tr
 
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --train-with-validation-set train_eval
 
-Note that, by default, the BidLSTM-CRF model is used. (Documentation on selecting other models and setting hyperparameters to be included here !)
+Note that, by default, the `BidLSTM_CRF` model is used. (Documentation on selecting other models and setting hyperparameters to be included here !)
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
@@ -392,75 +392,94 @@ In practice, we need to repeat training and evaluation several times to neutrali
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb --fold-count 10 train_eval
 ```
 
-
-The performance is as follow, for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, with a f-score of __91.01__ averaged over 10 training:
+The performance is as follow, for the `BiLSTM_CRF` architecture and fasttext `wiki.fr` embeddings, averaged over 10 training:
 
 ```text
-average over 10 folds
-  macro f1 = 0.9100881012386587
-  macro precision = 0.9048633201198737
-  macro recall = 0.9153907496012759 
+----------------------------------------------------------------------
 
-** Worst ** model scores - 
-
+** Worst ** model scores - run 2
                   precision    recall  f1-score   support
 
-      <location>     0.9467    0.9647    0.9556       368
-   <institution>     0.8621    0.8333    0.8475        30
-      <artifact>     1.0000    0.5000    0.6667         4
-  <organisation>     0.9146    0.8089    0.8585       225
-        <person>     0.9264    0.9522    0.9391       251
-      <business>     0.8463    0.8936    0.8693       376
+      <artifact>     1.0000    0.5000    0.6667         8
+      <business>     0.8242    0.8772    0.8499       342
+   <institution>     0.8571    0.7826    0.8182        23
+      <location>     0.9386    0.9582    0.9483       383
+  <organisation>     0.8750    0.7292    0.7955       240
+        <person>     0.9631    0.9457    0.9543       221
 
-all (micro avg.)     0.9040    0.9083    0.9061      1254
+all (micro avg.)     0.8964    0.8817    0.8890      1217
 
-** Best ** model scores - 
 
+** Best ** model scores - run 3
                   precision    recall  f1-score   support
 
-      <location>     0.9439    0.9592    0.9515       368
-   <institution>     0.8667    0.8667    0.8667        30
-      <artifact>     1.0000    0.5000    0.6667         4
-  <organisation>     0.8813    0.8578    0.8694       225
-        <person>     0.9453    0.9641    0.9546       251
-      <business>     0.8706    0.9122    0.8909       376
+      <artifact>     1.0000    0.7500    0.8571         8
+      <business>     0.8457    0.8977    0.8709       342
+   <institution>     0.8182    0.7826    0.8000        23
+      <location>     0.9367    0.9661    0.9512       383
+  <organisation>     0.8832    0.7875    0.8326       240
+        <person>     0.9459    0.9502    0.9481       221
 
-all (micro avg.)     0.9090    0.9242    0.9166      1254
+all (micro avg.)     0.9002    0.9039    0.9020      1217
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+      <artifact>     1.0000    0.6000    0.7432         8
+      <business>     0.8391    0.8830    0.8605       342
+   <institution>     0.8469    0.7652    0.8035        23
+      <location>     0.9388    0.9645    0.9514       383
+  <organisation>     0.8644    0.7592    0.8079       240
+        <person>     0.9463    0.9529    0.9495       221
+
+all (micro avg.)     0.8961    0.8929    0.8945
 ```
 
 With frELMo:
 
 ```text
-average over 10 folds
-    macro f1 = 0.9209397554337976
-    macro precision = 0.91949107960079
-    macro recall = 0.9224082934609251 
+----------------------------------------------------------------------
 
-** Worst ** model scores - 
-
+** Worst ** model scores - run 2
                   precision    recall  f1-score   support
 
-  <organisation>     0.8704    0.8356    0.8526       225
-        <person>     0.9344    0.9641    0.9490       251
-      <artifact>     1.0000    0.5000    0.6667         4
-      <location>     0.9173    0.9647    0.9404       368
-   <institution>     0.8889    0.8000    0.8421        30
-      <business>     0.9130    0.8936    0.9032       376
+      <artifact>     1.0000    0.5000    0.6667         8
+      <business>     0.8704    0.9035    0.8867       342
+   <institution>     0.8000    0.6957    0.7442        23
+      <location>     0.9342    0.9634    0.9486       383
+  <organisation>     0.8043    0.7875    0.7958       240
+        <person>     0.9641    0.9729    0.9685       221
 
-all (micro avg.)     0.9110    0.9147    0.9129      1254
+all (micro avg.)     0.8945    0.9055    0.9000      1217
 
-** Best ** model scores - 
 
+** Best ** model scores - run 3
                   precision    recall  f1-score   support
 
-  <organisation>     0.9061    0.8578    0.8813       225
-        <person>     0.9416    0.9641    0.9528       251
-      <artifact>     1.0000    0.5000    0.6667         4
-      <location>     0.9570    0.9674    0.9622       368
-   <institution>     0.8889    0.8000    0.8421        30
-      <business>     0.9016    0.9255    0.9134       376
+      <artifact>     1.0000    0.7500    0.8571         8
+      <business>     0.8883    0.9298    0.9086       342
+   <institution>     0.8500    0.7391    0.7907        23
+      <location>     0.9514    0.9713    0.9612       383
+  <organisation>     0.8597    0.7917    0.8243       240
+        <person>     0.9774    0.9774    0.9774       221
 
-all (micro avg.)     0.9268    0.9290    0.9279      1254
+all (micro avg.)     0.9195    0.9195    0.9195      1217
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+      <artifact>     0.8833    0.5125    0.6425         8
+      <business>     0.8803    0.9067    0.8933       342
+   <institution>     0.7933    0.7391    0.7640        23
+      <location>     0.9438    0.9679    0.9557       383
+  <organisation>     0.8359    0.8004    0.8176       240
+        <person>     0.9699    0.9760    0.9729       221
+
+all (micro avg.)     0.9073    0.9118    0.9096 
 ```
 
 For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
@@ -469,96 +488,96 @@ For historical reason, we can also consider a particular split of the FTB corpus
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 train_eval
 ```
 
-which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, a f-score of __86.37__ averaged over 10 training:
+which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings averaged over 10 training:
 
 ```
-average over 10 folds
-                    precision    recall  f1-score   support
+----------------------------------------------------------------------
 
-      Organization     0.8410    0.7431    0.7888       311
-            Person     0.9086    0.9327    0.9204       205
-          Location     0.9219    0.9144    0.9181       347
-           Company     0.8140    0.8603    0.8364       290
-  FictionCharacter     0.0000    0.0000    0.0000         2
-           Product     1.0000    1.0000    1.0000         3
-               POI     0.0000    0.0000    0.0000         0
-           company     0.0000    0.0000    0.0000         0
-
-  macro f1 = 0.8637
-  macro precision = 0.8708
-  macro recall = 0.8567 
-
-
-** Worst ** model scores -
+** Worst ** model scores - run 4
                   precision    recall  f1-score   support
 
-    Organization     0.8132    0.7138    0.7603       311
-        Location     0.9152    0.9020    0.9086       347
-         Company     0.7926    0.8172    0.8048       290
-          Person     0.9095    0.9317    0.9205       205
-         Product     1.0000    1.0000    1.0000         3
+         Company     0.7908    0.7690    0.7797       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9164    0.9164    0.9164       347
+    Organization     0.7895    0.7235    0.7550       311
+          Person     0.9000    0.9220    0.9108       205
+         Product     1.0000    0.3333    0.5000         3
 
-all (micro avg.)     0.8571    0.8342    0.8455      1158
+all (micro avg.)     0.8498    0.8256    0.8375      1158
 
 
-** Best ** model scores -
+** Best ** model scores - run 0
                   precision    recall  f1-score   support
 
-    Organization     0.8542    0.7910    0.8214       311
-        Location     0.9226    0.9280    0.9253       347
-         Company     0.8212    0.8552    0.8378       290
-          Person     0.9095    0.9317    0.9205       205
-         Product     1.0000    1.0000    1.0000         3
+         Company     0.8026    0.8552    0.8280       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9326    0.9164    0.9244       347
+    Organization     0.8244    0.7395    0.7797       311
+          Person     0.8826    0.9171    0.8995       205
+         Product     1.0000    1.0000    1.0000         3
 
-all (micro avg.)     0.8767    0.8722    0.8745      1158
+all (micro avg.)     0.8620    0.8523    0.8571      1158
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+         Company     0.7920    0.8148    0.8030       290
+FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9234    0.9098    0.9165       347
+    Organization     0.8071    0.7328    0.7681       311
+             POI     0.0000    0.0000    0.0000         0
+          Person     0.8974    0.9254    0.9112       205
+         Product     1.0000    0.9000    0.9300         3
+
+all (micro avg.)     0.8553    0.8396    0.8474  
 ```
 
 With frELMo:
 
 ```
-average over 10 folds
-                    precision    recall  f1-score   support
+----------------------------------------------------------------------
 
-      Organization     0.8605    0.7752    0.8155       311
-            Person     0.9227    0.9371    0.9298       205
-          Location     0.9281    0.9432    0.9356       347
-           Company     0.8401    0.8779    0.8585       290
-  FictionCharacter     0.1000    0.0500    0.0667         2
-           Product     0.8750    1.0000    0.9286         3
-               POI     0.0000    0.0000    0.0000         0
-           company     0.0000    0.0000    0.0000         0
-
-  macro f1 = 0.8831
-  macro precision = 0.8870
-  macro recall = 0.8793 
-
-
-** Worst ** model scores -
+** Worst ** model scores - run 3
                   precision    recall  f1-score   support
 
-        Location     0.9366    0.9366    0.9366       347
-    Organization     0.8309    0.7428    0.7844       311
-          Person     0.9268    0.9268    0.9268       205
-         Company     0.8179    0.8828    0.8491       290
-         Product     0.7500    1.0000    0.8571         3
+         Company     0.8215    0.8414    0.8313       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9020    0.9280    0.9148       347
+    Organization     0.7833    0.7556    0.7692       311
+          Person     0.9327    0.9463    0.9395       205
+         Product     0.0000    0.0000    0.0000         3
 
-all (micro avg.)     0.8762    0.8679    0.8720      1158
+all (micro avg.)     0.8563    0.8592    0.8578      1158
 
 
-** Best ** model scores -
+** Best ** model scores - run 1
                   precision    recall  f1-score   support
 
-        Location     0.9220    0.9539    0.9377       347
-    Organization     0.8777    0.7846    0.8285       311
-          Person     0.9187    0.9366    0.9275       205
-         Company     0.8444    0.9172    0.8793       290
-         Product     1.0000    1.0000    1.0000         3
+         Company     0.8289    0.8690    0.8485       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9290    0.9424    0.9356       347
+    Organization     0.8475    0.7685    0.8061       311
+          Person     0.9327    0.9463    0.9395       205
+         Product     0.6667    0.6667    0.6667         3
 
-all (micro avg.)     0.8900    0.8946    0.8923      1158
+all (micro avg.)     0.8825    0.8756    0.8791      1158
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+         Company     0.8195    0.8503    0.8346       290
+FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9205    0.9363    0.9283       347
+    Organization     0.8256    0.7595    0.7910       311
+             POI     0.0000    0.0000    0.0000         0
+          Person     0.9286    0.9454    0.9369       205
+         Product     0.7417    0.6667    0.6824         3
+
+all (micro avg.)     0.8718    0.8666    0.8691
 ```
 
 For the `ftb_force_split` dataset, similarly as for CoNLL 2013, you can use the `train_with_validation_set` parameter to add the validation set in the training data. The above results are all obtained without using `train_with_validation_set` (which is the common approach).
