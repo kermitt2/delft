@@ -8,7 +8,7 @@ build:
 
 python:
   install:
-    - requirements: docs/requirements.txt
+    - requirements: doc/requirements.txt
     - requirements: requirements.txt
 
 mkdocs:
