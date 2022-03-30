@@ -172,11 +172,11 @@ class Trainer(object):
             nb_workers = 0 
             multiprocessing = False
 
-        # local_model.fit(training_generator,
-        #                         epochs=max_epoch,
-        #                         use_multiprocessing=multiprocessing,
-        #                         workers=nb_workers,
-        #                         callbacks=_callbacks)
+        local_model.fit(training_generator,
+                                epochs=max_epoch,
+                                use_multiprocessing=multiprocessing,
+                                workers=nb_workers,
+                                callbacks=_callbacks)
 
         return local_model
 
