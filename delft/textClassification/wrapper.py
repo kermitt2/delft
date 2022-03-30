@@ -173,7 +173,7 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
+        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, tmp_directory=self.temp_directory, callbacks=callbacks)
 
 
     def predict(self, texts, output_format='json', use_main_thread_only=False):
