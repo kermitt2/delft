@@ -1,4 +1,7 @@
 import json
+
+import numpy as np
+
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_software_context_corpus_json
 from delft.textClassification import Classifier
