@@ -1,4 +1,6 @@
 import json
+import sys
+
 from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_software_use_corpus_json
@@ -165,6 +167,10 @@ if __name__ == "__main__":
     if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
+    else:
+        if architecture != "bert":
+            print('Architecture should be specified and equal to "bert"')
+            sys.exit(-1)
 
     if args.action == 'train':
         if args.fold_count < 1:

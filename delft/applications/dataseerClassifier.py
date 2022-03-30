@@ -1,9 +1,9 @@
 import json
-from delft.utilities.Embeddings import Embeddings
+import sys
+
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
@@ -32,7 +32,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False): 
+def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False):
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
@@ -521,6 +521,10 @@ if __name__ == "__main__":
     if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
+    else:
+        if architecture != "bert":
+            print('Architecture should be specified and equal to "bert"')
+            sys.exit(-1)
 
     if args.action == 'train':
         if args.fold_count < 1:

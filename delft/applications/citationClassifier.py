@@ -1,8 +1,8 @@
 import json
-from delft.utilities.Embeddings import Embeddings
+import sys
+
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_citation_sentiment_corpus
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
@@ -54,7 +54,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None): 
+def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier('citations_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
@@ -134,6 +134,10 @@ if __name__ == "__main__":
     if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
+    else:
+        if architecture != "bert":
+            print('Architecture should be specified and equal to "bert"')
+            sys.exit(-1)
 
     if args.action == 'train':
         if args.fold_count < 1:

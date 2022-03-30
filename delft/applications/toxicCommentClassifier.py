@@ -120,6 +120,10 @@ if __name__ == "__main__":
     if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
+    else:
+        if architecture != "bert":
+            print('Architecture should be specified and equal to "bert"')
+            sys.exit(-1)
 
     if architecture.find("bert") != -1:
         print('BERT models are not supported for multi-label labelling, at least for the moment. Please choose a RNN architecture.')
