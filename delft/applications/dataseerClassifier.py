@@ -14,7 +14,7 @@ import numpy as np
 """
 
 def configure(architecture):
-    batch_size = 256
+    batch_size = 200
     maxlen = 300
     patience = 5
     early_stop = True
@@ -76,9 +76,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     else:
         model.save()
 
-
     print('loading first-level dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
 
     model_name = 'dataseer-first_' + architecture
 
@@ -143,10 +142,10 @@ def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", trans
     train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    #train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for first level data type hierarchy
-    #train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
@@ -342,12 +341,12 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
         # saving the model
         model.save()
     
-def classify(texts, output_format, architecture="gru", transformer=None, cascaded=False, embeddings_name=None):
+def classify(texts, output_format, architecture="gru"):
     '''
         Classify a list of texts with an existing model
     '''
     # load model
-    model = Classifier('dataseer_'+architecture, architecture=architecture, transformer_name=transformer, embeddings_name=embeddings_name)
+    model = Classifier('dataseer-binary_'+architecture)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -548,5 +547,5 @@ if __name__ == "__main__":
         someTexts = ['Labeling yield and radiochemical purity was analyzed by instant thin layered chromatography (ITLC).', 
             'NOESY and ROESY spectra64,65 were collected with typically 128 scans per t1 increment, with the residual water signal removed by the WATERGATE sequence and 1 s relaxation time.', 
             'The concentrations of Cd and Pb in feathers were measured by furnace atomic absorption spectrometry (VARIAN 240Z).']
-        result = classify(someTexts, "json", architecture=architecture, cascaded=cascaded, embeddings_name=embeddings_name, transformer=transformer)
+        result = classify(someTexts, "json", architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))  

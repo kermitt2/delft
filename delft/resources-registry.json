@@ -109,10 +109,9 @@
         },
         {
             "name": "elmo-fr",
-            "path": "/media/lopez/T51/embeddings/elmo_fr_020/",
-            "path-config": "/media/lopez/T51/embeddings/elmo_fr_020/options.json",
-            "path_weights": "/media/lopez/T51/embeddings/frELMo/weights.hdf5",
-            "path-vocab": "data/models/ELMo/elmo_fr_020/vocab.txt",
+            "path-config": "/media/lopez/T51/embeddings/elmo_fr_020/elmo_fr_020_options.json",
+            "path_weights": "/media/lopez/T51/embeddings/elmo_fr_020/elmo_fr_020_weights.hdf5",
+            "path-vocab": "data/models/ELMo/fr/vocab.txt",
             "path-cache": "data/models/ELMo/fr/",
             "cache-training": true,
             "lang": "fr",

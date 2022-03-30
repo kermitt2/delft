@@ -14,25 +14,25 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 
 | Architecture  | Implementation | Glove only (avg / best)| Glove + valid. set (avg / best)| ELMo + Glove (avg / best)| ELMo + Glove + valid. set (avg / best)|
 | --- | --- | --- | --- | --- | --- |
-| BidLSTM-CRF   | DeLFT | __90.75__ / __91.35__  | 91.13 / 91.60 | __92.47__ / __92.71__ | __92.69__ / __93.09__ | 
+| BidLSTM_CRF   | DeLFT | __91.03__ / __91.38__  | 91.37 / 91.69 | __92.57__ / __92.80__ | __92.95__ / __93.21__ | 
 |               | [(Lample and al., 2016)](https://arxiv.org/abs/1603.01360) | - / 90.94 |      |              |               | 
-| BidLSTM-CNN-CRF | DeLFT | 90.73 / 91.07| 91.01 / 91.26 | 92.30 / 92.57| 92.67 / 93.04 |
+| BidLSTM_CNN_CRF | DeLFT | 90.64 / 91.23| 90.98 / 91.38 | 92.30 / 92.57| 92.67 / 93.04 |
 |               | [(Ma & Hovy, 2016)](https://arxiv.org/abs/1603.01354) |  - / 91.21  | | | |
 |               | [(Peters & al. 2018)](https://arxiv.org/abs/1802.05365) |  | | 92.22** / - | |
-| BidLSTM-CNN   | DeLFT | 89.23 / 89.47  | 89.35 / 89.87 | 91.66 / 92.00 | 92.01 / 92.16 |
+| BidLSTM_CNN   | DeLFT | 89.49 / 89.96  | 89.85 / 90.13 | 91.66 / 92.00 | 92.01 / 92.16 |
 |               | [(Chiu & Nichols, 2016)](https://arxiv.org/abs/1511.08308) || __90.88***__ / - | | |
-| BidGRU-CRF    | DeLFT | 90.38 / 90.72  | 90.28 / 90.69 | 92.03 / 92.44 | 92.43 / 92.71 |
+| BidGRU_CRF    | DeLFT | 90.17 / 90.55  | 91.04 / 91.40 | 92.03 / 92.44 | 92.43 / 92.71 |
 |               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
 
 Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax. A CRF activation layer improves f-score in average by around +0.10 for sequence labelling task, but increase the runtime by 23%: 
 
 | Architecture  | Implementation | f-score |
 | --- | --- | --- | 
-| bert-base-en    | DeLFT | 90.9 |  
-| bert-base-en+CRF    | DeLFT | 91.2 |  
+| bert-base-en    | DeLFT | 91.19 |  
+| bert-base-en+CRF    | DeLFT | 91.25 |  
 | bert-base-en        | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
 
-For DeLFT, the average is obtained with 10 training runs (see [full results](https://github.com/kermitt2/delft/pull/78#issuecomment-569493805)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not reproducible, and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition (the original paper probably reported token-level metrics instead of the usual entity-level metrics, giving in our humble opinion a misleading conclusion about the performance of transformers alone for sequence labelling tasks). 
+For DeLFT, the average is obtained with 10 training runs (see latest [full results](https://github.com/kermitt2/delft/blob/master/doc/sequence_labeling.0.3.0.txt)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not easily reproducible (if reproducible), and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition. 
 
 _*_ reported f-score using Senna word embeddings and not Glove.
 
@@ -94,9 +94,9 @@ optional arguments:
 
 DeLFT comes with various trained models for the CoNLL-2003 NER dataset.
 
-By default, the BidLSTM-CRF architecture is used. With this available model, glove-840B word embeddings, and optimisation of hyperparameters, the current f1 score on CoNLL 2003 _testb_ set is __91.35__ (best run over 10 training, using _train_ set for training and _testa_ for validation), as compared to the 90.94 reported in [1], or __90.75__ when averaged over 10 training. Best model f1 score becomes __91.60__ when using both _train_ and _testa_ (validation set) for training (best run over 10 training), as it is done by (Chiu & Nichols, 2016) or some recent works like (Peters and al., 2017).  
+By default, the `BidLSTM_CRF` architecture is used.  
 
-Using BidLSTM-CRF model with ELMo embeddings, following [5] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/docs/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), make the predictions around 30 times slower but improve the f1 score on CoNLL 2003 currently to __92.47__ (averaged over 10 training, __92.71__ for best model, using _train_ set for training and _testa_ for validation), or __92.69__ (averaged over 10 training, __93.09__ best model) when training with the validation set (as in the paper Peters and al., 2017).
+Using `BidLSTM_CRF` model with ELMo embeddings, following [7] and some parameter optimisations and [warm-up](https://github.com/allenai/allennlp/blob/master/docs/tutorials/how_to/elmo.md#notes-on-statefulness-and-non-determinism), improve the f1 score on CoNLL 2003 significantly.
 
 For re-training a model, the CoNLL-2003 NER dataset (`eng.train`, `eng.testa`, `eng.testb`) must be present under `data/sequenceLabelling/CoNLL-2003/` in IOB2 tagging sceheme (look [here](https://github.com/Franck-Dernoncourt/NeuroNER/tree/4cbfc3a1b4c4a5242e1cfbaea48d6f7e972e8881/data/conll2003/en) for instance ;) and [here](https://github.com/kermitt2/delft/tree/master/delft/utilities). The CONLL 2003 dataset (English) is the default dataset and English is the default language, but you can also indicate it explicitly as parameter with `--dataset-type conll2003` and specifying explicitly the language `--lang en`.
 
@@ -110,7 +110,7 @@ Some recent works like (Chiu & Nichols, 2016) and (Peters and al., 2017) also tr
 
 > python3 delft/applications/nerTagger.py --dataset-type conll2003 --train-with-validation-set train_eval
 
-Note that, by default, the BidLSTM-CRF model is used. (Documentation on selecting other models and setting hyperparameters to be included here !)
+Note that, by default, the `BidLSTM_CRF` model is used. (Documentation on selecting other models and setting hyperparameters to be included here !)
 
 For evaluating against CoNLL 2003 testb set with the existing model:
 
@@ -137,7 +137,7 @@ If the model has been trained also with the validation set (`--train-with-valida
 ```text
     Evaluation on test set:
         f1 (micro): 91.60
-                 precision    recall    f1-score    support
+                 precision    recall  f1-score   support
 
             LOC     0.9219    0.9418    0.9318      1668
            MISC     0.8277    0.8077    0.8176       702
@@ -151,19 +151,16 @@ Using ELMo with the best model obtained over 10 training (not using the validati
 
 ```text
     Evaluation on test set:
-        f1 (micro): 92.71
-                      precision    recall  f1-score   support
+        f1 (micro): 92.80
+                  precision    recall  f1-score   support
 
-                 PER     0.9787    0.9672    0.9729      1617
-                 LOC     0.9368    0.9418    0.9393      1668
-                MISC     0.8237    0.8319    0.8278       702
-                 ORG     0.9072    0.9181    0.9126      1661
+             LOC     0.9401    0.9412    0.9407      1668
+            MISC     0.8104    0.8405    0.8252       702
+             ORG     0.9107    0.9151    0.9129      1661
+             PER     0.9800    0.9722    0.9761      1617
 
-    all (micro avg.)     0.9257    0.9285    0.9271      5648
-
+all (micro avg.)     0.9261    0.9299    0.9280      5648
 ```
-
-Using ELMo and training with the validation set gives a f-score of 93.09 (best model), 92.69 averaged over 10 runs (the best model is provided under `data/models/sequenceLabelling/ner-en-conll2003-BidLSTM_CRF/with_validation_set/`).
 
 Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
 
@@ -272,20 +269,19 @@ For English NER tagging, when used, the default static embeddings is Glove (`glo
 
 ## Ontonotes 5.0 CONLL 2012
 
-DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Default static embeddings for Ontonotes are `fasttext-crawl`, which can be changed with parameter `--embedding`.
+DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Static embeddings for Ontonotes can be set with parameter `--embedding`.
 
-With the default BidLSTM-CRF architecture, FastText embeddings and without any parameter tuning, f1 score is __86.65__ averaged over these 10 trainings, with best run at  __87.01__ (provided model) when trained with the train set strictly. 
-
-With ELMo, f-score is __88.66__ averaged over these 10 trainings, and with best best run at __89.01__.
-
-For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/delft/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), use:
+For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/delft/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), with `BidLSTM_CRF` architecture use:
 
 ```sh
-> python3 nerTagger.py --dataset-type conll2012 train_eval
+> python3 nerTagger.py --dataset-type conll2012 train_eval --architecture BidLSTM_CRF --embedding glove-840B
 ```
 
 ```text
+training runtime: 23692.0 seconds
+
 Evaluation on test set:
+
     f1 (micro): 87.01
                   precision    recall  f1-score   support
 
@@ -311,33 +307,73 @@ Evaluation on test set:
 all (micro avg.)     0.8647    0.8755    0.8701     11257
 ```
 
-With ELMo embeddings (using the default hyper-parameters, except the batch size which is increased to better learn the less frequent classes):
+With `bert-base-cased` `BERT_CRF` architecture:
 
-```text
+```sh
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2012 --architecture BERT_CRF --transformer bert-base-cased
+```
+
+```
+training runtime: 14367.8 seconds
+
 Evaluation on test set:
-  f1 (micro): 89.01
+
                   precision    recall  f1-score   support
 
-             LAW     0.7188    0.5750    0.6389        40
-         PERCENT     0.8946    0.8997    0.8971       349
-           EVENT     0.6212    0.6508    0.6357        63
-        CARDINAL     0.8616    0.7722    0.8144       935
-        QUANTITY     0.7838    0.8286    0.8056       105
-            NORP     0.9232    0.9572    0.9399       841
-             LOC     0.7459    0.7709    0.7582       179
-            DATE     0.8629    0.8252    0.8437      1602
-        LANGUAGE     0.8750    0.6364    0.7368        22
-             GPE     0.9637    0.9607    0.9622      2240
-         ORDINAL     0.8145    0.9231    0.8654       195
-             ORG     0.9033    0.8903    0.8967      1795
-           MONEY     0.8851    0.9076    0.8962       314
-             FAC     0.8257    0.6667    0.7377       135
-            TIME     0.6592    0.6934    0.6759       212
-          PERSON     0.9350    0.9477    0.9413      1988
-     WORK_OF_ART     0.6467    0.7169    0.6800       166
-         PRODUCT     0.6867    0.7500    0.7170        76
+        CARDINAL     0.8443    0.8064    0.8249       935
+            DATE     0.8474    0.8770    0.8620      1602
+           EVENT     0.7460    0.7460    0.7460        63
+             FAC     0.7163    0.7481    0.7319       135
+             GPE     0.9657    0.9437    0.9546      2240
+        LANGUAGE     0.8889    0.7273    0.8000        22
+             LAW     0.6857    0.6000    0.6400        40
+             LOC     0.6965    0.7821    0.7368       179
+           MONEY     0.8882    0.9108    0.8994       314
+            NORP     0.9350    0.9584    0.9466       841
+         ORDINAL     0.8199    0.8872    0.8522       195
+             ORG     0.8908    0.8997    0.8952      1795
+         PERCENT     0.8917    0.8968    0.8943       349
+          PERSON     0.9396    0.9472    0.9434      1988
+         PRODUCT     0.5600    0.7368    0.6364        76
+        QUANTITY     0.6187    0.8190    0.7049       105
+            TIME     0.6184    0.6651    0.6409       212
+     WORK_OF_ART     0.6138    0.6988    0.6535       166
 
-all (micro avg.)     0.8939    0.8864    0.8901     11257
+all (micro avg.)     0.8825    0.8951    0.8888     11257
+```
+
+With ELMo embeddings (using the default hyper-parameters, except the batch size which is increased to better learn the less frequent classes):
+
+```sh
+> python3 delft/applications/nerTagger.py train_eval --dataset-type conll2012 --architecture BidLSTM_CRF --embedding glove-840B --use-ELMo
+```
+
+```
+training runtime: 36812.025 seconds 
+
+Evaluation on test set:
+                  precision    recall  f1-score   support
+
+        CARDINAL     0.8534    0.8342    0.8437       935
+            DATE     0.8499    0.8733    0.8615      1602
+           EVENT     0.7091    0.6190    0.6610        63
+             FAC     0.7667    0.6815    0.7216       135
+             GPE     0.9682    0.9527    0.9604      2240
+        LANGUAGE     0.9286    0.5909    0.7222        22
+             LAW     0.7000    0.5250    0.6000        40
+             LOC     0.7759    0.7542    0.7649       179
+           MONEY     0.9054    0.9140    0.9097       314
+            NORP     0.9323    0.9501    0.9411       841
+         ORDINAL     0.8082    0.9077    0.8551       195
+             ORG     0.8950    0.9019    0.8984      1795
+         PERCENT     0.9117    0.9169    0.9143       349
+          PERSON     0.9430    0.9482    0.9456      1988
+         PRODUCT     0.6410    0.6579    0.6494        76
+        QUANTITY     0.7890    0.8190    0.8037       105
+            TIME     0.6683    0.6462    0.6571       212
+     WORK_OF_ART     0.6301    0.6566    0.6431       166
+
+all (micro avg.)     0.8943    0.8956    0.8949     11257
 ```
 
 ## French model (based on Le Monde corpus)
@@ -356,75 +392,94 @@ In practice, we need to repeat training and evaluation several times to neutrali
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb --fold-count 10 train_eval
 ```
 
-
-The performance is as follow, for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, with a f-score of __91.01__ averaged over 10 training:
+The performance is as follow, for the `BiLSTM_CRF` architecture and fasttext `wiki.fr` embeddings, averaged over 10 training:
 
 ```text
-average over 10 folds
-  macro f1 = 0.9100881012386587
-  macro precision = 0.9048633201198737
-  macro recall = 0.9153907496012759 
+----------------------------------------------------------------------
 
-** Worst ** model scores - 
-
+** Worst ** model scores - run 2
                   precision    recall  f1-score   support
 
-      <location>     0.9467    0.9647    0.9556       368
-   <institution>     0.8621    0.8333    0.8475        30
-      <artifact>     1.0000    0.5000    0.6667         4
-  <organisation>     0.9146    0.8089    0.8585       225
-        <person>     0.9264    0.9522    0.9391       251
-      <business>     0.8463    0.8936    0.8693       376
+      <artifact>     1.0000    0.5000    0.6667         8
+      <business>     0.8242    0.8772    0.8499       342
+   <institution>     0.8571    0.7826    0.8182        23
+      <location>     0.9386    0.9582    0.9483       383
+  <organisation>     0.8750    0.7292    0.7955       240
+        <person>     0.9631    0.9457    0.9543       221
 
-all (micro avg.)     0.9040    0.9083    0.9061      1254
+all (micro avg.)     0.8964    0.8817    0.8890      1217
 
-** Best ** model scores - 
 
+** Best ** model scores - run 3
                   precision    recall  f1-score   support
 
-      <location>     0.9439    0.9592    0.9515       368
-   <institution>     0.8667    0.8667    0.8667        30
-      <artifact>     1.0000    0.5000    0.6667         4
-  <organisation>     0.8813    0.8578    0.8694       225
-        <person>     0.9453    0.9641    0.9546       251
-      <business>     0.8706    0.9122    0.8909       376
+      <artifact>     1.0000    0.7500    0.8571         8
+      <business>     0.8457    0.8977    0.8709       342
+   <institution>     0.8182    0.7826    0.8000        23
+      <location>     0.9367    0.9661    0.9512       383
+  <organisation>     0.8832    0.7875    0.8326       240
+        <person>     0.9459    0.9502    0.9481       221
 
-all (micro avg.)     0.9090    0.9242    0.9166      1254
+all (micro avg.)     0.9002    0.9039    0.9020      1217
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+      <artifact>     1.0000    0.6000    0.7432         8
+      <business>     0.8391    0.8830    0.8605       342
+   <institution>     0.8469    0.7652    0.8035        23
+      <location>     0.9388    0.9645    0.9514       383
+  <organisation>     0.8644    0.7592    0.8079       240
+        <person>     0.9463    0.9529    0.9495       221
+
+all (micro avg.)     0.8961    0.8929    0.8945
 ```
 
 With frELMo:
 
 ```text
-average over 10 folds
-    macro f1 = 0.9209397554337976
-    macro precision = 0.91949107960079
-    macro recall = 0.9224082934609251 
+----------------------------------------------------------------------
 
-** Worst ** model scores - 
-
+** Worst ** model scores - run 2
                   precision    recall  f1-score   support
 
-  <organisation>     0.8704    0.8356    0.8526       225
-        <person>     0.9344    0.9641    0.9490       251
-      <artifact>     1.0000    0.5000    0.6667         4
-      <location>     0.9173    0.9647    0.9404       368
-   <institution>     0.8889    0.8000    0.8421        30
-      <business>     0.9130    0.8936    0.9032       376
+      <artifact>     1.0000    0.5000    0.6667         8
+      <business>     0.8704    0.9035    0.8867       342
+   <institution>     0.8000    0.6957    0.7442        23
+      <location>     0.9342    0.9634    0.9486       383
+  <organisation>     0.8043    0.7875    0.7958       240
+        <person>     0.9641    0.9729    0.9685       221
 
-all (micro avg.)     0.9110    0.9147    0.9129      1254
+all (micro avg.)     0.8945    0.9055    0.9000      1217
 
-** Best ** model scores - 
 
+** Best ** model scores - run 3
                   precision    recall  f1-score   support
 
-  <organisation>     0.9061    0.8578    0.8813       225
-        <person>     0.9416    0.9641    0.9528       251
-      <artifact>     1.0000    0.5000    0.6667         4
-      <location>     0.9570    0.9674    0.9622       368
-   <institution>     0.8889    0.8000    0.8421        30
-      <business>     0.9016    0.9255    0.9134       376
+      <artifact>     1.0000    0.7500    0.8571         8
+      <business>     0.8883    0.9298    0.9086       342
+   <institution>     0.8500    0.7391    0.7907        23
+      <location>     0.9514    0.9713    0.9612       383
+  <organisation>     0.8597    0.7917    0.8243       240
+        <person>     0.9774    0.9774    0.9774       221
 
-all (micro avg.)     0.9268    0.9290    0.9279      1254
+all (micro avg.)     0.9195    0.9195    0.9195      1217
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+      <artifact>     0.8833    0.5125    0.6425         8
+      <business>     0.8803    0.9067    0.8933       342
+   <institution>     0.7933    0.7391    0.7640        23
+      <location>     0.9438    0.9679    0.9557       383
+  <organisation>     0.8359    0.8004    0.8176       240
+        <person>     0.9699    0.9760    0.9729       221
+
+all (micro avg.)     0.9073    0.9118    0.9096 
 ```
 
 For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
@@ -433,96 +488,96 @@ For historical reason, we can also consider a particular split of the FTB corpus
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 train_eval
 ```
 
-which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings, a f-score of __86.37__ averaged over 10 training:
+which gives for the BiLSTM-CRF architecture and fasttext `wiki.fr` embeddings averaged over 10 training:
 
 ```
-average over 10 folds
-                    precision    recall  f1-score   support
+----------------------------------------------------------------------
 
-      Organization     0.8410    0.7431    0.7888       311
-            Person     0.9086    0.9327    0.9204       205
-          Location     0.9219    0.9144    0.9181       347
-           Company     0.8140    0.8603    0.8364       290
-  FictionCharacter     0.0000    0.0000    0.0000         2
-           Product     1.0000    1.0000    1.0000         3
-               POI     0.0000    0.0000    0.0000         0
-           company     0.0000    0.0000    0.0000         0
-
-  macro f1 = 0.8637
-  macro precision = 0.8708
-  macro recall = 0.8567 
-
-
-** Worst ** model scores -
+** Worst ** model scores - run 4
                   precision    recall  f1-score   support
 
-    Organization     0.8132    0.7138    0.7603       311
-        Location     0.9152    0.9020    0.9086       347
-         Company     0.7926    0.8172    0.8048       290
-          Person     0.9095    0.9317    0.9205       205
-         Product     1.0000    1.0000    1.0000         3
+         Company     0.7908    0.7690    0.7797       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9164    0.9164    0.9164       347
+    Organization     0.7895    0.7235    0.7550       311
+          Person     0.9000    0.9220    0.9108       205
+         Product     1.0000    0.3333    0.5000         3
 
-all (micro avg.)     0.8571    0.8342    0.8455      1158
+all (micro avg.)     0.8498    0.8256    0.8375      1158
 
 
-** Best ** model scores -
+** Best ** model scores - run 0
                   precision    recall  f1-score   support
 
-    Organization     0.8542    0.7910    0.8214       311
-        Location     0.9226    0.9280    0.9253       347
-         Company     0.8212    0.8552    0.8378       290
-          Person     0.9095    0.9317    0.9205       205
-         Product     1.0000    1.0000    1.0000         3
+         Company     0.8026    0.8552    0.8280       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9326    0.9164    0.9244       347
+    Organization     0.8244    0.7395    0.7797       311
+          Person     0.8826    0.9171    0.8995       205
+         Product     1.0000    1.0000    1.0000         3
 
-all (micro avg.)     0.8767    0.8722    0.8745      1158
+all (micro avg.)     0.8620    0.8523    0.8571      1158
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+         Company     0.7920    0.8148    0.8030       290
+FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9234    0.9098    0.9165       347
+    Organization     0.8071    0.7328    0.7681       311
+             POI     0.0000    0.0000    0.0000         0
+          Person     0.8974    0.9254    0.9112       205
+         Product     1.0000    0.9000    0.9300         3
+
+all (micro avg.)     0.8553    0.8396    0.8474  
 ```
 
 With frELMo:
 
 ```
-average over 10 folds
-                    precision    recall  f1-score   support
+----------------------------------------------------------------------
 
-      Organization     0.8605    0.7752    0.8155       311
-            Person     0.9227    0.9371    0.9298       205
-          Location     0.9281    0.9432    0.9356       347
-           Company     0.8401    0.8779    0.8585       290
-  FictionCharacter     0.1000    0.0500    0.0667         2
-           Product     0.8750    1.0000    0.9286         3
-               POI     0.0000    0.0000    0.0000         0
-           company     0.0000    0.0000    0.0000         0
-
-  macro f1 = 0.8831
-  macro precision = 0.8870
-  macro recall = 0.8793 
-
-
-** Worst ** model scores -
+** Worst ** model scores - run 3
                   precision    recall  f1-score   support
 
-        Location     0.9366    0.9366    0.9366       347
-    Organization     0.8309    0.7428    0.7844       311
-          Person     0.9268    0.9268    0.9268       205
-         Company     0.8179    0.8828    0.8491       290
-         Product     0.7500    1.0000    0.8571         3
+         Company     0.8215    0.8414    0.8313       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9020    0.9280    0.9148       347
+    Organization     0.7833    0.7556    0.7692       311
+          Person     0.9327    0.9463    0.9395       205
+         Product     0.0000    0.0000    0.0000         3
 
-all (micro avg.)     0.8762    0.8679    0.8720      1158
+all (micro avg.)     0.8563    0.8592    0.8578      1158
 
 
-** Best ** model scores -
+** Best ** model scores - run 1
                   precision    recall  f1-score   support
 
-        Location     0.9220    0.9539    0.9377       347
-    Organization     0.8777    0.7846    0.8285       311
-          Person     0.9187    0.9366    0.9275       205
-         Company     0.8444    0.9172    0.8793       290
-         Product     1.0000    1.0000    1.0000         3
+         Company     0.8289    0.8690    0.8485       290
 FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9290    0.9424    0.9356       347
+    Organization     0.8475    0.7685    0.8061       311
+          Person     0.9327    0.9463    0.9395       205
+         Product     0.6667    0.6667    0.6667         3
 
-all (micro avg.)     0.8900    0.8946    0.8923      1158
+all (micro avg.)     0.8825    0.8756    0.8791      1158
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+         Company     0.8195    0.8503    0.8346       290
+FictionCharacter     0.0000    0.0000    0.0000         2
+        Location     0.9205    0.9363    0.9283       347
+    Organization     0.8256    0.7595    0.7910       311
+             POI     0.0000    0.0000    0.0000         0
+          Person     0.9286    0.9454    0.9369       205
+         Product     0.7417    0.6667    0.6824         3
+
+all (micro avg.)     0.8718    0.8666    0.8691
 ```
 
 For the `ftb_force_split` dataset, similarly as for CoNLL 2013, you can use the `train_with_validation_set` parameter to add the validation set in the training data. The above results are all obtained without using `train_with_validation_set` (which is the common approach).

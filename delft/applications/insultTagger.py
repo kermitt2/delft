@@ -8,7 +8,7 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file, load_d
 import argparse
 import time
 
-def configure(architecture):
+def configure(architecture, embeddings_name):
     batch_size = 20
     maxlen = 300
     patience = 5
@@ -27,7 +27,7 @@ def configure(architecture):
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, output_directory=None):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
 
-    root = os.path.join(os.path.dirname(__file__), 'data/sequenceLabelling/toxic/')
+    root = 'data/sequenceLabelling/toxic/'
 
     train_path = os.path.join(root, 'corrected.xml')
     valid_path = os.path.join(root, 'valid.xml')
