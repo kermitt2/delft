@@ -1,7 +1,8 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import PROCESSOR_FILE_NAME, CONFIG_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -32,10 +33,6 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 # the Keras API compiles models before running them  
 #from tensorflow.python.framework.ops import disable_eager_execution
 #disable_eager_execution()
-
-from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
-from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME
-from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model

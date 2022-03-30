@@ -1,6 +1,6 @@
-import json
 import math
 import os
+import shutil
 
 import numpy as np
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
@@ -16,6 +16,7 @@ from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import DEFAULT_WEIGHT_FILE_NAME, CONFIG_FILE_NAME
 
 architectures = [
     'lstm',
@@ -257,7 +258,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig, embeddings, tmp_directory: str, callbacks=None):
+def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig, embeddings, temp_directory: str, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -268,9 +269,19 @@ def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig
     models = []
     scores = []
 
+    output_directory = os.path.join(temp_directory, model_config.model_name)
+    print("Output directory:", output_directory)
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
+    else:
+        shutil.rmtree(output_directory)
+        os.makedirs(output_directory)
+
     bert_data = False
     if model_config.transformer_name is not None:
         bert_data = True
+        # save the config
+        model_config.save(os.path.join(output_directory, CONFIG_FILE_NAME))
 
     for fold_id in range(0, fold_count):
         print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
@@ -305,23 +316,14 @@ def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig
         if model_config.transformer_name is None:
             models.append(foldModel)
         else:
-            # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
-            directory = os.path.join(tmp_directory, model_config.model_name)
-            if not os.path.exists(directory):
-                os.makedirs(directory)
-
+            # save the model with transformer layer on disk
+            weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id) + ".hdf5")
+            foldModel.save(os.path.join(output_directory, weight_file))
             if fold_id == 0:
-                models.append(foldModel)
-                # save transformer config and tokenizer
-                if foldModel.transformer_config is not None:
-                    foldModel.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-                if foldModel.transformer_tokenizer is not None:
-                    foldModel.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
-
-            model_path = os.path.join(directory, "model{0}_weights.hdf5".format(fold_id))
-            foldModel.save(model_path)
-            if fold_id != 0:
-                del foldModel
+                foldModel.transformer_config.to_json_file(os.path.join(output_directory, TRANSFORMER_CONFIG_FILE_NAME))
+                if model_config.transformer_name is not None:
+                    foldModel.transformer_tokenizer.save_pretrained(
+                        os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
     return models
 
@@ -334,7 +336,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
         if model_config.transformer_name is not None:
             model = models[0]
             # load new weight from disk
-            model_path = os.path.join("data/models/textClassification/", model_config.model_name, "model{0}_weights.hdf5".format(fold_id))
+            model_path = os.path.join("data/models/textClassification/", model_config.model_name, "model_weights{0}.hdf5".format(fold_id))
             model.load(model_path)  
         else:
             model = models[fold_id]

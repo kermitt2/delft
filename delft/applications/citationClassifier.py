@@ -73,9 +73,6 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
         model.train(x_train, y_train)
     else:
         model.train_nfold(x_train, y_train)
-    
-    # saving the model
-    model.save()
 
     if output_directory:
         model.save(output_directory)

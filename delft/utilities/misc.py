@@ -7,6 +7,10 @@ Utility class from:
 https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/sciencebeam_trainer_delft/utils/misc.py
 """
 
+DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
+CONFIG_FILE_NAME = 'config.json'
+PROCESSOR_FILE_NAME = 'preprocessor.json'
+
 def parse_number_range(expr: str) -> List[int]:
     fragments = expr.split('-')
     if len(fragments) == 1:
