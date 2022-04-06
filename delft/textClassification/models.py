@@ -220,12 +220,12 @@ class BaseModel(object):
         # default
         nb_workers = 6
         multiprocessing = True
-        '''
-        if self.model_config.transformer_name != None:
+
+        if use_main_thread_only:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
-        '''
+        
         y = self.model.predict(
                 predict_generator, 
                 use_multiprocessing=multiprocessing,

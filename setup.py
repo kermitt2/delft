@@ -27,7 +27,8 @@ setup(
         'truecase',
         'requests',
         'pandas==1.3.5',
-        'pytest'
+        'pytest',
+        'tensorflow-addons==0.15.0'  
     ],
     classifiers=[
         "Programming Language :: Python :: 3.7",
