@@ -39,7 +39,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        max_epoch = 60
+        max_epoch = 10
 
         # non-default settings per model
         if model == 'citation':
@@ -47,7 +47,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             batch_size = 20
         elif model == 'header':
             max_sequence_length = 512
-            batch_size = 6
+            batch_size = 7
         elif model == 'date':
             max_sequence_length = 30
             batch_size = 80
