@@ -16,18 +16,19 @@ import numpy as np
 """
 
 def configure(architecture):
+    # default RNN model parameters
     batch_size = 200
     maxlen = 300
     patience = 5
     early_stop = True
     max_epoch = 50
 
-    # default bert model parameters
+    # default transformer model parameters
     if architecture == "bert":
-        batch_size = 32
+        batch_size = 16
         early_stop = False
-        max_epoch = 3
-        maxlen = 200
+        max_epoch = 5
+        maxlen = 300
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
