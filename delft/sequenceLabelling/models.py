@@ -631,7 +631,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
                                        output_dim=config.features_embedding_size,
                                        # mask_zero=True,
-                                       trainable=False,
+                                       trainable=True,
                                        name='features_embedding'), name="features_embedding_td")(features_input)
 
         features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
@@ -642,7 +642,7 @@ class BidLSTM_CRF_FEATURES(BaseModel):
         # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
-        # combine characters and word embeddings
+        # combine characters, features and word embeddings
         x = Concatenate()([word_input, chars, features_embedding_out])
         x = Dropout(config.dropout)(x)
 
@@ -694,7 +694,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
         features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
                                        output_dim=config.features_embedding_size,
                                        # mask_zero=True,
-                                       trainable=False,
+                                       trainable=True,
                                        name='features_embedding'), name="features_embedding_td")(features_input)
 
         features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
@@ -705,7 +705,7 @@ class BidLSTM_ChainCRF_FEATURES(BaseModel):
         # length of sequence not used by the model, but used by the training scorer
         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
 
-        # combine characters and word embeddings
+        # combine characters, features and word embeddings
         x = Concatenate()([word_input, chars, features_embedding_out])
         x = Dropout(config.dropout)(x)
 
@@ -858,7 +858,7 @@ class BERT_CRF_FEATURES(BaseModel):
         features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
                                        output_dim=config.features_embedding_size,
                                        # mask_zero=True,
-                                       trainable=False,
+                                       trainable=True,
                                        name='features_embedding'), name="features_embedding_td")(features_input)
 
         features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
@@ -914,6 +914,7 @@ class BERT_CRF_CHAR(BaseModel):
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
                                     #mask_zero=True,
+                                    trainable=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -971,6 +972,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
                                     output_dim=config.char_embedding_size,
                                     #mask_zero=True,
+                                    trainable=True,
                                     #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
                                     name='char_embeddings'
                                     ))(char_input)
@@ -987,7 +989,7 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
                                        output_dim=config.features_embedding_size,
                                        # mask_zero=True,
-                                       trainable=False,
+                                       trainable=True,
                                        name='features_embedding'), name="features_embedding_td")(features_input)
 
         features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
