@@ -46,6 +46,7 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 from transformers import AutoTokenizer
 
 from tensorflow.keras.utils import plot_model
+from tensorflow.keras.callbacks import TensorBoard
 
 class Classifier(object):
 
@@ -153,9 +154,15 @@ class Classifier(object):
                 embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
             validation_generator = None
 
+        if callbacks is not None:
+            callbacks += get_tensorboard_callback()
+        else:
+            callbacks = get_tensorboard_callback()
+
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
+
         self.model.train_model(
             self.model_config.list_classes, 
             self.training_config.batch_size, 
@@ -171,6 +178,10 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
+        if callbacks is not None:
+            callbacks += get_tensorboard_callback()
+        else:
+            callbacks = get_tensorboard_callback()
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
 
 
@@ -447,3 +458,14 @@ class Classifier(object):
                                     load_pretrained_weights=False, 
                                     local_path=model_path)
                 self.models.append(local_model)
+
+def get_tensorboard_callback():
+    log_folder = "logs/scalars/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") 
+    callbacks = [TensorBoard(log_dir=log_folder,
+                         histogram_freq=1,
+                         write_graph=True,
+                         write_images=True,
+                         update_freq='epoch',
+                         profile_batch=2,
+                         embeddings_freq=1)]
+    return callbacks

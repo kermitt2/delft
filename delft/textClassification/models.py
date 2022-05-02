@@ -114,7 +114,8 @@ class BaseModel(object):
                 patience=5,
                 callbacks=None):
 
-        nb_train_steps = (len(val_y) // batch_size) * max_epoch
+        nb_train_steps = int(round((len(val_y) // batch_size) * max_epoch))
+        print("nb_steps:", nb_train_steps)
         self.compile(nb_train_steps)
 
         best_loss = -1
@@ -827,6 +828,6 @@ class bert(BaseModel):
                 init_lr=2e-5, 
                 num_train_steps=train_size,
                 weight_decay_rate=0.01,
-                num_warmup_steps=0.1*train_size,
+                num_warmup_steps=int(round(0.1*train_size)),
             )
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])
