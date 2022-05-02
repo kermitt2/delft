@@ -460,7 +460,7 @@ class Classifier(object):
                 self.models.append(local_model)
 
 def get_tensorboard_callback():
-    log_folder = "logs/scalars/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") 
+    log_folder = "logs/summaries/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") 
     callbacks = [TensorBoard(log_dir=log_folder,
                          histogram_freq=1,
                          write_graph=True,
