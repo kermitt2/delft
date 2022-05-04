@@ -39,8 +39,8 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        max_epoch = 10
-        early_stop = False
+        max_epoch = 60
+        early_stop = True
 
         # non-default settings per model
         if model == 'citation':
