@@ -169,10 +169,6 @@ class Sequence(object):
                           transformer_preprocessor=self.model.transformer_preprocessor
                           )
 
-        if callbacks is not None:
-            callbacks += get_tensorboard_callback()
-        else:
-            callbacks = get_tensorboard_callback()
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
@@ -196,10 +192,6 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p)
 
-        if callbacks is not None:
-            callbacks += get_tensorboard_callback()
-        else:
-            callbacks = get_tensorboard_callback()
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
@@ -572,13 +564,3 @@ class Sequence(object):
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]
 
-def get_tensorboard_callback():
-    log_folder = "logs/summaries/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") 
-    callbacks = [TensorBoard(log_dir=log_folder,
-                         histogram_freq=1,
-                         write_graph=True,
-                         write_images=True,
-                         update_freq='epoch',
-                         profile_batch=2,
-                         embeddings_freq=1)]
-    return callbacks

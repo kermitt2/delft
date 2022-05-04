@@ -10,6 +10,7 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
 from delft.utilities.misc import parse_number_ranges
+from delft.utilities import get_tensorboard_callback
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -24,6 +25,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     multiprocessing = True
+    max_epoch = 60
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -39,7 +41,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        max_epoch = 60
         early_stop = True
 
         # non-default settings per model
@@ -145,7 +146,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      early_stop=early_stop)
 
     start_time = time.time()
-    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, callbacks=get_tensorboard_callback())
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -198,9 +199,9 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, callbacks=get_tensorboard_callback())
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, callbacks=get_tensorboard_callback())
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
