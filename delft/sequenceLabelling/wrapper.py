@@ -54,8 +54,6 @@ from delft.sequenceLabelling.evaluation import classification_report
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
-from tensorflow.keras.callbacks import TensorBoard
-
 class Sequence(object):
 
     # number of parallel worker for the data generator
@@ -192,6 +190,12 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p)
 
+        '''
+        if callbacks is not None:
+            callbacks += get_tensorboard_callback()
+        else:
+            callbacks = get_tensorboard_callback()
+        '''
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()

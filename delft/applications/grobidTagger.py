@@ -10,7 +10,7 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
 from delft.utilities.misc import parse_number_ranges
-from delft.utilities import get_tensorboard_callback
+from delft.utilities.Utilities import get_tensorboard_callback
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 

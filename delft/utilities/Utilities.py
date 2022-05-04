@@ -6,11 +6,13 @@ import numpy as np
 from numpy.random import seed
 seed(7)
 import os.path
+import datetime
 import shutil
 import requests
 from urllib.parse import urlparse
 
 from tensorflow.keras.preprocessing import text
+from tensorflow.keras.callbacks import TensorBoard
 
 from tqdm import tqdm 
 

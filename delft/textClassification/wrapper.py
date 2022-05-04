@@ -46,7 +46,6 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 from transformers import AutoTokenizer
 
 from tensorflow.keras.utils import plot_model
-from tensorflow.keras.callbacks import TensorBoard
 
 class Classifier(object):
 
