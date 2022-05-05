@@ -85,7 +85,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 max_sequence_length = 1500
             multiprocessing = False
         elif model == "reference-segmenter":
-            batch_size = 10
+            batch_size = 9
             max_sequence_length = 3000
             if use_ELMo:
                 max_sequence_length = 1500
@@ -109,7 +109,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, output_path=None,
-          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
+          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False, with_tensorboard_logs=False):
 
     print('Loading data...')
     if input_path == None:
@@ -146,7 +146,13 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      early_stop=early_stop)
 
     start_time = time.time()
-    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, callbacks=get_tensorboard_callback())
+
+    if with_tensorboard_logs:
+        callbacks = get_tensorboard_callback()
+    else:
+        callbacks= []
+
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, callbacks=callbacks)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -159,8 +165,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
-               input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
+               input_path=None, output_path=None, fold_count=1, features_indices=None, 
+               max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False, with_tensorboard_logs=False):
     print('Loading data...')
     if input_path == None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -198,10 +204,15 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
     start_time = time.time()
 
-    if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, callbacks=get_tensorboard_callback())
+    if with_tensorboard_logs:
+        callbacks = get_tensorboard_callback()
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, callbacks=get_tensorboard_callback())
+        callbacks= []
+
+    if fold_count == 1:
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, callbacks=callbacks)
+    else:
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, callbacks=callbacks)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
@@ -339,6 +350,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
 
+    parser.add_argument("--tensorboard", action="store_true", help="Generate tensorboard event logs") 
+
     args = parser.parse_args()
 
     model = args.model
@@ -352,6 +365,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     transformer = args.transformer
     use_ELMo = args.use_ELMo
+    with_tensorboard_logs = args.tensorboard
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -366,7 +380,8 @@ if __name__ == "__main__":
             output_path=output,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+            with_tensorboard_logs=with_tensorboard_logs)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -388,7 +403,8 @@ if __name__ == "__main__":
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
-                use_ELMo=use_ELMo)
+                use_ELMo=use_ELMo,
+                with_tensorboard_logs=with_tensorboard_logs)
 
     if action == Tasks.TAG:
         someTexts = []

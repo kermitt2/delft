@@ -870,10 +870,12 @@ class BERT_CRF_FEATURES(BaseModel):
         x = Concatenate()([text_embedding_layer, features_embedding_out])
         x = Dropout(config.dropout)(x)
 
+        '''
         x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                return_sequences=True,
                                recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
+        '''
         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
 
         self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
