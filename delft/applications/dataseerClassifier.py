@@ -1,10 +1,7 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
-from delft.textClassification import Classifier
 import argparse
 import time
 from delft.textClassification.models import architectures

@@ -54,6 +54,7 @@ from delft.sequenceLabelling.evaluation import classification_report
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
+
 class Sequence(object):
 
     # number of parallel worker for the data generator
@@ -446,7 +447,7 @@ class Sequence(object):
             first = True
             with open(file_in, 'r') as f:
                 texts = None
-                while texts == None or len(texts) == self.model_config.batch_size * self.nb_workers:
+                while texts is None or len(texts) == self.model_config.batch_size * self.nb_workers:
 
                   texts = next_n_lines(f, self.model_config.batch_size * self.nb_workers)
                   annotations = tagger.tag(texts, output_format)

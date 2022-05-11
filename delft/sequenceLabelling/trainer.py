@@ -11,7 +11,7 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'

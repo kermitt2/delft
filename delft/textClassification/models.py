@@ -13,7 +13,7 @@ from transformers import create_optimizer
 from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
-from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
 
 architectures = [
