@@ -15,18 +15,19 @@ import numpy as np
 """
 
 def configure(architecture):
+    # default RNN model parameters
     batch_size = 200
     maxlen = 300
     patience = 5
     early_stop = True
     max_epoch = 50
 
-    # default bert model parameters
+    # default transformer model parameters
     if architecture == "bert":
-        batch_size = 32
+        batch_size = 16
         early_stop = False
-        max_epoch = 3
-        maxlen = 200
+        max_epoch = 5
+        maxlen = 300
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
@@ -157,7 +158,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
 
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('dataseer_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
+    model = Classifier('dataseer-binary_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer_name=transformer)
 
@@ -230,7 +231,7 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     class_weights = None
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-    model = Classifier('dataseer_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
+    model = Classifier('dataseer-first_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
         class_weights=class_weights, transformer_name=transformer)
 

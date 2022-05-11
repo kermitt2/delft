@@ -38,7 +38,8 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        max_epoch = 60
+        max_epoch = 10
+        early_stop = False
 
         # non-default settings per model
         if model == 'citation':
@@ -57,8 +58,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             # class are more unbalanced, so we need to extend the batch size as much as we can
             batch_size = 7
             max_sequence_length = 512
-            max_epoch = 10
     else:
+        early_stop = True
+
         # RNN-only architectures
         if model == 'citation':
             max_sequence_length = 600
@@ -100,7 +102,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     if max_epoch == -1:
         max_epoch = 100
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop
 
 
 # train a GROBID model with all available data
@@ -120,7 +122,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing = configure(model,
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model,
                                                                             architecture,
                                                                             output_path,
                                                                             max_sequence_length,
@@ -138,7 +140,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      features_indices=features_indices,
                      max_epoch=max_epoch, 
                      use_ELMo=use_ELMo,
-                     multiprocessing=multiprocessing)
+                     multiprocessing=multiprocessing,
+                     early_stop=early_stop)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -169,7 +172,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing = configure(model, 
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model, 
                                                                             architecture, 
                                                                             output_path, 
                                                                             max_sequence_length, 
@@ -188,7 +191,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     features_indices=features_indices,
                     max_epoch=max_epoch, 
                     use_ELMo=use_ELMo,
-                    multiprocessing=multiprocessing)
+                    multiprocessing=multiprocessing,
+                    early_stop=early_stop)
 
     start_time = time.time()
 
