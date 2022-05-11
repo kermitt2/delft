@@ -1,4 +1,6 @@
 import json
+
+from delft.textClassification import Classifier
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
