@@ -134,7 +134,7 @@ class Classifier(object):
         self.model.print_summary()
 
         bert_data = False
-        if self.transformer_name is None:
+        if self.transformer_name is not None:
             bert_data = True
 
         if self.training_config.early_stop:

@@ -132,7 +132,7 @@ class BaseModel(object):
             nb_workers = 0
             multiprocessing = False
 
-        if validation_generator == None:
+        if validation_generator is None:
             # no early stop
             best_loss = self.model.fit(
                 training_generator,

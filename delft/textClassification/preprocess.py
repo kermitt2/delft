@@ -55,7 +55,9 @@ def create_single_input_bert(text, maxlen=512, transformer_tokenizer=None):
     return ids, masks, segments
 
 def create_batch_input_bert(texts, maxlen=512, transformer_tokenizer=None):
-    # TBD: exception if tokenizer is not valid/None
+
+    if transformer_tokenizer is None:
+        raise Exception("Transformer tokenizer is None but it should not. Maybe some parameters were missing?")
 
     if isinstance(texts, np.ndarray):
         texts = texts.tolist()

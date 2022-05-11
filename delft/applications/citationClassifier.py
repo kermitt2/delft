@@ -131,7 +131,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print('unknown model architecture, must be one of '+str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
