@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
@@ -58,7 +58,7 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 class Sequence(object):
 
     # number of parallel worker for the data generator
-    nb_workers = 6
+    nb_workers = 0
 
     def __init__(self,
                  model_name=None,
