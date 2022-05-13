@@ -5,7 +5,7 @@ from tensorflow.keras.models import Model
 from tensorflow.keras.models import clone_model
 
 from delft.sequenceLabelling.config import ModelConfig
-from delft.sequenceLabelling.preprocess import Preprocessor
+from delft.sequenceLabelling.preprocess import Preprocessor, BERTPreprocessor
 from delft.utilities.Transformer import Transformer
 from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
