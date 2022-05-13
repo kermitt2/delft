@@ -24,6 +24,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     multiprocessing = True
+    max_epoch = 60
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -39,7 +40,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        max_epoch = 10
         early_stop = False
 
         # non-default settings per model
@@ -67,8 +67,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 600
             batch_size = 20
         elif model == 'header':
-            max_sequence_length = 3000
-            batch_size = 10
+            max_epoch = 80
+            max_sequence_length = 2500
+            batch_size = 9
             if use_ELMo:
                 max_sequence_length = 1500
         elif model == 'date':
@@ -279,7 +280,6 @@ class Tasks:
     EVAL = 'eval'
     TAG = 'tag'
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Trainer for GROBID models using the DeLFT library")
 
@@ -329,12 +329,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
-    parser.add_argument(
-        "--feature-indices",
-        type=parse_number_ranges,
-        help="The feature indices to use. e.g. 7:10. If blank, all of the features will be used."
-    )
-
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
 
@@ -346,7 +340,6 @@ if __name__ == "__main__":
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
-    feature_indices = args.feature_indices
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer
