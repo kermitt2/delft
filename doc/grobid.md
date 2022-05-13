@@ -59,7 +59,7 @@ DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (origi
 
 Train a model with all available training data:
 
-```console
+```sh
 python3  *name-of-model* train --architecture *name-of-architecture*
 ```
 
@@ -68,19 +68,19 @@ where *name-of-model* is one of GROBID model (_date_, _affiliation-address_, _ci
 and where *name-of-architecture* is one of `['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES', 'BERT', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']`.
 
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py date train --architecture BidLSTM_CRF
 ```
 
 To segment the training data and eval on 10%, use the action `train_eval` instead of `train`:
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py *name-of-model* train_eval --architecture *name-of-architecture*
 ```
 
 For instance for the _date_ model:
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py date train_eval --architecture BidLSTM_CRF
 ```
 
@@ -98,7 +98,7 @@ python3 delft/applications/grobidTagger.py date train_eval --architecture BidLST
 
 For applying a model on some examples:
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py date tag --architecture BidLSTM_CRF
 ```
 
@@ -160,13 +160,13 @@ python3 delft/applications/grobidTagger.py date tag --architecture BidLSTM_CRF
 
 As usual, depending of the architecture to be used you can indicate wither which embeddings whould be used for a RNN model (default is glove-840B):
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py citation train_eval --architecture BidLSTM_CRF_FEATURES --embedding glove-840B
 ```
 
 or the name of the transformer model you wish use in an architecture including a transformer layer:
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py header train --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased
 ```
 
@@ -174,30 +174,24 @@ With the architectures having a feature channel, the categorial features (as gen
 
 Similarly to the NER models, for n-fold training (action `train_eval` only), specify the value of `n` with the parameter `--fold-count`, e.g.:
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py citation train_eval --architecture BidLSTM_CRF_FEATURES --fold-count=10 
 ```
 
 By default the Grobid data to be used are the ones available under the `data/sequenceLabelling/grobid` subdirectory, but a Grobid data file can be provided by the parameter `--input`: 
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py *name-of-model* train --architecture *name-of-architecture* --input *path-to-the-grobid-data-file-to-be-used-for-training*
 ```
 
 or 
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py *name-of-model* train_eval --architecture *name-of-architecture* --input *path-to-the-grobid-data-file-to-be-used-for-training_and_eval_with_random_split*
 ```
 
 The evaluation of a model with a specific Grobid data file can be performed using the `eval` action and specifying the data file with `--input`: 
 
-```console
+```sh
 python3 delft/applications/grobidTagger.py citation eval --architecture *name-of-architecture* --input *path-to-the-grobid-data-file-to-be-used-for-evaluation*
-```
-
-The evaluation of a model can be performed calling 
-
-```console
-python3 delft/applications/grobidTagger.py citation eval --architecture *name-of-architecture* --input evaluation_data
 ```

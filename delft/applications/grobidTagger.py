@@ -70,7 +70,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         elif model == 'header':
             max_epoch = 80
             max_sequence_length = 2500
-            batch_size = 10
+            batch_size = 9
             if use_ELMo:
                 max_sequence_length = 1500
         elif model == 'date':
@@ -291,7 +291,6 @@ class Tasks:
     TRAIN_EVAL = 'train_eval'
     EVAL = 'eval'
     TAG = 'tag'
-
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Trainer for GROBID models using the DeLFT library")
