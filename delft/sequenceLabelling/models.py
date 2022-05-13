@@ -228,9 +228,9 @@ class BaseModel(object):
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.transformer_config = transformer.transformer_config
-        self.transformer_preprocessor = transformer.init_preprocessor(max_sequence_length=config.max_sequence_length, 
-                                            empty_features_vector=preprocessor.empty_features_vector(),
-                                            empty_char_vector=preprocessor.empty_char_vector())
+        transformer.init_preprocessor(max_sequence_length=config.max_sequence_length)
+
+        self.transformer_preprocessor = BERTPreprocessor(transformer.tokenizer, preprocessor.empty_features_vector(), preprocessor.empty_char_vector())
 
         return transformer_model
 

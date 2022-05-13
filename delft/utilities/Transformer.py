@@ -3,8 +3,6 @@ from typing import Union, Iterable
 
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
-from delft.sequenceLabelling.preprocess import BERTPreprocessor
-
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 DEFAULT_TRANSFORMER_TOKENIZER_DIR = "transformer-tokenizer"
 
@@ -98,9 +96,7 @@ class Transformer(object):
 
     def init_preprocessor(self, max_sequence_length: int,
                        add_special_tokens: bool = True,
-                       add_prefix_space: bool = True,
-                       empty_features_vector: Iterable[int] =None,
-                       empty_char_vector: Iterable[int] = None) -> BERTPreprocessor:
+                       add_prefix_space: bool = True):
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -124,9 +120,7 @@ class Transformer(object):
             self.transformer_config = AutoConfig.from_pretrained(config_path)
             self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR), config=self.transformer_config)
 
-        self.bert_preprocessor = BERTPreprocessor(self.tokenizer, empty_features_vector, empty_char_vector)
 
-        return self.bert_preprocessor
 
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)
