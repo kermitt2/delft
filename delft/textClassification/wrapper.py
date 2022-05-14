@@ -134,7 +134,7 @@ class Classifier(object):
         self.model.print_summary()
 
         bert_data = False
-        if self.transformer_name is None:
+        if self.transformer_name is not None:
             bert_data = True
 
         if self.training_config.early_stop:
@@ -247,6 +247,9 @@ class Classifier(object):
 
             result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
         else:
+            if self.models is None:
+                raise (OSError('Could not find nfolds models.'))
+
             # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes
             test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes,
