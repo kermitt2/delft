@@ -44,6 +44,8 @@ from sklearn.model_selection import train_test_split
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
 
+from tensorflow.keras.utils import plot_model
+
 class Classifier(object):
 
     config_file = 'config.json'
@@ -228,9 +230,6 @@ class Classifier(object):
             return result
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
-        if self.model is None:
-            raise (OSError('Could not find a model.'))
-
         print_parameters(self.model_config.batch_size, self.training_config.early_stop,
                          self.training_config.learning_rate, self.training_config.max_epoch,
                          self.model_config.maxlen, self.model_config.model_name)
@@ -241,11 +240,14 @@ class Classifier(object):
             bert_data = True
 
         if self.model_config.fold_number == 1:
-            test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
+            if self.model != None:
+                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                        embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
 
-            result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
+                result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
+            else:
+                raise (OSError('Could not find a model.'))
         else:
             # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes
             test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
