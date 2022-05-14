@@ -130,9 +130,7 @@ class Classifier(object):
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
 
-        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
-                         self.training_config.learning_rate, self.training_config.max_epoch,
-                         self.model_config.maxlen, self.model_config.model_name)
+        print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
 
         bert_data = False
@@ -233,10 +231,8 @@ class Classifier(object):
             return result
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
-        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
-                         self.training_config.learning_rate, self.training_config.max_epoch,
-                         self.model_config.maxlen, self.model_config.model_name)
-        
+        print_parameters(self.model_config, self.training_config)
+
         bert_data = False
         if self.transformer_name is not None:
             bert_data = True

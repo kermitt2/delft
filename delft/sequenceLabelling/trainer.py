@@ -239,10 +239,7 @@ class Trainer(object):
                                load_pretrained_weights=True)
 
             if fold_id == 0:
-                print_parameters(self.model_config.batch_size, self.training_config.early_stop,
-                                 self.training_config.learning_rate, self.training_config.max_epoch,
-                                 self.model_config.max_sequence_length, self.model_config.model_name,
-                                 self.model_config.use_ELMo)
+                print_parameters(self.model_config, self.training_config)
                 foldModel.print_summary()
 
             print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')

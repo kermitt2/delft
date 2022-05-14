@@ -47,16 +47,22 @@ def merge_dicts(dict_list: List[dict]) -> dict:
     return result
 
 
-def print_parameters(batch_size=None, early_stop=None, learning_rate=None,
-                     max_epoch=None, max_sequence_length=None, model_name=None,
-                     use_ELMo=None) -> None:
-
+def print_parameters(model_config, training_config):
     print("---")
-    print("max_epoch:", max_epoch)
-    print("early_stop:", early_stop)
-    print("batch_size:", batch_size)
-    print("max_sequence_length:", max_sequence_length)
-    print("model_name:", model_name)
-    print("learning_rate: ", learning_rate)
-    print("use_ELMo: ", use_ELMo)
+    print("max_epoch:", training_config.max_epoch)
+    print("early_stop:", training_config.early_stop)
+    print("batch_size:", training_config.batch_size)
+    
+    if hasattr(model_config, 'max_sequence_length'):
+        print("max_sequence_length:", model_config.max_sequence_length)
+
+    if hasattr(model_config, 'maxlen'):
+        print("maxlen:", model_config.maxlen)
+
+    print("model_name:", model_config.model_name)
+    print("learning_rate: ", training_config.learning_rate)
+
+    if hasattr(model_config, 'use_ELMo'):
+        print("use_ELMo: ", model_config.use_ELMo)
+
     print("---")

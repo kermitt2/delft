@@ -292,9 +292,7 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         foldModel = getModel(model_config, training_config)
 
         if fold_id == 0:
-            print_parameters(model_config.batch_size, training_config.early_stop,
-                             training_config.learning_rate, training_config.max_epoch,
-                             model_config.maxlen, model_config.model_name)
+            print_parameters(model_config, training_config)
             foldModel.print_summary()
 
         print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')

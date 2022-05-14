@@ -159,10 +159,7 @@ class Sequence(object):
         self.model_config.case_vocab_size = len(self.p.vocab_case)
 
         self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
-        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
-                         self.training_config.learning_rate, self.training_config.max_epoch,
-                         self.model_config.max_sequence_length, self.model_config.model_name,
-                         self.model_config.use_ELMo)
+        print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
 
         # uncomment to plot graph
@@ -214,11 +211,7 @@ class Sequence(object):
     def eval_single(self, x_test, y_test, features=None):
         if self.model is None:
             raise (OSError('Could not find a model.'))
-
-        print_parameters(self.model_config.batch_size, self.training_config.early_stop,
-                         self.training_config.learning_rate, self.training_config.max_epoch,
-                         self.model_config.max_sequence_length, self.model_config.model_name,
-                         self.model_config.use_ELMo)
+        print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
 
         if self.model_config.transformer_name is None:
@@ -285,6 +278,8 @@ class Sequence(object):
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
+            print_parameters(self.model_config, self.training_config)
+
             total_f1 = 0
             best_f1 = 0
             best_index = 0
@@ -295,6 +290,9 @@ class Sequence(object):
             total_precision = 0
             total_recall = 0
             for i in range(self.model_config.fold_number):
+                if i == 0:
+                    self.models[0].print_summary()
+
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
                 if self.model_config.transformer_name is None:
@@ -574,6 +572,7 @@ class Sequence(object):
                                local_path=os.path.join(dir_path, self.model_config.model_name))
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
+        self.model.print_summary()
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]
