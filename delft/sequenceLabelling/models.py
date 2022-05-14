@@ -222,7 +222,9 @@ class BaseModel(object):
             self.model.base_model.summary()
         self.model.summary()
 
-    def init_transformer(self, config: ModelConfig, load_pretrained_weights: bool, local_path: str,
+    def init_transformer(self, config: ModelConfig, 
+                         load_pretrained_weights: bool, 
+                         local_path: str,
                          preprocessor: Preprocessor):
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
@@ -230,7 +232,9 @@ class BaseModel(object):
         self.transformer_config = transformer.transformer_config
         transformer.init_preprocessor(max_sequence_length=config.max_sequence_length)
 
-        self.transformer_preprocessor = BERTPreprocessor(transformer.tokenizer, preprocessor.empty_features_vector(), preprocessor.empty_char_vector())
+        self.transformer_preprocessor = BERTPreprocessor(transformer.tokenizer, 
+                                                         preprocessor.empty_features_vector(), 
+                                                         preprocessor.empty_char_vector())
 
         return transformer_model
 
@@ -272,7 +276,7 @@ class BidLSTM(BaseModel):
         pred = Dense(ntags, activation='softmax')(x)
 
         self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
-        self.model.summary()
+        #self.model.summary()
         self.config = config
 
 
@@ -322,7 +326,7 @@ class BidLSTM_CRF(BaseModel):
 
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
-        self.model.summary()
+        #self.model.summary()
         self.config = config
 
 
