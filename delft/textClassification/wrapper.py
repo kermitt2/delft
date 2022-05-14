@@ -185,6 +185,7 @@ class Classifier(object):
 
         if self.model_config.fold_number == 1:
             if self.model != None: 
+                self.model.print_summary()
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
@@ -194,6 +195,8 @@ class Classifier(object):
                 raise (OSError('Could not find a model.'))
         else:            
             if self.models != None: 
+                self.models[0].print_summary()
+
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
@@ -233,14 +236,14 @@ class Classifier(object):
         print_parameters(self.model_config.batch_size, self.training_config.early_stop,
                          self.training_config.learning_rate, self.training_config.max_epoch,
                          self.model_config.maxlen, self.model_config.model_name)
-        self.model.print_summary()
-
+        
         bert_data = False
         if self.transformer_name is not None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
             if self.model != None:
+                self.model.print_summary()
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                         embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
@@ -251,6 +254,8 @@ class Classifier(object):
         else:
             if self.models is None:
                 raise (OSError('Could not find nfolds models.'))
+
+            self.models[0].print_summary()
 
             # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes
             test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
