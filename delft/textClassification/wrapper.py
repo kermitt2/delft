@@ -183,7 +183,7 @@ class Classifier(object):
 
         if self.model_config.fold_number == 1:
             if self.model != None: 
-                self.model.print_summary()
+                
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
@@ -193,7 +193,6 @@ class Classifier(object):
                 raise (OSError('Could not find a model.'))
         else:            
             if self.models != None: 
-                self.models[0].print_summary()
 
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
@@ -438,6 +437,9 @@ class Classifier(object):
                               self.training_config, 
                               load_pretrained_weights=False, 
                               local_path=model_path)
+        print_parameters(self.model_config, self.training_config)
+        self.model.print_summary()
+
         if self.model_config.fold_number == 1:
             print("load weights from", os.path.join(model_path, self.weight_file))
             self.model.load(os.path.join(model_path, self.weight_file))
