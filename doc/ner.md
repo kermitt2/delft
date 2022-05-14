@@ -1,6 +1,10 @@
 # DeLFT NER applications
 
-NER models can be trained and applied via the script `delft/applications/nerTagger.py`. 
+See [here](https://delft.readthedocs.io/en/latest/sequence_labeling/) for the list of supported sequence labeling architectures. 
+
+In general, the best results will be obtained with `BidLSTM_CRF` architecture together with `ELMo` (ELMo is particularly good for sequence labeling, so don't forget ELMo!) or with `BERT_CRF` using a pretrained transformer model specialized in the NER domain of the application (e.g. SciBERT for scientific NER, CamemBERT for general NER on French, etc.).
+
+NER models can be trained and applied via the script `delft/applications/nerTagger.py`. We describe on this page some available models and results obtained with DeLFT applied to standard NER tasks. 
 
 See [NER Datasets](ner-datasets.md) for more information on the datasets used in this section. 
 
@@ -165,7 +169,7 @@ all (micro avg.)     0.9261    0.9299    0.9280      5648
 Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
 
 ```sh
-> python3 delft/applications/nerTagger.py --architecture BERF_CRF --dataset-type conll2003 --fold-count 10 --transformer bert-base-en train_eval
+> python3 delft/applications/nerTagger.py --architecture BERT_CRF --dataset-type conll2003 --fold-count 10 --transformer bert-base-en train_eval
 ```
 
 ```text
@@ -480,6 +484,25 @@ Average over 10 folds
         <person>     0.9699    0.9760    0.9729       221
 
 all (micro avg.)     0.9073    0.9118    0.9096 
+```
+
+Using `camembert-base` as transformer layer in a `BERT_CRF` architecture: 
+
+```sh
+> python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb train_eval --architecture BERT_CRF --transformer camembert-base
+```
+
+```
+                  precision    recall  f1-score   support
+
+      <artifact>     0.0000    0.0000    0.0000         8
+      <business>     0.8940    0.9123    0.9030       342
+   <institution>     0.6923    0.7826    0.7347        23
+      <location>     0.9563    0.9713    0.9637       383
+  <organisation>     0.8270    0.8167    0.8218       240
+        <person>     0.9688    0.9819    0.9753       221
+
+all (micro avg.)     0.9102    0.9162    0.9132      1217
 ```
 
 For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:

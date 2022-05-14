@@ -21,7 +21,7 @@ DeLFT has three main purposes:
 
 Some contributions include: 
 
-* A variety of modern NLP architectures and tasks to be used following the same API.
+* A variety of modern NLP architectures and tasks to be used following the same API and input formats, including RNN, ELMo and transformers.
 
 * Reduction of the size of RNN models, in particular by removing word embeddings from them. For instance, the model for the toxic comment classifier went down from a size of 230 MB with embeddings to 1.8 MB. In practice the size of all the models of DeLFT is less than 2 MB, except for Ontonotes 5.0 NER model which is 4.7 MB.
 
@@ -37,8 +37,7 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The latest DeLFT release has been tested successfully with python 3.8 and Tensorflow 2.7.0. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti for instance is absolutely fine for most RNN models. Using BERT Base model is fine with a GeForce GTX 1080 Ti.
-
+The latest DeLFT release has been tested successfully with python 3.8 and Tensorflow 2.7.0. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti (4GB) for instance is fine for RNN models and BERT or RoBERTa base model. Using BERT large model is possible with a GeForce GTX 1080 Ti (11GB) with modest batch size.
 
 ## DeLFT Documentation
 

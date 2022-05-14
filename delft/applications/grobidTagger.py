@@ -24,6 +24,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     multiprocessing = True
+    max_epoch = 60
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -39,7 +40,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        max_epoch = 60
+        early_stop = False
 
         # non-default settings per model
         if model == 'citation':
@@ -58,15 +59,17 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             # class are more unbalanced, so we need to extend the batch size as much as we can
             batch_size = 7
             max_sequence_length = 512
-            max_epoch = 10
     else:
+        early_stop = True
+
         # RNN-only architectures
         if model == 'citation':
             max_sequence_length = 600
             batch_size = 20
         elif model == 'header':
-            max_sequence_length = 3000
-            batch_size = 10
+            max_epoch = 80
+            max_sequence_length = 2500
+            batch_size = 9
             if use_ELMo:
                 max_sequence_length = 1500
         elif model == 'date':
@@ -101,7 +104,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     if max_epoch == -1:
         max_epoch = 100
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop
 
 
 # train a GROBID model with all available data
@@ -121,7 +124,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing = configure(model,
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model,
                                                                             architecture,
                                                                             output_path,
                                                                             max_sequence_length,
@@ -139,7 +142,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      features_indices=features_indices,
                      max_epoch=max_epoch, 
                      use_ELMo=use_ELMo,
-                     multiprocessing=multiprocessing)
+                     multiprocessing=multiprocessing,
+                     early_stop=early_stop)
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
@@ -170,7 +174,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing = configure(model, 
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model, 
                                                                             architecture, 
                                                                             output_path, 
                                                                             max_sequence_length, 
@@ -189,7 +193,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     features_indices=features_indices,
                     max_epoch=max_epoch, 
                     use_ELMo=use_ELMo,
-                    multiprocessing=multiprocessing)
+                    multiprocessing=multiprocessing,
+                    early_stop=early_stop)
 
     start_time = time.time()
 
@@ -275,7 +280,6 @@ class Tasks:
     EVAL = 'eval'
     TAG = 'tag'
 
-
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Trainer for GROBID models using the DeLFT library")
 
@@ -325,12 +329,6 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
-    parser.add_argument(
-        "--feature-indices",
-        type=parse_number_ranges,
-        help="The feature indices to use. e.g. 7:10. If blank, all of the features will be used."
-    )
-
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
 
@@ -342,7 +340,6 @@ if __name__ == "__main__":
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding
-    feature_indices = args.feature_indices
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer

@@ -1,0 +1,119 @@
+* Multiclass, multilabel
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9592        0.9833        0.9711           239
+      creation        0.6471        0.9565        0.7719            23
+        shared        0.6667        0.8889        0.7619            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9474        0.9791        0.9630           239
+      creation        0.7097        0.9565        0.8148            23
+        shared        0.6000        0.8333        0.6977            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9476        0.9833        0.9651           239
+      creation        0.7586        0.9565        0.8462            23
+        shared        0.6154        0.8889        0.7273            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9398        0.9791        0.9590           239
+      creation        0.7333        0.9565        0.8302            23
+        shared        0.6250        0.8333        0.7143            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9400        0.9833        0.9611           239
+      creation        0.7241        0.9130        0.8077            23
+        shared        0.6250        0.8333        0.7143            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9398        0.9791        0.9590           239
+      creation        0.7333        0.9565        0.8302            23
+        shared        0.6250        0.8333        0.7143            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9474        0.9791        0.9630           239
+      creation        0.7241        0.9130        0.8077            23
+        shared        0.6296        0.9444        0.7556            18
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9438        0.9833        0.9631           239
+      creation        0.7097        0.9565        0.8148            23
+        shared        0.6522        0.8333        0.7317            18        
+
+
+* Binary
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9668        0.9749        0.9708           239
+      not_used        0.9032        0.8750        0.8889            64
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9669        0.9791        0.9730           239
+      not_used        0.9180        0.8750        0.8960            64
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9750        0.9791        0.9770           239
+      not_used        0.9206        0.9062        0.9134            64
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+          used        0.9669        0.9791        0.9730           239
+      not_used        0.9180        0.8750        0.8960            64
+
+
+
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+      creation        0.8148        0.9565        0.8800            23
+  not_creation        0.9964        0.9821        0.9892           280
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+      creation        0.7500        0.9130        0.8235            23
+  not_creation        0.9927        0.9750        0.9838           280
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+      creation        0.8400        0.9130        0.8750            23
+  not_creation        0.9928        0.9857        0.9892           280
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+      creation        0.8400        0.9130        0.8750            23
+  not_creation        0.9928        0.9857        0.9892           280
+
+
+
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+        shared        0.7368        0.7778        0.7568            18
+    not_shared        0.9859        0.9825        0.9842           285
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+        shared        0.7895        0.8333        0.8108            18
+    not_shared        0.9894        0.9860        0.9877           285
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+        shared        0.7500        0.8333        0.7895            18
+    not_shared        0.9894        0.9825        0.9859           285
+
+Evaluation on 303 instances:
+                   precision        recall       f-score       support
+        shared        0.7368        0.7778        0.7568            18
+    not_shared        0.9859        0.9825        0.9842           285
+
