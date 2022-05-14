@@ -15,6 +15,9 @@ target
 !data/textClassification/software/*.gz
 !data/sequenceLabelling/grobid/fulltext/fulltext-110322.train.gz
 data/db/*
+!data/db/.gitkeep
+data/download/*
+!data/download/.gitkeep
 data/training
 data/eval
 data/embeddings
