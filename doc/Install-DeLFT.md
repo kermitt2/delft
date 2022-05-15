@@ -25,7 +25,9 @@ Finally install the project in editable state
 pip3 install -e .
 ```
 
-Current DeLFT version is __0.3.1__, which has been tested successfully with Python 3.8. It uses tensorflow 2.7.0 and will exploit your available GPU with the condition that CUDA (>=11.0) is properly installed. 
+Current DeLFT version is __0.3.1__, which has been tested successfully with Python 3.8. It uses tensorflow 2.7.0 and will exploit your available GPU with the condition that CUDA (>=11.2) is properly installed. 
+
+To ensure the availability of GPU devices for the right version of tensorflow, CUDA, CuDNN and python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
 
 ## Loading resources locally
 
