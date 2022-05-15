@@ -1,4 +1,3 @@
-import json
 import math
 import os
 
@@ -15,6 +14,7 @@ from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import print_parameters
 
 architectures = [
     'lstm',
@@ -101,6 +101,11 @@ class BaseModel(object):
             elif hasattr(training_config, key):
                 self.parameters[key] = getattr(training_config, key)
 
+    def print_summary(self):
+        if hasattr(self.model, 'base_model'):
+            self.model.base_model.summary()
+        self.model.summary()
+
     def train_model(self, 
                 list_classes, 
                 batch_size, 
@@ -122,7 +127,7 @@ class BaseModel(object):
 
         # default worker number for multiprocessing
         nb_workers = 6
-        if self.model_config.transformer_name != None:
+        if self.model_config.transformer_name is not None:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0
             multiprocessing = False
@@ -236,7 +241,7 @@ class BaseModel(object):
 
     def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
         if config.transformer_name is None:
-            # missing trasnformer name, no transformer layer to be initialized
+            # missing transformer name, no transformer layer to be initialized
             return None
 
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
@@ -268,11 +273,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
     scores = []
 
     bert_data = False
-    if model_config.transformer_name != None:
+    if model_config.transformer_name is not None:
         bert_data = True
 
     for fold_id in range(0, fold_count):
-        print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
         fold_start = fold_size * fold_id
         fold_end = fold_start + fold_size
 
@@ -286,6 +290,12 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         val_y = y[fold_start:fold_end]
 
         foldModel = getModel(model_config, training_config)
+
+        if fold_id == 0:
+            print_parameters(model_config, training_config)
+            foldModel.print_summary()
+
+        print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
             maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
@@ -386,8 +396,7 @@ class lstm(BaseModel):
         x = Dropout(self.parameters["dropout_rate"])(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
-        
+
 
 class bidLstm_simple(BaseModel):
     """
@@ -425,7 +434,7 @@ class bidLstm_simple(BaseModel):
         x = Dropout(self.parameters["dropout_rate"])(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
+
 
 
 class cnn(BaseModel):
@@ -466,7 +475,7 @@ class cnn(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+
 
 
 class cnn2(BaseModel):
@@ -503,7 +512,7 @@ class cnn2(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()  
+
 
 
 class cnn3(BaseModel):
@@ -545,7 +554,7 @@ class cnn3(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
+
 
 
 class lstm_cnn(BaseModel):
@@ -591,7 +600,7 @@ class lstm_cnn(BaseModel):
         x = Dropout(self.parameters["dropout_rate"])(x)
         x = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=x)
-        self.model.summary()
+
 
 
 class gru(BaseModel):
@@ -631,7 +640,7 @@ class gru(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.summary()
+
         
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -673,7 +682,7 @@ class gru_simple(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.summary()
+
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -718,7 +727,7 @@ class gru_lstm(BaseModel):
         x = Dense(self.parameters["dense_size"], activation="relu")(x)
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
-        self.model.summary()
+
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
@@ -781,7 +790,7 @@ class dpcnn(BaseModel):
         X = Dense(nb_classes, activation='sigmoid')(X)
 
         self.model = Model(inputs = input_layer, outputs = X, name='dpcnn')
-        self.model.summary()
+
 
 
 class bert(BaseModel):
@@ -819,7 +828,7 @@ class bert(BaseModel):
 
         self.model = Model(inputs=[input_ids_in], outputs=logits)
         #self.model = Model(inputs=[input_ids_in, input_masks_in], outputs=logits)
-        self.model.summary()
+
 
     def compile(self, train_size):
         #optimizer = Adam(learning_rate=2e-5, clipnorm=1)

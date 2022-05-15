@@ -3,7 +3,6 @@ import os
 import numpy as np
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
-from tensorflow.keras.utils import plot_model
 from transformers import create_optimizer
 
 from delft.sequenceLabelling.config import ModelConfig
@@ -12,7 +11,8 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR, Transformer
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.misc import print_parameters
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -208,8 +208,6 @@ class Trainer(object):
             self.preprocessor.save(os.path.join(output_directory, PROCESSOR_FILE_NAME))
 
         for fold_id in range(0, fold_count):
-            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
-
             if x_valid is None:
                 # segment train and valid
                 fold_start = fold_size * fold_id
@@ -239,6 +237,12 @@ class Trainer(object):
                                self.preprocessor, 
                                ntags=len(self.preprocessor.vocab_tag), 
                                load_pretrained_weights=True)
+
+            if fold_id == 0:
+                print_parameters(self.model_config, self.training_config)
+                foldModel.print_summary()
+
+            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
             self.transformer_preprocessor = foldModel.transformer_preprocessor
             foldModel = self.compile_model(foldModel, len(train_x))
             foldModel = self.train_model(foldModel, 

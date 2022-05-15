@@ -1,7 +1,8 @@
 # Snippet classification with DeLFT
 
-We used DeLFT for creating classifiers for various snippet types: citation contexts, software mention contexts, dataset sentences, etc. 
-Here are some application examples. 
+As an example, we use here DeLFT for creating classifiers for various snippet types: citation contexts, software mention contexts, dataset sentences, etc. 
+
+In general, the best results will be obtained with a transformer classifier (architecture `bert`), possibly using a costly 10-fold ensemble classifications if speed is not an issue. However, a `gru` architecture with 10-fold ensemble and good static embeddings might be similar or even more accurate than a transformer in some cases, leading to a much faster and less memory-hungry solution. It is thus advised to experiment with a `gru` architecture with 10-fold ensemble before deciding with a transformer classifier.
 
 #### Toxic comment classification
 

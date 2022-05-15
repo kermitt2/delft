@@ -5,7 +5,6 @@ import numpy as np
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.utilities.Transformer import Transformer
 
 
 class Tagger(object):
