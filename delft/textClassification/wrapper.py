@@ -158,6 +158,7 @@ class Classifier(object):
         # uncomment to plot graph
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
+
         self.model.train_model(
             self.model_config.list_classes, 
             self.training_config.batch_size, 
@@ -460,3 +461,4 @@ class Classifier(object):
                                     load_pretrained_weights=False, 
                                     local_path=model_path)
                 self.models.append(local_model)
+

@@ -2,7 +2,7 @@
     "model_name": "grobid-name-citation-BidLSTM_CRF_FEATURES",
     "architecture": "BidLSTM_CRF_FEATURES",
     "embeddings_name": "glove-840B",
-    "char_vocab_size": 89,
+    "char_vocab_size": 87,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
     "num_char_lstm_units": 25,
@@ -79,9 +79,8 @@
             "DOT": 110,
             "HYPHEN": 111,
             "NOPUNCT": 112,
-            "OPENBRACKET": 113,
-            "PUNCT": 114,
-            "QUOTE": 115
+            "PUNCT": 113,
+            "QUOTE": 114
         }
     }
 }

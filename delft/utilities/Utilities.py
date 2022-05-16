@@ -6,11 +6,13 @@ import numpy as np
 from numpy.random import seed
 seed(7)
 import os.path
+import datetime
 import shutil
 import requests
 from urllib.parse import urlparse
 
 from tensorflow.keras.preprocessing import text
+from tensorflow.keras.callbacks import TensorBoard
 
 from tqdm import tqdm 
 
@@ -585,6 +587,16 @@ def len_until_first_pad_old(tokens, pad):
             return i
     return len(tokens)
 
+def get_tensorboard_callback():
+    log_folder = "logs/summaries/" + datetime.datetime.now().strftime("%Y%m%d-%H%M%S") 
+    callbacks = [TensorBoard(log_dir=log_folder,
+                         histogram_freq=1,
+                         write_graph=True,
+                         write_images=True,
+                         update_freq='epoch',
+                         profile_batch=2,
+                         embeddings_freq=1)]
+    return callbacks
 
 if __name__ == "__main__":
     # usage example - for CoNLL-2003, indicate the eng.* file to be converted:

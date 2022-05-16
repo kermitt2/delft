@@ -9,6 +9,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 
 from itertools import islice
 import time
+import datetime
 import json
 import re
 import math
@@ -175,6 +176,7 @@ class Sequence(object):
                           preprocessor=self.p,
                           transformer_preprocessor=self.model.transformer_preprocessor
                           )
+
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
@@ -198,6 +200,12 @@ class Sequence(object):
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p)
 
+        '''
+        if callbacks is not None:
+            callbacks += get_tensorboard_callback()
+        else:
+            callbacks = get_tensorboard_callback()
+        '''
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
@@ -576,3 +584,4 @@ class Sequence(object):
 
 def next_n_lines(file_opened, N):
     return [x.strip() for x in islice(file_opened, N)]
+

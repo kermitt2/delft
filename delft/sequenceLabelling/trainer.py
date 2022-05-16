@@ -62,7 +62,7 @@ class Trainer(object):
 
     def compile_model(self, local_model, train_size):
 
-        nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
+        nb_train_steps = int(round((train_size // self.training_config.batch_size) * self.training_config.max_epoch))
         
         if self.model_config.transformer_name is not None:
             # we use a transformer layer in the architecture
@@ -70,7 +70,7 @@ class Trainer(object):
                 init_lr=2e-5, 
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
-                num_warmup_steps=0.1*nb_train_steps,
+                num_warmup_steps=int(round(0.1*nb_train_steps)),
             )
 
             if local_model.config.use_chain_crf:
