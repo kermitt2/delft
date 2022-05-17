@@ -278,8 +278,7 @@ class Sequence(object):
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
-            print_parameters(self.model_config, self.training_config)
-
+            
             total_f1 = 0
             best_f1 = 0
             best_index = 0
@@ -290,10 +289,6 @@ class Sequence(object):
             total_precision = 0
             total_recall = 0
             for i in range(self.model_config.fold_number):
-                if i == 0:
-                    self.models[0].print_summary()
-
-                print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
                 if self.model_config.transformer_name is None:
                     the_model = self.models[i]
@@ -310,6 +305,12 @@ class Sequence(object):
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
                     bert_preprocessor = self.model.transformer_preprocessor
+
+                if i == 0:
+                    the_model.print_summary()
+                    print_parameters(self.model_config, self.training_config)
+
+                print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)
