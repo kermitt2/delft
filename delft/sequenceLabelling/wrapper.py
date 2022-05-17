@@ -278,7 +278,6 @@ class Sequence(object):
 
     def eval_nfold(self, x_test, y_test, features=None):
         if self.models is not None:
-            
             total_f1 = 0
             best_f1 = 0
             best_index = 0
