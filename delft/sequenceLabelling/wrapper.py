@@ -290,8 +290,6 @@ class Sequence(object):
             total_precision = 0
             total_recall = 0
             for i in range(self.model_config.fold_number):
-                if i == 0:
-                    self.models[0].print_summary()
 
                 print('\n------------------------ fold ' + str(i) + ' --------------------------------------')
 
@@ -310,6 +308,9 @@ class Sequence(object):
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
                     bert_preprocessor = self.model.transformer_preprocessor
+
+                if i == 0:
+                    the_model.print_summary()
 
                 # we can use a data generator for evaluation
                 # Prepare test data(steps, generator)
