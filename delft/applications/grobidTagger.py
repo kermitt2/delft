@@ -25,6 +25,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
     multiprocessing = True
     max_epoch = 60
+    early_stop = True
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -40,7 +41,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-        early_stop = False
 
         # non-default settings per model
         if model == 'citation':
@@ -60,8 +60,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             batch_size = 7
             max_sequence_length = 512
     else:
-        early_stop = True
-
         # RNN-only architectures
         if model == 'citation':
             max_sequence_length = 600
