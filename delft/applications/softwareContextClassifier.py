@@ -133,7 +133,7 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None): 
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading multiclass software context dataset...')
     xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
 
@@ -166,7 +166,10 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
         model.eval(x_test, y_test_class_rank)
 
     # saving the model
-    #model.save()
+    # if output:
+    #     model.save(output_directory=output_directory)
+    # else:
+    #     model.save()
 
 
 # classify a list of texts
@@ -275,7 +278,7 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval_binary(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
+        y_test = train_and_eval_binary(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
 
     if args.action == 'classify':
         someTexts = ['Radiographic errors were recorded on individual tick sheets and the information was captured in an Excel spreadsheet (Microsoft, Redmond, WA).', 

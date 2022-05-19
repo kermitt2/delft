@@ -118,7 +118,7 @@ if __name__ == "__main__":
             "for model names"
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
-    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
 
     args = parser.parse_args()
 
@@ -131,7 +131,7 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     output = args.output
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

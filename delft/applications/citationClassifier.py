@@ -124,7 +124,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
 
     args = parser.parse_args()
 
@@ -139,7 +139,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print('unknown model architecture, must be one of '+str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
@@ -147,13 +147,13 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer, output_directory=output)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer, output_directory=output)
 
     if args.action == 'classify':
         someTexts = ['One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.', 

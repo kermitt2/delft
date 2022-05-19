@@ -105,7 +105,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
 
     args = parser.parse_args()
 
@@ -121,7 +121,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print('unknown model architecture, must be one of '+str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
