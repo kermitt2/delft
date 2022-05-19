@@ -49,3 +49,24 @@ def merge_dicts(dict_list: List[dict]) -> dict:
     for d in dict_list:
         result.update(d)
     return result
+
+
+def print_parameters(model_config, training_config):
+    print("---")
+    print("max_epoch:", training_config.max_epoch)
+    print("early_stop:", training_config.early_stop)
+    print("batch_size:", training_config.batch_size)
+    
+    if hasattr(model_config, 'max_sequence_length'):
+        print("max_sequence_length:", model_config.max_sequence_length)
+
+    if hasattr(model_config, 'maxlen'):
+        print("maxlen:", model_config.maxlen)
+
+    print("model_name:", model_config.model_name)
+    print("learning_rate: ", training_config.learning_rate)
+
+    if hasattr(model_config, 'use_ELMo'):
+        print("use_ELMo: ", model_config.use_ELMo)
+
+    print("---")

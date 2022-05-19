@@ -46,9 +46,9 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
     # default bert model parameters
     if architecture.find("BERT") != -1:
         batch_size = 32
-        early_stop = False
+        early_stop = True
         max_sequence_length = 150
-        max_epoch = 15
+        max_epoch = 50
         embeddings_name = None
 
     if dataset_type == 'conll2012':

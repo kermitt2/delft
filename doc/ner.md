@@ -1,6 +1,10 @@
 # DeLFT NER applications
 
-NER models can be trained and applied via the script `delft/applications/nerTagger.py`. 
+See [here](https://delft.readthedocs.io/en/latest/sequence_labeling/) for the list of supported sequence labeling architectures. 
+
+In general, the best results will be obtained with `BidLSTM_CRF` architecture together with `ELMo` (ELMo is particularly good for sequence labeling, so don't forget ELMo!) or with `BERT_CRF` using a pretrained transformer model specialized in the NER domain of the application (e.g. SciBERT for scientific NER, CamemBERT for general NER on French, etc.).
+
+NER models can be trained and applied via the script `delft/applications/nerTagger.py`. We describe on this page some available models and results obtained with DeLFT applied to standard NER tasks. 
 
 See [NER Datasets](ner-datasets.md) for more information on the datasets used in this section. 
 
@@ -28,9 +32,9 @@ Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF 
 
 | Architecture  | Implementation | f-score |
 | --- | --- | --- | 
-| bert-base-en    | DeLFT | 91.19 |  
-| bert-base-en+CRF    | DeLFT | 91.25 |  
-| bert-base-en        | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
+| bert-base-cased     | DeLFT | 91.19 |  
+| bert-base-cased +CRF| DeLFT | 91.25 |  
+| bert-base-cased     | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
 
 For DeLFT, the average is obtained with 10 training runs (see latest [full results](https://github.com/kermitt2/delft/blob/master/doc/sequence_labeling.0.3.0.txt)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not easily reproducible (if reproducible), and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition. 
 
@@ -162,10 +166,10 @@ Using ELMo with the best model obtained over 10 training (not using the validati
 all (micro avg.)     0.9261    0.9299    0.9280      5648
 ```
 
-Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-en`, cased, pre-trained model, use:
+Using BERT architecture for sequence labelling (pre-trained transformer with fine-tuning), for instance here the `bert-base-cased`, cased, pre-trained model, use:
 
 ```sh
-> python3 delft/applications/nerTagger.py --architecture BERF_CRF --dataset-type conll2003 --fold-count 10 --transformer bert-base-en train_eval
+> python3 delft/applications/nerTagger.py --architecture BERT_CRF --dataset-type conll2003 --fold-count 10 --transformer bert-base-cased train_eval
 ```
 
 ```text
@@ -204,7 +208,7 @@ After training a model, for tagging some text, for instance in a file `data/test
 For instance for tagging the text with a specific architecture that has been previously trained: 
 
 ```sh
-> python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt --architecture BERT_CRF_FEATURES --transformer bert-base-en tag
+> python3 delft/applications/nerTagger.py --dataset-type conll2003 --file-in data/test/test.ner.en.txt --architecture BERT_CRF_FEATURES --transformer bert-base-cased tag
 ```
 
 Note that, currently, the input text file must contain one sentence per line, so the text must be presegmented into sentences. To obtain the JSON annotations in a text file instead than in the standard output, use the parameter `--file-out`. Predictions work at around 7400 tokens per second for the BidLSTM_CRF architecture with a GeForce GTX 1080 Ti. 
@@ -480,6 +484,25 @@ Average over 10 folds
         <person>     0.9699    0.9760    0.9729       221
 
 all (micro avg.)     0.9073    0.9118    0.9096 
+```
+
+Using `camembert-base` as transformer layer in a `BERT_CRF` architecture: 
+
+```sh
+> python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb train_eval --architecture BERT_CRF --transformer camembert-base
+```
+
+```
+                  precision    recall  f1-score   support
+
+      <artifact>     0.0000    0.0000    0.0000         8
+      <business>     0.8940    0.9123    0.9030       342
+   <institution>     0.6923    0.7826    0.7347        23
+      <location>     0.9563    0.9713    0.9637       383
+  <organisation>     0.8270    0.8167    0.8218       240
+        <person>     0.9688    0.9819    0.9753       221
+
+all (micro avg.)     0.9102    0.9162    0.9132      1217
 ```
 
 For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:

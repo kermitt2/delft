@@ -2590,8 +2590,6 @@ all (micro avg.)     0.8642    0.8685    0.8663
 
 > python3 delft/applications/grobidTagger.py affiliation-address train_eval --architecture BidLSTM_ChainCRF --embedding glove-840B --use-ELMo --input data/sequenceLabelling/grobid/affiliation-address/affiliation-address-060518.train --fold-count 10
 
-
-
 training runtime: 6977.31 seconds 
 
 Evaluation:

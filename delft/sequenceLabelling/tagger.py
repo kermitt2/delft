@@ -5,7 +5,6 @@ import numpy as np
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.utilities.Transformer import Transformer
 
 
 class Tagger(object):
@@ -45,11 +44,17 @@ class Tagger(object):
         # that we will remove after prediction
         dummy_case = False
         if self.model_config.use_crf and not self.model_config.use_chain_crf and len(texts) == 1:
-            if to_tokeniz:
-                texts.append("dummy")
+            if features == None:
+                if to_tokeniz:
+                    texts.append(texts[0])
+                else:
+                    texts.append(["dummy"])
             else:
-                texts.append(["dummy"])
+                texts.append(texts[0])
+                # add a dummy feature vector for the token dummy...
+                features.append(features[0])
             dummy_case = True
+        # end of dirty fix
 
         generator = self.model.get_generator()
         predict_generator = generator(texts, None, 

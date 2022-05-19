@@ -12,9 +12,9 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
+from delft.utilities.misc import print_parameters
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import CONFIG_FILE_NAME, PROCESSOR_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME
-
 
 class Trainer(object):
 
@@ -27,7 +27,7 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  temp_directory: str = 'data/models/sequenceLabelling/',
-                 preprocessor: Preprocessor = None,
+                 preprocessor: Preprocessor=None,
                  transformer_preprocessor=None,
                  ):
 
@@ -48,11 +48,10 @@ class Trainer(object):
             raise IOError("The temporary directory does not exists. ")
         self.temp_directory = temp_directory
 
-    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None,
-              features_valid: np.array = None, callbacks=None):
+    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
         Train the instance self.model
-        """
+        """      
         self.model = self.compile_model(self.model, len(x_train))
 
         # uncomment to plot graph
@@ -66,11 +65,11 @@ class Trainer(object):
     def compile_model(self, local_model, train_size):
 
         nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
-
+        
         if self.model_config.transformer_name is not None:
             # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
-                init_lr=2e-5,
+                init_lr=2e-5, 
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
                 num_warmup_steps=0.1*nb_train_steps,
@@ -86,13 +85,13 @@ class Trainer(object):
                 # corresponding to special symbols are neutralized
                 local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
         else:
-
+            
             lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.training_config.learning_rate,
                 decay_steps=nb_train_steps,
                 decay_rate=0.1)
             optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-
+            
             #optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
             if local_model.config.use_chain_crf:
                 local_model.compile(optimizer=optimizer, loss=local_model.crf.loss)
@@ -125,20 +124,20 @@ class Trainer(object):
 
         generator = local_model.get_generator()
         if self.training_config.early_stop:
-            training_generator = generator(x_train, y_train,
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+            training_generator = generator(x_train, y_train, 
+                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size,
+                char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings,
+                embeddings=self.embeddings, 
                 shuffle=True, features=f_train, use_chain_crf=self.model_config.use_chain_crf)
 
-            validation_generator = generator(x_valid, y_valid,
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+            validation_generator = generator(x_valid, y_valid,  
+                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size,
+                char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid,
+                embeddings=self.embeddings, shuffle=False, features=f_valid, 
                 output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
@@ -154,11 +153,11 @@ class Trainer(object):
                 feature_all = np.concatenate((f_train, f_valid), axis=0)
 
             training_generator = generator(x_train, y_train,
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor,
+                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
                 bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size,
+                char_embed_size=self.model_config.char_embedding_size, 
                 max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True,
+                embeddings=self.embeddings, shuffle=True, 
                 features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
@@ -172,7 +171,7 @@ class Trainer(object):
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
             # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0
+            nb_workers = 0 
             multiprocessing = False
 
         local_model.fit(training_generator,
@@ -213,8 +212,6 @@ class Trainer(object):
             self.preprocessor.save(os.path.join(output_directory, PROCESSOR_FILE_NAME))
 
         for fold_id in range(0, fold_count):
-            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
-
             if x_valid is None:
                 # segment train and valid
                 fold_start = fold_size * fold_id
@@ -240,13 +237,19 @@ class Trainer(object):
                 val_y = y_valid
                 val_f = f_valid
 
-            foldModel = get_model(self.model_config,
-                               self.preprocessor,
-                               ntags=len(self.preprocessor.vocab_tag),
+            foldModel = get_model(self.model_config, 
+                               self.preprocessor, 
+                               ntags=len(self.preprocessor.vocab_tag), 
                                load_pretrained_weights=True)
+
+            if fold_id == 0:
+                print_parameters(self.model_config, self.training_config)
+                foldModel.print_summary()
+
+            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
             self.transformer_preprocessor = foldModel.transformer_preprocessor
             foldModel = self.compile_model(foldModel, len(train_x))
-            foldModel = self.train_model(foldModel,
+            foldModel = self.train_model(foldModel, 
                                     train_x,
                                     train_y,
                                     x_valid=val_x,
@@ -331,7 +334,7 @@ class Scorer(Callback):
         for i, (data, label) in enumerate(self.valid_batches):
             if i == self.valid_steps:
                 break
-            y_true_batch = label
+            y_true_batch = label       
 
             if isinstance(self.valid_batches, DataGeneratorTransformers):
                 y_true_batch = np.asarray(y_true_batch, dtype=object)
@@ -364,10 +367,10 @@ class Scorer(Callback):
                         if offsets_text[q][0] == 0 and offsets_text[q][1] == 0:
                             # special token
                             continue
-                        if offsets_text[q][0] != 0:
+                        if offsets_text[q][0] != 0: 
                             # added sub-token
                             continue
-                        new_y_pred_text.append(y_pred_text[q])
+                        new_y_pred_text.append(y_pred_text[q]) 
                         new_y_true_text.append(y_true_text[q])
                     new_y_pred_batch.append(new_y_pred_text)
                     new_y_true_batch.append(new_y_true_text)

@@ -3,8 +3,6 @@ from typing import Union, Iterable
 
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
-from delft.sequenceLabelling.preprocess import BERTPreprocessor
-
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 DEFAULT_TRANSFORMER_TOKENIZER_DIR = "transformer-tokenizer"
 
@@ -16,12 +14,18 @@ LOADING_METHOD_DELFT_MODEL = "delft_model"
 
 class Transformer(object):
     """
-    This class provides a wrapper around the Transformer.
-    With this class is possible to load a transformer tokenizer and layer using different approaches:
-     1. via the hugging face name (beware this will result in several requests to huggingface.co, which could fail if the service is overloaded
+    This class provides a wrapper around a transformer model (pre-trained or fine-tuned)
+    
+    This class makes possible to load a transformer config, tokenizer and weights using different approaches, 
+    prioritizing the most "local" method over an external access to the HuggingFace Hub:
+
+     1. loading the transformer saved locally as part of an existing full delft model (the configuration file 
+        name will be different)
      2. via a local directory
-     3. by specifying the weight, config and vocabulary files separately (this is likely the scenario where the user try to load a model from the downloaded bert/scibertt model from github
-     4. loading the transformer as part of the delft model (the configuration file name will be different)
+     3. by specifying the weight, config and vocabulary files separately (this is likely the scenario where 
+        the user try to load a model from the downloaded bert/scibertt model from github
+     4. via the HuggingFace transformer name and HuggingFace Hub, resulting in several online requests to this 
+        Hub, which could fail if the service is overloaded
     """
 
     def __init__(self, name: str, resource_registry: dict = None, delft_local_path: str = None):
@@ -53,9 +57,10 @@ class Transformer(object):
     def configure_from_registry(self, resource_registry) -> None:
         """
         Fetch transformer information from the registry and infer the loading method:
-            1. if no configuration is provided is using huggingface with the provided name
+            1. if no configuration is provided is using HuggingFace with the provided name
             2. if only the directory is provided it will load the model from that directory
-            3. if the weights, config and vocab are provided (as in the vanilla models) then it will load them as BertTokenizer and BertModel
+            3. if the weights, config and vocab are provided (as in the vanilla models) then 
+               it will load them as BertTokenizer and BertModel
         """
 
         if self.loading_method == LOADING_METHOD_DELFT_MODEL:
@@ -98,9 +103,7 @@ class Transformer(object):
 
     def init_preprocessor(self, max_sequence_length: int,
                        add_special_tokens: bool = True,
-                       add_prefix_space: bool = True,
-                       empty_features_vector: Iterable[int] =None,
-                       empty_char_vector: Iterable[int] = None) -> BERTPreprocessor:
+                       add_prefix_space: bool = True):
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -124,14 +127,13 @@ class Transformer(object):
             self.transformer_config = AutoConfig.from_pretrained(config_path)
             self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR), config=self.transformer_config)
 
-        self.bert_preprocessor = BERTPreprocessor(self.tokenizer, empty_features_vector, empty_char_vector)
-
-        return self.bert_preprocessor
-
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)
 
     def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
+        """
+        Instanciate a transformer to be loaded in a Keras layer using the availability method of the pre-trained transformer.
+        """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
                 transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)

@@ -1,6 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
+from delft.utilities.misc import print_parameters
 import shutil
 
 from delft.sequenceLabelling import Sequence
@@ -133,6 +134,9 @@ class Classifier(object):
     def train(self, x_train, y_train, vocab_init=None, callbacks=None):
         self.model = getModel(self.model_config, self.training_config)
 
+        print_parameters(self.model_config, self.training_config)
+        self.model.print_summary()
+
         bert_data = False
         if self.transformer_name is not None:
             bert_data = True
@@ -228,31 +232,34 @@ class Classifier(object):
             return result
 
     def eval(self, x_test, y_test, use_main_thread_only=False):
+        print_parameters(self.model_config, self.training_config)
+
         bert_data = False
         if self.transformer_name is not None:
             bert_data = True
 
         if self.model_config.fold_number == 1:
             if self.model is not None:
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
+                self.model.print_summary()
+                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes,
+                        embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
 
                 result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
             else:
                 raise (OSError('Could not find a model.'))
         else:
-            if self.models is not None and len(self.models) > 0:
-                # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.models[0].transformer_tokenizer)
-                result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
-            else:
-                print("The n-fold evaluation for transformer is temporarly unavailable. "
-                      "This message is for not forget to fix this. ")
-                return
-                # raise (OSError('Could not find n-folds models.'))
+            if self.models is None:
+                raise (OSError('Could not find nfolds models.'))
+
+            self.models[0].print_summary()
+
+            # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes
+            test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
+                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes,
+                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.models[0].transformer_tokenizer)
+            result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
+
         print("-----------------------------------------------")
         print("\nEvaluation on", x_test.shape[0], "instances:")
 
@@ -437,6 +444,9 @@ class Classifier(object):
                               self.training_config, 
                               load_pretrained_weights=False, 
                               local_path=model_path)
+        print_parameters(self.model_config, self.training_config)
+        self.model.print_summary()
+
         if self.model_config.fold_number == 1:
             print("load weights from", os.path.join(model_path, DEFAULT_WEIGHT_FILE_NAME))
             self.model.load(os.path.join(model_path, DEFAULT_WEIGHT_FILE_NAME))
