@@ -199,7 +199,7 @@ class Trainer(object):
         fold_size = len(x_train) // fold_count
 
         output_directory = os.path.join(self.temp_directory, self.model_config.model_name)
-        print("Output directory:", output_directory)
+        print("Tmp directory:", output_directory)
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
         else:

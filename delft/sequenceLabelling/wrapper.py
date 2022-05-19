@@ -302,7 +302,7 @@ class Sequence(object):
                                self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path= os.path.join(dir_path, self.model_config.model_name))
+                               local_path=os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
                     bert_preprocessor = self.model.transformer_preprocessor

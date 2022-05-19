@@ -276,7 +276,7 @@ def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig
     scores = []
 
     output_directory = os.path.join(temp_directory, model_config.model_name)
-    print("Output directory:", output_directory)
+    print("Tmp directory:", output_directory)
     if not os.path.exists(output_directory):
         os.makedirs(output_directory)
     else:
