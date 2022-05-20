@@ -202,7 +202,7 @@ class Sequence(object):
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
 
-    def eval(self, x_test, y_test, features=None):
+    def eval(self, x_test, y_test, features=None, output_eval_raw_data=None):
         if self.model_config.fold_number > 1:
             self.eval_nfold(x_test, y_test, features=features, output_eval_raw_data=output_eval_raw_data)
         else:
