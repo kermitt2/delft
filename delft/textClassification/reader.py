@@ -28,7 +28,7 @@ def load_texts_and_classes(filepath):
     with open(filepath) as f:
         for line in f:
             line = line.strip()
-            if (len(line) is 0):
+            if len(line) == 0:
                 continue
             pieces = line.split('\t')
             if (len(pieces) < 3):
@@ -115,7 +115,7 @@ def load_citation_sentiment_corpus(filepath):
     with open(filepath) as f:
         for line in f:
             line = line.strip()
-            if (len(line) is 0):
+            if len(line) == 0:
                 continue
             if line.startswith('#'):
                 continue
@@ -130,15 +130,15 @@ def load_citation_sentiment_corpus(filepath):
             texts.append(text)
 
             polarity = []
-            if pieces[2] is 'n':
+            if pieces[2] == 'n':
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'o':
+            if pieces[2] == 'o':
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'p':
+            if pieces[2] == 'p':
                 polarity.append(1)
             else:
                 polarity.append(0)
@@ -165,8 +165,8 @@ def load_dataseer_corpus_csv(filepath):
     df = df[pd.notnull(df['text'])]
     if 'datatype' in df.columns:
         df = df[pd.notnull(df['datatype'])]
-    #if 'reuse' in df.columns:    
-    #    df = df[pd.notnull(df['reuse'])]
+    if 'reuse' in df.columns:    
+        df = df[pd.notnull(df['reuse'])]
     df.iloc[:,1].fillna('NA', inplace=True)
 
     # shuffle, note that this is important for the reuse prediction, the following shuffle in place
@@ -177,7 +177,6 @@ def load_dataseer_corpus_csv(filepath):
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
-    '''
     if 'reuse' in df.columns:  
         # we simply get the reuse boolean value for the examples
         datareuses = df.iloc[:,2]
@@ -185,11 +184,10 @@ def load_dataseer_corpus_csv(filepath):
         reuse_list = np.asarray(reuse_list)
         # map boolean values to [0,1]
         def map_boolean(x):
-            return 1 if x else 0
+            return [1.0,0.0] if x else [0.0,1.0]
         reuse_list = np.array(list(map(map_boolean, reuse_list)))
         print(reuse_list)
         return np.asarray(texts_list), reuse_list, None, None, ["not_reuse", "reuse"], None, None
-    '''
 
     # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
@@ -271,6 +269,64 @@ def load_software_use_corpus_json(json_gz_file_path):
 
     texts_list_final = np.asarray(texts_list)
 
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+
+    return texts_list_final, classes_list_final
+
+
+def load_software_context_corpus_json(json_gz_file_path):
+    """
+    Load texts and classes from the corresponding Softcite mention corpus export in gzipped json format
+
+    Classification of the software usage is multiclass/multilabel
+
+    Returns:
+        tuple(numpy array, numpy array): 
+            texts, classes_list
+
+    """
+
+    texts_list = []
+    classes_list = []
+
+    with gzip.GzipFile(json_gz_file_path, 'r') as fin:
+        data = json.loads(fin.read().decode('utf-8'))
+        if not "documents" in data:
+            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            return None, None 
+        for document in data["documents"]:
+            for segment in document["texts"]:
+                if "entity_spans" in segment:
+                    if not "text" in segment:
+                        continue
+                    text = segment["text"]
+                    for entity_span in segment["entity_spans"]:
+                        if entity_span["type"] == "software":
+                            texts_list.append(text)
+                            classes = []
+                            if "used" in entity_span and entity_span["used"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            if "contribution" in entity_span and entity_span["contribution"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            if "shared" in entity_span and entity_span["shared"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)    
+
+                            classes_list.append(classes)
+
+    #list_possible_classes = np.unique(classes_list)
+    #classes_list_final = normalize_classes(classes_list, list_possible_classes)
+
+    texts_list_final = np.asarray(texts_list)
+    classes_list_final = np.asarray(classes_list)
+    
     texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 
     return texts_list_final, classes_list_final

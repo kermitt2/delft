@@ -12,7 +12,12 @@ target
 *.obj
 *.zip
 *.gz
+!data/textClassification/software/*.gz
+!data/sequenceLabelling/grobid/fulltext/fulltext-110322.train.gz
 data/db/*
+!data/db/.gitkeep
+data/download/*
+!data/download/.gitkeep
 data/training
 data/eval
 data/embeddings
@@ -24,6 +29,10 @@ data/resources
 data/clearNLP
 data/models/ELMo/en/*.hdf5
 data/models/ELMo/fr/*.hdf5
+data/models/**/bert.model_weights.hdf5
+data/models/**/bert.model_weights*.hdf5
+data/models/*/*BERT*/
+data/models/*/*bert*/
 logs
 *__pycache__*
 data/models/ELMo/en/cache
@@ -65,3 +74,9 @@ data/models/textClassification/*6
 data/models/textClassification/*7
 data/models/textClassification/*8
 data/models/textClassification/*9
+
+.pytest_cache
+
+citationClassifierV.py
+citations_v
+requirements-v.txt
