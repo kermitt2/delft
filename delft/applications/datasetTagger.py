@@ -48,6 +48,7 @@ def configure(architecture, output_path=None, max_sequence_length=-1, batch_size
 
     return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop
 
+
 # train a model with all available data
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
@@ -95,6 +96,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
         model.save(output_path)
     else:
         model.save()
+
 
 # split data, train a model and evaluate it
 def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
@@ -154,8 +156,35 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
     else:
         model.save()
 
+
 def eval_(input_path=None, architecture=None):
     return
+
+
+# annotate a list of texts
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
+    annotations = []
+
+    # load model
+    model_name = 'datasets'
+    model_name += '-'+architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
+
+    model = Sequence(model_name)
+    model.load()
+
+    start_time = time.time()
+
+    annotations = model.tag(texts, output_format, features=features)
+    runtime = round(time.time() - start_time, 3)
+
+    if output_format == 'json':
+        annotations["runtime"] = runtime
+    else:
+        print("runtime: %s seconds " % (runtime))
+
+    return annotations
 
 
 if __name__ == "__main__":
