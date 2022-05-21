@@ -1,12 +1,12 @@
 import numpy as np
 import xml
 from xml.sax import make_parser, handler
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple, tokenizeAndFilter, tokenize
 import re
 import os
 import gzip
 from tqdm import tqdm
-
+import json
 
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
@@ -669,6 +669,88 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
 
     return final_tokens, final_label
 
+
+def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
+    """
+    Load data and labels from json corpus where annotations are expressed with offsets. 
+    This requires a tokenizer passed as parameter. If tokenizer is None, we use the generic
+    Indo-European tokenizer.
+
+    {
+    "lang": "en",
+    "level": "sentence",
+    "documents": [
+        {
+            "id": "10.1371/journal.pone.0198300",
+            "body_text": [
+                {
+                    "text": "The test was designed so that bacteria were collected at 1 hour and 6 hours after start time on each day of testing.",
+                    "annotation_spans": [
+                        {
+                            "start": 30,
+                            "end": 38,
+                            "text": "bacteria",
+                            "type": "dataset",
+                            "datatype": "Tabular Data:Sample Table"
+                        }
+                    ]
+                },
+            ]
+        }
+    }    
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+    """
+    if not os.path.exists(jsonCorpus):
+        print("Invalid path file: ", jsonCorpus)
+        return None, None
+
+    all_tokens = []
+    all_labels = []
+    with open(jsonCorpus, "rt") as corpus_file:
+        jsonDocuments = json.load(corpus_file)
+        if "documents" in jsonDocuments:
+            for jsonDocument in jsonDocuments["documents"]:
+                if "body_text" in jsonDocument:
+                    for text_piece in jsonDocument["body_text"]:
+                        if "text" in text_piece:
+                            tokens = []
+                            labels = []
+                            text = text_piece["text"]
+                            local_tokens, local_offsets = tokenizeAndFilter(text)
+                            spans = []
+                            if "annotation_spans" in text_piece:
+                                for annotation_span in text_piece["annotation_spans"]:
+                                    local_type = None
+                                    if "type" in annotation_span:
+                                        local_type = annotation_span["type"]
+                                        local_type = local_type.replace(" ", "_")
+                                    spans.append([annotation_span["start"], annotation_span["end"], local_type])
+                            i =0
+                            for local_token in local_tokens:
+                                tokens.append(local_token)
+                                offset = local_offsets[i]
+                                found = False
+                                for span in spans:
+                                    if span[0] <= offset[0] and (offset[1] <= span[1] or offset[0] < span[1]):
+                                        if span[0] == offset[0]:
+                                            labels.append("B-"+span[2])
+                                        else:
+                                            labels.append("I-"+span[2])
+                                        found = True
+                                        break
+                                if not found:
+                                    labels.append("O")
+                                i += 1
+
+                            all_tokens.append(tokens)
+                            all_labels.append(labels)
+
+    final_tokens = np.asarray(all_tokens)
+    final_labels = np.asarray(all_labels)
+
+    return final_tokens, final_labels
 
 if __name__ == "__main__":
     # some tests
