@@ -676,6 +676,8 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
     This requires a tokenizer passed as parameter. If tokenizer is None, we use the generic
     Indo-European tokenizer.
 
+    Note: input file can be gzipped or not
+
     {
     "lang": "en",
     "level": "sentence",
@@ -708,44 +710,51 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
 
     all_tokens = []
     all_labels = []
-    with open(jsonCorpus, "rt") as corpus_file:
-        jsonDocuments = json.load(corpus_file)
-        if "documents" in jsonDocuments:
-            for jsonDocument in jsonDocuments["documents"]:
-                if "body_text" in jsonDocument:
-                    for text_piece in jsonDocument["body_text"]:
-                        if "text" in text_piece:
-                            tokens = []
-                            labels = []
-                            text = text_piece["text"]
-                            local_tokens, local_offsets = tokenizeAndFilter(text)
-                            spans = []
-                            if "annotation_spans" in text_piece:
-                                for annotation_span in text_piece["annotation_spans"]:
-                                    local_type = None
-                                    if "type" in annotation_span:
-                                        local_type = annotation_span["type"]
-                                        local_type = local_type.replace(" ", "_")
-                                    spans.append([annotation_span["start"], annotation_span["end"], local_type])
-                            i =0
-                            for local_token in local_tokens:
-                                tokens.append(local_token)
-                                offset = local_offsets[i]
-                                found = False
-                                for span in spans:
-                                    if span[0] <= offset[0] and (offset[1] <= span[1] or offset[0] < span[1]):
-                                        if span[0] == offset[0]:
-                                            labels.append("B-"+span[2])
-                                        else:
-                                            labels.append("I-"+span[2])
-                                        found = True
-                                        break
-                                if not found:
-                                    labels.append("O")
-                                i += 1
 
-                            all_tokens.append(tokens)
-                            all_labels.append(labels)
+    if jsonCorpus.endswith(".gz"):
+        corpus_file = gzip.open(jsonCorpus, "rt")
+    else:
+        corpus_file = open(jsonCorpus, "rt")
+    
+    jsonDocuments = json.load(corpus_file)
+    if "documents" in jsonDocuments:
+        for jsonDocument in jsonDocuments["documents"]:
+            if "body_text" in jsonDocument:
+                for text_piece in jsonDocument["body_text"]:
+                    if "text" in text_piece:
+                        tokens = []
+                        labels = []
+                        text = text_piece["text"]
+                        local_tokens, local_offsets = tokenizeAndFilter(text)
+                        spans = []
+                        if "annotation_spans" in text_piece:
+                            for annotation_span in text_piece["annotation_spans"]:
+                                local_type = None
+                                if "type" in annotation_span:
+                                    local_type = annotation_span["type"]
+                                    local_type = local_type.replace(" ", "_")
+                                spans.append([annotation_span["start"], annotation_span["end"], local_type])
+                        i =0
+                        for local_token in local_tokens:
+                            tokens.append(local_token)
+                            offset = local_offsets[i]
+                            found = False
+                            for span in spans:
+                                if span[0] <= offset[0] and (offset[1] <= span[1] or offset[0] < span[1]):
+                                    if span[0] == offset[0]:
+                                        labels.append("B-"+span[2])
+                                    else:
+                                        labels.append("I-"+span[2])
+                                    found = True
+                                    break
+                            if not found:
+                                labels.append("O")
+                            i += 1
+
+                        all_tokens.append(tokens)
+                        all_labels.append(labels)
+
+    corpus_file.close()
 
     final_tokens = np.asarray(all_tokens)
     final_labels = np.asarray(all_labels)

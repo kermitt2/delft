@@ -1,6 +1,7 @@
 import argparse
 import json
 import time
+import numpy as np
 
 from sklearn.model_selection import train_test_split
 
@@ -104,7 +105,11 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/dataseer_sentences.json')
+        x_all1, y_all1 = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/dataseer_sentences.json')
+        x_all2, y_all2 = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json')
+        x_all3, y_all3 = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/coleridge_sentences.json.gz')
+        x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
+        y_all = np.concatenate((y_all1, y_all2, y_all3[:1000]), axis=0)
     else:
         x_all, y_all = load_data_and_labels_json_offsets(input_path)
 
@@ -267,7 +272,7 @@ if __name__ == "__main__":
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
             print("The argument fold-count argument will be ignored. For n-fold cross-validation, please use "
-                  "it in combination with " + str(Tasks.TRAIN_EVAL))
+                  "it in combination with train_eval")
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input")
         eval_(input_path=input_path, architecture=architecture)
