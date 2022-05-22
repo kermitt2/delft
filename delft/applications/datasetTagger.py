@@ -1,3 +1,4 @@
+import os
 import argparse
 import json
 import time
@@ -105,9 +106,16 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
     print('Loading data...')
     if input_path is None:
-        x_all1, y_all1 = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/dataseer_sentences.json')
-        x_all2, y_all2 = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json')
-        x_all3, y_all3 = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/coleridge_sentences.json.gz')
+        x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
+        dataseer_sentences_path = "data/sequenceLabelling/datasets/dataseer_sentences.json"
+        if os.path.exists(dataseer_sentences_path):
+            x_all1, y_all1 = load_data_and_labels_json_offsets(dataseer_sentences_path)
+        ner_dataset_recognition_sentences_path = "data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json"
+        if os.path.exists(ner_dataset_recognition_sentences_path):
+            x_all2, y_all2 = load_data_and_labels_json_offsets(ner_dataset_recognition_sentences_path)
+        coleridge_sentences_path = "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
+        if os.path.exists(coleridge_sentences_path):    
+            x_all3, y_all3 = load_data_and_labels_json_offsets(coleridge_sentences_path)
         x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
         y_all = np.concatenate((y_all1, y_all2, y_all3[:1000]), axis=0)
     else:
@@ -167,7 +175,7 @@ def eval_(input_path=None, architecture=None):
 
 
 # annotate a list of texts
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
+def annotate_text(texts, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
     annotations = []
 
     # load model
@@ -292,11 +300,11 @@ if __name__ == "__main__":
 
     if action == "tag":
         someTexts = []
-        someTexts.append("January 2006")
-        someTexts.append("March the 27th, 2001")
-        someTexts.append(" on  April 27, 2001. . ")
-        someTexts.append('2018')
-    
+        someTexts.append("The DEGs were annotated using the following databases: the NR protein database (NCBI), Swiss Prot, Gene Ontology (GO), the Kyoto Encyclopedia of Genes and Genomes (KEGG) database, and the Clusters of Orthologous Groups database (COG) according to the methods of described by Zhou et al")
+        someTexts.append("The electrochemiluminescence immunoassay was used to measure serum concentration of 25-hydroxyvitamin D using Roche Modular E170 Analyzer (Roche Diagnostics, Basel, Switzerland).")
+        someTexts.append("We found that this technique works very well in practice, for the MNIST and NORB datasets (see below).")
+        someTexts.append("We also compare ShanghaiTechRGBD with other RGB-D crowd counting datasets in , and we can see that ShanghaiTechRGBD is the most challenging RGB-D crowd counting dataset in terms of the number of images and heads.")
+
         result = annotate_text(someTexts, "json", architecture=architecture, use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         

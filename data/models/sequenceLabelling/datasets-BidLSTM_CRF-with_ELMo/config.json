@@ -2,7 +2,7 @@
     "model_name": "datasets-BidLSTM_CRF-with_ELMo",
     "architecture": "BidLSTM_CRF",
     "embeddings_name": "glove-840B",
-    "char_vocab_size": 228,
+    "char_vocab_size": 172,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
     "num_char_lstm_units": 25,
