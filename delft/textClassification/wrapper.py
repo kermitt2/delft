@@ -118,8 +118,11 @@ class Classifier(object):
                                         batch_size=batch_size,
                                         transformer_name=self.transformer_name)
 
-        self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
-                                              lr_decay, clip_gradients, 
+        self.training_config = TrainingConfig(batch_size=batch_size, 
+                                              optimizer=optimizer, 
+                                              learning_rate=learning_rate,
+                                              lr_decay=lr_decay, 
+                                              clip_gradients=clip_gradients, 
                                               max_epoch=max_epoch,
                                               patience=patience, 
                                               use_roc_auc=use_roc_auc, 
@@ -176,10 +179,16 @@ class Classifier(object):
         self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
 
 
-    def predict(self, texts, output_format='json', use_main_thread_only=False):
+    def predict(self, texts, output_format='json', use_main_thread_only=False, batch_size=None):
         bert_data = False
         if self.transformer_name != None:
             bert_data = True
+
+        if batch_size != None:
+            self.model_config.batch_size = batch_size
+            print("---")
+            print("batch_size (prediction):", self.model_config.batch_size)
+            print("---")
 
         if self.model_config.fold_number == 1:
             if self.model != None: 

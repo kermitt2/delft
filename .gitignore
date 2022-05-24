@@ -82,3 +82,4 @@ data/models/textClassification/*9
 citationClassifierV.py
 citations_v
 requirements-v.txt
+veracity
