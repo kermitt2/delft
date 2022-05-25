@@ -1,3 +1,4 @@
+import os
 from typing import List, Dict, Tuple
 
 __author__ = "@de-code"
@@ -10,6 +11,8 @@ https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/scienceb
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
 PROCESSOR_FILE_NAME = 'preprocessor.json'
+
+DEFAULT_TMP_PATH = 'data/tmp'
 
 def parse_number_range(expr: str) -> List[int]:
     fragments = expr.split('-')
@@ -70,3 +73,16 @@ def print_parameters(model_config, training_config):
         print("use_ELMo: ", model_config.use_ELMo)
 
     print("---")
+
+
+def init_tmp_directory(registry: dict) -> str:
+    if 'tmp-path' in registry:
+        temp_directory = registry['tmp-path']
+    else:
+        temp_directory = DEFAULT_TMP_PATH
+
+    if not os.path.exists(temp_directory):
+        os.makedirs(temp_directory)
+
+    return temp_directory
+

@@ -1,6 +1,7 @@
 {
     "embedding-lmdb-path": "data/db",
     "embedding-download-path": "data/download",
+    "tmp-path": "data/tmp",
     "embeddings": [
         {
             "name": "glove-840B",

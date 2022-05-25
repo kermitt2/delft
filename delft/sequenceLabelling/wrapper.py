@@ -2,7 +2,8 @@ import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
-from delft.utilities.misc import PROCESSOR_FILE_NAME, CONFIG_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME, print_parameters
+from delft.utilities.misc import PROCESSOR_FILE_NAME, CONFIG_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME, print_parameters, \
+    init_tmp_directory
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -81,8 +82,7 @@ class Sequence(object):
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 transformer_name: str = None,
-                 temp_directory: str = 'data/tmp'):
+                 transformer_name: str = None):
 
         if model_name is None:
             # add a dummy name based on the architecture
@@ -104,10 +104,7 @@ class Sequence(object):
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
-        if not os.path.exists(temp_directory):
-            os.makedirs(temp_directory)
-
-        self.temp_directory = temp_directory
+        self.temp_directory = init_tmp_directory(self.registry)
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)

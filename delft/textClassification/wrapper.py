@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.misc import print_parameters
+from delft.utilities.misc import print_parameters, init_tmp_directory
 import shutil
 
 from delft.sequenceLabelling import Sequence
@@ -74,8 +74,7 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
-                 transformer_name: str=None,
-                 temp_directory: str = 'data/tmp'
+                 transformer_name: str=None
                  ):
 
         if model_name is None:
@@ -97,7 +96,7 @@ class Classifier(object):
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
-        self.temp_directory = temp_directory
+        self.temp_directory = init_tmp_directory(self.registry)
 
         word_emb_size = 0
         if transformer_name is not None:

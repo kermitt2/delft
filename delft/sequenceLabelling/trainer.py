@@ -12,7 +12,7 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.utilities.misc import print_parameters
+from delft.utilities.misc import print_parameters, DEFAULT_TMP_PATH
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import CONFIG_FILE_NAME, PROCESSOR_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME
 
@@ -26,9 +26,9 @@ class Trainer(object):
                  training_config,
                  checkpoint_path='',
                  save_path='',
-                 temp_directory: str = 'data/models/sequenceLabelling/',
                  preprocessor: Preprocessor=None,
                  transformer_preprocessor=None,
+                 temp_directory: str = DEFAULT_TMP_PATH,
                  ):
 
         # for single model training
