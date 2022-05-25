@@ -16,7 +16,7 @@ from delft.textClassification.data_generator import DataGenerator
 from delft.utilities.Embeddings import load_resource_registry
 
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
-from delft.utilities.misc import print_parameters
+from delft.utilities.misc import print_parameters, DEFAULT_TMP_PATH
 from delft.utilities.misc import DEFAULT_WEIGHT_FILE_NAME, CONFIG_FILE_NAME
 
 architectures = [
@@ -264,7 +264,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig, embeddings, temp_directory: str, callbacks=None):
+def train_folds(X, y, model_config: ModelConfig, training_config: TrainingConfig, embeddings, temp_directory: str = DEFAULT_TMP_PATH, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture

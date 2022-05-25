@@ -171,7 +171,8 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          transformer_preprocessor=self.model.transformer_preprocessor
+                          transformer_preprocessor=self.model.transformer_preprocessor,
+                          temp_directory=self.temp_directory
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
