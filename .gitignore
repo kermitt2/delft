@@ -53,6 +53,8 @@ data/models/sequenceLabelling/*biobert*
 data/models/sequenceLabelling/*-bert-*-en/
 data/models/textClassification/citations*
 
+data/sequenceLabelling/datasets/dataseer_*.json
+
 data/models/sequenceLabelling/*0
 data/models/sequenceLabelling/*1
 data/models/sequenceLabelling/*2
@@ -80,3 +82,4 @@ data/models/textClassification/*9
 citationClassifierV.py
 citations_v
 requirements-v.txt
+veracity

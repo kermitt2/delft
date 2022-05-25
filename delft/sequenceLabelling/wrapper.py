@@ -413,9 +413,16 @@ class Sequence(object):
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
-    def tag(self, texts, output_format, features=None):
+    def tag(self, texts, output_format, features=None, batch_size=None):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
+
+        if batch_size != None:
+            self.model_config.batch_size = batch_size
+            print("---")
+            print("batch_size (prediction):", self.model_config.batch_size)
+            print("---")
+
         if self.model:
             tagger = Tagger(self.model,
                             self.model_config,
@@ -433,11 +440,18 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.' + str(self.model)))
 
-    def tag_file(self, file_in, output_format, file_out):
+    def tag_file(self, file_in, output_format, file_out, batch_size=None):
         # Annotate a text file containing one sentence per line, the annotations are
         # written in the output file if not None, in the standard output otherwise.
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
+
+        if batch_size != None:
+            self.model_config.batch_size = batch_size
+            print("---")
+            print("batch_size (prediction):", self.model_config.batch_size)
+            print("---")
+
         if self.model:
             tagger = Tagger(self.model,
                             self.model_config,
