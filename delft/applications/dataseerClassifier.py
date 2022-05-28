@@ -71,7 +71,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     model.save()
 
     print('loading first-level dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     model_name = 'dataseer-first_' + architecture
 
