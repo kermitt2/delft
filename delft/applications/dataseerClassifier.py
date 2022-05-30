@@ -1,14 +1,14 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
 from delft.textClassification.models import architectures
 import numpy as np
+
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
 
 """
     Classifier for deciding if a sentence introduce a dataset or not, and prediction of the 
@@ -33,7 +33,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False): 
+def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False, output_directory=None):
     print('loading binary dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
@@ -50,8 +50,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
-    # saving the model
-    model.save()
+
+    model.save(output_directory)
 
     print('loading reuse dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
@@ -67,8 +67,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
-    # saving the model
-    model.save()
+
+    model.save(output_directory)
 
     print('loading first-level dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -85,9 +85,10 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
+
     # saving the model
-    model.save()
-    
+    model.save(output_directory)
+
     '''
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -128,23 +129,23 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.save()
     '''
 
-def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, cascaded=False): 
+def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, cascaded=False, output_directory=None):
     if cascaded:
-        return train_eval_cascaded(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+        return train_eval_cascaded(embeddings_name, fold_count, architecture=architecture, transformer=transformer, output_directory=output_directory)
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer, output_directory=output_directory)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer, output_directory=output_directory)
 
     # classifier for first level data type hierarchy
-    train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer, output_directory=output_directory)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None): 
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
@@ -179,9 +180,9 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     model.eval(x_test, y_test)
 
     # saving the model
-    model.save()
+    model.save(output_directory)
 
-def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=None): 
+def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
@@ -216,9 +217,9 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
     model.eval(x_test, y_test)
 
     # saving the model
-    model.save()
-    
-def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=None): 
+    model.save(output_directory)
+
+def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
@@ -252,7 +253,7 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     model.eval(x_test, y_test)
 
     # saving the model
-    model.save()
+    model.save(output_directory)
 
 def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('training second-level dataset subtype corpus...')
@@ -506,6 +507,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION)
 
     args = parser.parse_args()
 
@@ -515,12 +517,13 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
     cascaded = args.cascaded
     transformer = args.transformer
+    output = args.output
 
     architecture = args.architecture
     if architecture not in architectures:
         print('unknown model architecture, must be one of '+str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
@@ -528,12 +531,14 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer, cascaded=cascaded)
+        train(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture,
+              transformer=transformer, cascaded=cascaded, output_directory=output)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
-        y_test = train_and_eval(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture, transformer=transformer, cascaded=cascaded)    
+        y_test = train_and_eval(embeddings_name=embeddings_name, fold_count=args.fold_count, architecture=architecture,
+                                transformer=transformer, cascaded=cascaded, output_directory=output)
 
     if args.action == 'classify':
         someTexts = ['Labeling yield and radiochemical purity was analyzed by instant thin layered chromatography (ITLC).', 

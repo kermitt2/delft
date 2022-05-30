@@ -1,7 +1,11 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.misc import print_parameters
+from delft.utilities.misc import print_parameters, init_tmp_directory, DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
+import shutil
+
+from delft.sequenceLabelling import Sequence
+from delft.utilities.misc import DEFAULT_WEIGHT_FILE_NAME, CONFIG_FILE_NAME, PROCESSOR_FILE_NAME
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -42,14 +46,10 @@ from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r
 from sklearn.model_selection import train_test_split
 
 import transformers
-transformers.logging.set_verbosity(transformers.logging.ERROR) 
+transformers.logging.set_verbosity(transformers.logging.ERROR)
 
-from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
-
-    config_file = 'config.json'
-    weight_file = 'model_weights.hdf5'
 
     def __init__(self, 
                  model_name=None,
@@ -74,7 +74,8 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
-                 transformer_name: str=None):
+                 transformer_name: str=None
+                 ):
 
         if model_name is None:
             # add a dummy name based on the architecture
@@ -94,6 +95,8 @@ class Classifier(object):
         self.transformer_name = None
 
         self.registry = load_resource_registry("delft/resources-registry.json")
+
+        self.temp_directory = init_tmp_directory(self.registry)
 
         word_emb_size = 0
         if transformer_name is not None:
@@ -176,12 +179,12 @@ class Classifier(object):
 
 
     def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
+        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, temp_directory=self.temp_directory, callbacks=callbacks)
 
 
     def predict(self, texts, output_format='json', use_main_thread_only=False, batch_size=None):
         bert_data = False
-        if self.transformer_name != None:
+        if self.transformer_name is not None:
             bert_data = True
 
         if batch_size != None:
@@ -191,8 +194,7 @@ class Classifier(object):
             print("---")
 
         if self.model_config.fold_number == 1:
-            if self.model != None: 
-                
+            if self.model is not None:
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                     embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
@@ -201,8 +203,7 @@ class Classifier(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:            
-            if self.models != None: 
-
+            if self.models is not None:
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
@@ -246,10 +247,10 @@ class Classifier(object):
             bert_data = True
 
         if self.model_config.fold_number == 1:
-            if self.model != None:
+            if self.model is not None:
                 self.model.print_summary()
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
-                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
+                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes,
                         embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
 
                 result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
@@ -396,42 +397,50 @@ class Classifier(object):
             print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
             '''
             
-    def save(self, dir_path='data/models/textClassification/'):
-        # create subfolder for the model if not already exists
-        directory = os.path.join(dir_path, self.model_config.model_name)
-        if not os.path.exists(directory):
-            os.makedirs(directory)
+    def save(self, dir_path=DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION, weight_file=DEFAULT_WEIGHT_FILE_NAME):
+        if dir_path is None:
+            dir_path = DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
 
-        self.model_config.save(os.path.join(directory, self.config_file))
+        # create sub folder for the model if not already exists
+        output_directory = os.path.join(dir_path, self.model_config.model_name)
+        tmp_directory = os.path.join(self.temp_directory, self.model_config.model_name)
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+
+        self.model_config.save(os.path.join(output_directory, CONFIG_FILE_NAME))
         print('model config file saved')
 
+        # self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
+        # print('preprocessor saved')
+
         if self.model_config.fold_number == 1:
-            if self.model != None:
-                self.model.save(os.path.join(directory, self.weight_file))
-                print('model saved')
+            if self.model is not None:
+                self.model.save(os.path.join(output_directory, weight_file))
+                print('1-fold model saved')
             else:
                 print('Error: model has not been built')
         else:
-            if self.models == None:
-                print('Error: nfolds models have not been built')
+            if self.model_config.transformer_name is None:
+                for i in range(0, self.model_config.fold_number):
+                    self.models[i].save(os.path.join(output_directory, "model_weights{0}.hdf5".format(i)))
             else:
-                # fold models having a transformer layers are already saved
-                if self.model_config.transformer_name is None:
-                    for i in range(0, self.model_config.fold_number):
-                        self.models[i].save(os.path.join(directory, "model{0}_weights.hdf5".format(i)))
-                    print('nfolds model saved')
+                # in case of transformers, we copy from the temp directory
+                for i in range(0, self.model_config.fold_number):
+                    shutil.copyfile(os.path.join(tmp_directory, "model_weights{0}.hdf5".format(i)), os.path.join(output_directory, "model_weights{0}.hdf5".format(i)))
 
-        # save pretrained transformer config and tokenizer if used in the model and if single fold (otherwise it is saved in the nfold process)
-        if self.transformer_name is not None and self.model_config.fold_number == 1:
-            if self.model.transformer_config is not None:
-                self.model.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-            if self.model.transformer_tokenizer is not None:
-                self.model.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                # copy pretrained transformer config and tokenizer if available from the temp directory
+                shutil.copyfile(os.path.join(tmp_directory, TRANSFORMER_CONFIG_FILE_NAME), os.path.join(output_directory, TRANSFORMER_CONFIG_FILE_NAME))
+                print('transformer config saved')
+
+                shutil.copytree(os.path.join(tmp_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR), os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+                print('transformer tokenizer saved')
+
+            print('n-folds model saved')
 
 
     def load(self, dir_path='data/models/textClassification/'):
         model_path = os.path.join(dir_path, self.model_config.model_name)
-        self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
+        self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
         if self.model_config.transformer_name is None:
             # load embeddings
@@ -450,8 +459,8 @@ class Classifier(object):
         self.model.print_summary()
 
         if self.model_config.fold_number == 1:
-            print("load weights from", os.path.join(model_path, self.weight_file))
-            self.model.load(os.path.join(model_path, self.weight_file))
+            print("load weights from", os.path.join(model_path, DEFAULT_WEIGHT_FILE_NAME))
+            self.model.load(os.path.join(model_path, DEFAULT_WEIGHT_FILE_NAME))
         else:
             self.models = []
             if self.model_config.transformer_name is None:
@@ -460,7 +469,7 @@ class Classifier(object):
                                         self.training_config, 
                                         load_pretrained_weights=False, 
                                         local_path=model_path)
-                    local_model.load(os.path.join(model_path, "model{0}_weights.hdf5".format(i)))
+                    local_model.load(os.path.join(model_path, "model_weights{0}.hdf5".format(i)))
                     self.models.append(local_model)
             else:
                 # only init first fold one, the other will be init at prediction time, all weights will be loaded at prediction time

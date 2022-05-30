@@ -2,7 +2,8 @@ import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
-from delft.utilities.misc import print_parameters
+from delft.utilities.misc import PROCESSOR_FILE_NAME, CONFIG_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME, print_parameters, \
+    init_tmp_directory, DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
@@ -34,10 +35,6 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 #from tensorflow.python.framework.ops import disable_eager_execution
 #disable_eager_execution()
 
-from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
-from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME
-from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
-
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor
@@ -54,7 +51,6 @@ from delft.sequenceLabelling.evaluation import classification_report
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
-from tensorflow.keras.utils import plot_model
 
 class Sequence(object):
 
@@ -81,7 +77,7 @@ class Sequence(object):
                  early_stop=True,
                  patience=5,
                  max_checkpoints_to_keep=0,
-                 use_ELMo=False,
+                 use_ELMo: bool = False,
                  log_dir=None,
                  fold_number=1,
                  multiprocessing=True,
@@ -107,6 +103,8 @@ class Sequence(object):
         self.model_local_path = None
 
         self.registry = load_resource_registry("delft/resources-registry.json")
+
+        self.temp_directory = init_tmp_directory(self.registry)
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
@@ -163,7 +161,7 @@ class Sequence(object):
         self.model.print_summary()
 
         # uncomment to plot graph
-        #plot_model(self.model, 
+        #plot_model(self.model,
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
 
         trainer = Trainer(self.model,
@@ -173,7 +171,8 @@ class Sequence(object):
                           self.training_config,
                           checkpoint_path=self.log_dir,
                           preprocessor=self.p,
-                          transformer_preprocessor=self.model.transformer_preprocessor
+                          transformer_preprocessor=self.model.transformer_preprocessor,
+                          temp_directory=self.temp_directory
                           )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -196,7 +195,8 @@ class Sequence(object):
                           self.model_config,
                           self.training_config,
                           checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
+                          preprocessor=self.p,
+                          temp_directory=self.temp_directory)
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -294,13 +294,13 @@ class Sequence(object):
                     bert_preprocessor = None
                 else:
                     # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
-                    dir_path = 'data/models/sequenceLabelling/'
+                    dir_path = self.temp_directory
                     weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i)+".hdf5")
                     self.model = get_model(self.model_config,
                                self.p,
                                ntags=len(self.p.vocab_tag),
                                load_pretrained_weights=False,
-                               local_path= os.path.join(dir_path, self.model_config.model_name))
+                               local_path=os.path.join(dir_path, self.model_config.model_name))
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
                     bert_preprocessor = self.model.transformer_preprocessor
@@ -403,7 +403,7 @@ class Sequence(object):
             if self.model_config.transformer_name is None:
                 self.model = self.models[best_index]
             else:
-                dir_path = 'data/models/sequenceLabelling/'
+                dir_path = self.temp_directory
                 weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(best_index)+".hdf5")
                 # saved config file must be updated to single fold
                 self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
@@ -537,8 +537,11 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.'))
 
-    def save(self, dir_path='data/models/sequenceLabelling/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
-        # create subfolder for the model if not already exists
+    def save(self, dir_path=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING, weight_file=DEFAULT_WEIGHT_FILE_NAME):
+        if dir_path is None:
+            dir_path = DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
+
+        # create sub folder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -550,7 +553,9 @@ class Sequence(object):
         print('preprocessor saved')
 
         if self.model is None and self.model_config.fold_number > 1:
-            print('Error: model not saved. Evaluation need to be called first to select the best fold model to be saved')
+            # In the future, we can change here to copy all the models instead of just the best.
+            print('Error: model not saved. Evaluation need to be called first '
+                  'to select the best fold model to be saved.')
         else:
             self.model.save(os.path.join(directory, weight_file))
 

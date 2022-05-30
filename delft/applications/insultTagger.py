@@ -5,6 +5,9 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
+
+
 def configure(architecture, embeddings_name):
     batch_size = 20
     maxlen = 300
@@ -21,8 +24,8 @@ def configure(architecture, embeddings_name):
 
     return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False): 
-    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name)
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, output_directory=None):
+    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture)
 
     root = 'data/sequenceLabelling/toxic/'
 
@@ -42,11 +45,12 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, us
     model = Sequence(model_name, max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
         embeddings_name=embeddings_name, architecture=architecture, patience=patience, early_stop=early_stop,
         transformer_name=transformer, use_ELMo=use_ELMo)
+
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
     print('training done')
 
     # saving the model (must be called after eval for multiple fold training)
-    model.save()
+    model.save(output_directory)
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
@@ -113,8 +117,9 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-    
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING)
+
     args = parser.parse_args()
 
     if args.action not in ('train', 'tag'):
@@ -124,13 +129,14 @@ if __name__ == "__main__":
     architecture = args.architecture
     transformer = args.transformer
     use_ELMo = args.use_ELMo
+    output = args.output
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
+        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo, output_directory=output)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 

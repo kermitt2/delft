@@ -1,3 +1,4 @@
+import os
 from typing import List, Dict, Tuple
 
 __author__ = "@de-code"
@@ -6,6 +7,15 @@ __author__ = "@de-code"
 Utility class from: 
 https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/sciencebeam_trainer_delft/utils/misc.py
 """
+
+DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
+CONFIG_FILE_NAME = 'config.json'
+PROCESSOR_FILE_NAME = 'preprocessor.json'
+
+DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING = "data/models/sequenceLabelling/"
+DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION = "data/models/textClassification/"
+
+DEFAULT_TMP_PATH = 'data/tmp'
 
 def parse_number_range(expr: str) -> List[int]:
     fragments = expr.split('-')
@@ -75,3 +85,16 @@ def print_parameters(model_config, training_config):
         print("class_weights:", weight_summary)
 
     print("---")
+
+
+def init_tmp_directory(registry: dict) -> str:
+    if 'tmp-path' in registry:
+        temp_directory = registry['tmp-path']
+    else:
+        temp_directory = DEFAULT_TMP_PATH
+
+    if not os.path.exists(temp_directory):
+        os.makedirs(temp_directory)
+
+    return temp_directory
+

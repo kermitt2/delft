@@ -1,14 +1,12 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_software_use_corpus_json
-from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
 from delft.textClassification.models import architectures
-import numpy as np
+
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
 
 """
     This binary classifier is used in combination with a software mention recognition model, for characterizing
@@ -50,7 +48,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
@@ -67,11 +65,12 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
+
     # saving the model
-    model.save()
+    model.save(output_directory)
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None): 
+def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading binary software use dataset...')
     xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
@@ -105,7 +104,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
     model.eval(x_test, y_test)
 
     # saving the model
-    model.save()
+    model.save(output_directory)
 
 
 # classify a list of texts
@@ -151,6 +150,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION)
 
     args = parser.parse_args()
 
@@ -159,12 +159,13 @@ if __name__ == "__main__":
 
     embeddings_name = args.embedding
     transformer = args.transformer
+    output = args.output
 
     architecture = args.architecture
     if architecture not in architectures:
         print('unknown model architecture, must be one of '+str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
@@ -172,13 +173,13 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer, output_directory=output)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
+        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer, output_directory=output)
 
     if args.action == 'classify':
         someTexts = ['Radiographic errors were recorded on individual tick sheets and the information was captured in an Excel spreadsheet (Microsoft, Redmond, WA).', 

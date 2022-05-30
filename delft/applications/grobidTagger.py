@@ -8,8 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.sequenceLabelling.reader import load_data_crf_string
-from delft.utilities.misc import parse_number_ranges
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -149,10 +148,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print("training runtime: %s seconds " % (runtime))
 
     # saving the model
-    if output_path:
-        model.save(output_path)
-    else:
-        model.save()
+    model.save(output_path)
 
 
 # split data, train a GROBID model and evaluate it
@@ -209,10 +205,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     model.eval(x_eval, y_eval, features=f_eval)
 
     # saving the model (must be called after eval for multiple fold training)
-    if output_path:
-        model.save(output_path)
-    else:
-        model.save()
+    model.save(output_path)
 
 
 # split data, train a GROBID model and evaluate it
@@ -272,6 +265,7 @@ def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', featu
 
     return annotations
 
+
 class Tasks:
     TRAIN = 'train'
     TRAIN_EVAL = 'train_eval'
@@ -302,7 +296,8 @@ if __name__ == "__main__":
     parser.add_argument("action", choices=actions)
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
-    parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--architecture", choices=architectures, help="Type of model architecture to be used",
+                        required=True)
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
 
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)
@@ -324,7 +319,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING)
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")

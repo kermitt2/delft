@@ -2,6 +2,7 @@ import os
 import numpy as np
 from delft.sequenceLabelling import Sequence
 from delft.utilities.Utilities import stats
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
 from delft.utilities.numpy import shuffle_arrays
 from delft.sequenceLabelling.reader import load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
@@ -58,7 +59,8 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
 
 
 # train a model with all available for a given dataset 
-def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False):
+def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False,
+          output_directory=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
@@ -166,7 +168,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
     print("training runtime: %s seconds " % (runtime))
 
     # saving the model
-    model.save()
+    model.save(output_directory)
 
 
 # train and usual eval on dataset, e.g. eval with CoNLL 2003 eng.testb for CoNLL 2003 
@@ -178,7 +180,8 @@ def train_eval(embeddings_name=None,
                 fold_count=1, 
                 train_with_validation_set=False,
                 data_path=None, 
-                use_ELMo=False): 
+                use_ELMo=False,
+                output_directory=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
@@ -435,7 +438,7 @@ def train_eval(embeddings_name=None,
     model.eval(x_eval, y_eval)
 
     # # saving the model (must be called after eval for multiple fold training)
-    model.save()
+    model.save(output_directory)
 
 
 # usual eval on CoNLL 2003 eng.testb 
@@ -559,7 +562,7 @@ if __name__ == "__main__":
     parser.add_argument("--architecture", default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
-    parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
+    parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER annotations")
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument(
         "--embedding", 
@@ -579,6 +582,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING)
 
     args = parser.parse_args()
 
@@ -588,6 +592,7 @@ if __name__ == "__main__":
     lang = args.lang
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
+    output = args.output
     architecture = args.architecture
     if architecture not in architectures:
         print('unknown model architecture, must be one of', architectures)
@@ -611,7 +616,8 @@ if __name__ == "__main__":
             architecture=architecture, 
             transformer=transformer,
             data_path=data_path,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+        output_directory=output)
 
     if action == 'train_eval':
         if args.fold_count < 1:
@@ -625,7 +631,8 @@ if __name__ == "__main__":
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             data_path=data_path,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+        output_directory=output)
 
     if action == 'eval':
         eval(

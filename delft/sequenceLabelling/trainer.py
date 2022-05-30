@@ -1,4 +1,5 @@
 import os
+import shutil
 
 import numpy as np
 import tensorflow as tf
@@ -11,12 +12,9 @@ from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precisi
 from delft.sequenceLabelling.evaluation import get_report, compute_metrics
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
+from delft.utilities.misc import print_parameters, DEFAULT_TMP_PATH
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
-from delft.utilities.misc import print_parameters
-
-DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
-CONFIG_FILE_NAME = 'config.json'
-PROCESSOR_FILE_NAME = 'preprocessor.json'
+from delft.utilities.misc import CONFIG_FILE_NAME, PROCESSOR_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME
 
 class Trainer(object):
 
@@ -29,7 +27,8 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor: Preprocessor=None,
-                 transformer_preprocessor=None
+                 transformer_preprocessor=None,
+                 temp_directory: str = DEFAULT_TMP_PATH,
                  ):
 
         # for single model training
@@ -45,6 +44,9 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
+        if not os.path.exists(temp_directory):
+            raise IOError("The temporary directory does not exists. ")
+        self.temp_directory = temp_directory
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -196,10 +198,12 @@ class Trainer(object):
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
 
-        dir_path = 'data/models/sequenceLabelling/'
-        output_directory = os.path.join(dir_path, self.model_config.model_name)
-        print("Output directory:", output_directory)
+        output_directory = os.path.join(self.temp_directory, self.model_config.model_name)
+        print("Tmp directory:", output_directory)
         if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
+        else:
+            shutil.rmtree(output_directory)
             os.makedirs(output_directory)
 
         if self.model_config.transformer_name is not None:
@@ -389,7 +393,7 @@ class Scorer(Callback):
                     y_true_batch = np.argmax(y_true_batch, -1)
 
                 # we also have the input length available 
-                sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
+                sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last
                 # shape of (batch_size, 1), we want (batch_size)
                 sequence_lengths = np.reshape(sequence_lengths, (-1,))
 
