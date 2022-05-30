@@ -48,10 +48,7 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
     else:
         model.train_nfold(xtr, y)
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 def test(architecture="gru"):

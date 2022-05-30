@@ -95,10 +95,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
     print("training runtime: %s seconds " % runtime)
 
     # saving the model
-    if output_path:
-        model.save(output_path)
-    else:
-        model.save()
+    model.save(output_path)
 
 
 # split data, train a model and evaluate it

@@ -50,10 +50,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, us
     print('training done')
 
     # saving the model (must be called after eval for multiple fold training)
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 # annotate a list of texts, provides results in a list of offset mentions 

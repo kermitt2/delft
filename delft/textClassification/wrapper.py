@@ -1,7 +1,7 @@
 import os
 
 # ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.misc import print_parameters, init_tmp_directory
+from delft.utilities.misc import print_parameters, init_tmp_directory, DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
 import shutil
 
 from delft.sequenceLabelling import Sequence
@@ -397,7 +397,10 @@ class Classifier(object):
             print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
             '''
             
-    def save(self, dir_path='data/models/textClassification/', weight_file=DEFAULT_WEIGHT_FILE_NAME):
+    def save(self, dir_path=DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION, weight_file=DEFAULT_WEIGHT_FILE_NAME):
+        if dir_path is None:
+            dir_path = DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
+
         # create sub folder for the model if not already exists
         output_directory = os.path.join(dir_path, self.model_config.model_name)
         tmp_directory = os.path.join(self.temp_directory, self.model_config.model_name)

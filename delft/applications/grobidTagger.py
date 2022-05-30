@@ -8,8 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.sequenceLabelling.reader import load_data_crf_string
-from delft.utilities.misc import parse_number_ranges, DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -149,10 +148,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print("training runtime: %s seconds " % (runtime))
 
     # saving the model
-    if output_path:
-        model.save(output_path)
-    else:
-        model.save()
+    model.save(output_path)
 
 
 # split data, train a GROBID model and evaluate it
@@ -209,10 +205,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     model.eval(x_eval, y_eval, features=f_eval)
 
     # saving the model (must be called after eval for multiple fold training)
-    if output_path:
-        model.save(output_path)
-    else:
-        model.save()
+    model.save(output_path)
 
 
 # split data, train a GROBID model and evaluate it

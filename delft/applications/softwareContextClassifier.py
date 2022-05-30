@@ -65,11 +65,9 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, out
         model.train(xtr, y)
     else:
         model.train_nfold(xtr, y)
+
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
@@ -99,10 +97,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
     model.eval(x_test, y_test)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None):

@@ -168,10 +168,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
     print("training runtime: %s seconds " % (runtime))
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 # train and usual eval on dataset, e.g. eval with CoNLL 2003 eng.testb for CoNLL 2003 
@@ -441,10 +438,7 @@ def train_eval(embeddings_name=None,
     model.eval(x_eval, y_eval)
 
     # # saving the model (must be called after eval for multiple fold training)
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 # usual eval on CoNLL 2003 eng.testb 

@@ -51,12 +51,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     else:
         model.train_nfold(xtr, y)
 
-    # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
-    
+    model.save(output_directory)
 
     print('loading reuse dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
@@ -73,11 +68,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     else:
         model.train_nfold(xtr, y)
 
-    # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
     print('loading first-level dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-1.csv")
@@ -96,11 +87,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         model.train_nfold(xtr, y)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
-    
+    model.save(output_directory)
+
     '''
     print('training second-level dataset subtype corpus...')
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -192,10 +180,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     model.eval(x_test, y_test)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading dataset type corpus...')
@@ -232,11 +217,8 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
     model.eval(x_test, y_test)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
-    
+    model.save(output_directory)
+
 def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
     print('loading dataset type corpus...')
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
@@ -271,10 +253,7 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     model.eval(x_test, y_test)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('training second-level dataset subtype corpus...')

@@ -1,14 +1,10 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_software_use_corpus_json
-from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
 from delft.textClassification.models import architectures
-import numpy as np
 
 from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
 
@@ -71,10 +67,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, out
         model.train_nfold(xtr, y)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, output_directory=None):
@@ -111,10 +104,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
     model.eval(x_test, y_test)
 
     # saving the model
-    if output_directory:
-        model.save(output_directory)
-    else:
-        model.save()
+    model.save(output_directory)
 
 
 # classify a list of texts
