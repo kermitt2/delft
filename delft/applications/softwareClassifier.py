@@ -10,6 +10,8 @@ import time
 from delft.textClassification.models import architectures
 import numpy as np
 
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
+
 """
     This binary classifier is used in combination with a software mention recognition model, for characterizing
     the nature of the citation of software in scientific and technical literature. 
@@ -158,7 +160,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION)
 
     args = parser.parse_args()
 

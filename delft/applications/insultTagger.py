@@ -5,6 +5,9 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
+
+
 def configure(architecture, embeddings_name):
     batch_size = 20
     maxlen = 300
@@ -118,7 +121,7 @@ if __name__ == "__main__":
             "for model names"
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
-    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING)
 
     args = parser.parse_args()
 

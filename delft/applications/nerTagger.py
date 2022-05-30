@@ -2,6 +2,7 @@ import os
 import numpy as np
 from delft.sequenceLabelling import Sequence
 from delft.utilities.Utilities import stats
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
 from delft.utilities.numpy import shuffle_arrays
 from delft.sequenceLabelling.reader import load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
@@ -587,7 +588,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING)
 
     args = parser.parse_args()
 

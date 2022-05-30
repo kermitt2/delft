@@ -12,6 +12,9 @@ DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
 PROCESSOR_FILE_NAME = 'preprocessor.json'
 
+DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING = "data/models/sequenceLabelling/"
+DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION = "data/models/textClassification/"
+
 DEFAULT_TMP_PATH = 'data/tmp'
 
 def parse_number_range(expr: str) -> List[int]:

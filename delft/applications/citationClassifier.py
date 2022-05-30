@@ -5,6 +5,7 @@ from delft.textClassification import Classifier
 import argparse
 import time
 from delft.textClassification.models import architectures
+from delft.utilities.misc import DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION
 
 list_classes = [
                     "negative", 
@@ -124,7 +125,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_TEXT_CLASSIFICATION)
 
     args = parser.parse_args()
 

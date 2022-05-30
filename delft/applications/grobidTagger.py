@@ -9,7 +9,7 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
-from delft.utilities.misc import parse_number_ranges
+from delft.utilities.misc import parse_number_ranges, DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -326,7 +326,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
-    parser.add_argument("--output", help="Directory where to save a trained model.", default=None)
+    parser.add_argument("--output", help="Directory where to save a trained model.", default=DEFAULT_DATA_MODEL_PATH_SEQUENCE_LABELLING)
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
