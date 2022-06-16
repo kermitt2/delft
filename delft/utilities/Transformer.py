@@ -167,6 +167,7 @@ class Transformer(object):
                 if str.endswith(self.local_weights_file, ".ckpt.index"):
                     transformer_model = TFBertModel.from_pretrained(self.local_weights_file, local_files_only=True,
                                                                     config=BertConfig.from_pretrained(self.local_config_file))
+                    self.transformer_config = transformer_model.config
                     return transformer_model
                 elif str.endswith(self.local_weights_file, "pytorch_model.bin"):
                     # TFAutoModel.from_pretrained("/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matscibert-tpu-myvocab-pt/pytorch_model.bin",
@@ -176,6 +177,7 @@ class Transformer(object):
                                                                     local_files_only=True,
                                                                     config=BertConfig.from_pretrained(
                                                                         self.local_config_file))
+                    self.transformer_config = transformer_model.config
                     return transformer_model
                 else:
                     raise NotImplementedError(
