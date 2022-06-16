@@ -1,7 +1,9 @@
 import os
+from pathlib import Path
 from typing import Union, Iterable
 
-from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
+from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel, BertConfig, \
+    PreTrainedTokenizerFast, BertTokenizerFast
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
 DEFAULT_TRANSFORMER_TOKENIZER_DIR = "transformer-tokenizer"
@@ -83,8 +85,7 @@ class Transformer(object):
                         print("Missing path-config or not a file.")
 
                     if "path-weights" in transformer_configuration and os.path.isfile(
-                            transformer_configuration["path-weights"]) or os.path.isfile(
-                        transformer_configuration["path-weights"] + ".data-00000-of-00001"):
+                            transformer_configuration["path-weights"]):
                         self.local_weights_file = transformer_configuration["path-weights"]
                     else:
                         print("Missing weights-config or not a file.")
@@ -120,7 +121,10 @@ class Transformer(object):
                                                            max_length=max_sequence_length,
                                                            add_prefix_space=add_prefix_space)
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
-            self.tokenizer = BertTokenizer.from_pretrained(self.local_vocab_file)
+            self.tokenizer = BertTokenizerFast.from_pretrained(Path(self.local_vocab_file).parent,
+                                                           add_special_tokens=add_special_tokens,
+                                                           max_length=max_sequence_length,
+                                                           add_prefix_space=add_prefix_space, use_fast=True)
 
         elif self.loading_method == LOADING_METHOD_DELFT_MODEL:
             config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
@@ -146,22 +150,36 @@ class Transformer(object):
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True, local_files_only=True)
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
                 config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
-                self.transformer_config = AutoConfig.from_pretrained(config_path)
+                self.transformer_config = AutoConfig.from_pretrained(config_path, local_files_only=True)
                 #self.transformer_config = AutoConfig.from_pretrained(self.local_dir_path)
                 return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
             if load_pretrained_weights:
-                self.transformer_config = AutoConfig.from_pretrained(self.local_config_file)
-                # transformer_model = TFBertModel.from_pretrained(self.local_weight_file, from_tf=True)
-                raise NotImplementedError(
-                    "The load of TF weights from huggingface automodel classes is not yet implemented. \
-                    Please use load from Hugging Face Hub or from directory for the initial loading of the transformers weights.")
+                if str.endswith(self.local_weights_file, ".ckpt"):
+                    self.local_weights_file = self.local_weights_file + ".index"
+
+                if str.endswith(self.local_weights_file, ".ckpt.index"):
+                    transformer_model = TFBertModel.from_pretrained(self.local_weights_file, local_files_only=True,
+                                                                    config=BertConfig.from_pretrained(self.local_config_file))
+                    return transformer_model
+                elif str.endswith(self.local_weights_file, "pytorch_model.bin"):
+                    # TFAutoModel.from_pretrained("/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matscibert-tpu-myvocab-pt/pytorch_model.bin",
+                    # from_pt=True, local_files_only=True,
+                    # config=AutoConfig.from_pretrained("/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matscibert-tpu-myvocab-pt/config.json"))
+                    transformer_model = TFBertModel.from_pretrained(self.local_weights_file, from_pt=True,
+                                                                    local_files_only=True,
+                                                                    config=BertConfig.from_pretrained(
+                                                                        self.local_config_file))
+                    return transformer_model
+                else:
+                    raise NotImplementedError(
+                        "The load of TF weights from non-standard names of TF (.ckpt.index) or Pytorch (pytorch_model.bin) is not implemented.")
             else:
                 config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
@@ -170,7 +188,7 @@ class Transformer(object):
         else:
             # TODO: revise this
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True, local_files_only=True)
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
