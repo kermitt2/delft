@@ -33,10 +33,12 @@ def active_sampling(example_pool, max, delft_model: Sequence):
     ignored = []
 
     for idx in range(0, max):
+        labels_str = [label[1] for label in labels[idx]]
+
         if labels[idx].count("O") < len(labels[idx]):
-            samples.append((sentences[idx], labels[idx], features[idx]))
+            samples.append((sentences[idx], labels_str, features[idx]))
         else:
-            ignored.append((sentences[idx], labels[idx], features[idx]))
+            ignored.append((sentences[idx], labels_str, features[idx]))
 
     if len(samples) < max:
         for idx in range(0, max - len(samples)):
@@ -86,6 +88,9 @@ if __name__ == "__main__":
     parser.add_argument("--model-config", help="DeLFT configuration file model to be used for active sampling. ",
                         required=False)
     parser.add_argument("--output", help="Directory where to save the sampled output.", required=True)
+    parser.add_argument("--output-only-negatives",
+                        help="Indicate whether to write only negative examples in the output file.", required=False,
+                        default=False)
     parser.add_argument("--action", choices=actions, required=True)
     parser.add_argument("--ratio", help="Sampling ratio", type=float, required=True)
 
@@ -97,6 +102,7 @@ if __name__ == "__main__":
     output_dir = args.output
     ratio = args.ratio
     delft_model_config = args.model_config
+    output_only_negatives = args.output_only_negatives
 
     if action == ACTIVE_SAMPLING and not delft_model_config:
         print("For active sampling a DeLFT model is required. "
@@ -125,6 +131,8 @@ if __name__ == "__main__":
         sampling = active_sampling(negatives, negatives_to_inject, model)
 
     data = sampling + positives
+    if output_only_negatives:
+        data = sampling
 
     output_file_name = os.path.join(output_dir,
                                     "sampling-" + sampling_type + "-" + str(ratio) + "r-" + str(
