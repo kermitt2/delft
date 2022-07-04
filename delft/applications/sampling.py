@@ -41,6 +41,7 @@ def active_sampling(example_pool, max, delft_model: Sequence):
             ignored.append((sentences[idx], labels_str, features[idx]))
 
     if len(samples) < max:
+        print("Injected", len(samples), " but not sufficient. We fill the missing with random samples.")
         for idx in range(0, max - len(samples)):
             samples.append(ignored[idx])
 
@@ -143,6 +144,15 @@ if __name__ == "__main__":
         for idx in range(0, len(data)):
             s, l, f = data[idx]
             for t_idx in range(0, len(s)):
-                fo.write(s[t_idx] + "\t" + "\t".join(f[t_idx]) + '\t' + l[t_idx] + '\n')
+                # Change prefixes: I- to nothing and B- to I
+                label = l[t_idx]
+                if l[t_idx].startswith("I-"):
+                    label = label.replace("I-", "")
+                elif l[t_idx].startswith("B-"):
+                    label = label.replace("B-", "I-")
+                elif l[t_idx] == "O":
+                    label = "<other>"
+
+                fo.write(s[t_idx] + "\t" + "\t".join(f[t_idx]) + '\t' + label + '\n')
 
             fo.write("\n\n")
