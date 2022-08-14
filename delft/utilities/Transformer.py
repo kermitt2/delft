@@ -84,9 +84,21 @@ class Transformer(object):
                     else:
                         print("Missing path-config or not a file.")
 
-                    if "path-weights" in transformer_configuration and os.path.isfile(
-                            transformer_configuration["path-weights"]):
-                        self.local_weights_file = transformer_configuration["path-weights"]
+                    if "path-weights" in transformer_configuration:
+                        path_weights = transformer_configuration["path-weights"]
+
+                        if str(path_weights).endswith("ckpt"):
+                            if (os.path.isfile(path_weights + ".index") and
+                                os.path.isfile(path_weights + ".data-00000-of-00001") and
+                                os.path.isfile(path_weights + ".meta")):
+                                self.local_weights_file = transformer_configuration["path-weights"]
+                            else:
+                                print("Missing weights-config or missing some of the tensorflow checkpoint files.")
+                        else:
+                            if os.path.isfile(path_weights):
+                                self.local_weights_file = path_weights
+                            else:
+                                print("Missing weights-config or not a file.")
                     else:
                         print("Missing weights-config or not a file.")
 
@@ -161,10 +173,10 @@ class Transformer(object):
 
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
             if load_pretrained_weights:
-                if str.endswith(self.local_weights_file, ".ckpt"):
+                if str(self.local_weights_file).endswith(".ckpt"):
                     self.local_weights_file = self.local_weights_file + ".index"
 
-                if str.endswith(self.local_weights_file, ".ckpt.index"):
+                if str(self.local_weights_file).endswith(".ckpt.index"):
                     transformer_model = TFBertModel.from_pretrained(self.local_weights_file, local_files_only=True,
                                                                     config=BertConfig.from_pretrained(self.local_config_file))
                     self.transformer_config = transformer_model.config
