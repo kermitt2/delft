@@ -60,21 +60,20 @@ def train(model_name, input_file, embeddings_name, fold_count, architecture=None
 
 
 def train_and_eval(model_name, input_file, embeddings_name, fold_count,transformer=None,
-                   architecture="gru"):
-    batch_size, maxlen = configure(architecture)
+                   architecture="gru", x_index=0, y_index=1):
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     print('loading ' + model_name + ' corpus...')
-    xtr, y = load_texts_and_classes_generic(input_file)
+    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_index)
 
     list_classes = list(set([y_[0] for y_ in y]))
 
     y_one_hot = get_one_hot(y)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100,
-                       fold_number=fold_count, patience=10,
-                       use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT,
-                       batch_size=batch_size, maxlen=maxlen,
-                       class_weights=None)
+    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch,
+                       fold_number=fold_count, patience=patience, transformer_name=transformer,
+                       use_roc_auc=True, embeddings_name=embeddings_name, early_stop=early_stop,
+                       batch_size=batch_size, maxlen=maxlen, class_weights=None)
 
     # segment train and eval sets
     x_train, x_test, y_train, y_test = train_test_split(xtr, y_one_hot, test_size=0.1)
@@ -92,7 +91,7 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count,transform
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
-    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer_name=transformer)
+    model = Classifier(model_name, architecture=architecture, embeddings_name=embeddings_name, transformer_name=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -167,7 +166,7 @@ if __name__ == "__main__":
             'One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.',
             'Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.',
             'However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.']
-        result = classify(model_name, someTexts, "json", architecture=architecture)
+        result = classify(model_name, someTexts, "json")
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 
     # See https://github.com/tensorflow/tensorflow/issues/3388

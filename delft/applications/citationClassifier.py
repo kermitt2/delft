@@ -83,7 +83,7 @@ def classify(texts, output_format, architecture="gru", embeddings_name=None, tra
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
-    if output_format is 'json':
+    if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
