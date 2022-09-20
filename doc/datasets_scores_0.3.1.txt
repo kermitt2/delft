@@ -1,0 +1,42 @@
+dataseer_sentences.json + ner_dataset_recognition_sentences.json
++ 10% coleridge ner_dataset_recognition_sentences.json
+
+11474 train sequences
+1275 validation sequences
+1417 evaluation sequences
+
+(around 3000 negative sentences)
+
+> python3 delft/applications/datasetTagger.py train_eval --architecture BidLSTM_CRF --use-ELMo --fold-count 1
+
+----------------------------------------------------------------------
+
+** Worst ** model scores - run 6
+                  precision    recall  f1-score   support
+
+     data_device     0.4483    0.5361    0.4883        97
+         dataset     0.7049    0.6624    0.6830       927
+    dataset_name     0.8816    0.8948    0.8882       466
+
+all (micro avg.)     0.7418    0.7268    0.7342      1490
+
+
+** Best ** model scores - run 7
+                  precision    recall  f1-score   support
+
+     data_device     0.5397    0.3505    0.4250        97
+         dataset     0.7269    0.6861    0.7059       927
+    dataset_name     0.8979    0.9056    0.9017       466
+
+all (micro avg.)     0.7756    0.7329    0.7536      1490
+
+----------------------------------------------------------------------
+
+Average over 10 folds
+                  precision    recall  f1-score   support
+
+     data_device     0.5191    0.3794    0.4261        97
+         dataset     0.7185    0.6715    0.6938       927
+    dataset_name     0.8904    0.8946    0.8924       466
+
+all (micro avg.)     0.7635    0.7223    0.7421  

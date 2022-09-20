@@ -45,3 +45,33 @@ def merge_dicts(dict_list: List[dict]) -> dict:
     for d in dict_list:
         result.update(d)
     return result
+
+
+def print_parameters(model_config, training_config):
+    print("---")
+    print("max_epoch:", training_config.max_epoch)
+    print("early_stop:", training_config.early_stop)
+    print("batch_size (training):", model_config.batch_size)
+    
+    if hasattr(model_config, 'max_sequence_length'):
+        print("max_sequence_length:", model_config.max_sequence_length)
+
+    if hasattr(model_config, 'maxlen'):
+        print("maxlen:", model_config.maxlen)
+
+    print("model_name:", model_config.model_name)
+    print("learning_rate: ", training_config.learning_rate)
+
+    if hasattr(model_config, 'use_ELMo'):
+        print("use_ELMo: ", model_config.use_ELMo)
+
+    if hasattr(training_config, 'class_weights') and training_config.class_weights != None and hasattr(model_config, 'list_classes'):
+        list_classes = model_config.list_classes
+        weight_summary = ""
+        for indx, class_name in enumerate(model_config.list_classes):
+            if indx != 0:
+                weight_summary += ", "
+            weight_summary += class_name + ": " + str(training_config.class_weights[indx])
+        print("class_weights:", weight_summary)
+
+    print("---")

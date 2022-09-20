@@ -1,15 +1,12 @@
 import csv
 
 import numpy as np
-import xml
 import gzip
 import json
-from xml.sax import make_parser, handler
 import pandas as pd
 from delft.utilities.numpy import shuffle_triple_with_view
 
-
-def load_texts_and_classes(filepath):
+def load_texts_and_classes2(filepath):
     """
     Load texts and classes from a file in the following simple tab-separated format:
 
@@ -41,6 +38,38 @@ def load_texts_and_classes(filepath):
     return np.asarray(texts, dtype='object'), np.asarray(classes, dtype='object')
 
 
+def load_texts_and_classes(filepath):
+    """
+    Load texts and classes from a file in the following simple tab-separated format:
+
+    id_0    text_0  class_00 ...    class_n0
+    id_1    text_1  class_01 ...    class_n1
+    ...
+    id_m    text_m  class_0m  ...   class_nm
+
+    text has no EOF and no tab
+
+    Returns:
+        tuple(numpy array, numpy array): texts and classes
+
+    """
+    texts = []
+    classes = []
+
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            pieces = line.split('\t')
+            if (len(pieces) < 3):
+                print("Warning: number of fields in the data file too low for line:", line)
+            texts.append(pieces[1])
+            classes.append(pieces[2:])
+
+    return np.asarray(texts), np.asarray(classes)
+
+
 def load_texts_and_classes_pandas(filepath):
     """
     Load texts and classes from a file in csv format using pandas dataframe:
@@ -68,7 +97,7 @@ def load_texts_and_classes_pandas(filepath):
     classes = df.iloc[:,2:]
     classes_list = classes.values.tolist()
 
-    return np.asarray(texts_list, dtype='object'), np.asarray(classes_list, dtype='object')
+    return np.asarray(texts_list, dtype=object), np.asarray(classes_list, dtype=object)
 
 
 def load_texts_pandas(filepath):
@@ -95,7 +124,7 @@ def load_texts_pandas(filepath):
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
-    return np.asarray(texts_list, dtype='object')
+    return np.asarray(texts_list, dtype=object)
 
 
 def load_citation_sentiment_corpus(filepath):
@@ -117,7 +146,7 @@ def load_citation_sentiment_corpus(filepath):
     with open(filepath) as f:
         for line in f:
             line = line.strip()
-            if (len(line) is 0):
+            if len(line) == 0:
                 continue
             if line.startswith('#'):
                 continue
@@ -132,21 +161,21 @@ def load_citation_sentiment_corpus(filepath):
             texts.append(text)
 
             polarity = []
-            if pieces[2] is 'n':
+            if pieces[2] == 'n':
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'o':
+            if pieces[2] == 'o':
                 polarity.append(1)
             else:
                 polarity.append(0)
-            if pieces[2] is 'p':
+            if pieces[2] == 'p':
                 polarity.append(1)
             else:
                 polarity.append(0)
             polarities.append(polarity)
 
-    return np.asarray(texts, dtype='object'), np.asarray(polarities, dtype='object')
+    return np.asarray(texts, dtype=object), np.asarray(polarities, dtype=object)
 
 
 def load_dataseer_corpus_csv(filepath):
@@ -167,8 +196,8 @@ def load_dataseer_corpus_csv(filepath):
     df = df[pd.notnull(df['text'])]
     if 'datatype' in df.columns:
         df = df[pd.notnull(df['datatype'])]
-    #if 'reuse' in df.columns:    
-    #    df = df[pd.notnull(df['reuse'])]
+    if 'reuse' in df.columns:
+        df = df[pd.notnull(df['reuse'])]
     df.iloc[:,1].fillna('NA', inplace=True)
 
     # shuffle, note that this is important for the reuse prediction, the following shuffle in place
@@ -179,7 +208,6 @@ def load_dataseer_corpus_csv(filepath):
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
-    '''
     if 'reuse' in df.columns:  
         # we simply get the reuse boolean value for the examples
         datareuses = df.iloc[:,2]
@@ -187,16 +215,15 @@ def load_dataseer_corpus_csv(filepath):
         reuse_list = np.asarray(reuse_list)
         # map boolean values to [0,1]
         def map_boolean(x):
-            return 1 if x else 0
+            return [1.0,0.0] if x else [0.0,1.0]
         reuse_list = np.array(list(map(map_boolean, reuse_list)))
         print(reuse_list)
         return np.asarray(texts_list), reuse_list, None, None, ["not_reuse", "reuse"], None, None
-    '''
 
     # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
-    datatypes_list = np.asarray(datatypes_list, dtype='object')
+    datatypes_list = np.asarray(datatypes_list, dtype=object)
     datatypes_list_lower = np.char.lower(datatypes_list)
     list_classes_datatypes = np.unique(datatypes_list_lower)    
     datatypes_final = normalize_classes(datatypes_list_lower, list_classes_datatypes)
@@ -208,7 +235,7 @@ def load_dataseer_corpus_csv(filepath):
         df = df[~df.datatype.str.contains("no_dataset")]
         datasubtypes = df.iloc[:,3]
         datasubtypes_list = datasubtypes.values.tolist()
-        datasubtypes_list = np.asarray(datasubtypes_list, dtype='object')
+        datasubtypes_list = np.asarray(datasubtypes_list, dtype=object)
         datasubtypes_list_lower = np.char.lower(datasubtypes_list)
         list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
         datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
@@ -226,10 +253,10 @@ def load_dataseer_corpus_csv(filepath):
     '''
 
     if df.shape[1] == 3:
-        return np.asarray(texts_list, dtype='object'), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
+        return np.asarray(texts_list, dtype=object), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
     #elif df.shape[1] == 4:
     else:
-        return np.asarray(texts_list, dtype='object'), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
+        return np.asarray(texts_list, dtype=object), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
     '''
     else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
@@ -271,7 +298,65 @@ def load_software_use_corpus_json(json_gz_file_path):
     list_possible_classes = np.unique(classes_list)
     classes_list_final = normalize_classes(classes_list, list_possible_classes)
 
-    texts_list_final = np.asarray(texts_list, dtype='object')
+    texts_list_final = np.asarray(texts_list)
+
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+
+    return texts_list_final, classes_list_final
+
+
+def load_software_context_corpus_json(json_gz_file_path):
+    """
+    Load texts and classes from the corresponding Softcite mention corpus export in gzipped json format
+
+    Classification of the software usage is multiclass/multilabel
+
+    Returns:
+        tuple(numpy array, numpy array):
+            texts, classes_list
+
+    """
+
+    texts_list = []
+    classes_list = []
+
+    with gzip.GzipFile(json_gz_file_path, 'r') as fin:
+        data = json.loads(fin.read().decode('utf-8'))
+        if not "documents" in data:
+            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            return None, None
+        for document in data["documents"]:
+            for segment in document["texts"]:
+                if "entity_spans" in segment:
+                    if not "text" in segment:
+                        continue
+                    text = segment["text"]
+                    for entity_span in segment["entity_spans"]:
+                        if entity_span["type"] == "software":
+                            texts_list.append(text)
+                            classes = []
+                            if "used" in entity_span and entity_span["used"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            if "contribution" in entity_span and entity_span["contribution"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            if "shared" in entity_span and entity_span["shared"]:
+                                classes.append(1.0)
+                            else:
+                                classes.append(0.0)
+
+                            classes_list.append(classes)
+
+    #list_possible_classes = np.unique(classes_list)
+    #classes_list_final = normalize_classes(classes_list, list_possible_classes)
+
+    texts_list_final = np.asarray(texts_list)
+    classes_list_final = np.asarray(classes_list)
 
     texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 

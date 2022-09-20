@@ -1,29 +1,18 @@
 # some convenient methods for all models
+import pandas as pd
 import regex as re
 import numpy as np
 # seed is fixed for reproducibility
 from numpy.random import seed
 seed(7)
-import pandas as pd
-import sys
 import os.path
 import shutil
 import requests
 from urllib.parse import urlparse
 
-from keras.preprocessing import text
-from keras import backend as K
-
-#from nltk.tokenize import wordpunct_tokenize
-#from nltk.stem.snowball import EnglishStemmer
+from tensorflow.keras.preprocessing import text
 
 from tqdm import tqdm 
-#from gensim.models import FastText
-#from gensim.models import KeyedVectors
-import langdetect
-from textblob import TextBlob
-from textblob.translate import NotTranslated
-from xml.sax.saxutils import escape
 
 import argparse
 import truecase
@@ -33,22 +22,6 @@ def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
         row[:max_sequence_length]
         for row in batch_values
     ]
-
-def dot_product(x, kernel):
-    """
-    Wrapper for dot product operation used inthe attention layers, in order to be compatible with both
-    Theano and Tensorflow
-    Args:
-        x (): input
-        kernel (): weights
-    Returns:
-    """
-    if K.backend() == 'tensorflow':
-        # todo: check that this is correct
-        return K.squeeze(K.dot(x, K.expand_dims(kernel)), axis=-1)
-    else:
-        return K.dot(x, kernel)
-
 
 # read list of words (one per line), e.g. stopwords, badwords
 def read_words(words_file):
@@ -112,38 +85,6 @@ def split_data_and_labels(x, y, ratio):
 
 
 url_regex = re.compile(r"https?:\/\/[a-zA-Z0-9_\-\.]+(?:com|org|fr|de|uk|se|net|edu|gov|int|mil|biz|info|br|ca|cn|in|jp|ru|au|us|ch|it|nl|no|es|pl|ir|cz|kr|co|gr|za|tw|hu|vn|be|mx|at|tr|dk|me|ar|fi|nz)\/?\b")
-
-
-# language detection with langdetect package
-def detect_lang(x):
-    try:
-        language = langdetect.detect(x)
-    except:
-        language = 'unk'
-    return language
-
-
-# language detection with textblob package
-def detect_lang_textBlob(x):
-    #try:
-    theBlob = TextBlob(x)
-    language = theBlob.detect_language()
-    #except:
-    #    language = 'unk'
-    return language
-
-
-def translate(comment):
-    if hasattr(comment, "decode"):
-        comment = comment.decode("utf-8")
-
-    text = TextBlob(comment)
-    try:
-        text = text.translate(to="en")
-    except NotTranslated:
-        pass
-
-    return str(text)
 
 
 # produce some statistics
@@ -596,7 +537,7 @@ def download_file(url, path, filename=None):
     # check path
     if path is None or not os.path.isdir(path):
         print("Invalid destination directory:", path)
-    HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:68.0) Gecko/20100101 Firefox/68.0"""}
+    HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"""}
     result = "fail"
     print("downloading", url) 
     
@@ -632,6 +573,21 @@ def download_file(url, path, filename=None):
         return destination
     else:
         return None
+
+def len_until_first_pad(tokens, pad):
+    i = len(tokens)-1
+    while i>=0:
+        if tokens[i] != pad:
+            return i+1
+        i -= 1
+    return 0
+
+def len_until_first_pad_old(tokens, pad):
+    for i in range(len(tokens)):
+        if tokens[i] == pad:
+            return i
+    return len(tokens)
+
 
 if __name__ == "__main__":
     # usage example - for CoNLL-2003, indicate the eng.* file to be converted:

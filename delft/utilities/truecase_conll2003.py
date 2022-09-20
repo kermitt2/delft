@@ -5,7 +5,7 @@ from delft.sequenceLabelling.reader import load_data_and_labels_conll
 from delft.utilities.Utilities import truecase_sentence
 
 """
-    Convert CoNLL tokens casing via truecase
+Convert CoNLL tokens casing via truecase
 """
 
 def convert(input_file, output_file):

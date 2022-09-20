@@ -1,12 +1,12 @@
 import numpy as np
 import xml
 from xml.sax import make_parser, handler
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple, tokenizeAndFilter, tokenize
 import re
 import os
 import gzip
 from tqdm import tqdm
-
+import json
 
 class TEIContentHandler(xml.sax.ContentHandler):
     """ 
@@ -71,7 +71,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = 'O'
             for token in localTokens:
                 self.tokens.append(token)
@@ -87,10 +87,10 @@ class TEIContentHandler(xml.sax.ContentHandler):
         self.accumulated += content
 
     def getSents(self):
-        return np.asarray(self.sents, dtype='object')
+        return np.asarray(self.sents, dtype=object)
 
     def getAllLabels(self):
-        return np.asarray(self.allLabels, dtype='object')
+        return np.asarray(self.allLabels, dtype=object)
 
     def clear(self): # clear the accumulator for re-use
         self.accumulated = ""
@@ -173,7 +173,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                     mainType = attrs.getValue("type")
                 if "TYPE" in attrs:
                     mainType = attrs.getValue("TYPE")
-                if mainType is None:
+                if mainType == None:
                     print('ENAMEX element without type attribute!')
 
                 if "sub_type" in attrs:
@@ -204,7 +204,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = 'O'
             for token in localTokens:
                 self.tokens.append(token)
@@ -220,10 +220,10 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
         self.accumulated += content
 
     def getSents(self):
-        return np.asarray(self.sents, dtype='object')
+        return np.asarray(self.sents)
 
     def getAllLabels(self):
-        return np.asarray(self.allLabels, dtype='object')
+        return np.asarray(self.allLabels)
 
     def clear(self): # clear the accumulator for re-use
         self.accumulated = ""
@@ -307,7 +307,7 @@ def load_data_and_labels_crf_file(filepath):
         with open(filepath) as f:
             sents, labels, featureSets = load_data_and_labels_crf_content(f)
 
-    return np.asarray(sents, dtype='object'), np.asarray(labels, dtype='object'), np.asarray(featureSets, dtype='object')
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object), np.asarray(featureSets, dtype=object)
 
 def load_data_and_labels_crf_content(the_file):
     sents = []
@@ -363,7 +363,7 @@ def load_data_and_labels_crf_string(crfString):
     labels = []
     featureSets = []
     tokens, tags, features = [], [], []
-    for line in crfString.splitlines():
+    for line in crfString.splitlines():    
         line = line.strip(' \t')
         if len(line) == 0:
             if len(tokens) != 0:
@@ -503,7 +503,73 @@ def load_data_and_labels_conll(filename):
                 words.append(word)
                 tags.append(tag)
 
-    return np.asarray(sents, dtype='object'), np.asarray(labels, dtype='object')
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
+
+
+def load_data_and_labels_conll_with_document_context(filename, max_context_window=400):
+    """
+    Load data and label from a file. In this alternative, we do not segment by sentence and
+    we keep a maximum of document context according to a context window size.
+
+    Args:
+        filename (str): path to the file.
+
+        The file format is tab-separated values.
+        A blank line is required at the end of a sentence.
+
+        For example:
+        ```
+        EU  B-ORG
+        rejects O
+        German  B-MISC
+        call    O
+        to  O
+        boycott O
+        British B-MISC
+        lamb    O
+        .   O
+
+        Peter   B-PER
+        Blackburn   I-PER
+        ...
+        ```
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+
+    """
+
+    # TBD: ideally, for consistency, the tokenization in the CoNLL files should not be enforced,
+    # only the standard DeLFT tokenization should be used, in line with the word embeddings
+    documents, sents, labels = [], [], []
+    with open(filename, encoding="UTF-8") as f:
+        words, tags = [], []
+        for line in f:
+            line = line.rstrip()
+            if line.startswith('-DOCSTART-') or line.startswith('#begin document'):
+                if len(words) != 0:
+                    sents.append(words)
+                    labels.append(tags)
+                    words, tags = [], []
+                if len(sents) != 0:
+                    documents.append(sents)
+                    sents = []
+            elif len(line) == 0:
+                if len(words) != 0:
+                    sents.append(words)
+                    labels.append(tags)
+                    words, tags = [], []
+            else:
+                if len(line.split('\t')) == 2:
+                    word, tag = line.split('\t')
+                else:
+                    word, _, tag = line.split('\t')
+                words.append(word)
+                tags.append(tag)
+
+    # regroup sentences according document contexts following context window
+
+    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object)
 
 
 def load_data_and_labels_lemonde(filepathXml):
@@ -546,9 +612,9 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
     nb_files = 0
     # map lang and subdir names
     lang_name = 'english'
-    if lang is 'zh':
+    if lang == 'zh':
         lang_name = '/chinese/'
-    elif lang is 'ar':
+    elif lang == 'ar':
         lang_name = '/arabic/'
 
     tokens = []
@@ -601,11 +667,102 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
         total_tokens += len(sentence)
     print('nb total tokens:', total_tokens)    
 
-    final_tokens = np.asarray(tokens, dtype='object')
-    final_label = np.asarray(labels, dtype='object')
+    final_tokens = np.asarray(tokens, dtype=object)
+    final_label = np.asarray(labels, dtype=object)
 
     return final_tokens, final_label
 
+
+def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
+    """
+    Load data and labels from json corpus where annotations are expressed with offsets.
+    This requires a tokenizer passed as parameter. If tokenizer is None, we use the generic
+    Indo-European tokenizer.
+
+    Note: input file can be gzipped or not
+
+    {
+    "lang": "en",
+    "level": "sentence",
+    "documents": [
+        {
+            "id": "10.1371/journal.pone.0198300",
+            "body_text": [
+                {
+                    "text": "The test was designed so that bacteria were collected at 1 hour and 6 hours after start time on each day of testing.",
+                    "annotation_spans": [
+                        {
+                            "start": 30,
+                            "end": 38,
+                            "text": "bacteria",
+                            "type": "dataset",
+                            "datatype": "Tabular Data:Sample Table"
+                        }
+                    ]
+                },
+            ]
+        }
+    }
+
+    Returns:
+        tuple(numpy array, numpy array): data and labels
+    """
+    if not os.path.exists(jsonCorpus):
+        print("Invalid path file: ", jsonCorpus)
+        return None, None
+
+    all_tokens = []
+    all_labels = []
+
+    if jsonCorpus.endswith(".gz"):
+        corpus_file = gzip.open(jsonCorpus, "rt")
+    else:
+        corpus_file = open(jsonCorpus, "rt")
+
+    jsonDocuments = json.load(corpus_file)
+    if "documents" in jsonDocuments:
+        for jsonDocument in jsonDocuments["documents"]:
+            if "body_text" in jsonDocument:
+                for text_piece in jsonDocument["body_text"]:
+                    if "text" in text_piece:
+                        tokens = []
+                        labels = []
+                        text = text_piece["text"]
+                        local_tokens, local_offsets = tokenizeAndFilter(text)
+                        spans = []
+                        if "annotation_spans" in text_piece:
+                            for annotation_span in text_piece["annotation_spans"]:
+                                local_type = None
+                                if "type" in annotation_span:
+                                    local_type = annotation_span["type"]
+                                    local_type = local_type.replace(" ", "_")
+                                spans.append([annotation_span["start"], annotation_span["end"], local_type])
+                        i =0
+                        for local_token in local_tokens:
+                            tokens.append(local_token)
+                            offset = local_offsets[i]
+                            found = False
+                            for span in spans:
+                                if span[0] <= offset[0] and (offset[1] <= span[1] or offset[0] < span[1]):
+                                    if span[0] == offset[0]:
+                                        labels.append("B-"+span[2])
+                                    else:
+                                        labels.append("I-"+span[2])
+                                    found = True
+                                    break
+                            if not found:
+                                labels.append("O")
+                            i += 1
+
+                        all_tokens.append(tokens)
+                        all_labels.append(labels)
+
+    corpus_file.close()
+
+    final_tokens = np.asarray(all_tokens)
+    final_labels = np.asarray(all_labels)
+
+    return final_tokens, final_labels
 
 if __name__ == "__main__":
     # some tests
