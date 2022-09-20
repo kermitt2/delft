@@ -33,7 +33,6 @@ def configure(architecture):
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
-
 def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
@@ -84,7 +83,7 @@ def classify(texts, output_format, architecture="gru", embeddings_name=None, tra
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
-    if output_format == 'json':
+    if output_format is 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -122,7 +121,7 @@ if __name__ == "__main__":
     args = parser.parse_args()
 
     if args.action not in ('train', 'train_eval', 'classify'):
-        print('action not specifed, must be one of [train,train_eval,classify]')
+        print('action not specified, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
     transformer = args.transformer

@@ -6,11 +6,10 @@ from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
 from delft.textClassification import Classifier
-from delft.textClassification.models import modelTypes
-from delft.textClassification.reader import load_texts_and_classes
-from delft.utilities.Utilities import split_data_and_labels
+from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_texts_and_classes_generic
 
-
+pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
 
 def get_one_hot(y):
     label_encoder = LabelEncoder()
@@ -21,34 +20,36 @@ def get_one_hot(y):
     return y2
 
 
-def configure(architecture, use_BERT=False, use_ELMo=False):
+def configure(architecture):
     batch_size = 256
-    if use_ELMo:
-        batch_size = 20
-    elif use_BERT:
-        batch_size = 50
-    maxlen = 300
-    # default bert model parameters
-    if architecture.find("bert") != -1:
-        batch_size = 32
-        maxlen = 300
-    return batch_size, maxlen
+    maxlen = 150
+    patience = 5
+    early_stop = True
+    max_epoch = 60
 
-def train(model_name, input_file, embeddings_name, fold_count, use_ELMo=False, use_BERT=False, architecture="gru"):
-    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+    # default bert model parameters
+    if architecture == "bert":
+        batch_size = 32
+        early_stop = False
+        max_epoch = 3
+
+    return batch_size, maxlen, patience, early_stop, max_epoch
+
+def train(model_name, input_file, embeddings_name, fold_count, architecture=None, transformer=None,
+          x_index=0, y_index=1):
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     print('loading ' + model_name + ' training corpus...')
-    xtr, y = load_texts_and_classes(input_file)
+    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_index)
 
     list_classes = list(set([y_[0] for y_ in y]))
 
     y_one_hot = get_one_hot(y)
 
-    model = Classifier(model_name, model_type=architecture, list_classes=list_classes, max_epoch=100,
-                       fold_number=fold_count, patience=10,
-                       use_roc_auc=True, embeddings_name=embeddings_name, use_ELMo=use_ELMo, use_BERT=use_BERT,
-                       batch_size=batch_size, maxlen=maxlen,
-                       class_weights=None)
+    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch,
+                       fold_number=fold_count, patience=patience, transformer_name=transformer,
+                       use_roc_auc=True, embeddings_name=embeddings_name, early_stop=early_stop,
+                       batch_size=batch_size, maxlen=maxlen, class_weights=None)
 
     if fold_count == 1:
         model.train(xtr, y_one_hot)
@@ -58,12 +59,12 @@ def train(model_name, input_file, embeddings_name, fold_count, use_ELMo=False, u
     model.save()
 
 
-def train_and_eval(model_name, input_file, embeddings_name, fold_count, use_ELMo=False, use_BERT=False,
+def train_and_eval(model_name, input_file, embeddings_name, fold_count,transformer=None,
                    architecture="gru"):
-    batch_size, maxlen = configure(architecture, use_BERT, use_ELMo)
+    batch_size, maxlen = configure(architecture)
 
     print('loading ' + model_name + ' corpus...')
-    xtr, y = load_texts_and_classes(input_file)
+    xtr, y = load_texts_and_classes_generic(input_file)
 
     list_classes = list(set([y_[0] for y_ in y]))
 
@@ -89,14 +90,14 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count, use_ELMo
 
 
 # classify a list of texts
-def classify(model_name, texts, output_format, architecture="gru"):
+def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
-    model = Classifier(model_name, model_type=architecture)
+    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, embeddings_name=embeddings_name, transformer_name=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
-    if output_format is 'json':
+    if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
@@ -111,48 +112,55 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--name", type=str, required=True, help="The name of the model")
     parser.add_argument("--input", type=str, required=True, help="The file to be used for training/evaluation")
-    parser.add_argument("--architecture", default='gru',
-                        help="type of model architecture to be used, one of " + str(modelTypes))
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
-    parser.add_argument("--use-BERT", action="store_true", help="Use BERT contextual embeddings")
+    parser.add_argument("--x-index", type=int, required=True, help="Column index for the text assuming a TSV file")
+    parser.add_argument("--y-index", type=int, required=True, help="Column index for the classes assuming a TSV file")
+    parser.add_argument("--architecture", default='gru', choices=architectures,
+                        help="type of model architecture to be used, one of " + str(architectures))
     parser.add_argument(
         "--embedding", default='word2vec',
         help=(
             "The desired pre-trained word embeddings using their descriptions in the file"
             " embedding-registry.json."
             " Be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),"
-            " and that the path in the registry to the embedding file is correct on your system."
-        )
+            " and that the path in the registry to the embedding file is correct on your system."))
+
+    parser.add_argument(
+        "--transformer",
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
     )
 
     args = parser.parse_args()
 
     if args.action not in ('train', 'train_eval', 'classify'):
-        print('action not specifed, must be one of [train,train_eval,classify]')
+        print('action not specified, must be one of [train,train_eval,classify]')
 
     embeddings_name = args.embedding
-    use_ELMo = args.use_ELMo
-    use_BERT = args.use_BERT
     input_file = args.input
     model_name = args.name
-
+    transformer = args.transformer
     architecture = args.architecture
-    if architecture not in modelTypes:
-        print('unknown model architecture, must be one of ' + str(modelTypes))
+    x_index = args.x_index
+    y_index = args.y_index
 
     if args.action == 'train':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(model_name, input_file, embeddings_name, args.fold_count, use_ELMo=use_ELMo, use_BERT=use_BERT,
-              architecture=architecture)
+        train(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
+              transformer=transformer, x_index=x_index, y_index=y_index)
 
     if args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(model_name, input_file, embeddings_name, args.fold_count, use_ELMo=use_ELMo,
-                                use_BERT=use_BERT, architecture=architecture)
+        y_test = train_and_eval(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
+                                transformer=transformer)
 
     if args.action == 'classify':
         someTexts = [
