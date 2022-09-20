@@ -11,7 +11,7 @@ The dataset of the [Kaggle Toxic Comment Classification challenge](https://www.k
 This is a multi-label regression problem, where a Wikipedia comment (or any similar short texts) should be associated to 6 possible types of toxicity (`toxic`, `severe_toxic`, `obscene`, `threat`, `insult`, `identity_hate`).
 
 ```
-usage: toxicCommentClassifier.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
+usage: delft/applications/toxicCommentClassifier.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
                                  [--embedding EMBEDDING] [--transformer TRANSFORMER]
                                  action
 
@@ -88,7 +88,7 @@ In this example, we formulate the problem as a 3 class regression (`negative`. `
 
 
 ```
-usage: citationClassifier.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
+usage: delft/applications/citationClassifier.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
                              [--embedding EMBEDDING] [--transformer TRANSFORMER]
                              action
 

@@ -57,7 +57,18 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
     print('Loading data...')
     if input_path is None:
-        x_all, y_all = load_data_and_labels_json_offsets('data/sequenceLabelling/datasets/dataseer_sentences.json')
+        x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
+        dataseer_sentences_path = "data/sequenceLabelling/datasets/dataseer_sentences.json"
+        if os.path.exists(dataseer_sentences_path):
+            x_all1, y_all1 = load_data_and_labels_json_offsets(dataseer_sentences_path)
+        ner_dataset_recognition_sentences_path = "data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json"
+        if os.path.exists(ner_dataset_recognition_sentences_path):
+            x_all2, y_all2 = load_data_and_labels_json_offsets(ner_dataset_recognition_sentences_path)
+        coleridge_sentences_path = "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
+        if os.path.exists(coleridge_sentences_path):    
+            x_all3, y_all3 = load_data_and_labels_json_offsets(coleridge_sentences_path)
+        x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
+        y_all = np.concatenate((y_all1, y_all2, y_all3[:1000]), axis=0)
     else:
         x_all, y_all = load_data_and_labels_json_offsets(input_path)
 

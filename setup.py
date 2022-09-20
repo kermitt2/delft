@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="delft",
-    version="0.3.1",
+    version="0.3.2",
     author="Patrice Lopez",
     author_email="patrice.lopez@science-miner.com",
     description="a Deep Learning Framework for Text",
@@ -17,7 +17,7 @@ setup(
         'regex==2021.11.10',
         'scikit-learn==1.0.1',
         'tqdm==4.62.3',
-        'tensorflow==2.7.0',
+        'tensorflow==2.7.2',
         'h5py==3.6.0',
         'unidecode==1.3.2',
         'pydot==1.4.0',
@@ -31,7 +31,7 @@ setup(
         'tensorflow-addons==0.15.0'  
     ],
     classifiers=[
-        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],

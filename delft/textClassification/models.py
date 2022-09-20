@@ -823,7 +823,7 @@ class bert(BaseModel):
 
         # get the pooler_output as in the original BERT implementation
         embedding_layer = transformer_model(input_ids_in)[1]
-        cls_out = Dropout(0.1)(embedding_layer)
+        cls_out = Dropout(self.parameters["dropout_rate"])(embedding_layer)
         logits = Dense(units=nb_classes, activation="softmax")(cls_out)
 
         self.model = Model(inputs=[input_ids_in], outputs=logits)
