@@ -159,7 +159,7 @@ if __name__ == "__main__":
             raise ValueError("fold-count should be equal or more than 1")
 
         y_test = train_and_eval(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
-                                transformer=transformer)
+                                transformer=transformer, x_index=x_index, y_index=y_index)
 
     if args.action == 'classify':
         someTexts = [
