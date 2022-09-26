@@ -9,7 +9,8 @@ from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
 from delft.textClassification.reader import load_texts_and_classes_generic
 
-pretrained_transformers_examples = [ 'bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased' ]
+pretrained_transformers_examples = ['bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased']
+
 
 def get_one_hot(y):
     label_encoder = LabelEncoder()
@@ -35,36 +36,53 @@ def configure(architecture):
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
+
 def train(model_name, input_file, embeddings_name, fold_count, architecture=None, transformer=None,
-          x_index=0, y_index=1):
+          x_index=0, y_indexes=[1]):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     print('loading ' + model_name + ' training corpus...')
-    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_index)
+    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
 
     list_classes = list(set([y_[0] for y_ in y]))
-
-    y_one_hot = get_one_hot(y)
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch,
                        fold_number=fold_count, patience=patience, transformer_name=transformer,
                        use_roc_auc=True, embeddings_name=embeddings_name, early_stop=early_stop,
                        batch_size=batch_size, maxlen=maxlen, class_weights=None)
 
+    y_ = get_one_hot(y)
+
     if fold_count == 1:
-        model.train(xtr, y_one_hot)
+        model.train(xtr, y_)
     else:
-        model.train_nfold(xtr, y_one_hot)
+        model.train_nfold(xtr, y_)
     # saving the model
     model.save()
 
 
-def train_and_eval(model_name, input_file, embeddings_name, fold_count,transformer=None,
-                   architecture="gru", x_index=0, y_index=1):
+def eval(model_name, input_file, architecture=None, x_index=0, y_indexes=[1]):
+    # model_name += model_name + '-' + architecture
+
+    print('loading ' + model_name + ' evaluation corpus...')
+
+    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
+    print(len(xtr), 'evaluation sequences')
+
+    model = Classifier(model_name)
+    model.load()
+
+    y_ = get_one_hot(y)
+
+    model.eval(xtr, y_)
+
+
+def train_and_eval(model_name, input_file, embeddings_name, fold_count, transformer=None,
+                   architecture="gru", x_index=0, y_indexes=[1]):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     print('loading ' + model_name + ' corpus...')
-    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_index)
+    xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
 
     list_classes = list(set([y_[0] for y_ in y]))
 
@@ -82,6 +100,8 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count,transform
         model.train(x_train, y_train)
     else:
         model.train_nfold(x_train, y_train)
+        model.model_config.fold_number=1
+
     model.eval(x_test, y_test)
 
     # saving the model
@@ -91,7 +111,8 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count,transform
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
-    model = Classifier(model_name, architecture=architecture, embeddings_name=embeddings_name, transformer_name=transformer)
+    model = Classifier(model_name, architecture=architecture, embeddings_name=embeddings_name,
+                       transformer_name=transformer)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -108,11 +129,13 @@ if __name__ == "__main__":
         description="General classification of text ")
 
     parser.add_argument("action")
+    parser.add_argument("model", help="The name of the model")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--name", type=str, required=True, help="The name of the model")
     parser.add_argument("--input", type=str, required=True, help="The file to be used for training/evaluation")
-    parser.add_argument("--x-index", type=int, required=True, help="Column index for the text assuming a TSV file")
-    parser.add_argument("--y-index", type=int, required=True, help="Column index for the classes assuming a TSV file")
+    parser.add_argument("--x-index", type=int, required=True, help="Index of the columns for the X value "
+                                                                   "(assuming a TSV file)")
+    parser.add_argument("--y-indexes", type=str, required=True, help="Index(es) of the columns for the Y (classes) "
+                                                                     "separated by comma, without spaces (assuming a TSV file)")
     parser.add_argument("--architecture", default='gru', choices=architectures,
                         help="type of model architecture to be used, one of " + str(architectures))
     parser.add_argument(
@@ -127,41 +150,47 @@ if __name__ == "__main__":
         "--transformer",
         default=None,
         help="The desired pre-trained transformer to be used in the selected architecture. " + \
-            "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
-            str(pretrained_transformers_examples) + \
-            " and that the path in the registry to the model path is correct on your system. " + \
-            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
-            "for model names"
+             "For local loading use, delft/resources-registry.json, and be sure to use here the "
+             "same name as in the registry, e.g. " + \
+             str(pretrained_transformers_examples) + \
+             " and that the path in the registry to the model path is correct on your system. " + \
+             "HuggingFace transformers hub will be used otherwise to fetch the model, "
+             "see https://huggingface.co/models " + \
+             "for model names"
     )
 
     args = parser.parse_args()
 
-    if args.action not in ('train', 'train_eval', 'classify'):
-        print('action not specified, must be one of [train,train_eval,classify]')
+    if args.action not in ('train', 'train_eval', 'eval', 'classify'):
+        print('action not specified, must be one of [train, train_eval, eval, classify]')
 
     embeddings_name = args.embedding
     input_file = args.input
-    model_name = args.name
+    model_name = args.model
     transformer = args.transformer
     architecture = args.architecture
     x_index = args.x_index
-    y_index = args.y_index
+    y_indexes = [int(index) for index in args.y_indexes.split(",")]
+
+    if transformer is None and embeddings_name is None:
+        # default word embeddings
+        embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        if args.fold_count < 1:
-            raise ValueError("fold-count should be equal or more than 1")
-
         train(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
-              transformer=transformer, x_index=x_index, y_index=y_index)
+              transformer=transformer, x_index=x_index, y_indexes=y_indexes)
 
-    if args.action == 'train_eval':
+    elif args.action == 'eval':
+        eval(model_name, input_file, architecture=architecture, x_index=x_index, y_indexes=y_indexes)
+
+    elif args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
         y_test = train_and_eval(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
-                                transformer=transformer, x_index=x_index, y_index=y_index)
+                                transformer=transformer, x_index=x_index, y_indexes=y_indexes)
 
-    if args.action == 'classify':
+    elif args.action == 'classify':
         someTexts = [
             'One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.',
             'Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.',

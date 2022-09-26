@@ -246,7 +246,7 @@ class Classifier(object):
             bert_data = True
 
         if self.model_config.fold_number == 1:
-            if self.model != None:
+            if self.model is not None:
                 self.model.print_summary()
                 test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
                         maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
@@ -324,7 +324,7 @@ class Classifier(object):
                 total_accuracy += accuracy
                 f1 = f1_score(y_test[:, j], result_binary[:, j], average='micro')
                 total_f1 += f1
-                loss = log_loss(y_test[:, j], result[:, j], labels=[0,1])
+                loss = log_loss(y_test[:, j], result[:, j], labels=[0, 1])
                 total_loss += loss
                 if len(np.unique(y_test[:, j])) == 1:
                     # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
@@ -397,7 +397,7 @@ class Classifier(object):
             '''
             
     def save(self, dir_path='data/models/textClassification/'):
-        # create subfolder for the model if not already exists
+        # create sub-folder for the model if not already exists
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -406,20 +406,20 @@ class Classifier(object):
         print('model config file saved')
 
         if self.model_config.fold_number == 1:
-            if self.model != None:
+            if self.model is not None:
                 self.model.save(os.path.join(directory, self.weight_file))
                 print('model saved')
             else:
                 print('Error: model has not been built')
         else:
-            if self.models == None:
-                print('Error: nfolds models have not been built')
+            if self.models is None:
+                print('Error: n-folds models have not been built')
             else:
                 # fold models having a transformer layers are already saved
                 if self.model_config.transformer_name is None:
                     for i in range(0, self.model_config.fold_number):
                         self.models[i].save(os.path.join(directory, "model{0}_weights.hdf5".format(i)))
-                    print('nfolds model saved')
+                    print('n-folds model saved')
 
         # save pretrained transformer config and tokenizer if used in the model and if single fold (otherwise it is saved in the nfold process)
         if self.transformer_name is not None and self.model_config.fold_number == 1:

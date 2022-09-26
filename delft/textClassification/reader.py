@@ -7,7 +7,7 @@ import pandas as pd
 from delft.utilities.numpy import shuffle_triple_with_view
 
 
-def load_texts_and_classes_generic(filepath, text_index, classes_index):
+def load_texts_and_classes_generic(filepath, text_index: int, classes_indexes: list):
     """
     Load texts and classes from a file in the following simple tab-separated format:
 
@@ -22,10 +22,11 @@ def load_texts_and_classes_generic(filepath, text_index, classes_index):
         tuple(numpy array, numpy array): texts and classes
 
     """
-    texts = []
-    classes = []
+    x = []
+    y = []
 
     with open(filepath) as f:
+        first = True
         # TODO not in the original - need to revert it or add an option
         tsvreader = csv.reader(f, delimiter="\t", quoting=csv.QUOTE_ALL)
         for line in tsvreader:
@@ -33,10 +34,14 @@ def load_texts_and_classes_generic(filepath, text_index, classes_index):
                 continue
             if len(line) < 3:
                 print("Warning: number of fields in the data file too low for line:", line)
-            texts.append(line[text_index])
-            classes.append(line[classes_index])
+            classes = [line[i] for i in classes_indexes]
+            if first:
+                print("Sample input", "x: ", line[text_index], "y: ", classes)
+                first = False
+            x.append(line[text_index])
+            y.append(classes)
 
-    return np.asarray(texts, dtype=object), np.asarray(classes, dtype=object)
+    return np.asarray(x, dtype=object), np.asarray(y, dtype=object)
 
 
 def load_texts_and_classes(filepath):
