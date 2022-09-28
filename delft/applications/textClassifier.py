@@ -11,6 +11,8 @@ from delft.textClassification.reader import load_texts_and_classes_generic
 
 pretrained_transformers_examples = ['bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased']
 
+actions = ['train', 'train_eval', 'eval', 'classify']
+
 
 def get_one_hot(y):
     label_encoder = LabelEncoder()
@@ -31,6 +33,8 @@ def configure(architecture):
     # default bert model parameters
     if architecture == "bert":
         batch_size = 32
+        # early_stop = False
+        # max_epoch = 3
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
@@ -98,7 +102,6 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count, transfor
         model.train(x_train, y_train)
     else:
         model.train_nfold(x_train, y_train)
-        model.model_config.fold_number=1
 
     model.eval(x_test, y_test)
 
@@ -126,14 +129,15 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(
         description="General classification of text ")
 
-    parser.add_argument("action")
+    parser.add_argument("action", help="the action", choices=actions)
     parser.add_argument("model", help="The name of the model")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument("--input", type=str, required=True, help="The file to be used for training/evaluation")
     parser.add_argument("--x-index", type=int, required=True, help="Index of the columns for the X value "
                                                                    "(assuming a TSV file)")
     parser.add_argument("--y-indexes", type=str, required=True, help="Index(es) of the columns for the Y (classes) "
-                                                                     "separated by comma, without spaces (assuming a TSV file)")
+                                                                     "separated by comma, without spaces (assuming "
+                                                                     "a TSV file)")
     parser.add_argument("--architecture", default='gru', choices=architectures,
                         help="type of model architecture to be used, one of " + str(architectures))
     parser.add_argument(
@@ -159,9 +163,6 @@ if __name__ == "__main__":
 
     args = parser.parse_args()
 
-    if args.action not in ('train', 'train_eval', 'eval', 'classify'):
-        print('action not specified, must be one of [train, train_eval, eval, classify]')
-
     embeddings_name = args.embedding
     input_file = args.input
     model_name = args.model
@@ -169,6 +170,9 @@ if __name__ == "__main__":
     architecture = args.architecture
     x_index = args.x_index
     y_indexes = [int(index) for index in args.y_indexes.split(",")]
+    if len(y_indexes) > 1:
+        print("At the moment we support just one value per class. Taking the first value only. ")
+        y_indexes = y_indexes[0]
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
