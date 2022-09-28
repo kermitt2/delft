@@ -31,8 +31,6 @@ def configure(architecture):
     # default bert model parameters
     if architecture == "bert":
         batch_size = 32
-        early_stop = False
-        max_epoch = 3
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
