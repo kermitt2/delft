@@ -1,7 +1,10 @@
 import argparse
+import csv
 import json
+import sys
 import time
 
+import numpy as np
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 
@@ -112,8 +115,7 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count, transfor
 # classify a list of texts
 def classify(texts, output_format, architecture="gru", transformer=None):
     # load model
-    model = Classifier(model_name, architecture=architecture, embeddings_name=embeddings_name,
-                       transformer_name=transformer)
+    model = Classifier(model_name)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -135,7 +137,7 @@ if __name__ == "__main__":
     parser.add_argument("--input", type=str, required=True, help="The file to be used for training/evaluation")
     parser.add_argument("--x-index", type=int, required=True, help="Index of the columns for the X value "
                                                                    "(assuming a TSV file)")
-    parser.add_argument("--y-indexes", type=str, required=True, help="Index(es) of the columns for the Y (classes) "
+    parser.add_argument("--y-indexes", type=str, required=False, help="Index(es) of the columns for the Y (classes) "
                                                                      "separated by comma, without spaces (assuming "
                                                                      "a TSV file)")
     parser.add_argument("--architecture", default='gru', choices=architectures,
@@ -169,10 +171,16 @@ if __name__ == "__main__":
     transformer = args.transformer
     architecture = args.architecture
     x_index = args.x_index
-    y_indexes = [int(index) for index in args.y_indexes.split(",")]
-    if len(y_indexes) > 1:
-        print("At the moment we support just one value per class. Taking the first value only. ")
-        y_indexes = y_indexes[0]
+
+    if args.action != "classify":
+        if args.y_indexes is None:
+            print("--y-indexes is mandatory")
+            sys.exit(-1)
+        y_indexes = [int(index) for index in args.y_indexes.split(",")]
+
+        if len(y_indexes) > 1:
+            print("At the moment we support just one value per class. Taking the first value only. ")
+            y_indexes = y_indexes[0]
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -193,12 +201,19 @@ if __name__ == "__main__":
                                 transformer=transformer, x_index=x_index, y_indexes=y_indexes)
 
     elif args.action == 'classify':
-        someTexts = [
-            'One successful strategy [15] computes the set-similarity involving (multi-word) keyphrases about the mentions and the entities, collected from the KG.',
-            'Unfortunately, fewer than half of the OCs in the DAML02 OC catalog (Dias et al. 2002) are suitable for use with the isochrone-fitting method because of the lack of a prominent main sequence, in addition to an absence of radial velocity and proper-motion data.',
-            'However, we found that the pairwise approach LambdaMART [41] achieved the best performance on our datasets among most learning to rank algorithms.']
-        result = classify(model_name, someTexts, "json")
-        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
+        lines = []
+        with open(input_file, 'r') as f:
+            tsvreader = csv.reader(f, delimiter="\t", quoting=csv.QUOTE_ALL)
+            for line in tsvreader:
+                if len(line) == 0:
+                    continue
+                lines.append(line[x_index])
 
+        result = classify(lines, "csv")
+
+        result_binary = [np.argmax(line) for line in result]
+
+        for x in result_binary:
+            print(x)
     # See https://github.com/tensorflow/tensorflow/issues/3388
     # K.clear_session()
