@@ -123,20 +123,24 @@ class Transformer(object):
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                           config=self.transformer_config,
                                                            add_special_tokens=add_special_tokens,
                                                            max_length=max_sequence_length,
                                                            add_prefix_space=add_prefix_space)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
+                                                           config=self.transformer_config,
                                                            add_special_tokens=add_special_tokens,
                                                            max_length=max_sequence_length,
                                                            add_prefix_space=add_prefix_space)
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
-            self.tokenizer = BertTokenizerFast.from_pretrained(Path(self.local_vocab_file).parent,
+            self.tokenizer = BertTokenizer.from_pretrained(Path(self.local_vocab_file),
+                                                           config=self.transformer_config,
                                                            add_special_tokens=add_special_tokens,
                                                            max_length=max_sequence_length,
-                                                           add_prefix_space=add_prefix_space, use_fast=True)
+                                                           add_prefix_space=add_prefix_space,
+                                                           use_fast=True)
 
         elif self.loading_method == LOADING_METHOD_DELFT_MODEL:
             config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
