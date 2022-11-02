@@ -7,7 +7,7 @@ dataseer_sentences.json + ner_dataset_recognition_sentences.json
 
 (around 3000 negative sentences)
 
-> python3 delft/applications/datasetTagger.py train_eval --architecture BidLSTM_CRF --use-ELMo --fold-count 1
+> python3 delft/applications/datasetTagger.py train_eval --architecture BidLSTM_CRF --use-ELMo --fold-count 10
 
 ----------------------------------------------------------------------
 
@@ -40,3 +40,15 @@ Average over 10 folds
     dataset_name     0.8904    0.8946    0.8924       466
 
 all (micro avg.)     0.7635    0.7223    0.7421  
+
+
+
+> python3 delft/applications/datasetTagger.py train_eval --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased --fold-count 10
+
+                  precision    recall  f1-score   support
+
+     data_device     0.2697    0.2474    0.2581        97
+         dataset     0.6603    0.6753    0.6677       927
+    dataset_name     0.8629    0.8777    0.8702       466
+
+all (micro avg.)     0.7009    0.7107    0.7058      1490
