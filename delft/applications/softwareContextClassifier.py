@@ -1,7 +1,8 @@
 import json
 from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
-from delft.textClassification.reader import load_software_context_corpus_json
+from delft.utilities.numpy import concatenate_or_none, shuffle_triple_with_view
+from delft.textClassification.reader import load_software_context_corpus_json, load_software_dataset_context_corpus_json
 from delft.textClassification.reader import vectorize as vectorizer
 import delft.textClassification
 from delft.textClassification import Classifier
@@ -49,6 +50,12 @@ def configure(architecture):
 def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     print('loading multiclass software context dataset...')
     xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
+    xtr2, y2 = load_software_dataset_context_corpus_json("data/textClassification/software/all_clean.classification_extra.json.gz")
+
+    xtr = concatenate_or_none([xtr, xtr2])
+    y = concatenate_or_none([y, y2])
+
+    xtr, y, _ = shuffle_triple_with_view(xtr, y)
 
     report_training_contexts(y)
 
@@ -72,6 +79,12 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
 def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading multiclass software context dataset...')
     xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
+    xtr2, y2 = load_software_dataset_context_corpus_json("data/textClassification/software/all_clean.classification_extra.json.gz")
+
+    xtr = concatenate_or_none([xtr, xtr2])
+    y = concatenate_or_none([y, y2])
+
+    xtr, y, _ = shuffle_triple_with_view(xtr, y)
 
     report_training_contexts(y)
 
@@ -102,6 +115,12 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print('loading multiclass software context dataset...')
     x_train, y_train = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
+    xtr2, y2 = load_software_dataset_context_corpus_json("data/textClassification/software/all_clean.classification_extra.json.gz")
+
+    xtr = concatenate_or_none([x_train, xtr2])
+    y = concatenate_or_none([y_train, y2])
+
+    xtr, y, _ = shuffle_triple_with_view(xtr, y)
 
     report_training_contexts(y_train)
 
@@ -131,6 +150,12 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
 def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading multiclass software context dataset...')
     xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
+    xtr2, y2 = load_software_dataset_context_corpus_json("data/textClassification/software/all_clean.classification_extra.json.gz")
+
+    xtr = concatenate_or_none([xtr, xtr2])
+    y = concatenate_or_none([y, y2])
+
+    xtr, y, _ = shuffle_triple_with_view(xtr, y)
 
     report_training_contexts(y)
     # segment train and eval sets

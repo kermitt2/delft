@@ -10,6 +10,7 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
 from delft.utilities.misc import parse_number_ranges
+from delft.utilities.Utilities import longest_row
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -59,11 +60,13 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             # class are more unbalanced, so we need to extend the batch size as much as we can
             batch_size = 7
             max_sequence_length = 512
+            early_stop = False
+            max_epoch = 4
     else:
         # RNN-only architectures
         if model == 'citation':
-            max_sequence_length = 600
-            batch_size = 20
+            max_sequence_length = 500
+            batch_size = 30
         elif model == 'header':
             max_epoch = 80
             max_sequence_length = 2500
@@ -83,7 +86,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 max_sequence_length = 1500
             multiprocessing = False
         elif model == "reference-segmenter":
-            batch_size = 10
+            batch_size = 5
             max_sequence_length = 3000
             if use_ELMo:
                 max_sequence_length = 1500
@@ -121,6 +124,9 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
+
+    print("\nmax train sequence length:", str(longest_row(x_train)))
+    print("max validation sequence length:", str(longest_row(x_valid)))
 
     batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model,
                                                                             architecture,
@@ -171,6 +177,10 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
+
+    print("\nmax train sequence length:", str(longest_row(x_train)))
+    print("max validation sequence length:", str(longest_row(x_valid)))
+    print("max evaluation sequence length:", str(longest_row(x_eval)))
 
     batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model, 
                                                                             architecture, 

@@ -585,6 +585,9 @@ def len_until_first_pad_old(tokens, pad):
             return i
     return len(tokens)
 
+def longest_row(array):
+    the_longest_row = max(len(row) for row in array)
+    return the_longest_row
 
 if __name__ == "__main__":
     # usage example - for CoNLL-2003, indicate the eng.* file to be converted:
