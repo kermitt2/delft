@@ -45,52 +45,75 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
         # non-default settings per model
         if model == 'citation':
-            max_sequence_length = 150
-            batch_size = 20
+            if max_sequence_length == -1:
+                max_sequence_length = 150
+            if batch_size == -1:
+                batch_size = 20
         elif model == 'header':
-            max_sequence_length = 512
-            batch_size = 6
+            if max_sequence_length == -1:
+                max_sequence_length = 512
+            if batch_size == -1:
+                batch_size = 6
         elif model == 'date':
-            max_sequence_length = 30
-            batch_size = 80
+            if max_sequence_length == -1:
+                max_sequence_length = 30
+            if batch_size == -1:
+                batch_size = 80
         elif model == 'affiliation-address':
-            max_sequence_length = 200
-            batch_size = 20
-        elif model == "software":
+            if max_sequence_length == -1:
+                max_sequence_length = 200
+            if batch_size == -1:
+                batch_size = 20
+        elif model.startswith("software"):
             # class are more unbalanced, so we need to extend the batch size as much as we can
-            batch_size = 7
-            max_sequence_length = 512
-            early_stop = False
-            max_epoch = 4
+            if batch_size == -1:
+                batch_size = 8
+            if max_sequence_length == -1:
+                max_sequence_length = 512
+            #early_stop = False
+            if max_epoch == -1:
+                max_epoch = 20
     else:
         # RNN-only architectures
         if model == 'citation':
-            max_sequence_length = 500
-            batch_size = 30
+            if max_sequence_length == -1:
+                max_sequence_length = 500
+            if batch_size == -1:
+                batch_size = 30
         elif model == 'header':
             max_epoch = 80
-            max_sequence_length = 2500
-            batch_size = 9
-            if use_ELMo:
-                max_sequence_length = 1500
+            if max_sequence_length == -1:
+                if use_ELMo:
+                    max_sequence_length = 1500
+                else:
+                    max_sequence_length = 2500
+            if batch_size == -1:
+                batch_size = 9
         elif model == 'date':
-            max_sequence_length = 50
-            batch_size = 60
+            if max_sequence_length == -1:
+                max_sequence_length = 50
+            if batch_size == -1:
+                batch_size = 60
         elif model == 'affiliation-address':
-            max_sequence_length = 600
-            batch_size = 20
-        elif model == "software":
+            if max_sequence_length == -1:
+                max_sequence_length = 600
+            if batch_size == -1:
+                batch_size = 20
+        elif model.startswith("software"):
             if batch_size == -1:
                 batch_size = 20
             if max_sequence_length == -1:
                 max_sequence_length = 1500
             multiprocessing = False
         elif model == "reference-segmenter":
-            batch_size = 5
-            max_sequence_length = 3000
-            if use_ELMo:
-                max_sequence_length = 1500
-
+            if batch_size == -1:
+                batch_size = 5
+            if max_sequence_length == -1:
+                if use_ELMo:
+                    max_sequence_length = 1500
+                else:
+                    max_sequence_length = 3000
+            
     model_name += '-' + architecture
 
     if use_ELMo:
