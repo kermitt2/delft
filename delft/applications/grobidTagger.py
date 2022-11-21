@@ -30,23 +30,11 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
-        if batch_size == -1:
-            #default
-            batch_size = 20
-        if max_sequence_length == -1:
-            #default 
-            max_sequence_length = 200
-
-        if max_sequence_length > 512:
-            # 512 is the largest sequence for BERT input
-            max_sequence_length = 512
-
-        embeddings_name = None
 
         # non-default settings per model
         if model == 'citation':
             if max_sequence_length == -1:
-                max_sequence_length = 150
+                max_sequence_length = 200
             if batch_size == -1:
                 batch_size = 20
         elif model == 'header':
@@ -73,6 +61,20 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             #early_stop = False
             if max_epoch == -1:
                 max_epoch = 20
+
+        # default when no value provided by command line or model-specific
+        if batch_size == -1:
+            #default
+            batch_size = 20
+        if max_sequence_length == -1:
+            #default 
+            max_sequence_length = 200
+
+        if max_sequence_length > 512:
+            # 512 is the largest sequence for BERT input
+            max_sequence_length = 512
+
+        embeddings_name = None
     else:
         # RNN-only architectures
         if model == 'citation':

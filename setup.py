@@ -25,7 +25,7 @@ setup(
         'transformers==4.15.0', 
         'torch==1.10.1',
         'truecase',
-        'requests',
+        'requests>=2.20',
         'pandas==1.3.5',
         'pytest',
         'tensorflow-addons==0.15.0'  
