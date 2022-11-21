@@ -17,7 +17,7 @@ setup(
         'regex==2021.11.10',
         'scikit-learn==1.0.1',
         'tqdm==4.62.3',
-        'tensorflow==2.7.2',
+        'tensorflow==2.9.3',
         'h5py==3.6.0',
         'unidecode==1.3.2',
         'pydot==1.4.0',
