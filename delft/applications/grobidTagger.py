@@ -135,7 +135,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, output_path=None,
-          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
+          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False, incremental=False):
 
     print('Loading data...')
     if input_path == None:
@@ -174,8 +174,11 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      multiprocessing=multiprocessing,
                      early_stop=early_stop)
 
+    if incremental:
+        model.load()
+
     start_time = time.time()
-    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -229,12 +232,15 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     multiprocessing=multiprocessing,
                     early_stop=early_stop)
 
+    if incremental:
+        model.load()
+
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
@@ -365,6 +371,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
 
+    parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
+
     args = parser.parse_args()
 
     model = args.model
@@ -377,6 +385,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     transformer = args.transformer
     use_ELMo = args.use_ELMo
+    incremental = args.incremental
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -391,7 +400,8 @@ if __name__ == "__main__":
             output_path=output,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+            incremental=incremental)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -413,7 +423,8 @@ if __name__ == "__main__":
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
-                use_ELMo=use_ELMo)
+                use_ELMo=use_ELMo, 
+                incremental=incremental)
 
     if action == Tasks.TAG:
         someTexts = []
