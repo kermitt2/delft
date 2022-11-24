@@ -158,6 +158,8 @@ class Sequence(object):
                 print("error: you must load a model first for an incremental training")
                 return
             print("Incremental training from loaded model", self.model_config.model_name)
+            # update the preprocessor for the new chars and labels
+            self.p.extend(x_all, y_all)
         else:
             # init a new "fresh" model
             self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
