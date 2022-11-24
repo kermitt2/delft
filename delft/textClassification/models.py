@@ -322,7 +322,7 @@ def train_folds(X, y, model_config, training_config, embeddings, models=None, ca
         if model_config.transformer_name is None:
             if incremental:
                 models[fold_id] = foldModel
-            else
+            else:
                 models.append(foldModel)
         else:
             # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
