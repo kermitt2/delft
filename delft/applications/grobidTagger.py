@@ -134,8 +134,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 
 # train a GROBID model with all available data
-def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, output_path=None,
-          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False, incremental=False):
+def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
+        output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
+        use_ELMo=False, incremental=False, input_model_path=None):
 
     print('Loading data...')
     if input_path == None:
@@ -175,7 +176,12 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      early_stop=early_stop)
 
     if incremental:
-        model.load()
+        if input_model_path != None:
+            model.load(input_model_path)
+        elif output_path != None:
+            model.load(output_path)
+        else:
+            model.load()
 
     start_time = time.time()
     model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental)
@@ -192,7 +198,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
+               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
+               use_ELMo=False, incremental=False, input_model_path=None):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -233,7 +240,12 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     early_stop=early_stop)
 
     if incremental:
-        model.load()
+        if input_model_path != None:
+            model.load(input_model_path)
+        elif output_path != None:
+            model.load(output_path)
+        else:
+            model.load()
 
     start_time = time.time()
 
@@ -368,10 +380,13 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
+    parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
+    parser.add_argument("--input-model", help="In case of incremental training, path to an existing model to be used " +
+                                        "to start the training, instead of the default one.")
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
 
-    parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
+    
 
     args = parser.parse_args()
 
@@ -380,6 +395,7 @@ if __name__ == "__main__":
     architecture = args.architecture
     output = args.output
     input_path = args.input
+    input_model_path = args.input_model
     embeddings_name = args.embedding
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
@@ -401,7 +417,8 @@ if __name__ == "__main__":
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             use_ELMo=use_ELMo,
-            incremental=incremental)
+            incremental=incremental,
+            input_model_path=input_model_path)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -424,7 +441,8 @@ if __name__ == "__main__":
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
                 use_ELMo=use_ELMo, 
-                incremental=incremental)
+                incremental=incremental,
+                input_model_path=input_model_path)
 
     if action == Tasks.TAG:
         someTexts = []
