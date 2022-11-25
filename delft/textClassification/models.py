@@ -261,7 +261,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, models=None, callbacks=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     architecture = model_config.architecture
@@ -269,7 +269,12 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
     class_weights = training_config.class_weights
 
     fold_size = len(X) // fold_count
-    models = []
+
+    if models == None:
+        models = []
+        incremental = False
+    else:
+        incremental = True
     scores = []
 
     bert_data = False
@@ -289,7 +294,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
         val_x = X[fold_start:fold_end]
         val_y = y[fold_start:fold_end]
 
-        foldModel = getModel(model_config, training_config)
+        if incremental:
+            foldModel = models[fold_id]
+        else:    
+            foldModel = getModel(model_config, training_config)
 
         if fold_id == 0:
             print_parameters(model_config, training_config)
@@ -312,7 +320,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
                 patience=training_config.patience, callbacks=callbacks)
         
         if model_config.transformer_name is None:
-            models.append(foldModel)
+            if incremental:
+                models[fold_id] = foldModel
+            else:
+                models.append(foldModel)
         else:
             # if we are using a transformer layer in the architecture, we need to save the fold model on the disk
             directory = os.path.join("data/models/textClassification/", model_config.model_name)
@@ -320,7 +331,10 @@ def train_folds(X, y, model_config, training_config, embeddings, callbacks=None)
                 os.makedirs(directory)
 
             if fold_id == 0:
-                models.append(foldModel)
+                if incremental:
+                    models[0] = foldModel
+                else:
+                    models.append(foldModel)
                 # save transformer config and tokenizer
                 if foldModel.transformer_config is not None:
                     foldModel.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))

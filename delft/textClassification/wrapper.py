@@ -130,9 +130,16 @@ class Classifier(object):
                                               class_weights=class_weights, 
                                               multiprocessing=multiprocessing)
 
-    def train(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.model = getModel(self.model_config, self.training_config)
+    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
 
+        if incremental:
+            if self.model == None and self.models == None:
+                print("error: you must load a model first for an incremental training")
+                return
+            print("Incremental training from loaded model", self.model_config.model_name)
+        else:
+            self.model = getModel(self.model_config, self.training_config)
+        
         print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
 
@@ -175,8 +182,15 @@ class Classifier(object):
             callbacks=callbacks)
 
 
-    def train_nfold(self, x_train, y_train, vocab_init=None, callbacks=None):
-        self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, callbacks=callbacks)
+    def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
+        if incremental:
+            if self.models == None:
+                print("error: you must load a model first for an incremental training")
+                return
+            print("Incremental n-fold training from loaded models", self.model_config.model_name)
+            self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, self.models, callbacks=callbacks)
+        else:
+            self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, None, callbacks=callbacks)
 
 
     def predict(self, texts, output_format='json', use_main_thread_only=False, batch_size=None):
