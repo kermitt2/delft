@@ -434,7 +434,7 @@ class Sequence(object):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
 
-        if batch_size != None:
+        if batch_size is not None:
             self.model_config.batch_size = batch_size
             print("---")
             print("batch_size (prediction):", self.model_config.batch_size)
