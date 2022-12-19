@@ -54,8 +54,6 @@ from delft.sequenceLabelling.evaluation import classification_report
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
-from tensorflow.keras.utils import plot_model
-
 class Sequence(object):
 
     # number of parallel worker for the data generator
@@ -173,6 +171,7 @@ class Sequence(object):
         self.model.print_summary()
 
         # uncomment to plot graph
+        # from tensorflow.keras.utils import plot_model
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
 
