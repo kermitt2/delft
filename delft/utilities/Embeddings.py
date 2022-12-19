@@ -441,7 +441,7 @@ class Embeddings(object):
 
     def get_sentence_vector_with_ELMo(self, token_list):
         """
-        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings
+        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
         for a full sentence
         """
         if not self.use_ELMo:
@@ -506,7 +506,7 @@ class Embeddings(object):
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
-        Cache in LMDB the ELMo embeddings for a given sequence
+        Cache in LMDB the ELMo embeddings for a given sequence 
         """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff

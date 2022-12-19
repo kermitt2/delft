@@ -338,7 +338,7 @@ class Classifier(object):
                 total_accuracy += accuracy
                 f1 = f1_score(y_test[:, j], result_binary[:, j], average='micro')
                 total_f1 += f1
-                loss = log_loss(y_test[:, j], result[:, j], labels=[0, 1])
+                loss = log_loss(y_test[:, j], result[:, j], labels=[0,1])
                 total_loss += loss
                 if len(np.unique(y_test[:, j])) == 1:
                     # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches

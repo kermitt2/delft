@@ -106,16 +106,16 @@ class BaseModel(object):
             self.model.base_model.summary()
         self.model.summary()
 
-    def train_model(self,
-                list_classes,
-                batch_size,
-                max_epoch,
-                use_roc_auc,
-                class_weights,
-                training_generator,
-                validation_generator,
-                val_y,
-                multiprocessing=True,
+    def train_model(self, 
+                list_classes, 
+                batch_size, 
+                max_epoch, 
+                use_roc_auc, 
+                class_weights, 
+                training_generator, 
+                validation_generator, 
+                val_y, 
+                multiprocessing=True, 
                 patience=5,
                 callbacks=None):
 
@@ -154,14 +154,14 @@ class BaseModel(object):
                     epochs=max_epoch, callbacks=callbacks)
 
                 y_pred = self.model.predict(
-                    validation_generator,
+                    validation_generator, 
                     use_multiprocessing=multiprocessing,
                     workers=nb_workers)
 
                 total_loss = 0.0
                 total_roc_auc = 0.0
 
-                # we distinguish 1-class and multiclass problems
+                # we distinguish 1-class and multiclass problems 
                 if len(list_classes) == 1:
                     total_loss = log_loss(val_y, y_pred, labels=[0,1])
                     if len(np.unique(val_y)) == 1:
@@ -169,7 +169,7 @@ class BaseModel(object):
                         # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
                         roc_auc = r2_score(val_y, y_pred)
                         if roc_auc < 0:
-                            roc_auc = 0
+                            roc_auc = 0 
                     else:
                         total_roc_auc = roc_auc_score(val_y, y_pred)
                 else:
@@ -181,7 +181,7 @@ class BaseModel(object):
                             # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
                             roc_auc = r2_score(val_y[:, j], y_pred[:, j])
                             if roc_auc < 0:
-                                roc_auc = 0
+                                roc_auc = 0 
                         else:
                             roc_auc = roc_auc_score(val_y[:, j], y_pred[:, j])
                         total_roc_auc += roc_auc
@@ -223,20 +223,20 @@ class BaseModel(object):
 
         if use_main_thread_only:
             # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0
+            nb_workers = 0 
             multiprocessing = False
-
+        
         y = self.model.predict(
-                predict_generator,
+                predict_generator, 
                 use_multiprocessing=multiprocessing,
                 workers=nb_workers)
         return y
 
     def compile(self, train_size):
-        # default compilation of the model.
+        # default compilation of the model. 
         # train_size gives the number of steps for the traning, to be used for learning rate scheduler/decay
-        self.model.compile(loss='binary_crossentropy',
-                    optimizer='adam',
+        self.model.compile(loss='binary_crossentropy', 
+                    optimizer='adam', 
                     metrics=['accuracy'])
 
     def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
@@ -306,19 +306,19 @@ def train_folds(X, y, model_config, training_config, embeddings, models=None, ca
         print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
 
         training_generator = DataGenerator(train_x, train_y, batch_size=training_config.batch_size,
-            maxlen=model_config.maxlen, list_classes=model_config.list_classes,
+            maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
             embeddings=embeddings, bert_data=bert_data, shuffle=True, transformer_tokenizer=foldModel.transformer_tokenizer)
 
         validation_generator = None
         if training_config.early_stop:
-            validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size,
-                maxlen=model_config.maxlen, list_classes=model_config.list_classes,
+            validation_generator = DataGenerator(val_x, val_y, batch_size=training_config.batch_size, 
+                maxlen=model_config.maxlen, list_classes=model_config.list_classes, 
                 embeddings=embeddings, bert_data=bert_data, shuffle=False, transformer_tokenizer=foldModel.transformer_tokenizer)
 
-        foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc,
-                class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing,
+        foldModel.train_model(model_config.list_classes, training_config.batch_size, max_epoch, use_roc_auc, 
+                class_weights, training_generator, validation_generator, val_y, multiprocessing=training_config.multiprocessing, 
                 patience=training_config.patience, callbacks=callbacks)
-
+        
         if model_config.transformer_name is None:
             if incremental:
                 models[fold_id] = foldModel
@@ -358,7 +358,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
             model = models[0]
             # load new weight from disk
             model_path = os.path.join("data/models/textClassification/", model_config.model_name, "model{0}_weights.hdf5".format(fold_id))
-            model.load(model_path)
+            model.load(model_path)  
         else:
             model = models[fold_id]
 
@@ -371,7 +371,7 @@ def predict_folds(models, predict_generator, model_config, training_config, use_
 
     y_predicts **= (1. / len(y_predicts_list))
 
-    return y_predicts
+    return y_predicts    
 
 
 class lstm(BaseModel):
@@ -380,7 +380,7 @@ class lstm(BaseModel):
     """
     name = 'lstm'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -418,7 +418,7 @@ class bidLstm_simple(BaseModel):
     """
     name = 'bidLstm_simple'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -431,7 +431,7 @@ class bidLstm_simple(BaseModel):
         'dense_size': 256
     }
 
-    # bidirectional LSTM
+    # bidirectional LSTM 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
@@ -457,7 +457,7 @@ class cnn(BaseModel):
     """
     name = 'cnn'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 250,
@@ -475,9 +475,9 @@ class cnn(BaseModel):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
-
+        
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
-        x = Dropout(self.parameters["dropout_rate"])(input_layer)
+        x = Dropout(self.parameters["dropout_rate"])(input_layer) 
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
         x = MaxPooling1D(pool_size=2)(x)
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
@@ -498,7 +498,7 @@ class cnn2(BaseModel):
     """
     name = 'cnn2'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 250,
@@ -517,7 +517,7 @@ class cnn2(BaseModel):
         nb_classes = len(model_config.list_classes)
 
         input_layer = Input(shape=(self.parameters["maxlen"], self.parameters["embed_size"]), )
-        x = Dropout(self.parameters["dropout_rate"])(input_layer)
+        x = Dropout(self.parameters["dropout_rate"])(input_layer) 
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
         x = Conv1D(filters=self.parameters["recurrent_units"], kernel_size=2, padding='same', activation='relu')(x)
@@ -535,7 +535,7 @@ class cnn3(BaseModel):
     """
     name = 'cnn3'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -577,7 +577,7 @@ class lstm_cnn(BaseModel):
     """
     name = 'lstm_cnn'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 250,
@@ -623,7 +623,7 @@ class gru(BaseModel):
     """
     name = 'gru'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -636,7 +636,7 @@ class gru(BaseModel):
         'dense_size': 32
     }
 
-    # 2 bid. GRU
+    # 2 bid. GRU 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
@@ -655,7 +655,7 @@ class gru(BaseModel):
         output_layer = Dense(nb_classes, activation="sigmoid")(x)
         self.model = Model(inputs=input_layer, outputs=output_layer)
 
-
+        
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
                       optimizer=RMSprop(clipvalue=1, clipnorm=1),
@@ -668,7 +668,7 @@ class gru_simple(BaseModel):
     """
     name = 'gru_simple'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -710,7 +710,7 @@ class gru_lstm(BaseModel):
     """
     name = 'gru_lstm'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -755,7 +755,7 @@ class dpcnn(BaseModel):
     """
     name = 'dpcnn'
 
-    # default parameters
+    # default parameters 
     parameters = {
         'max_features': 200000,
         'maxlen': 300,
@@ -809,13 +809,13 @@ class dpcnn(BaseModel):
 
 class bert(BaseModel):
     """
-    A Keras implementation of a BERT classifier for fine-tuning, with BERT layer to be
+    A Keras implementation of a BERT classifier for fine-tuning, with BERT layer to be 
     instanciated with a pre-trained BERT model
     """
     name = 'bert'
-    bert_config = None
+    bert_config = None 
 
-    # default parameters
+    # default parameters 
     parameters = {
         'dense_size': 512,
         'max_seq_len': 512,
@@ -847,7 +847,7 @@ class bert(BaseModel):
     def compile(self, train_size):
         #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
         optimizer, lr_schedule = create_optimizer(
-                init_lr=2e-5,
+                init_lr=2e-5, 
                 num_train_steps=train_size,
                 weight_decay_rate=0.01,
                 num_warmup_steps=0.1*train_size,

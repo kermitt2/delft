@@ -215,7 +215,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 class BERTPreprocessor(object):
     """
     Generic BERT preprocessor for a sequence labelling data set.
-    Input are pre-tokenized texts, possibly with features and labels to re-align with the sub-tokenization.
+    Input are pre-tokenized texts, possibly with features and labels to re-align with the sub-tokenization. 
     Rely on transformers library tokenizer
     """
 
@@ -240,27 +240,27 @@ class BERTPreprocessor(object):
         target_features = None
         if text_features is not None:
             target_features = []
-
+        
         target_labels = None
         if text_labels is not None:
-            target_labels = []
-
+            target_labels = [] 
+        
         for i, text in enumerate(texts):
-
+            
             local_chars = chars[i]
 
             features = None
             if text_features is not None:
                 features = text_features[i]
-
+            
             label_list = None
             if text_labels is not None:
                 label_list = text_labels[i]
 
-            input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, target_tags, tokens = self.convert_single_text(text,
-                                                                                                                    local_chars,
-                                                                                                                    features,
-                                                                                                                    label_list,
+            input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, target_tags, tokens = self.convert_single_text(text, 
+                                                                                                                    local_chars, 
+                                                                                                                    features, 
+                                                                                                                    label_list, 
                                                                                                                     maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
@@ -270,9 +270,9 @@ class BERTPreprocessor(object):
 
             if target_features is not None:
                 target_features.append(feature_blocks)
-
+            
             if target_labels is not None:
-                target_labels.append(target_tags)
+                target_labels.append(target_tags)                
 
         return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, target_labels, input_tokens
 
@@ -299,7 +299,7 @@ class BERTPreprocessor(object):
             chars_tokens = []
             while len(chars_tokens) < len(text_tokens):
                 chars_tokens.append(self.empty_char_vector)
-
+        
         # sub-tokenization
         encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
             max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
@@ -315,7 +315,7 @@ class BERTPreprocessor(object):
         chars_blocks = []
         feature_blocks = []
 
-        # trick to support sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed
+        # trick to support sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
         # spaces in the tokens (the encoding symbol for this space varies from one model to another)
         new_input_ids = []
         new_attention_mask = []
@@ -323,9 +323,9 @@ class BERTPreprocessor(object):
         new_offsets = []
         for i in range(0, len(input_ids)):
             if len(self.tokenizer.decode(input_ids[i])) != 0:
-                # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2
+                # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2 
                 # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
-                # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay
+                # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
                 # in sync
                 new_input_ids.append(input_ids[i])
                 new_attention_mask.append(attention_mask[i])
@@ -352,12 +352,12 @@ class BERTPreprocessor(object):
                     feature_blocks.append(features_tokens[word_idx])
                     chars_blocks.append(chars_tokens[word_idx])
                 else:
-                    # propagate the data to the new sub-token or
+                    # propagate the data to the new sub-token or 
                     # dummy/empty input for sub-tokens
                     label_ids.append("<PAD>")
                     chars_blocks.append(self.empty_char_vector)
-                    # 2 possibilities, either empty features for sub-tokens or repeating the
-                    # feature vector of the prefix sub-token
+                    # 2 possibilities, either empty features for sub-tokens or repeating the 
+                    # feature vector of the prefix sub-token 
                     #feature_blocks.append(self.empty_features_vector)
                     feature_blocks.append(features_tokens[word_idx])
 
@@ -382,7 +382,7 @@ class BERTPreprocessor(object):
 
     def convert_single_text_bert(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
-        Converts a single sequence input into a single BERT input format and align other channel input to this
+        Converts a single sequence input into a single BERT input format and align other channel input to this 
         new sub-tokenization
 
         The original BERT implementation works as follow:
@@ -431,7 +431,7 @@ class BERTPreprocessor(object):
 
         for text_token, label_token, chars_token, features_token in zip(text_tokens, label_tokens, chars_tokens, features_tokens):
             text_sub_tokens = self.tokenizer.tokenize(text_token, add_special_tokens=False)
-
+            
             # we mark added sub-tokens with the "##" prefix in order to restore token back correctly,
             # otherwise the BERT tokenizer do not mark them all with this prefix
             # (note: to be checked if it's the same with the non-original BERT tokenizer)

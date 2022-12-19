@@ -33,6 +33,7 @@ def configure(architecture):
 
     return batch_size, maxlen, patience, early_stop, max_epoch
 
+
 def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 

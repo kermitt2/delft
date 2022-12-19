@@ -53,7 +53,7 @@ def print_parameters(model_config, training_config):
     print("early_stop:", training_config.early_stop)
     print("patience:", training_config.patience)
     print("batch_size (training):", model_config.batch_size)
-
+    
     if hasattr(model_config, 'max_sequence_length'):
         print("max_sequence_length:", model_config.max_sequence_length)
 

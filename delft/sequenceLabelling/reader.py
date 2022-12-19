@@ -579,7 +579,7 @@ def load_data_and_labels_conll(filename):
 
 def load_data_and_labels_conll_with_document_context(filename, max_context_window=400):
     """
-    Load data and label from a file. In this alternative, we do not segment by sentence and
+    Load data and label from a file. In this alternative, we do not segment by sentence and 
     we keep a maximum of document context according to a context window size.
 
     Args:
@@ -610,7 +610,7 @@ def load_data_and_labels_conll_with_document_context(filename, max_context_windo
 
     """
 
-    # TBD: ideally, for consistency, the tokenization in the CoNLL files should not be enforced,
+    # TBD: ideally, for consistency, the tokenization in the CoNLL files should not be enforced, 
     # only the standard DeLFT tokenization should be used, in line with the word embeddings
     documents, sents, labels = [], [], []
     with open(filename, encoding="UTF-8") as f:
@@ -746,7 +746,7 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
 
 def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
     """
-    Load data and labels from json corpus where annotations are expressed with offsets.
+    Load data and labels from json corpus where annotations are expressed with offsets. 
     This requires a tokenizer passed as parameter. If tokenizer is None, we use the generic
     Indo-European tokenizer.
 
@@ -773,7 +773,7 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                 },
             ]
         }
-    }
+    }    
 
     Returns:
         tuple(numpy array, numpy array): data and labels
@@ -789,7 +789,7 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
         corpus_file = gzip.open(jsonCorpus, "rt")
     else:
         corpus_file = open(jsonCorpus, "rt")
-
+    
     jsonDocuments = json.load(corpus_file)
     if "documents" in jsonDocuments:
         for jsonDocument in jsonDocuments["documents"]:
