@@ -44,7 +44,7 @@ class Tagger(object):
         # that we will remove after prediction
         dummy_case = False
         if self.model_config.use_crf and not self.model_config.use_chain_crf and len(texts) == 1:
-            if features == None:
+            if features is None:
                 if to_tokeniz:
                     texts.append(texts[0])
                 else:
@@ -70,7 +70,7 @@ class Tagger(object):
         steps_done = 0
         steps = len(predict_generator)
         for generator_output in predict_generator:
-            if dummy_case and steps_done==1:
+            if dummy_case and steps_done == 1:
                 break
 
             if steps_done == steps:

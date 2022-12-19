@@ -183,6 +183,56 @@ def load_citation_sentiment_corpus(filepath):
 
     return np.asarray(texts, dtype=object), np.asarray(polarities, dtype=object)
 
+def load_citation_intent_corpus(filepath):
+    """
+    Load texts from the citation intent corpus multicite https://github.com/allenai/multicite (NAACL 2022)
+
+    Source_Paper  Target_Paper    Sentiment   Citation_Text
+
+    sentiment "value" can o (neutral), p (positive), n (negative)
+
+    Returns:
+        tuple(numpy array, numpy array): texts and polarity
+
+    """
+
+    texts = []
+    classes = []
+
+    with open(filepath) as f:
+        for line in f:
+            line = line.strip()
+            if len(line) == 0:
+                continue
+            if line.startswith('#'):
+                continue
+
+            pieces = line.split('\t')
+            if (len(pieces) != 4):
+                print("Warning: incorrect number of fields in the data file for line:", line)
+                continue
+            text = pieces[3]
+            # remove start/end quotes
+            text = text[1:len(text)-1]
+            texts.append(text)
+
+            the_class = []
+            if pieces[2] == 'n':
+                the_class.append(1)
+            else:
+                the_class.append(0)
+            if pieces[2] == 'o':
+                the_class.append(1)
+            else:
+                the_class.append(0)
+            if pieces[2] == 'p':
+                the_class.append(1)
+            else:
+                the_class.append(0)
+            classes.append(the_class)
+
+    return np.asarray(texts), np.asarray(classes)
+
 
 def load_dataseer_corpus_csv(filepath):
     """
@@ -369,6 +419,60 @@ def load_software_context_corpus_json(json_gz_file_path):
     texts_list_final = np.asarray(texts_list)
     classes_list_final = np.asarray(classes_list)
 
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+
+    return texts_list_final, classes_list_final
+
+
+def load_software_dataset_context_corpus_json(json_gz_file_path):
+    '''
+    Load texts and classes for software and dataset mention corpus KISH export in gzipped json format
+
+    Classification of the dataset and software usage is multiclass/multilabel
+
+    Returns:
+        tuple(numpy array, numpy array): 
+            texts, classes_list
+
+    '''
+    texts_list = []
+    classes_list = []
+
+    with gzip.GzipFile(json_gz_file_path, 'r') as fin:
+        data = json.loads(fin.read().decode('utf-8'))
+        if not "documents" in data:
+            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            return None, None 
+        for document in data["documents"]:
+            for segment in document["texts"]:
+                if "class_attributes" not in segment:
+                    continue
+                if not "text" in segment:
+                    continue
+                text = segment["text"]
+                texts_list.append(text)
+                classes = []
+                classification = segment["class_attributes"]["classification"]
+                if "used" in classification and classification["used"]["value"]:
+                    classes.append(1.0)
+                else:
+                    classes.append(0.0)
+
+                if "created" in classification and classification["created"]["value"]:
+                    classes.append(1.0)
+                else:
+                    classes.append(0.0)
+
+                if "shared" in classification and classification["shared"]["value"]:
+                    classes.append(1.0)
+                else:
+                    classes.append(0.0)    
+
+                classes_list.append(classes)
+
+    texts_list_final = np.asarray(texts_list)
+    classes_list_final = np.asarray(classes_list)
+    
     texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 
     return texts_list_final, classes_list_final

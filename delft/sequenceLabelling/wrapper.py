@@ -137,7 +137,7 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, callbacks=None):
+    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None):
         # TBD if valid is None, segment train to get one if early_stop is True
 
         # we concatenate all the training+validation data to create the model vocabulary
@@ -153,12 +153,22 @@ class Sequence(object):
 
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
-        self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+        if incremental:
+            if self.model == None and self.models == None:
+                print("error: you must load a model first for an incremental training")
+                return
+            print("Incremental training from loaded model", self.model_config.model_name)
+            # update the preprocessor for the new chars and labels
+            self.p.extend(x_all, y_all)
+        else:
+            # init a new "fresh" model
+            self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
 
-        self.model_config.char_vocab_size = len(self.p.vocab_char)
-        self.model_config.case_vocab_size = len(self.p.vocab_case)
+            self.model_config.char_vocab_size = len(self.p.vocab_char)
+            self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-        self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
+            self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
+        
         print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
 
@@ -179,17 +189,24 @@ class Sequence(object):
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
-        self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+        if incremental:
+            if self.model == None and self.models == None:
+                print("error: you must load a model first for an incremental training")
+                return
 
-        self.model_config.char_vocab_size = len(self.p.vocab_char)
-        self.model_config.case_vocab_size = len(self.p.vocab_case)
+            print("Incremental training from loaded model", self.model_config.model_name)
+            self.model.print_summary()
+        else:
+            self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+            self.model_config.char_vocab_size = len(self.p.vocab_char)
+            self.model_config.case_vocab_size = len(self.p.vocab_case)
+            self.models = []
 
-        self.models = []
         trainer = Trainer(self.model,
                           self.models,
                           self.embeddings,
@@ -417,7 +434,7 @@ class Sequence(object):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
 
-        if batch_size != None:
+        if batch_size is not None:
             self.model_config.batch_size = batch_size
             print("---")
             print("batch_size (prediction):", self.model_config.batch_size)

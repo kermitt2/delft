@@ -3,7 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
-from py._path.local import LocalPath
+#from py._path.local import LocalPath
 
 import tensorflow as tf
 
@@ -33,7 +33,7 @@ def patch_magicmock():
 
 
 @pytest.fixture
-def temp_dir(tmpdir: LocalPath):
+def temp_dir(tmpdir):
     # convert to standard Path
     return Path(str(tmpdir))
 

@@ -587,6 +587,42 @@ class Preprocessor(BaseEstimator, TransformerMixin):
 
         return self
 
+    def extend(self, X, y):
+        chars = self.vocab_char
+        tags = self.vocab_tag
+
+        temp_chars = {
+            c 
+            for w in set(itertools.chain(*X))
+            for c in w
+            if c not in chars
+        }
+
+        sorted_chars = sorted(temp_chars)
+        sorted_chars_dict = {
+            c: idx + len(chars)
+            for idx, c in enumerate(sorted_chars)
+        }
+        chars = {**chars, **sorted_chars_dict}
+
+        temp_tags = set(itertools.chain(*y))
+        # filter known tags
+        temp_tags = { the_tag for the_tag in temp_tags if the_tag not in tags }
+        sorted_tags = sorted(temp_tags)
+        sorted_tags_dict = {
+            tag: idx + len(tags)
+            for idx, tag in enumerate(sorted_tags)
+        }
+        tags = {**tags, **sorted_tags_dict}
+
+        self.vocab_char = chars
+        self.vocab_tag = tags
+
+        # refresh tag indices
+        self.indice_tag = {i: t for t, i in self.vocab_tag.items()}
+
+        return self
+
     def transform(self, X, y=None, extend=False, label_indices=False):
         """
         transforms input into sequence

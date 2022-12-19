@@ -43,14 +43,23 @@ The latest DeLFT release has been tested successfully with python 3.8 and Tensor
 
 Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed information on installation, usage and models.
 
+## Using DeLFT 
+
+PyPI packages are available for stable versions. Latest stable version is `0.3.2`:
+
+```
+pip install delft==0.3.2
+```
+
 ## DeLFT Installation
 
-Get the github repo:
+For installing DeLFT and use the current master version, get the github repo:
 
 ```sh
 git clone https://github.com/kermitt2/delft
 cd delft
 ```
+
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
@@ -64,7 +73,7 @@ Install the dependencies:
 pip3 install -r requirements.txt
 ```
 
-Finally install the project in editable state
+Finally install the project, preferably in editable state
 
 ```sh
 pip3 install -e .
@@ -76,7 +85,9 @@ See the [DELFT documentation](https://delft.readthedocs.io) for usage.
 
 Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.
 
-Contact: Patrice Lopez (<patrice.lopez@science-miner.com>)
+If you contribute to DeLFT, you agree to share your contribution following these licenses. 
+
+Contact: Patrice Lopez (<patrice.lopez@science-miner.com>) and Luca Foppiano (@lfoppiano).
 
 ## How to cite
 

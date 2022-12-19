@@ -315,6 +315,7 @@ if __name__ == "__main__":
         someTexts.append("The electrochemiluminescence immunoassay was used to measure serum concentration of 25-hydroxyvitamin D using Roche Modular E170 Analyzer (Roche Diagnostics, Basel, Switzerland).")
         someTexts.append("We found that this technique works very well in practice, for the MNIST and NORB datasets (see below).")
         someTexts.append("We also compare ShanghaiTechRGBD with other RGB-D crowd counting datasets in , and we can see that ShanghaiTechRGBD is the most challenging RGB-D crowd counting dataset in terms of the number of images and heads.")
+        someTexts.append("Insulin levels of all samples were measured by ELISA kit (Mercodia)")
 
         result = annotate_text(someTexts, "json", architecture=architecture, use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

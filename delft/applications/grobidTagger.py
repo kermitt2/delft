@@ -10,6 +10,7 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.sequenceLabelling.reader import load_data_crf_string
 from delft.utilities.misc import parse_number_ranges
+from delft.utilities.Utilities import longest_row
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -29,6 +30,39 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
+
+        # non-default settings per model
+        if model == 'citation':
+            if max_sequence_length == -1:
+                max_sequence_length = 200
+            if batch_size == -1:
+                batch_size = 20
+        elif model == 'header':
+            if max_sequence_length == -1:
+                max_sequence_length = 512
+            if batch_size == -1:
+                batch_size = 6
+        elif model == 'date':
+            if max_sequence_length == -1:
+                max_sequence_length = 30
+            if batch_size == -1:
+                batch_size = 80
+        elif model == 'affiliation-address':
+            if max_sequence_length == -1:
+                max_sequence_length = 200
+            if batch_size == -1:
+                batch_size = 20
+        elif model.startswith("software"):
+            # class are more unbalanced, so we need to extend the batch size as much as we can
+            if batch_size == -1:
+                batch_size = 8
+            if max_sequence_length == -1:
+                max_sequence_length = 512
+            #early_stop = False
+            if max_epoch == -1:
+                max_epoch = 20
+
+        # default when no value provided by command line or model-specific
         if batch_size == -1:
             #default
             batch_size = 20
@@ -41,53 +75,47 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             max_sequence_length = 512
 
         embeddings_name = None
-
-        # non-default settings per model
-        if model == 'citation':
-            max_sequence_length = 150
-            batch_size = 20
-        elif model == 'header':
-            max_sequence_length = 512
-            batch_size = 6
-        elif model == 'date':
-            max_sequence_length = 30
-            batch_size = 80
-        elif model == 'affiliation-address':
-            max_sequence_length = 200
-            batch_size = 20
-        elif model == "software":
-            # class are more unbalanced, so we need to extend the batch size as much as we can
-            batch_size = 7
-            max_sequence_length = 512
     else:
         # RNN-only architectures
         if model == 'citation':
-            max_sequence_length = 600
-            batch_size = 20
+            if max_sequence_length == -1:
+                max_sequence_length = 500
+            if batch_size == -1:
+                batch_size = 30
         elif model == 'header':
             max_epoch = 80
-            max_sequence_length = 2500
-            batch_size = 9
-            if use_ELMo:
-                max_sequence_length = 1500
+            if max_sequence_length == -1:
+                if use_ELMo:
+                    max_sequence_length = 1500
+                else:
+                    max_sequence_length = 2500
+            if batch_size == -1:
+                batch_size = 9
         elif model == 'date':
-            max_sequence_length = 50
-            batch_size = 60
+            if max_sequence_length == -1:
+                max_sequence_length = 50
+            if batch_size == -1:
+                batch_size = 60
         elif model == 'affiliation-address':
-            max_sequence_length = 600
-            batch_size = 20
-        elif model == "software":
+            if max_sequence_length == -1:
+                max_sequence_length = 600
+            if batch_size == -1:
+                batch_size = 20
+        elif model.startswith("software"):
             if batch_size == -1:
                 batch_size = 20
             if max_sequence_length == -1:
                 max_sequence_length = 1500
             multiprocessing = False
         elif model == "reference-segmenter":
-            batch_size = 10
-            max_sequence_length = 3000
-            if use_ELMo:
-                max_sequence_length = 1500
-
+            if batch_size == -1:
+                batch_size = 5
+            if max_sequence_length == -1:
+                if use_ELMo:
+                    max_sequence_length = 1500
+                else:
+                    max_sequence_length = 3000
+            
     model_name += '-' + architecture
 
     if use_ELMo:
@@ -106,8 +134,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 
 # train a GROBID model with all available data
-def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, output_path=None,
-          features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
+def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
+        output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
+        use_ELMo=False, incremental=False, input_model_path=None):
 
     print('Loading data...')
     if input_path == None:
@@ -121,6 +150,9 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
+
+    print("\nmax train sequence length:", str(longest_row(x_train)))
+    print("max validation sequence length:", str(longest_row(x_valid)))
 
     batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model,
                                                                             architecture,
@@ -143,8 +175,16 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      multiprocessing=multiprocessing,
                      early_stop=early_stop)
 
+    if incremental:
+        if input_model_path != None:
+            model.load(input_model_path)
+        elif output_path != None:
+            model.load(output_path)
+        else:
+            model.load()
+
     start_time = time.time()
-    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid)
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -158,7 +198,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 # split data, train a GROBID model and evaluate it
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False):
+               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
+               use_ELMo=False, incremental=False, input_model_path=None):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -171,6 +212,10 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print(len(x_train), 'train sequences')
     print(len(x_valid), 'validation sequences')
     print(len(x_eval), 'evaluation sequences')
+
+    print("\nmax train sequence length:", str(longest_row(x_train)))
+    print("max validation sequence length:", str(longest_row(x_valid)))
+    print("max evaluation sequence length:", str(longest_row(x_eval)))
 
     batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model, 
                                                                             architecture, 
@@ -194,12 +239,20 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     multiprocessing=multiprocessing,
                     early_stop=early_stop)
 
+    if incremental:
+        if input_model_path != None:
+            model.load(input_model_path)
+        elif output_path != None:
+            model.load(output_path)
+        else:
+            model.load()
+
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
@@ -327,8 +380,13 @@ if __name__ == "__main__":
     parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
+    parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
+    parser.add_argument("--input-model", help="In case of incremental training, path to an existing model to be used " +
+                                        "to start the training, instead of the default one.")
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+
+    
 
     args = parser.parse_args()
 
@@ -337,11 +395,13 @@ if __name__ == "__main__":
     architecture = args.architecture
     output = args.output
     input_path = args.input
+    input_model_path = args.input_model
     embeddings_name = args.embedding
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer
     use_ELMo = args.use_ELMo
+    incremental = args.incremental
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -356,7 +416,9 @@ if __name__ == "__main__":
             output_path=output,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+            incremental=incremental,
+            input_model_path=input_model_path)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -378,7 +440,9 @@ if __name__ == "__main__":
                 fold_count=args.fold_count,
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
-                use_ELMo=use_ELMo)
+                use_ELMo=use_ELMo, 
+                incremental=incremental,
+                input_model_path=input_model_path)
 
     if action == Tasks.TAG:
         someTexts = []

@@ -278,10 +278,37 @@ def load_data_and_labels_xml_file(filepathXml):
     labels = handler.getAllLabels()
     return tokens, labels
 
+def load_data_crf_file(filepath):
+    """
+    Load data, features and label from a CRF matrix string
+    the format is as follow:
+
+    token_0 f0_0 f0_1 ... f0_n label_0
+    token_1 f1_0 f1_1 ... f1_n label_1
+    ...
+    token_m fm_0 fm_1 ... fm_n label_m
+
+    field separator can be either space or tab
+    input file can be gzipped or not
+
+    Returns:
+        tuple(numpy array, numpy array): tokens, features
+
+    """
+
+    if filepath.endswith(".gz"):
+        with gzip.open(filepath, 'rt') as f:
+            sents, featureSets = load_data_crf_content(f)
+    else:
+        with open(filepath) as f:
+            sents, featureSets = load_data_crf_content(f)
+
+    return np.asarray(sents, dtype=object), np.asarray(featureSets, dtype=object)
+
 
 def load_data_and_labels_crf_file(filepath):
     """
-    Load data, features and label from a CRF matrix string 
+    Load data, features and label from a CRF matrix file path in CRF++ or Wapiti supported format.   
     the format is as follow:
 
     token_0 f0_0 f0_1 ... f0_n label_0
@@ -310,6 +337,21 @@ def load_data_and_labels_crf_file(filepath):
     return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object), np.asarray(featureSets, dtype=object)
 
 def load_data_and_labels_crf_content(the_file):
+    """
+    Load data, features and labels from a CRF matrix file in CRF++ or Wapiti supported format.  
+
+    the format is as follow:
+
+    token_0 f0_0 f0_1 ... f0_n label_0
+    token_1 f1_0 f1_1 ... f1_n label_1
+    ...
+    token_m fm_0 fm_1 ... fm_n label_n
+
+    field separator can be either space or tab
+
+    Returns:
+        tuple(numpy array, numpy array, numpy array): tokens, labels, features
+    """
     sents = []
     labels = []
     featureSets = []
@@ -342,21 +384,50 @@ def load_data_and_labels_crf_content(the_file):
 
     return sents, labels, featureSets
 
+def load_data_crf_content(the_file):
+    sents = []
+    featureSets = []
+    localFeatures = []
+
+    tokens, features = [], []
+    for line in the_file:
+        line = line.strip()
+        if len(line) == 0:
+            if len(tokens) != 0:
+                sents.append(tokens)
+                featureSets.append(features)
+                tokens, features = [], []
+        else:
+            pieces = re.split(' |\t', line)
+            token = pieces[0]
+            localFeatures = pieces[1:len(pieces)]
+            tokens.append(token)
+            features.append(localFeatures)
+
+    if len(tokens) == len(localFeatures) > 0:
+        sents.append(tokens)
+        featureSets.append(features)
+        print("Adding the final items from the input file. ")
+
+    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(features)
+
+    return sents, featureSets
+
 
 def load_data_and_labels_crf_string(crfString):
     """
-    Load data, features (no label!) from a CRF matrix file 
+    Load data, features and labels from a CRF matrix string in CRF++ or Wapiti supported format.  
     the format is as follow:
 
-    token_0 f0_0 f0_1 ... f0_n
-    token_1 f1_0 f1_1 ... f1_n
+    token_0 f0_0 f0_1 ... f0_n label_0
+    token_1 f1_0 f1_1 ... f1_n label_1
     ...
-    token_m fm_0 fm_1 ... fm_n
+    token_m fm_0 fm_1 ... fm_n label_n
 
     field separator can be either space or tab
 
     Returns:
-        tuple(numpy array, numpy array, numpy array): tokens, features
+        tuple(numpy array, numpy array, numpy array): tokens, labels, features
 
     """
     sents = []
@@ -390,7 +461,7 @@ def load_data_and_labels_crf_string(crfString):
 
 def load_data_crf_string(crfString):
     """
-    Load data and features from a CRF matrix file 
+    Load data and features (no label!) from a CRF matrix file in CRF++ or Wapiti supported format.  
     the format is as follow:
 
     token_0 f0_0 f0_1 ... f0_n
@@ -736,6 +807,13 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                                 if "type" in annotation_span:
                                     local_type = annotation_span["type"]
                                     local_type = local_type.replace(" ", "_")
+                                if "text" in annotation_span:
+                                    localText = annotation_span["text"]
+                                    if text[annotation_span["start"]:annotation_span["end"]] != localText:
+                                        print("warning - offsets and chunk mismatch: " + localText + " / " + str(annotation_span["start"])+":"+str(annotation_span["end"]))
+                                
+                                if local_type == None:
+                                    print("warning - empty label: " + localText + " / " + str(annotation_span["start"])+":"+str(annotation_span["end"]))
                                 spans.append([annotation_span["start"], annotation_span["end"], local_type])
                         i =0
                         for local_token in local_tokens:
