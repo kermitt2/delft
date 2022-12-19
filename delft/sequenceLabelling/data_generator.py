@@ -13,8 +13,8 @@ class BaseGenerator(keras.utils.Sequence):
     Abstract class for data generator.
 
     Generate batch of data to feed sequence labeling model, both for training and prediction.
-
-    This generator is for input based on word embeddings. We keep embeddings application outside the
+    
+    This generator is for input based on word embeddings. We keep embeddings application outside the 
     model to make it considerably more compact and avoid duplication of embeddings layers.
     """
     def __init__(self, x, y,
@@ -87,8 +87,8 @@ class BaseGenerator(keras.utils.Sequence):
 
 
 class DataGenerator(BaseGenerator):
-    """
-    This generator is for input based on word embeddings. We keep embeddings application outside the
+    """    
+    This generator is for input based on word embeddings. We keep embeddings application outside the 
     model to make it considerably more compact and avoid duplication of embeddings layers.
     """
     def __init__(self, x, y,
@@ -104,15 +104,15 @@ class DataGenerator(BaseGenerator):
                 output_input_offsets=False,
                 use_chain_crf=False):
 
-        super().__init__(x, y,
-                        batch_size=batch_size,
+        super().__init__(x, y, 
+                        batch_size=batch_size, 
                         preprocessor=preprocessor,
-                        bert_preprocessor=bert_preprocessor,
-                        char_embed_size=char_embed_size,
-                        embeddings=embeddings,
-                        max_sequence_length=max_sequence_length,
-                        tokenize=tokenize,
-                        shuffle=shuffle,
+                        bert_preprocessor=bert_preprocessor, 
+                        char_embed_size=char_embed_size, 
+                        embeddings=embeddings, 
+                        max_sequence_length=max_sequence_length, 
+                        tokenize=tokenize, 
+                        shuffle=shuffle, 
                         features=features,
                         output_input_offsets=output_input_offsets,
                         use_chain_crf=use_chain_crf)
@@ -188,11 +188,11 @@ class DataGenerator(BaseGenerator):
                 # truncation of sequence at max_sequence_length
                 sub_f = truncate_batch_values(sub_f, self.max_sequence_length)
             batch_f = self.preprocessor.transform_features(sub_f, extend=extend)
-
+        
         batch_a = np.zeros((max_iter, max_length_x), dtype=np.int32)
         if self.preprocessor.return_casing:
             for i in range(0, max_iter):
-                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x)
+                batch_a[i] = to_casing_single(x_tokenized[i], max_length_x) 
 
         if self.y is not None:
             if self.use_chain_crf:
@@ -212,9 +212,9 @@ class DataGenerator(BaseGenerator):
 class DataGeneratorTransformers(BaseGenerator):
     """
     Generate batch of data to feed sequence labeling model, both for training and prediction.
-
-    This generator is for input based on transformer embeddings. We keep embeddings application
-    outside the model so that we can serialize the model more easily.
+    
+    This generator is for input based on transformer embeddings. We keep embeddings application 
+    outside the model so that we can serialize the model more easily.  
     """
     def __init__(self, x, y,
                 batch_size=24,
@@ -229,15 +229,15 @@ class DataGeneratorTransformers(BaseGenerator):
                 output_input_offsets=False,
                 use_chain_crf=False):
 
-        super().__init__(x, y,
-                        batch_size=batch_size,
-                        preprocessor=preprocessor,
-                        bert_preprocessor=bert_preprocessor,
-                        char_embed_size=char_embed_size,
-                        embeddings=embeddings,
-                        max_sequence_length=max_sequence_length,
-                        tokenize=tokenize,
-                        shuffle=shuffle,
+        super().__init__(x, y, 
+                        batch_size=batch_size, 
+                        preprocessor=preprocessor, 
+                        bert_preprocessor=bert_preprocessor, 
+                        char_embed_size=char_embed_size, 
+                        embeddings=embeddings, 
+                        max_sequence_length=max_sequence_length, 
+                        tokenize=tokenize, 
+                        shuffle=shuffle, 
                         features=features,
                         output_input_offsets=output_input_offsets,
                         use_chain_crf=use_chain_crf)
@@ -258,10 +258,10 @@ class DataGeneratorTransformers(BaseGenerator):
 
         return_data = [batch_x]
 
-        if self.preprocessor.return_chars:
+        if self.preprocessor.return_chars:  
             return_data += [batch_c]
 
-        if self.preprocessor.return_features:
+        if self.preprocessor.return_features:  
             return_data += [batch_f]
 
         return_data += [batch_x_types]
@@ -303,7 +303,7 @@ class DataGeneratorTransformers(BaseGenerator):
 
         # generate data
         batch_y = None
-
+        
         # tag embeddings
         if self.y is not None:
             # note: tags are always already "tokenized" by input token
@@ -353,8 +353,8 @@ class DataGeneratorTransformers(BaseGenerator):
 
         if self.preprocessor.return_features:
             batch_f = np.asarray(truncate_batch_values(input_features, max_length_x), dtype=np.int32)
-        else:
-            batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)
+        else:    
+            batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)            
 
         return batch_x, batch_x_types, batch_x_masks, batch_c, batch_f, batch_l, batch_input_offsets, batch_y
 

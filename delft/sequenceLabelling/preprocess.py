@@ -433,7 +433,7 @@ class BERTPreprocessor(object):
             text_sub_tokens = self.tokenizer.tokenize(text_token, add_special_tokens=False)
             
             # we mark added sub-tokens with the "##" prefix in order to restore token back correctly,
-            # otherwise the BERT tokenizer do not mark them all with this prefix
+            # otherwise the BERT tokenizer do not mark them all with this prefix 
             # (note: to be checked if it's the same with the non-original BERT tokenizer)
             text_sub_tokens_marked = self.tokenizer.tokenize(text_token, add_special_tokens=False)
             for i in range(len(text_sub_tokens_marked)):
@@ -442,7 +442,7 @@ class BERTPreprocessor(object):
                 tok = text_sub_tokens_marked[i]
                 if not tok.startswith("##"):
                     text_sub_tokens_marked[i] = "##" + tok
-
+            
             label_sub_tokens = [label_token] + [label_token] * (len(text_sub_tokens) - 1)
             chars_sub_tokens = [chars_token] + [chars_token] * (len(text_sub_tokens) - 1)
             feature_sub_tokens = [features_token] + [features_token] * (len(text_sub_tokens) - 1)
@@ -494,7 +494,7 @@ class BERTPreprocessor(object):
 
         for token in tokens_marked:
             input_tokens_marked.append(token)
-
+ 
         input_tokens.append(self.tokenizer.sep_token)
         input_tokens_marked.append(self.tokenizer.sep_token)
         segment_ids.append(0)
@@ -634,7 +634,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             y: list of list of tags
 
         Returns:
-            numpy array: sentences with char sequences and length
+            numpy array: sentences with char sequences and length 
             numpy array: sequence of tags, either one hot encoded (default) or as indices
 
         if label_indices parameter is true, we encode tags with index integer, otherwise output hot one encoded tags
@@ -897,9 +897,9 @@ def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, 
 
 def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
     """
-    Given a list of tokens convert it to a sequence of word embedding
-    vectors based on the concatenation of the provided static embeddings and
-    the ELMo contextualized embeddings, introducing <PAD> and <UNK>
+    Given a list of tokens convert it to a sequence of word embedding 
+    vectors based on the concatenation of the provided static embeddings and 
+    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
     padding token vector when appropriate
     """
     subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
