@@ -25,10 +25,13 @@ def load_texts_and_classes_generic(filepath, text_index: int, classes_indexes: l
     x = []
     y = []
 
+    delimiter = "\t"
+    if filepath.endswith(".csv"):
+        delimiter = ","
+
     with open(filepath) as f:
         first = True
-        # TODO not in the original - need to revert it or add an option
-        tsvreader = csv.reader(f, delimiter="\t", quoting=csv.QUOTE_ALL)
+        tsvreader = csv.reader(f, delimiter=delimiter)
         for line in tsvreader:
             if len(line) == 0:
                 continue
@@ -442,7 +445,7 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
         data = json.loads(fin.read().decode('utf-8'))
         if not "documents" in data:
             print("There is no usable classified text in the corpus file", json_gz_file_path)
-            return None, None 
+            return None, None
         for document in data["documents"]:
             for segment in document["texts"]:
                 if "class_attributes" not in segment:
@@ -466,13 +469,13 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
                 if "shared" in classification and classification["shared"]["value"]:
                     classes.append(1.0)
                 else:
-                    classes.append(0.0)    
+                    classes.append(0.0)
 
                 classes_list.append(classes)
 
     texts_list_final = np.asarray(texts_list)
     classes_list_final = np.asarray(classes_list)
-    
+
     texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 
     return texts_list_final, classes_list_final
