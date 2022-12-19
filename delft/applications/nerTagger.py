@@ -8,12 +8,11 @@ from sklearn.model_selection import train_test_split
 import argparse
 import time
 
-def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
-    batch_size = 32
-    max_sequence_length = 300
-    patience = 5
-    early_stop = True
+def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length=-1, batch_size=-1,
+              patience=-1):
+
     max_epoch = 60
+    early_stop = True
     multiprocessing = True
 
     # general RNN word embeddings input
@@ -54,14 +53,24 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo):
     if dataset_type == 'conll2012':
         multiprocessing = False
 
-    return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing 
+    if patience == -1:
+        patience = 5
+
+    if batch_size == -1:
+        batch_size = 32
+
+    if max_sequence_length == -1:
+        max_sequence_length = 300
+
+    return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing
 
 
 # train a model with all available for a given dataset 
-def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, data_path=None, use_ELMo=False):
+def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
+          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
-        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
+        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -181,7 +190,7 @@ def train_eval(embeddings_name=None,
                 use_ELMo=False): 
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
-        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo)
+        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length=-1, batch_size=-1, patience=-1)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
@@ -559,7 +568,7 @@ if __name__ == "__main__":
     parser.add_argument("--architecture", default='BidLSTM_CRF', help="type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
-    parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER anotations") 
+    parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER annotations")
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
     parser.add_argument(
         "--embedding", 
@@ -580,6 +589,11 @@ if __name__ == "__main__":
             "for model names"
     )
 
+    parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument("--patience", type=int, default=-1, help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
+
+
     args = parser.parse_args()
 
     action = args.action    
@@ -596,6 +610,9 @@ if __name__ == "__main__":
     file_in = args.file_in
     file_out = args.file_out
     use_ELMo = args.use_ELMo
+    patience = args.patience
+    max_sequence_length = args.max_sequence_length
+    batch_size = args.batch_size
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
@@ -611,7 +628,11 @@ if __name__ == "__main__":
             architecture=architecture, 
             transformer=transformer,
             data_path=data_path,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+            max_sequence_length=max_sequence_length,
+            batch_size=batch_size,
+            patience=patience
+        )
 
     if action == 'train_eval':
         if args.fold_count < 1:
