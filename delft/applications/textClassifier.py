@@ -26,10 +26,10 @@ def get_one_hot(y):
     return y2
 
 
-def configure(architecture):
+def configure(architecture, batch_size_, max_sequence_length_, patience_):
     batch_size = 256
-    maxlen = 150
-    patience = 5
+    maxlen = 150 if max_sequence_length_ == -1 else max_sequence_length_
+    patience = 5 if patience_ == -1 else patience_
     early_stop = True
     max_epoch = 60
 
@@ -39,12 +39,16 @@ def configure(architecture):
         # early_stop = False
         # max_epoch = 3
 
+    batch_size = batch_size_ if batch_size_ != -1 else batch_size
+
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
 def train(model_name, input_file, embeddings_name, fold_count, architecture=None, transformer=None,
-          x_index=0, y_indexes=[1]):
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+          x_index=0, y_indexes=[1], batch_size=-1, max_sequence_length=-1, patience=-1):
+
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size,
+                                                                    max_sequence_length, patience)
 
     print('loading ' + model_name + ' training corpus...')
     xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
@@ -163,6 +167,11 @@ if __name__ == "__main__":
              "for model names"
     )
 
+    parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument("--patience", type=int, default=5, help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
+
+
     args = parser.parse_args()
 
     embeddings_name = args.embedding
@@ -171,6 +180,9 @@ if __name__ == "__main__":
     transformer = args.transformer
     architecture = args.architecture
     x_index = args.x_index
+    patience = args.patience
+    batch_size = args.batch_size
+    max_sequence_length = args.max_sequence_length
 
     if args.action != "classify":
         if args.y_indexes is None:
@@ -188,7 +200,8 @@ if __name__ == "__main__":
 
     if args.action == 'train':
         train(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
-              transformer=transformer, x_index=x_index, y_indexes=y_indexes)
+              transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
+              max_sequence_length= max_sequence_length, patience=patience)
 
     elif args.action == 'eval':
         eval(model_name, input_file, architecture=architecture, x_index=x_index, y_indexes=y_indexes)
@@ -198,7 +211,8 @@ if __name__ == "__main__":
             raise ValueError("fold-count should be equal or more than 1")
 
         y_test = train_and_eval(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
-                                transformer=transformer, x_index=x_index, y_indexes=y_indexes)
+                                transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
+                                max_sequence_length= max_sequence_length, patience=patience)
 
     elif args.action == 'classify':
         lines = []
