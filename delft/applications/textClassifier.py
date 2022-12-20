@@ -87,8 +87,10 @@ def eval(model_name, input_file, architecture=None, x_index=0, y_indexes=[1]):
 
 
 def train_and_eval(model_name, input_file, embeddings_name, fold_count, transformer=None,
-                   architecture="gru", x_index=0, y_indexes=[1]):
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+                   architecture="gru", x_index=0, y_indexes=[1], batch_size=-1,
+                   max_sequence_length=-1, patience=-1):
+    
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size, max_sequence_length, patience)
 
     print('loading ' + model_name + ' corpus...')
     xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
