@@ -119,17 +119,19 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count, transfor
 
 
 # classify a list of texts
-def classify(texts, output_format, architecture="gru", transformer=None):
-    # load model
+def classify(model_name, texts, output_format='json'):
     model = Classifier(model_name)
     model.load()
+
     start_time = time.time()
     result = model.predict(texts, output_format)
     runtime = round(time.time() - start_time, 3)
+
     if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
+
     return result
 
 
@@ -140,7 +142,7 @@ if __name__ == "__main__":
     parser.add_argument("action", help="the action", choices=actions)
     parser.add_argument("model", help="The name of the model")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--input", type=str, required=True, help="The file to be used for training/evaluation")
+    parser.add_argument("--input", type=str, required=True, help="The file to be used for train, train_eval, eval and, classify")
     parser.add_argument("--x-index", type=int, required=True, help="Index of the columns for the X value "
                                                                    "(assuming a TSV file)")
     parser.add_argument("--y-indexes", type=str, required=False, help="Index(es) of the columns for the Y (classes) "
@@ -217,15 +219,9 @@ if __name__ == "__main__":
                                 max_sequence_length= max_sequence_length, patience=patience)
 
     elif args.action == 'classify':
-        lines = []
-        with open(input_file, 'r') as f:
-            tsvreader = csv.reader(f, delimiter="\t", quoting=csv.QUOTE_ALL)
-            for line in tsvreader:
-                if len(line) == 0:
-                    continue
-                lines.append(line[x_index])
+        lines, _ = load_texts_and_classes_generic(input_file, x_index, None)
 
-        result = classify(lines, "csv")
+        result = classify(model_name, lines, "csv")
 
         result_binary = [np.argmax(line) for line in result]
 

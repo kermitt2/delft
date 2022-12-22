@@ -34,7 +34,7 @@ from delft.textClassification.models import train_folds
 from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
-from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 
@@ -42,9 +42,7 @@ from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r
 from sklearn.model_selection import train_test_split
 
 import transformers
-transformers.logging.set_verbosity(transformers.logging.ERROR) 
-
-from tensorflow.keras.utils import plot_model
+transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 class Classifier(object):
 
@@ -166,6 +164,7 @@ class Classifier(object):
             validation_generator = None
 
         # uncomment to plot graph
+        # from tensorflow.keras.utils import plot_model
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
         self.model.train_model(

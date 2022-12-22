@@ -35,14 +35,15 @@ def load_texts_and_classes_generic(filepath, text_index: int, classes_indexes: l
         for line in tsvreader:
             if len(line) == 0:
                 continue
-            if len(line) < 3:
-                print("Warning: number of fields in the data file too low for line:", line)
-            classes = [line[i] for i in classes_indexes]
+
+            classes = [line[i] for i in classes_indexes] if classes_indexes is not None else None
             if first:
                 print("Sample input", "x: ", line[text_index], "y: ", classes)
                 first = False
             x.append(line[text_index])
-            y.append(classes)
+
+            if classes_indexes is not None:
+                y.append(classes)
 
     return np.asarray(x, dtype=object), np.asarray(y, dtype=object)
 
