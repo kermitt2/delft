@@ -106,6 +106,16 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                     local_path=local_path,
                     preprocessor=preprocessor)
 
+    elif config.architecture == BERT_FEATURES.name:
+        preprocessor.return_bert_embeddings = True
+        preprocessor.return_features = True
+        config.labels = preprocessor.vocab_tag
+        return BERT_FEATURES(config, 
+                    ntags, 
+                    load_pretrained_weights=load_pretrained_weights, 
+                    local_path=local_path,
+                    preprocessor=preprocessor)
+
     elif config.architecture == BERT_CRF.name:
         preprocessor.return_bert_embeddings = True
         config.use_crf = True
@@ -772,6 +782,68 @@ class BERT(BaseModel):
         label_logits = Dense(ntags, activation='softmax')(embedding_layer)
 
         self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
+        self.config = config
+
+    def get_generator(self):
+        return DataGeneratorTransformers
+
+class BERT_FEATURES(BaseModel):
+    """
+    A Keras implementation of BERT for sequence labelling combined with additional generic discrete features 
+    information and with softmax activation final layer. 
+
+    For training, the BERT layer will be loaded with weights of existing pre-trained BERT model given by the 
+    field transformer of the model config (load_pretrained_weights=True).
+
+    For an existing trained model, the BERT layer will be simply initialized (load_pretrained_weights=False),
+    without loading pre-trained weights (the weight of the transformer layer will be loaded with the full Keras
+    saved model). 
+
+    When initializing the model, we can provide a local_path to load locally the transformer config and (if 
+    necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
+    """
+
+    name = 'BERT_FEATURES'
+
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
+
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
+
+        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
+        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
+
+        # layout features input and embeddings
+        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
+
+        # The input dimension is calculated by
+        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
+        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
+                                       output_dim=config.features_embedding_size,
+                                       # mask_zero=True,
+                                       trainable=True,
+                                       name='features_embedding'), name="features_embedding_td")(features_input)
+
+        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
+                                                 name="features_embedding_td_2")(features_embedding)
+
+        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
+
+        # combine feature and text embeddings
+        x = Concatenate()([text_embedding_layer, features_embedding_out])
+        x = Dropout(config.dropout)(x)
+
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                               return_sequences=True,
+                               recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        label_logits = Dense(ntags, activation='softmax')(x)
+
+        self.model  = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[label_logits])
         self.config = config
 
     def get_generator(self):
