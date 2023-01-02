@@ -3,13 +3,6 @@ Grobid Header model
 
 These figures are obtained with the end-to-end evaluation using the PMC evaluation set of 1943 documents. The header models were trained on all available training data. Training and end-to-end evaluation were performed from Grobid command line. Runtimes are with GPU (nvidia 1080Ti) and 4 core CPU (i7-7700K CPU @4.20GHz).
 
-
-| First Header  | Second Header |
-| ------------- | ------------- |
-| Content Cell  | Content Cell  |
-| Content Cell  | Content Cell  |
-
-
 | architecture		| base model  | F1-score   | runtime(s) |   
 |---     		      |---          |---         |---    |
 | BERT_CRF_FEATURES	| scibert     | 78.85	   | 1537  |   
