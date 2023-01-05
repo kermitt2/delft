@@ -44,9 +44,8 @@ def configure(architecture, batch_size_, max_sequence_length_, patience_):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(model_name, input_file, embeddings_name, fold_count, architecture=None, transformer=None,
+def train(model_name, architecture, input_file, embeddings_name, fold_count, transformer=None,
           x_index=0, y_indexes=[1], batch_size=-1, max_sequence_length=-1, patience=-1):
-
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size,
                                                                     max_sequence_length, patience)
 
@@ -70,7 +69,7 @@ def train(model_name, input_file, embeddings_name, fold_count, architecture=None
     model.save()
 
 
-def eval(model_name, input_file, architecture=None, x_index=0, y_indexes=[1]):
+def eval(model_name, architecture, input_file, x_index=0, y_indexes=[1]):
     # model_name += model_name + '-' + architecture
 
     print('loading ' + model_name + ' evaluation corpus...')
@@ -78,7 +77,7 @@ def eval(model_name, input_file, architecture=None, x_index=0, y_indexes=[1]):
     xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
     print(len(xtr), 'evaluation sequences')
 
-    model = Classifier(model_name)
+    model = Classifier(model_name, architecture=architecture)
     model.load()
 
     y_ = get_one_hot(y)
@@ -86,11 +85,11 @@ def eval(model_name, input_file, architecture=None, x_index=0, y_indexes=[1]):
     model.eval(xtr, y_)
 
 
-def train_and_eval(model_name, input_file, embeddings_name, fold_count, transformer=None,
-                   architecture="gru", x_index=0, y_indexes=[1], batch_size=-1,
-                   max_sequence_length=-1, patience=-1):
-    
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size, max_sequence_length, patience)
+def train_and_eval(model_name, architecture, input_file, embeddings_name, fold_count, transformer=None,
+                x_index=0, y_indexes=[1], batch_size=-1,
+                max_sequence_length=-1, patience=-1):
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size, max_sequence_length,
+                                                                    patience)
 
     print('loading ' + model_name + ' corpus...')
     xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
@@ -119,8 +118,8 @@ def train_and_eval(model_name, input_file, embeddings_name, fold_count, transfor
 
 
 # classify a list of texts
-def classify(model_name, texts, output_format='json'):
-    model = Classifier(model_name)
+def classify(model_name, architecture, texts, output_format='json'):
+    model = Classifier(model_name, architecture=architecture)
     model.load()
 
     start_time = time.time()
@@ -142,12 +141,13 @@ if __name__ == "__main__":
     parser.add_argument("action", help="the action", choices=actions)
     parser.add_argument("model", help="The name of the model")
     parser.add_argument("--fold-count", type=int, default=1)
-    parser.add_argument("--input", type=str, required=True, help="The file to be used for train, train_eval, eval and, classify")
+    parser.add_argument("--input", type=str, required=True,
+                        help="The file to be used for train, train_eval, eval and, classify")
     parser.add_argument("--x-index", type=int, required=True, help="Index of the columns for the X value "
                                                                    "(assuming a TSV file)")
     parser.add_argument("--y-indexes", type=str, required=False, help="Index(es) of the columns for the Y (classes) "
-                                                                     "separated by comma, without spaces (assuming "
-                                                                     "a TSV file)")
+                                                                      "separated by comma, without spaces (assuming "
+                                                                      "a TSV file)")
     parser.add_argument("--architecture", default='gru', choices=architectures,
                         help="type of model architecture to be used, one of " + str(architectures))
     parser.add_argument(
@@ -173,8 +173,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
-    parser.add_argument("--patience", type=int, default=5, help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
-
+    parser.add_argument("--patience", type=int, default=5,
+                        help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
 
     args = parser.parse_args()
 
@@ -203,20 +203,20 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        train(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
+        train(model_name, architecture, input_file, embeddings_name, args.fold_count,
               transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
-              max_sequence_length= max_sequence_length, patience=patience)
+              max_sequence_length=max_sequence_length, patience=patience)
 
     elif args.action == 'eval':
-        eval(model_name, input_file, architecture=architecture, x_index=x_index, y_indexes=y_indexes)
+        eval(model_name, architecture, input_file, x_index=x_index, y_indexes=y_indexes)
 
     elif args.action == 'train_eval':
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(model_name, input_file, embeddings_name, args.fold_count, architecture=architecture,
-                                transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
-                                max_sequence_length= max_sequence_length, patience=patience)
+        train_and_eval(model_name, architecture, input_file, embeddings_name, args.fold_count,
+                            transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
+                            max_sequence_length=max_sequence_length, patience=patience)
 
     elif args.action == 'classify':
         lines, _ = load_texts_and_classes_generic(input_file, x_index, None)
