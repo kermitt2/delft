@@ -11,7 +11,7 @@
 
 Examples of configuration: 
 
- - **portiz/matbert** 
+ - **portiz/matbert** as a locally saved pretrained model:
 
     ```json
             {

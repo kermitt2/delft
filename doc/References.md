@@ -9,7 +9,7 @@ If you want to this work, please refer to the present GitHub project, together w
     title = {DeLFT},
     howpublished = {\url{https://github.com/kermitt2/delft}},
     publisher = {GitHub},
-    year = {2018--2022},
+    year = {2018--2023},
     archivePrefix = {swh},
     eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
 }
