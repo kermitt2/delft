@@ -356,21 +356,25 @@ class BERTPreprocessor(object):
                 # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
                 # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
                 # in sync - note that this case seems not appearing anymore in recent HuggingFace Tokenizer library update  
+                #print("filter1:", self.tokenizer.decode(input_ids[i]))
                 continue              
-            elif self.is_BPE_SP and offset[0] == 0 and len(self.tokenizer.decode(input_ids[i])) == 1:
+            elif self.is_BPE_SP and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens and offset[0] == 0 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1:
                 # another trick to support sentence piece tokenizer: sometimes a out of vocabulary
                 # character is tokenized as several known bytes, leading to 2 tokens for instance
                 # with the second one staring from offset 0 too. In order to align correctly the  
                 # original string, we need to skip this extra spurious token by looking at it decoded
                 # form: if we have a start offset of 0 and no encoding leading space symbol, this must
                 # be ignored
+                #print("filter2:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
                 continue
-            elif self.is_BPE_SP and offset[0] == 0 and not (self.tokenizer.decode(input_ids[i]).startswith("Ġ")  
-                or self.tokenizer.decode(input_ids[i]).startswith("▁")
-                or self.tokenizer.decode(input_ids[i]).startswith(" ")):
+            elif self.is_BPE_SP and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens and offset[0] == 0 and not (
+                self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("Ġ")  
+                or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("▁")
+                or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(" ")):
                 # HuggingFace Roberta and GPT2 tokenizers uses "Ġ" as leading space encoding, other sentencepiece
                 # tokenizers usually use "▁" (U+2581) for this. So this should cover existing HuggingFace tokenizers
                 # as on January 2023. 
+                #print("filter3:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
                 continue
             else:
                 # valid token
@@ -382,6 +386,12 @@ class BERTPreprocessor(object):
         attention_mask = new_attention_mask
         token_type_ids = new_token_type_ids
         offsets = new_offsets
+
+        #print("-----------")
+        #print(input_ids)
+        #print(offsets)
+        #print(self.tokenizer.convert_ids_to_tokens(input_ids))
+        #print(self.tokenizer.decode(input_ids))
 
         word_idx = -1
         for i, offset in enumerate(offsets):
