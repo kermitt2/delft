@@ -238,7 +238,7 @@ class BERTPreprocessor(object):
         # as we rely on the HuggingFace transformer and tokenizer libraries, we list the BPE tokenizer from the model
         # name - this list was created on January 2023
         bpe_sp_tokenizers = ["roberta", "gpt2", "albert", "xlnet", "marian", "t5", "camembert", "bart", "bigbird", 
-            "blenderbot", "clip", "flaubert", "fnet", "fsmt", "xlm", "longformer", "luke", "marian", "phobert",
+            "blenderbot", "clip", "flaubert", "fsmt", "xlm", "longformer", "luke", "marian", "phobert",
             "reformer", "rembert"]
         tokenizer_name = tokenizer_name.lower() 
         for bpe_tok in bpe_sp_tokenizers:
@@ -298,7 +298,6 @@ class BERTPreprocessor(object):
 
         return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, target_labels, input_tokens
 
-
     def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
         Converts a single sequence input into a single transformer input format using generic tokenizer
@@ -337,14 +336,6 @@ class BERTPreprocessor(object):
         chars_blocks = []
         feature_blocks = []
 
-        '''
-        print(text_tokens)
-        print(encoded_result.input_ids)
-        print(encoded_result.offset_mapping)
-        print(self.tokenizer.convert_ids_to_tokens(encoded_result.input_ids))
-        print(self.tokenizer.decode(encoded_result.input_ids))
-        '''
-
         # tricks to support BPE/sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
         # spaces in the tokens (the encoding symbol for this space varies from one model to another)
         new_input_ids = []
@@ -360,7 +351,6 @@ class BERTPreprocessor(object):
                 # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
                 # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
                 # in sync - note that this case seems not appearing anymore in recent HuggingFace Tokenizer library update  
-                #print("filter1:", self.tokenizer.decode(input_ids[i]))
                 empty_token = True
                 continue              
             elif (self.is_BPE_SP  
@@ -374,7 +364,6 @@ class BERTPreprocessor(object):
                 # original string, we need to skip this extra spurious token by looking at it decoded
                 # form: if we have a start offset of 0 and no encoding leading space symbol, this must
                 # be ignored
-                #print("filter2:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
                 empty_token = False
                 continue
             elif (self.is_BPE_SP and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens 
@@ -388,7 +377,6 @@ class BERTPreprocessor(object):
                 # HuggingFace Roberta and GPT2 tokenizers uses "Ġ" as leading space encoding, other sentencepiece
                 # tokenizers usually use "▁" (U+2581) for this. So this should cover existing HuggingFace tokenizers
                 # as on January 2023. 
-                #print("filter3:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
                 empty_token = False
                 continue
             else:
@@ -403,14 +391,6 @@ class BERTPreprocessor(object):
         token_type_ids = new_token_type_ids
         offsets = new_offsets
 
-        '''
-        print("-----------")
-        print(input_ids)
-        print(offsets)
-        print(self.tokenizer.convert_ids_to_tokens(input_ids))
-        print(self.tokenizer.decode(input_ids))
-        '''
-
         word_idx = -1
         for i, offset in enumerate(offsets):
             if offset[0] == 0 and offset[1] == 0:
@@ -421,7 +401,6 @@ class BERTPreprocessor(object):
             else:
                 if offset[0] == 0:
                     word_idx += 1
-                    #print(str(word_idx), self.tokenizer.convert_ids_to_tokens([input_ids[i]]), self.tokenizer.decode(input_ids[i]))
                     # new token
                     label_ids.append(label_tokens[word_idx])
                     feature_blocks.append(features_tokens[word_idx])
