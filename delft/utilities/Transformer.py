@@ -110,12 +110,12 @@ class Transformer(object):
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             # fix for model without tokenizer config on HuggingFace which might default to
-            # invalid casing (e.g. allenai/scibert_scivocab_cased, defaultinf to uncase see #144) 
-            # and when model has the case information explicitely in its name
+            # invalid casing (e.g. allenai/scibert_scivocab_cased, defaulting to uncase see #144)
+            # and when model has the case information explicitly in its name
             do_lower_case = None
-            if self.name.find("uncased") != -1:
+            if str.lower(self.name).find("uncased") != -1:
                 do_lower_case = True
-            elif self.name.find("cased") != -1:
+            elif str.lower(self.name).find("cased") != -1:
                 do_lower_case = False
 
             if do_lower_case is not None:
