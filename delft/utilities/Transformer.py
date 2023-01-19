@@ -109,10 +109,26 @@ class Transformer(object):
         it will try to use huggingface as fallback solution.
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                           add_special_tokens=add_special_tokens,
-                                                           max_length=max_sequence_length,
-                                                           add_prefix_space=add_prefix_space)
+            # fix for model without tokenizer config on HuggingFace which might default to
+            # invalid casing (e.g. allenai/scibert_scivocab_cased, defaulting to uncase see #144)
+            # and when model has the case information explicitly in its name
+            do_lower_case = None
+            if str.lower(self.name).find("uncased") != -1:
+                do_lower_case = True
+            elif str.lower(self.name).find("cased") != -1:
+                do_lower_case = False
+
+            if do_lower_case is not None:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                               add_special_tokens=add_special_tokens,
+                                                               max_length=max_sequence_length,
+                                                               add_prefix_space=add_prefix_space, 
+                                                               do_lower_case=do_lower_case)
+            else:
+                self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                               add_special_tokens=add_special_tokens,
+                                                               max_length=max_sequence_length,
+                                                               add_prefix_space=add_prefix_space)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
