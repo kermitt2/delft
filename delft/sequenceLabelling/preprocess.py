@@ -238,8 +238,7 @@ class BERTPreprocessor(object):
         # as we rely on the HuggingFace transformer and tokenizer libraries, we list the BPE tokenizer from the model
         # name - this list was created on January 2023
         bpe_sp_tokenizers = ["roberta", "gpt2", "albert", "xlnet", "marian", "t5", "camembert", "bart", "bigbird", 
-            "blenderbot", "clip", "flaubert", "fsmt", "xlm", "longformer", "luke", "marian", "phobert",
-            "reformer", "rembert"]
+            "blenderbot", "clip", "flaubert", "fsmt", "xlm", "longformer", "marian", "phobert", "reformer", "rembert"]
         tokenizer_name = tokenizer_name.lower() 
         for bpe_tok in bpe_sp_tokenizers:
             if tokenizer_name.find(bpe_tok) != -1:
