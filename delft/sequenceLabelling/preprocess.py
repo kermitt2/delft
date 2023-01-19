@@ -374,7 +374,7 @@ class BERTPreprocessor(object):
                 # original string, we need to skip this extra spurious token by looking at it decoded
                 # form: if we have a start offset of 0 and no encoding leading space symbol, this must
                 # be ignored
-                print("filter2:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
+                #print("filter2:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
                 empty_token = False
                 continue
             elif (self.is_BPE_SP and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens 
@@ -388,7 +388,7 @@ class BERTPreprocessor(object):
                 # HuggingFace Roberta and GPT2 tokenizers uses "Ġ" as leading space encoding, other sentencepiece
                 # tokenizers usually use "▁" (U+2581) for this. So this should cover existing HuggingFace tokenizers
                 # as on January 2023. 
-                print("filter3:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
+                #print("filter3:", self.tokenizer.convert_ids_to_tokens(input_ids[i]))
                 empty_token = False
                 continue
             else:
