@@ -116,6 +116,14 @@
             "cache-training": true,
             "lang": "fr",
             "url": "https://traces1.inria.fr/oscar/files/models/cc/fr.zip"
+        },
+        {
+            "name": "elmo-many-langs",
+            "path": "/media/lopez/data/embeddings/ELMoForManyLangs",
+            "cache-training": true,
+            "path-cache": "data/models/ELMo/",
+            "url_en": "http://vectors.nlpl.eu/repository/11/144.zip",
+            "url_fr": "http://vectors.nlpl.eu/repository/11/150.zip"
         }
     ]
 }

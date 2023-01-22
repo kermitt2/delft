@@ -16,13 +16,13 @@ source env/bin/activate
 Install the dependencies:
 
 ```sh
-pip3 install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Finally install the project in editable state
 
 ```sh
-pip3 install -e .
+python3 -m pip install -e .
 ```
 
 Current DeLFT version is __0.3.2__, which has been tested successfully with Python 3.8. It uses tensorflow 2.7.0 and will exploit your available GPU with the condition that CUDA (>=11.2) is properly installed. 

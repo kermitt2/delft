@@ -70,13 +70,13 @@ source env/bin/activate
 Install the dependencies:
 
 ```sh
-pip3 install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Finally install the project, preferably in editable state
 
 ```sh
-pip3 install -e .
+python3 -m pip install -e .
 ```
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 

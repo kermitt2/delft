@@ -28,7 +28,9 @@ setup(
         'requests>=2.20',
         'pandas==1.3.5',
         'pytest',
-        'tensorflow-addons==0.19.0'  
+        'tensorflow-addons==0.19.0',
+        'overrides==3.1.0',
+        'elmoformanylangs'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.8",

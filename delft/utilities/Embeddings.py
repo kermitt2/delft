@@ -15,8 +15,11 @@ import lmdb
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+import zipfile
 
 from delft.utilities.simple_elmo import ElmoModel, elmo
+from elmoformanylangs import Embedder
+from delft.utilities.Utilities import longest_row
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.ERROR)
@@ -29,11 +32,6 @@ except ImportError as e:
     fasttext_support = False
 
 from delft.utilities.Utilities import download_file
-
-# for ELMo embeddings
-#from delft.utilities.bilm.data import Batcher
-#from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
-#from delft.utilities.bilm.elmo import weight_layers
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
@@ -53,6 +51,7 @@ class Embeddings(object):
         lang='en',
         extension='vec',
         use_ELMo=False,
+        use_ELMo_many_langs=True,
         use_cache=True,
         load=True):
 
@@ -72,16 +71,23 @@ class Embeddings(object):
             self.make_embeddings_simple(name)
         self.static_embed_size = self.embed_size
         self.elmo_model = None
+        self.embedder = None
 
         self.use_cache = use_cache
 
-        # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
-        if use_ELMo:
-            #tf.compat.v1.disable_eager_execution()
+        self.use_ELMo_many_langs = use_ELMo_many_langs
+
+        # below init for using ELMo embeddings
+        if self.use_ELMo_many_langs: 
+            self.make_ELMo_many_langs()
+            self.embed_size = ELMo_embed_size + self.embed_size
+            description = self.get_description('elmo-many-langs')
+        elif self.use_ELMo:
             self.make_ELMo()
             self.embed_size = ELMo_embed_size + self.embed_size
             description = self.get_description('elmo-'+self.lang)
+            '''
             self.env_ELMo = None
             if description and description["cache-training"] and self.use_cache:
                 self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
@@ -89,6 +95,20 @@ class Embeddings(object):
                 self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
                 self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+            '''
+
+        if self.use_ELMo_many_langs or self.use_ELMo: 
+            self.env_ELMo = None
+            if description and description["cache-training"] and self.use_cache:
+                if self.use_ELMo_many_langs:
+                    self.embedding_ELMo_cache = os.path.join(description["path-cache"], self.lang, "cache")
+                else:
+                    self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
+                # clean possible remaining cache
+                self.clean_ELMo_cache()
+                # create and load a cache in write mode, it will be used only for training
+                self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -331,6 +351,27 @@ class Embeddings(object):
                     self.elmo_model.elmo_sentence_input = elmo.weight_layers("input", self.elmo_model.sentence_embeddings_op)
                     sess.run(tf.compat.v1.global_variables_initializer())
 
+    def make_ELMo_many_langs(self):
+        # Location of pretrained BiLM for the specified language
+        description = self.get_description('elmo-many-langs')
+        if description is not None:
+            path = os.path.join(description["path"], self.lang)
+            if os.path.isdir(path):
+                self.embedder = Embedder(model_dir=path, batch_size=8)
+            else:
+                # the embedding for this language appears missing, download them
+                print("Downloading resource file for", description['name'], self.lang, "...")
+                url = description["url_"+self.lang]
+                download_path = self.registry['embedding-download-path']
+                embeddings_path = download_file(url, download_path)
+                if embeddings_path != None and os.path.isfile(embeddings_path):
+                    print("Download sucessful:", embeddings_path)
+                    # unzip in a lang subdirectory
+                    os.makedirs(path) 
+                    with zipfile.ZipFile(download_path, 'r') as zip_ref:
+                        zip_ref.extractall(path)
+                self.embedder = Embedder(model_dir=path, batch_size=8)
+
     def get_description(self, name):
         for emb in self.registry["embeddings"]:
             if emb["name"] == name:
@@ -432,7 +473,11 @@ class Embeddings(object):
         if elmo_result is not None:
             return elmo_result
 
-        elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
+        if self.embedder != None:
+            # note: default output is average of 3 layers
+            elmo_result = self.embedder.sents2elmo(token_list)
+        else:
+            elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
 
         # cache computation if cache enabled
         self.cache_ELMo_lmdb_vector(token_list, elmo_result)
@@ -448,18 +493,40 @@ class Embeddings(object):
             print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
             return
 
-        local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
-        max_size_sentence = local_token_ids[0].shape[0]
+        if self.embedder != None: 
+            max_size_sentence = longest_row(token_list)
+        else:
+            local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
+            max_size_sentence = local_token_ids[0].shape[0]
 
         elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
         if elmo_result is None:
-            elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
+            if self.embedder != None:
+                # note: default output is average of 3 layers
+                elmo_result = self.embedder.sents2elmo(token_list)
+            else:  
+                elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
 
             # cache computation if cache enabled
             self.cache_ELMo_lmdb_vector(token_list, elmo_result)
 
-        concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
+        '''
+        print("len(token_list):", str(len(token_list)))        
+        print("max_size_sentence:", str(max_size_sentence))
+        print("len(elmo_result):", str(len(elmo_result)))   
+        '''
+
+        if self.embedder != None:
+            concatenated_result = np.zeros((len(token_list), max_size_sentence, self.embed_size), dtype=np.float32)
+        else:
+            concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
         for i in range(0, len(token_list)):
+            '''
+            print("len(token_list[i]):", str(len(token_list[i])))  
+            print(token_list[i])
+            print("len(elmo_result[i]):", str(len(elmo_result[i])))
+            print(elmo_result[i])
+            '''
             for j in range(0, len(token_list[i])):
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
         return concatenated_result
