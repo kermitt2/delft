@@ -6,6 +6,7 @@ from delft.utilities.misc import print_parameters
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
+os.environ["TF_FORCE_GPU_ALLOW_GROWTH"] = "true"
 
 from itertools import islice
 import time
