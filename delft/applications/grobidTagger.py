@@ -426,7 +426,7 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input")
-        eval_(model, input_path=input_path, architecture=architecture)
+        eval_(model, input_path=input_path, architecture=architecture, use_ELMo=use_ELMo)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
