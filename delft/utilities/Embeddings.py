@@ -466,10 +466,16 @@ class Embeddings(object):
             return
 
         # Create batches of data
-        local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
-        max_size_sentence = local_token_ids[0].shape[0]
-        # check lmdb cache
-        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+        if self.embedder != None: 
+            max_size_sentence = longest_row(token_list)
+            # check lmdb cache
+            elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence+2)
+        else:
+            local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
+            max_size_sentence = local_token_ids[0].shape[0]
+            # check lmdb cache
+            elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+        
         if elmo_result is not None:
             return elmo_result
 
@@ -495,14 +501,17 @@ class Embeddings(object):
 
         if self.embedder != None: 
             max_size_sentence = longest_row(token_list)
+            elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence+2)
         else:
             local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
             max_size_sentence = local_token_ids[0].shape[0]
-
-        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+            elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
+        
         if elmo_result is None:
             if self.embedder != None:
                 # note: default output is average of 3 layers
+                elmo_result = self.embedder.sents2elmo(token_list)
+                elmo_result = self.embedder.sents2elmo(token_list)
                 elmo_result = self.embedder.sents2elmo(token_list)
             else:  
                 elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
@@ -510,23 +519,11 @@ class Embeddings(object):
             # cache computation if cache enabled
             self.cache_ELMo_lmdb_vector(token_list, elmo_result)
 
-        '''
-        print("len(token_list):", str(len(token_list)))        
-        print("max_size_sentence:", str(max_size_sentence))
-        print("len(elmo_result):", str(len(elmo_result)))   
-        '''
-
         if self.embedder != None:
             concatenated_result = np.zeros((len(token_list), max_size_sentence, self.embed_size), dtype=np.float32)
         else:
             concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
         for i in range(0, len(token_list)):
-            '''
-            print("len(token_list[i]):", str(len(token_list[i])))  
-            print(token_list[i])
-            print("len(elmo_result[i]):", str(len(elmo_result[i])))
-            print(elmo_result[i])
-            '''
             for j in range(0, len(token_list[i])):
                 concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
         return concatenated_result
