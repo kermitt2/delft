@@ -214,9 +214,9 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
 class BERTPreprocessor(object):
     """
-    Generic BERT preprocessor for a sequence labelling data set.
+    Generic transformer preprocessor for a sequence labelling data set. 
     Input are pre-tokenized texts, possibly with features and labels to re-align with the sub-tokenization. 
-    Rely on transformers library tokenizer
+    Rely on HuggingFace Tokenizer library and the tokenizer instance obtained with AutoTokenizer.
     """
 
     def __init__(self, tokenizer, empty_features_vector=None, empty_char_vector=None):
@@ -224,6 +224,27 @@ class BERTPreprocessor(object):
         self.empty_features_vector = empty_features_vector
         self.empty_char_vector = empty_char_vector
 
+        tokenizer_name = type(self.tokenizer).__name__
+
+        # this flag is used to indicate if the tokenizer is a BPE or sentence piece tokenizer
+        self.is_BPE_SP = self.infer_BPE_SP_from_tokenizer_name(tokenizer_name)
+
+    def infer_BPE_SP_from_tokenizer_name(self, tokenizer_name):
+        """
+        Return true if the tokenizer is a BPE using encoded leading character space with byte-based tokens as in the
+        usual sentencepiece tokenizers 
+        """
+        result = False
+        # as we rely on the HuggingFace transformer and tokenizer libraries, we list the BPE tokenizer from the model
+        # name - this list was created on January 2023
+        bpe_sp_tokenizers = ["roberta", "gpt2", "albert", "xlnet", "marian", "t5", "camembert", "bart", "bigbird", 
+            "blenderbot", "clip", "flaubert", "fsmt", "xlm", "longformer", "marian", "phobert", "reformer", "rembert"]
+        tokenizer_name = tokenizer_name.lower() 
+        for bpe_tok in bpe_sp_tokenizers:
+            if tokenizer_name.find(bpe_tok) != -1:
+                result = True
+                break
+        return result
 
     def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
@@ -276,7 +297,6 @@ class BERTPreprocessor(object):
 
         return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, target_labels, input_tokens
 
-
     def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
         Converts a single sequence input into a single transformer input format using generic tokenizer
@@ -299,7 +319,7 @@ class BERTPreprocessor(object):
             chars_tokens = []
             while len(chars_tokens) < len(text_tokens):
                 chars_tokens.append(self.empty_char_vector)
-        
+
         # sub-tokenization
         encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
             max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
@@ -315,18 +335,52 @@ class BERTPreprocessor(object):
         chars_blocks = []
         feature_blocks = []
 
-        # trick to support sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
+        # tricks to support BPE/sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
         # spaces in the tokens (the encoding symbol for this space varies from one model to another)
         new_input_ids = []
         new_attention_mask = []
         new_token_type_ids = []
         new_offsets = []
+        # this is a boolean for flag empty tokens (e.g. "▁" or "Ġ") that some BPE tokenizer produces
+        empty_token = False
         for i in range(0, len(input_ids)):
-            if len(self.tokenizer.decode(input_ids[i])) != 0:
+            offset = offsets[i]
+            if len(self.tokenizer.decode(input_ids[i])) == 0:
                 # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2 
                 # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
                 # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
-                # in sync
+                # in sync - note that this case seems not appearing anymore in recent HuggingFace Tokenizer library update  
+                empty_token = True
+                continue              
+            elif (self.is_BPE_SP  
+                and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens  
+                and offset[0] == 0  
+                and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
+                and not empty_token):
+                # another trick to support sentence piece tokenizer: sometimes a out of vocabulary
+                # character is tokenized as several known bytes, leading to 2 tokens for instance
+                # with the second one staring from offset 0 too. In order to align correctly the  
+                # original string, we need to skip this extra spurious token by looking at it decoded
+                # form: if we have a start offset of 0 and no encoding leading space symbol, this must
+                # be ignored
+                empty_token = False
+                continue
+            elif (self.is_BPE_SP and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens 
+                and offset[0] == 0 
+                and not empty_token
+                and not (
+                    self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("Ġ")  
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("▁")
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(" ")
+                )):
+                # HuggingFace Roberta and GPT2 tokenizers uses "Ġ" as leading space encoding, other sentencepiece
+                # tokenizers usually use "▁" (U+2581) for this. So this should cover existing HuggingFace tokenizers
+                # as on January 2023. 
+                empty_token = False
+                continue
+            else:
+                # valid token
+                empty_token = False
                 new_input_ids.append(input_ids[i])
                 new_attention_mask.append(attention_mask[i])
                 new_token_type_ids.append(token_type_ids[i])
@@ -346,7 +400,6 @@ class BERTPreprocessor(object):
             else:
                 if offset[0] == 0:
                     word_idx += 1
-
                     # new token
                     label_ids.append(label_tokens[word_idx])
                     feature_blocks.append(features_tokens[word_idx])
@@ -382,6 +435,8 @@ class BERTPreprocessor(object):
 
     def convert_single_text_bert(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
+        **Deprecated** We now use Transformers Autotokenizer
+
         Converts a single sequence input into a single BERT input format and align other channel input to this 
         new sub-tokenization
 
