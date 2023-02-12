@@ -45,10 +45,10 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 
 ## Using DeLFT 
 
-PyPI packages are available for stable versions. Latest stable version is `0.3.2`:
+PyPI packages are available for stable versions. Latest stable version is `0.3.3`:
 
 ```
-pip install delft==0.3.2
+pip install delft==0.3.3
 ```
 
 ## DeLFT Installation
