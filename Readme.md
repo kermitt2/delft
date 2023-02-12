@@ -37,7 +37,7 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The latest DeLFT release has been tested successfully with python 3.8 and Tensorflow 2.7.0. As always, GPU(s) are required for decent training time: a GeForce GTX 1050 Ti (4GB) for instance is fine for RNN models and BERT or RoBERTa base model. Using BERT large model is possible with a GeForce GTX 1080 Ti (11GB) with modest batch size.
+The latest DeLFT release has been tested successfully with python 3.8 and Tensorflow 2.9.3. As always, GPU(s) are required for decent training time. A GeForce GTX 1050 Ti (4GB) for instance is fine for running RNN models and BERT or RoBERTa base models. Using BERT large model is possible from a GeForce GTX 1080 Ti (11GB) with modest batch size.
 
 ## DeLFT Documentation
 
