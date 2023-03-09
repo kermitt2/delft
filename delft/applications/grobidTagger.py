@@ -8,14 +8,13 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.sequenceLabelling.reader import load_data_crf_string
-from delft.utilities.misc import parse_number_ranges
 from delft.utilities.Utilities import longest_row
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
 
-def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None, max_epoch=-1, use_ELMo=False):
+def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
+              embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1):
     """
     Set up the default parameters based on the model type.
     """
@@ -25,7 +24,6 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     multiprocessing = True
-    max_epoch = 60
     early_stop = True
 
     if "BERT" in architecture:
@@ -128,15 +126,18 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         max_sequence_length = 3000
 
     if max_epoch == -1:
-        max_epoch = 100
+        max_epoch = 60
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop
+    if patience == -1:
+        patience = 5
+
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience
 
 
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
         output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None):
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1):
 
     print('Loading data...')
     if input_path == None:
@@ -154,14 +155,15 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print("\nmax train sequence length:", str(longest_row(x_train)))
     print("max validation sequence length:", str(longest_row(x_valid)))
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model,
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = configure(model,
                                                                             architecture,
                                                                             output_path,
                                                                             max_sequence_length,
                                                                             batch_size,
                                                                             embeddings_name,
                                                                             max_epoch,
-                                                                            use_ELMo)
+                                                                            use_ELMo,
+                                                                            patience)
     model = Sequence(model_name,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
@@ -173,7 +175,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      max_epoch=max_epoch, 
                      use_ELMo=use_ELMo,
                      multiprocessing=multiprocessing,
-                     early_stop=early_stop)
+                     early_stop=early_stop,
+                     patience=patience)
 
     if incremental:
         if input_model_path != None:
@@ -199,7 +202,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-               use_ELMo=False, incremental=False, input_model_path=None):
+               use_ELMo=False, incremental=False, input_model_path=None, patience=-1):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -217,14 +220,15 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     print("max validation sequence length:", str(longest_row(x_valid)))
     print("max evaluation sequence length:", str(longest_row(x_eval)))
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(model, 
+    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = configure(model,
                                                                             architecture, 
                                                                             output_path, 
                                                                             max_sequence_length, 
                                                                             batch_size, 
                                                                             embeddings_name,
                                                                             max_epoch,
-                                                                            use_ELMo)
+                                                                            use_ELMo,
+                                                                            patience)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -237,7 +241,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     max_epoch=max_epoch, 
                     use_ELMo=use_ELMo,
                     multiprocessing=multiprocessing,
-                    early_stop=early_stop)
+                    early_stop=early_stop,
+                    patience=patience)
 
     if incremental:
         if input_model_path != None:
@@ -385,6 +390,8 @@ if __name__ == "__main__":
                                         "to start the training, instead of the default one.")
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
+                                                                 "the best epoch before stopping a training.")
 
     
 
@@ -402,6 +409,7 @@ if __name__ == "__main__":
     transformer = args.transformer
     use_ELMo = args.use_ELMo
     incremental = args.incremental
+    patience = args.patience
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -418,7 +426,8 @@ if __name__ == "__main__":
             batch_size=batch_size,
             use_ELMo=use_ELMo,
             incremental=incremental,
-            input_model_path=input_model_path)
+            input_model_path=input_model_path,
+            patience=patience)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
