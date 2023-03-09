@@ -390,7 +390,8 @@ if __name__ == "__main__":
                                         "to start the training, instead of the default one.")
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
-    parser.add_argument("--patience", type=int, default=-1, help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
+    parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
+                                                                 "the best epoch before stopping a training.")
 
     
 

@@ -187,10 +187,14 @@ def train_eval(embeddings_name=None,
                 fold_count=1, 
                 train_with_validation_set=False,
                 data_path=None, 
-                use_ELMo=False): 
+                use_ELMo=False,
+                patience=-1,
+                batch_size=-1,
+                max_sequence_length=-1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
-        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length=-1, batch_size=-1, patience=-1)
+        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
+                  max_sequence_length=max_sequence_length, batch_size=batch_size, patience=patience)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
@@ -591,8 +595,8 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
-    parser.add_argument("--patience", type=int, default=-1, help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
-
+    parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
+                                                                 "the best epoch before stopping a training.")
 
     args = parser.parse_args()
 
@@ -646,7 +650,11 @@ if __name__ == "__main__":
             fold_count=args.fold_count, 
             train_with_validation_set=train_with_validation_set, 
             data_path=data_path,
-            use_ELMo=use_ELMo)
+            use_ELMo=use_ELMo,
+            max_sequence_length=max_sequence_length,
+            batch_size=batch_size,
+            patience=patience
+            )
 
     if action == 'eval':
         eval(
