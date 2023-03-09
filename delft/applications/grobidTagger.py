@@ -137,7 +137,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
         output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None, patience=5):
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1):
 
     print('Loading data...')
     if input_path == None:
