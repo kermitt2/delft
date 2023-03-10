@@ -51,6 +51,8 @@ def print_parameters(model_config, training_config):
     print("---")
     print("max_epoch:", training_config.max_epoch)
     print("early_stop:", training_config.early_stop)
+    if training_config.early_stop:
+        print("patience:", training_config.patience)
     print("batch_size (training):", model_config.batch_size)
     
     if hasattr(model_config, 'max_sequence_length'):
