@@ -7,6 +7,7 @@ import mmap
 import os
 import pickle
 import shutil
+import ntpath
 import struct
 import sys
 import zipfile
@@ -15,6 +16,7 @@ import lmdb
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
+from pathlib import Path
 
 from delft.utilities.simple_elmo import ElmoModel, elmo
 
@@ -54,7 +56,8 @@ class Embeddings(object):
         extension='vec',
         use_ELMo=False,
         use_cache=True,
-        load=True):
+        load=True,
+        elmo_model_name=None):
 
         self.name = name
         self.embed_size = 0
@@ -77,11 +80,14 @@ class Embeddings(object):
 
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
+        self.elmo_model_name = elmo_model_name
+        if elmo_model_name == None:
+            self.elmo_model_name = 'elmo-'+self.lang
         if use_ELMo:
             #tf.compat.v1.disable_eager_execution()
             self.make_ELMo()
             self.embed_size = ELMo_embed_size + self.embed_size
-            description = self.get_description('elmo-'+self.lang)
+            description = self.get_description(self.elmo_model_name)
             self.env_ELMo = None
             if description and description["cache-training"] and self.use_cache:
                 self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
@@ -306,20 +312,24 @@ class Embeddings(object):
 
     def make_ELMo(self):
         # Location of pretrained BiLM for the specified language
-        description = self.get_description('elmo-'+self.lang)
+        description = self.get_description(self.elmo_model_name)
         if description is not None:
             vocab_file = description["path-vocab"]
-            options_file = description["path-config"]
-            weight_file = description["path_weights"]
-
-            print("ELMo weights used:", weight_file)
+            weights_file = None
+            options_file = None
+            try:
+                weights_file, options_file = self.get_elmo_embedding_path(description)
+            except Exception as e: 
+                logging.error(str(e))
+                logging.error("fail to find ELMo model path for " + self.elmo_model_name)
+                return
 
             graph = tf.Graph()
             with graph.as_default() as elmo_graph:
                 self.elmo_model = ElmoModel()
                 self.elmo_model.load(vocab_file=vocab_file,
                                     options_file=options_file,
-                                    weight_file=weight_file,
+                                    weight_file=weights_file,
                                     max_batch_size=128,
                                     limit=50,
                                     full=False)
@@ -415,6 +425,130 @@ class Embeddings(object):
                 print("no download url available for this embeddings resource, please review the embedding registry for", description['name'])
         return embeddings_path
 
+
+    def get_elmo_embedding_path(self, description):
+        name = self.elmo_model_name
+        weights_file = description["path_weights"]
+        options_file = description["path-config"]
+
+        # check if model weights file is there and okay, otherwise donwload the ELMo weights
+        if weights_file is None or len(weights_file) == 0 or not os.path.isfile(weights_file):
+            print("error: weights file path for", name, "is not valid", weights_file)
+            # check local alternative location in repo
+            alternative_weights_directory = os.path.join("data/models/ELMo", self.elmo_model_name)
+            alternative_weights_file = None
+            if os.path.isdir(alternative_weights_directory):
+                # try to find a .hdf5 file here
+                for file in os.listdir(alternative_weights_directory):
+                    if file.endswith(".hdf5"):
+                        alternative_weights_file = file
+                        weights_file = os.path.join(alternative_weights_directory, alternative_weights_file)
+            
+            if alternative_weights_file == None and "url_weights" in description and len(description["url_weights"])>0:
+                url = description["url_weights"]
+                download_path = self.registry['embedding-download-path']
+                # if the download path does not exist, we create it
+                if not os.path.isdir(download_path):
+                    try:
+                        os.mkdir(download_path)
+                    except OSError:
+                        print ("Creation of the download directory", download_path, "failed")
+                print("Downloading weights file for", name, "...")
+                embeddings_path = download_file(url, download_path)
+                if embeddings_path != None and os.path.isfile(embeddings_path):
+                    print("Download successful:", embeddings_path)
+                    # now move the model weights file where they are supposed to be and remove the tmp download
+                    # try to move in the original path_weights
+                    parent_path = None
+                    if weights_file is not None and len(weights_file)>0:
+                        try:
+                            path = Path(weights_file)
+                            parent_path = path.parent.absolute()
+                        except:
+                            print("invalid specified ELMo weights file path:", weights_file)
+                    if parent_path is not None and os.path.isdir(parent_path):
+                        try:
+                            shutil.move(embeddings_path, weights_file)
+                        except OSError:
+                            print ("Copy of ELMo weights file to ELMo directory path", weights_file, "failed")
+                    else:
+                        # otherwise move to the ELMo model default path and update the description file
+                        basename = ntpath.basename(embeddings_path)
+                        destination_file = os.path.join("data/models/ELMo", self.elmo_model_name, basename)
+                        print("saving downloaded ELMo weights file under", destination_file)
+                        destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
+                        if not os.path.exists(destination_dir):
+                            os.makedirs(destination_dir)
+                        try:                      
+                            shutil.move(embeddings_path, destination_file)
+                            weights_file = destination_file
+                        except OSError:
+                            print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
+            
+            if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
+                print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
+        print("ELMo weights used:", weights_file)
+
+        # now check if model config file is there and okay, otherwise donwload the ELMo config file
+        if options_file is None or not os.path.isfile(options_file):
+            print("error: config file path for", name, "is not valid", options_file)
+            # check local alternative location in repo
+            alternative_options_directory = os.path.join("data/models/ELMo", self.elmo_model_name)
+            alternative_options_file = None
+            if os.path.isdir(alternative_options_directory):
+                # try to find a .json file here
+                for file in os.listdir(alternative_options_directory):
+                    if file.endswith(".json"):
+                        alternative_options_file = file
+                        options_file = os.path.join(alternative_options_directory, alternative_options_file)
+
+            if alternative_options_file == None and "url_config" in description and len(description["url_config"])>0:
+                url = description["url_config"]
+                download_path = self.registry['embedding-download-path']
+                # if the download path does not exist, we create it
+                if not os.path.isdir(download_path):
+                    try:
+                        os.mkdir(download_path)
+                    except OSError:
+                        print ("Creation of the download directory", download_path, "failed")
+
+                print("Downloading weights file for", name, "...")
+                embeddings_path = download_file(url, download_path)
+                if embeddings_path != None and os.path.isfile(embeddings_path):
+                    print("Download sucessful:", embeddings_path)
+                    # now move the model weights file where they are supposed to be and remove the tmp download
+                    # try to move in the original path_options
+                    parent_path = None
+                    if options_file is not None and len(options_file)>0:
+                        try:
+                            path = Path(options_file)
+                            parent_path = path.parent.absolute()
+                        except:
+                            print("invalid specified ELMo options file path:", options_file)
+                    if parent_path is not None and os.path.isdir(parent_path):
+                        try:
+                            shutil.move(embeddings_path, options_file)
+                        except OSError:
+                            print ("Copy of ELMo options file to ELMo directory path", options_file, "failed")
+                    else:
+                        # otherwise move to the ELMo model default path and update the description file
+                        basename = ntpath.basename(embeddings_path)
+                        destination_file = os.path.join("data/models/ELMo", self.elmo_model_name, basename)
+                        print("saving downloaded ELMo weights file under", destination_file)
+                        destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
+                        if not os.path.exists(destination_dir):
+                            os.makedirs(destination_dir)
+                        try:
+                            shutil.move(embeddings_path, destination_file)
+                            options_file = destination_file
+                        except OSError:
+                            print ("Copy of ELMo options file to ELMo directory path", destination_file, "failed")
+                        # update description file
+            if "url_config" not in description or description["url_config"] == None or len(description["url_config"]) == 0:
+                print("no download url available for this ELMo embeddings config resource, please review the embedding registry for", name)
+        print("ELMo config used:", options_file)
+
+        return weights_file, options_file
 
     def get_sentence_vector_only_ELMo(self, token_list):
         """
