@@ -280,6 +280,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
+    parser.add_argument("--learning-rate", type=float, default=0.0001, help="Initial learning rate")
 
     args = parser.parse_args()
 
@@ -293,6 +294,7 @@ if __name__ == "__main__":
     transformer = args.transformer
     use_ELMo = args.use_ELMo
     patience = args.patience
+    learning_rate = args.learning_rate
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -307,7 +309,8 @@ if __name__ == "__main__":
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             use_ELMo=use_ELMo,
-            patience=patience)
+            patience=patience,
+            learning_rate=learning_rate)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -329,7 +332,8 @@ if __name__ == "__main__":
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
                 use_ELMo=use_ELMo,
-                patience=patience)
+                patience=patience,
+                learning_rate=learning_rate)
 
     if action == "tag":
         someTexts = []
