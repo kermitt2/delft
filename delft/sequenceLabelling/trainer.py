@@ -67,7 +67,7 @@ class Trainer(object):
         if self.model_config.transformer_name is not None:
             # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
-                init_lr=2e-5, 
+                init_lr=self.training_config.learning_rate,
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
                 num_warmup_steps=0.1*nb_train_steps,

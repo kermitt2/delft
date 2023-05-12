@@ -72,7 +72,7 @@ class Sequence(object):
                  recurrent_dropout=0.25,
                  batch_size=20,
                  optimizer='adam',
-                 learning_rate=0.001,
+                 learning_rate=None,
                  lr_decay=0.9,
                  clip_gradients=5.0,
                  max_epoch=50,
@@ -112,6 +112,12 @@ class Sequence(object):
         else:
             self.embeddings = None
             word_emb_size = 0
+
+        if learning_rate is None:
+            if transformer_name is None:
+                learning_rate = 0.0001
+            else:
+                learning_rate = 2e-5
 
         self.model_config = ModelConfig(model_name=model_name,
                                         architecture=architecture,
