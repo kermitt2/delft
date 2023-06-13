@@ -359,7 +359,7 @@ def load_software_context_corpus_json(json_gz_file_path):
                             else:
                                 classes.append(0.0)
 
-                            if "contribution" in entity_span and entity_span["contribution"]:
+                            if "created" in entity_span and entity_span["created"]:
                                 classes.append(1.0)
                             else:
                                 classes.append(0.0)
