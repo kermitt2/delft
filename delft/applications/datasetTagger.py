@@ -66,7 +66,9 @@ def configure(architecture, output_path=None, max_sequence_length=-1, batch_size
 # train a model with all available data
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False, patience=-1):
+               features_indices=None, max_sequence_length=-1,
+          batch_size=-1, max_epoch=-1, use_ELMo=False, patience=-1,
+          learning_rate=None):
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -110,7 +112,8 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                     use_ELMo=use_ELMo,
                     multiprocessing=multiprocessing,
                     early_stop=early_stop,
-                    patience=patience)
+                    patience=patience,
+                    learning_rate=learning_rate)
 
     start_time = time.time()
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
@@ -129,7 +132,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
 def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False,
-               patience=-1):
+               patience=-1, learning_rate=None):
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -175,7 +178,8 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                     use_ELMo=use_ELMo,
                     multiprocessing=multiprocessing,
                     early_stop=early_stop,
-                    patience=patience)
+                    patience=patience,
+                    learning_rate=learning_rate)
 
     start_time = time.time()
 
@@ -280,7 +284,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
-    parser.add_argument("--learning-rate", type=float, default=0.0001, help="Initial learning rate")
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
     args = parser.parse_args()
 

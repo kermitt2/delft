@@ -67,7 +67,7 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_s
 
 # train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
-          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1, learning_rate=0.0001):
+          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1, learning_rate=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience)
@@ -195,7 +195,7 @@ def train_eval(embeddings_name=None,
                 patience=-1,
                 batch_size=-1,
                 max_sequence_length=-1,
-                learning_rate=0.0001):
+                learning_rate=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
@@ -612,7 +612,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
-    parser.add_argument("--learning-rate", type=float, default=0.0001, help="Initial learning rate")
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
     args = parser.parse_args()
 

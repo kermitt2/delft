@@ -21,7 +21,7 @@ def configure(architecture, embeddings_name):
 
     return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=0.0001):
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name)
 
     root = 'data/sequenceLabelling/toxic/'
@@ -114,7 +114,7 @@ if __name__ == "__main__":
             "for model names"
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
-    parser.add_argument("--learning-rate", type=float, default=0.0001, help="Initial learning rate")
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     
     args = parser.parse_args()
 
