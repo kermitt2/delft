@@ -70,7 +70,7 @@ class Trainer(object):
                 init_lr=self.training_config.learning_rate,
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
-                num_warmup_steps=0.1*nb_train_steps,
+                num_warmup_steps=0.1 * nb_train_steps,
             )
 
             if local_model.config.use_chain_crf:
@@ -139,7 +139,7 @@ class Trainer(object):
                 output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=True,
+                                      early_stopping=True,
                                       patience=self.training_config.patience,
                                       valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf,
                                       use_chain_crf=self.model_config.use_chain_crf)
@@ -159,7 +159,7 @@ class Trainer(object):
                 features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=False,
+                                      early_stopping=False,
                                       use_crf=self.model_config.use_crf,
                                       use_chain_crf=self.model_config.use_chain_crf)
         _callbacks += (callbacks or [])
@@ -268,14 +268,14 @@ class Trainer(object):
                         transformer_preprocessor.tokenizer.save_pretrained(os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
-def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True, use_chain_crf=False):
+def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False):
     """
     Get callbacks.
 
     Args:
         log_dir (str): the destination to save logs
         valid (tuple): data for validation.
-        eary_stopping (bool): whether to use early stopping.
+        early_stopping (bool): whether to use early stopping.
 
     Returns:
         list: list of callbacks
@@ -296,7 +296,7 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_cr
                                         save_weights_only=True)
         callbacks.append(save_callback)
 
-    if eary_stopping:
+    if early_stopping:
         callbacks.append(EarlyStopping(monitor='f1', patience=patience, mode='max'))
 
     return callbacks
