@@ -84,7 +84,7 @@ class TrainingConfig(object):
     def __init__(self, 
                  batch_size=20, 
                  optimizer='adam', 
-                 learning_rate=0.001, 
+                 learning_rate=None,
                  lr_decay=0.9,
                  clip_gradients=5.0, 
                  max_epoch=50, 
