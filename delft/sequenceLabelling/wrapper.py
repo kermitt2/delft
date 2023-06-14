@@ -136,7 +136,7 @@ class Sequence(object):
                                         features_indices=features_indices,
                                         transformer_name=transformer_name)
 
-        self.training_config = TrainingConfig(batch_size, optimizer, learning_rate,
+        self.training_config = TrainingConfig(learning_rate, batch_size, optimizer,
                                               lr_decay, clip_gradients, max_epoch,
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)

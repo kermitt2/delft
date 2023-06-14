@@ -62,7 +62,7 @@ class Classifier(object):
                  use_char_feature=False, 
                  batch_size=256, 
                  optimizer='adam', 
-                 learning_rate=0.001, 
+                 learning_rate=None,
                  lr_decay=0.9,
                  clip_gradients=5.0, 
                  max_epoch=50, 
@@ -83,6 +83,13 @@ class Classifier(object):
                 model_name += "_" + embeddings_name
             if transformer_name is not None:
                 model_name += "_" + transformer_name
+
+        if learning_rate is None:
+            if transformer_name is None:
+                learning_rate = 0.0001
+            else:
+                learning_rate = 2e-5
+
 
         self.model = None
         self.models = None
@@ -118,9 +125,9 @@ class Classifier(object):
                                         batch_size=batch_size,
                                         transformer_name=self.transformer_name)
 
-        self.training_config = TrainingConfig(batch_size=batch_size, 
-                                              optimizer=optimizer, 
-                                              learning_rate=learning_rate,
+        self.training_config = TrainingConfig(learning_rate,
+                                              batch_size=batch_size,
+                                              optimizer=optimizer,
                                               lr_decay=lr_decay, 
                                               clip_gradients=clip_gradients, 
                                               max_epoch=max_epoch,
