@@ -141,8 +141,7 @@ class Trainer(object):
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       early_stopping=True,
                                       patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf)
+                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf, use_chain_crf=self.model_config.use_chain_crf, model=local_model)
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -161,7 +160,8 @@ class Trainer(object):
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
                                       early_stopping=False,
                                       use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf)
+                                      use_chain_crf=self.model_config.use_chain_crf,
+                                      model=local_model)
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
@@ -268,7 +268,17 @@ class Trainer(object):
                         transformer_preprocessor.tokenizer.save_pretrained(os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
-def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False):
+class LogLearningRateCallback(Callback):
+
+    def __init__(self, model=None):
+        super().__init__()
+        self.model = model
+
+    def on_epoch_end(self, epoch, logs):
+        if self.model is not None:
+            logs.update({"learning_rate": self.model.optimizer._decayed_lr(tf.float32)})
+
+def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None):
     """
     Get callbacks.
 
@@ -298,6 +308,8 @@ def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_c
 
     if early_stopping:
         callbacks.append(EarlyStopping(monitor='f1', patience=patience, mode='max'))
+
+    callbacks.append(LogLearningRateCallback(model))
 
     return callbacks
 

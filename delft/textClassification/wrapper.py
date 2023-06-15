@@ -1,5 +1,6 @@
 import os
 
+from delft.sequenceLabelling.trainer import LogLearningRateCallback
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.misc import print_parameters
 
@@ -171,6 +172,10 @@ class Classifier(object):
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                 embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
             validation_generator = None
+
+
+        callbacks_ = callbacks if callbacks else []
+        callbacks_.append(LogLearningRateCallback(self.model))
 
         # uncomment to plot graph
         #plot_model(self.model, 
