@@ -276,7 +276,7 @@ class LogLearningRateCallback(Callback):
 
     def on_epoch_end(self, epoch, logs):
         if self.model is not None:
-            logs.update({"learning_rate": self.model.optimizer._decayed_lr(tf.float32)})
+            logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
 
 def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None):
     """
