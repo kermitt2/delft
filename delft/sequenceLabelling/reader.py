@@ -374,7 +374,7 @@ def load_data_and_labels_crf_content(the_file):
             tags.append(_translate_tags_grobid_to_IOB(tag))
             features.append(localFeatures)
 
-    if len(tokens) == len(tags) == len(localFeatures) > 0:
+    if len(tokens) == len(tags) == len(features) > 0:
         sents.append(tokens)
         labels.append(tags)
         featureSets.append(features)
@@ -404,7 +404,7 @@ def load_data_crf_content(the_file):
             tokens.append(token)
             features.append(localFeatures)
 
-    if len(tokens) == len(localFeatures) > 0:
+    if len(tokens) == len(features) > 0:
         sents.append(tokens)
         featureSets.append(features)
         print("Adding the final items from the input file. ")

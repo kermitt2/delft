@@ -26,7 +26,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     multiprocessing = True
     early_stop = True
 
-    if "BERT" in architecture:
+    if architecture and "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
 
         # non-default settings per model
@@ -56,9 +56,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 batch_size = 8
             if max_sequence_length == -1:
                 max_sequence_length = 512
-            #early_stop = False
+            early_stop = False
             if max_epoch == -1:
-                max_epoch = 20
+                max_epoch = 30
 
         # default when no value provided by command line or model-specific
         if batch_size == -1:
@@ -415,6 +415,9 @@ if __name__ == "__main__":
     incremental = args.incremental
     patience = args.patience
     learning_rate = args.learning_rate
+
+    if architecture is None:
+        raise ValueError("A model architecture has to be specified: " + str(architectures))
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
