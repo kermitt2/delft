@@ -1026,7 +1026,7 @@ class BERT_ChainCRF_FEATURES(BaseModel):
         self.crf = ChainCRF()
         pred = self.crf(x)
 
-        self.model  = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
+        self.model  = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[pred])
         self.config = config
 
     def get_generator(self):
