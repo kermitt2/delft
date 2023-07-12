@@ -193,6 +193,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
     elif config.architecture == BERT_BidLSTM_CRF.name:
         preprocessor.return_bert_embeddings = True
         config.labels = preprocessor.vocab_tag
+        config.use_crf = True
         return BERT_BidLSTM_CRF(config,
                     ntags,
                     load_pretrained_weights=load_pretrained_weights,
@@ -201,6 +202,8 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
     elif config.architecture == BERT_BidLSTM_ChainCRF.name:
         preprocessor.return_bert_embeddings = True
         config.labels = preprocessor.vocab_tag
+        config.use_crf = True
+        config.use_chain_crf = True
         return BERT_BidLSTM_ChainCRF(config,
                                 ntags,
                                 load_pretrained_weights=load_pretrained_weights,
