@@ -115,7 +115,7 @@ class Sequence(object):
 
         if learning_rate is None:
             if transformer_name is None:
-                learning_rate = 0.0001
+                learning_rate = 0.001
             else:
                 learning_rate = 2e-5
 
