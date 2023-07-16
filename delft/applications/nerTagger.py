@@ -67,7 +67,7 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_s
 
 # train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
-          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1):
+          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1, learning_rate=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience)
@@ -102,7 +102,9 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
-                        multiprocessing=multiprocessing)
+                        multiprocessing=multiprocessing,
+                        learning_rate=learning_rate)
+
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
 
@@ -134,7 +136,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
-                        multiprocessing=multiprocessing)
+                        multiprocessing=multiprocessing,
+                        learning_rate=learning_rate)
     elif (lang == 'fr'):
         print('Loading data...')
         dataset_type = 'lemonde'
@@ -159,7 +162,8 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
-                        multiprocessing=multiprocessing)
+                        multiprocessing=multiprocessing,
+                        learning_rate=learning_rate)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return
@@ -190,7 +194,8 @@ def train_eval(embeddings_name=None,
                 use_ELMo=False,
                 patience=-1,
                 batch_size=-1,
-                max_sequence_length=-1):
+                max_sequence_length=-1,
+                learning_rate=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
@@ -222,7 +227,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -240,7 +246,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
 
     elif (dataset_type == 'ontonotes-all') and (lang == 'en'):
         print("Loading all Ontonotes 5.0 XML data, evaluation will be on 10\% random partition")
@@ -266,7 +273,8 @@ def train_eval(embeddings_name=None,
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
-                        multiprocessing=multiprocessing)
+                        multiprocessing=multiprocessing,
+                        learning_rate=learning_rate)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
         print('Loading Ontonotes 5.0 CoNLL-2012 NER data...')
@@ -294,7 +302,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -312,7 +321,8 @@ def train_eval(embeddings_name=None,
                             patience=patience, 
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
 
     elif (lang == 'fr') and (dataset_type == 'ftb' or dataset_type is None):
         print('Loading data for ftb...')
@@ -339,7 +349,8 @@ def train_eval(embeddings_name=None,
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
-                        multiprocessing=multiprocessing)
+                        multiprocessing=multiprocessing,
+                        learning_rate=learning_rate)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
         print('Loading data for ftb_force_split...')
         x_train, y_train = load_data_and_labels_conll('data/sequenceLabelling/leMonde/ftb6_train.conll')
@@ -367,7 +378,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -385,7 +397,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split_xml'):
         print('Loading data for ftb_force_split_xml...')
         x_train, y_train = load_data_and_labels_lemonde('data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.train.xml')
@@ -413,7 +426,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly), 
             # as (Chui & Nochols, 2016) and (Peters and al., 2017)
@@ -431,7 +445,8 @@ def train_eval(embeddings_name=None,
                             patience=patience,
                             max_sequence_length=max_sequence_length,
                             use_ELMo=use_ELMo,
-                            multiprocessing=multiprocessing)
+                            multiprocessing=multiprocessing,
+                            learning_rate=learning_rate)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
         return        
@@ -597,6 +612,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
     args = parser.parse_args()
 
@@ -617,6 +633,7 @@ if __name__ == "__main__":
     patience = args.patience
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
+    learning_rate = args.learning_rate
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
@@ -635,7 +652,8 @@ if __name__ == "__main__":
             use_ELMo=use_ELMo,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            patience=patience
+            patience=patience,
+            learning_rate=learning_rate
         )
 
     if action == 'train_eval':
@@ -653,7 +671,8 @@ if __name__ == "__main__":
             use_ELMo=use_ELMo,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            patience=patience
+            patience=patience,
+            learning_rate=learning_rate
             )
 
     if action == 'eval':
