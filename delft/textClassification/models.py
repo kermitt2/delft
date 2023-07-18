@@ -847,9 +847,9 @@ class bert(BaseModel):
     def compile(self, train_size):
         #optimizer = Adam(learning_rate=2e-5, clipnorm=1)
         optimizer, lr_schedule = create_optimizer(
-                init_lr=2e-5, 
+                init_lr=self.training_config.learning_rate,
                 num_train_steps=train_size,
                 weight_decay_rate=0.01,
-                num_warmup_steps=0.1*train_size,
+                num_warmup_steps=0.1 * train_size,
             )
         self.model.compile(optimizer=optimizer, loss='binary_crossentropy', metrics=["accuracy"])

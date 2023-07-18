@@ -58,10 +58,10 @@ class ModelConfig(object):
 # Training parameter
 class TrainingConfig(object):
 
-    def __init__(self, 
+    def __init__(self,
+                 learning_rate,
                  batch_size=256, 
-                 optimizer='adam', 
-                 learning_rate=0.001, 
+                 optimizer='adam',
                  lr_decay=0.9,
                  clip_gradients=5.0, 
                  max_epoch=50, 

@@ -137,7 +137,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
         output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None, patience=-1):
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None):
 
     print('Loading data...')
     if input_path == None:
@@ -176,7 +176,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      use_ELMo=use_ELMo,
                      multiprocessing=multiprocessing,
                      early_stop=early_stop,
-                     patience=patience)
+                     patience=patience,
+                     learning_rate=learning_rate)
 
     if incremental:
         if input_model_path != None:
@@ -202,7 +203,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-               use_ELMo=False, incremental=False, input_model_path=None, patience=-1):
+               use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -242,7 +243,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     use_ELMo=use_ELMo,
                     multiprocessing=multiprocessing,
                     early_stop=early_stop,
-                    patience=patience)
+                    patience=patience,
+                    learning_rate=learning_rate)
 
     if incremental:
         if input_model_path != None:
@@ -336,6 +338,7 @@ class Tasks:
     EVAL = 'eval'
     TAG = 'tag'
 
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description = "Trainer for GROBID models using the DeLFT library")
 
@@ -394,6 +397,7 @@ if __name__ == "__main__":
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
     
 
@@ -412,6 +416,7 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     incremental = args.incremental
     patience = args.patience
+    learning_rate = args.learning_rate
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -432,7 +437,8 @@ if __name__ == "__main__":
             use_ELMo=use_ELMo,
             incremental=incremental,
             input_model_path=input_model_path,
-            patience=patience)
+            patience=patience,
+            learning_rate=learning_rate)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -456,7 +462,8 @@ if __name__ == "__main__":
                 batch_size=batch_size,
                 use_ELMo=use_ELMo, 
                 incremental=incremental,
-                input_model_path=input_model_path)
+                input_model_path=input_model_path,
+                learning_rate=learning_rate)
 
     if action == Tasks.TAG:
         someTexts = []
