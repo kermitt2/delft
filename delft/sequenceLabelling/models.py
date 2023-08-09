@@ -276,10 +276,12 @@ class BaseModel(object):
     def init_transformer(self, config: ModelConfig, 
                          load_pretrained_weights: bool, 
                          local_path: str,
-                         preprocessor: Preprocessor):
+                         preprocessor: Preprocessor,
+                         output_hidden_states=False):
         transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
+        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights,
+                                                          output_hidden_states=output_hidden_states)
         self.transformer_config = transformer.transformer_config
         transformer.init_preprocessor(max_sequence_length=config.max_sequence_length)
 
@@ -1193,17 +1195,19 @@ class BERT_BidLSTM(BaseModel):
     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor,
+                                                   output_hidden_states=True)
+        transformer_layers.bert.trainable=False
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        embedding_layers = transformer_layers(input_ids_in,
+        embedding_layer = transformer_layers(input_ids_in,
                                               token_type_ids=token_type_ids,
                                               attention_mask=attention_mask,
-                                              training=False)[-4:]
-        concatenated_embeddings = Concatenate([layer for layer in embedding_layers])
+                                              training=False)
+        last_hidden_states = embedding_layer.hidden_states[-4:]
+        concatenated_embeddings = Concatenate()([layer for layer in last_hidden_states])
 
         bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                       return_sequences=True,

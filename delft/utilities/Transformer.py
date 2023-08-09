@@ -146,13 +146,15 @@ class Transformer(object):
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)
 
-    def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
+    def instantiate_layer(self, load_pretrained_weights=True, output_hidden_states=False) -> Union[object, TFAutoModel, TFBertModel]:
         """
         Instantiate a transformer to be loaded in a Keras layer using the availability method of the pre-trained transformer.
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
+                transformer_model = TFAutoModel.from_pretrained(self.name,
+                                                                from_pt=True,
+                                                                output_hidden_states=output_hidden_states)
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
@@ -162,7 +164,9 @@ class Transformer(object):
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path,
+                                                                from_pt=True,
+                                                                output_hidden_states=output_hidden_states)
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
