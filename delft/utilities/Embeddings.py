@@ -18,6 +18,9 @@ import tensorflow as tf
 from tqdm import tqdm
 from pathlib import Path
 
+from delft.sequenceLabelling.config import ModelConfig
+from delft.sequenceLabelling.preprocess import BERTPreprocessor, Preprocessor
+from delft.utilities.Transformer import Transformer
 from delft.utilities.simple_elmo import ElmoModel, elmo
 
 logging.basicConfig()
@@ -81,7 +84,7 @@ class Embeddings(object):
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
         self.elmo_model_name = elmo_model_name
-        if elmo_model_name == None:
+        if elmo_model_name is None:
             self.elmo_model_name = 'elmo-'+self.lang
         if use_ELMo:
             #tf.compat.v1.disable_eager_execution()
@@ -479,12 +482,12 @@ class Embeddings(object):
                         destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
                         if not os.path.exists(destination_dir):
                             os.makedirs(destination_dir)
-                        try:                      
+                        try:
                             shutil.move(embeddings_path, destination_file)
                             weights_file = destination_file
                         except OSError:
                             print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
-            
+
             if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
                 print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
         print("ELMo weights used:", weights_file)
@@ -761,3 +764,60 @@ def load_resource_registry(path='delft/resources-registry.json'):
     """
     registry_json = open(path).read()
     return json.loads(registry_json)
+
+class ContextualizedEmbeddings(Embeddings):
+
+    def __init__(self, transformer_name: str, registry: dict, max_sequence_length: int):
+
+        super().__init__(transformer_name, use_cache=False, use_ELMo=False, resource_registry=registry, load=False)
+        self.embed_size = 768
+        self.transformer = Transformer(transformer_name, registry)
+        self.model = self.transformer.instantiate_layer(load_pretrained_weights=True, output_hidden_states=True)
+        self.transformer_config = self.transformer.transformer_config
+        self.transformer.init_preprocessor(max_sequence_length=max_sequence_length)
+        self.preprocessor = BERTPreprocessor(self.transformer.tokenizer)
+                                             # self.transformer.tokenizer.empty_features_vector())
+                                             # preprocessor.empty_char_vector())
+
+
+    # def get_sentence_vectors(self, token_list):
+    #     token_vecs = hidden_states[-2][0]
+    #
+    #     # Calculate the average of all 22 token vectors.
+    #     sentence_embedding = torch.mean(token_vecs, dim=0)
+    #
+
+    def get_sentence_vector(self, text_tokens):
+        (target_ids, target_type_ids, target_attention_mask, target_chars,
+         target_features, target_labels, input_tokens) = self.preprocessor.tokenize_and_align_features_and_labels(text_tokens)
+
+        self.model.eval()
+        # segments_ids = [1] * len(target_ids)
+        outputs = self.model(target_ids, target_type_ids)
+        hidden_states = outputs[2]
+
+        # tokens, batches, vector size
+        token_embeddings = tf.stack(hidden_states, axis=0)
+
+        # layers, tokens, batches, vector size
+        token_embeddings = tf.squeeze(token_embeddings, axis=1)
+
+        # layers, tokens, vector size
+        token_embeddings = tf.transpose(token_embeddings, perm=[1, 0, 2])
+
+        # layers, tokens, vector size
+        token_vecs_cat = []
+
+        for token in token_embeddings:
+            cat_vec = tf.concat((token[-1], token[-2], token[-3], token[-4]), dim=0)
+            token_vecs_cat.append(cat_vec)
+
+            # Sum
+            # sum_vec = torch.sum(token[-4:], dim=0)
+            # token_vecs_sum.append(sum_vec)
+
+        print('Shape is: %d x %d' % (len(token_vecs_cat), len(token_vecs_cat[0])))
+
+        return token_vecs_cat
+
+

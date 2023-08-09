@@ -1187,10 +1187,40 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
         return DataGeneratorTransformers
 
 class BERT_BidLSTM(BaseModel):
-    """
-    """
 
     name = 'BERT_BidLSTM'
+
+    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
+        super().__init__(config, ntags, load_pretrained_weights, local_path)
+
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+
+        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
+        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
+        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
+
+        embedding_layers = transformer_layers(input_ids_in,
+                                              token_type_ids=token_type_ids,
+                                              attention_mask=attention_mask,
+                                              training=False)[-4:]
+        concatenated_embeddings = Concatenate([layer for layer in embedding_layers])
+
+        bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
+                                      return_sequences=True,
+                                      recurrent_dropout=config.recurrent_dropout))(concatenated_embeddings)
+        bid_lstm = Dropout(config.dropout)(bid_lstm)
+
+        label_logits = Dense(ntags, activation='softmax')(bid_lstm)
+
+        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
+        self.config = config
+
+    def get_generator(self):
+        return DataGeneratorTransformers
+
+
+class BidLSTM_BERT(BaseModel):
+    name = 'BidLSTM_BERT'
 
     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
@@ -1220,10 +1250,6 @@ class BERT_BidLSTM(BaseModel):
 
 
 class BERT_BidLSTM_CRF(BaseModel):
-    """
-
-    """
-
     name = 'BERT_BidLSTM_CRF'
 
     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
@@ -1235,15 +1261,13 @@ class BERT_BidLSTM_CRF(BaseModel):
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        embedding_layer = Dropout(0.1)(embedding_layer)
-
-        bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units, #embedding_layer.shape[-1],
+        concatenated_embeddings = Concatenate()([layer for layer in transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask,
+                                             training=False)[-4:]])
+        bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                       return_sequences=True,
-                                      recurrent_dropout=config.recurrent_dropout))(embedding_layer)
+                                      recurrent_dropout=config.recurrent_dropout))(concatenated_embeddings)
         bid_lstm = Dropout(config.dropout)(bid_lstm)
-        bid_lstm = Dense(embedding_layer.shape[-1], activation='tanh')(bid_lstm)
+        bid_lstm = Dense(concatenated_embeddings.shape[-1], activation='tanh')(bid_lstm)
 
         base_model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[bid_lstm])
 
