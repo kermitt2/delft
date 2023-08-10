@@ -1197,15 +1197,15 @@ class BERT_BidLSTM(BaseModel):
 
         transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor,
                                                    output_hidden_states=True)
-        transformer_layers.bert.trainable=False
+        transformer_layers.bert.trainable = False
+
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
         embedding_layer = transformer_layers(input_ids_in,
                                               token_type_ids=token_type_ids,
-                                              attention_mask=attention_mask,
-                                              training=False)
+                                              attention_mask=attention_mask)
         last_hidden_states = embedding_layer.hidden_states[-4:]
         concatenated_embeddings = Concatenate()([layer for layer in last_hidden_states])
 
@@ -1259,19 +1259,26 @@ class BERT_BidLSTM_CRF(BaseModel):
     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor,
+                                               output_hidden_states=True)
+        transformer_layers.bert.trainable = False
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
-        concatenated_embeddings = Concatenate()([layer for layer in transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask,
-                                             training=False)[-4:]])
+        embedding_layer = transformer_layers(input_ids_in,
+                                             token_type_ids=token_type_ids,
+                                             attention_mask=attention_mask)
+
+        last_hidden_states = embedding_layer.hidden_states[-4:]
+        concatenated_embeddings = Concatenate()([layer for layer in last_hidden_states])
+
         bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                       return_sequences=True,
                                       recurrent_dropout=config.recurrent_dropout))(concatenated_embeddings)
         bid_lstm = Dropout(config.dropout)(bid_lstm)
-        bid_lstm = Dense(concatenated_embeddings.shape[-1], activation='tanh')(bid_lstm)
+        bid_lstm = Dense(concatenated_embeddings.shape[-1], activation='softmax')(bid_lstm)
 
         base_model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[bid_lstm])
 
