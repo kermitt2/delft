@@ -4,7 +4,7 @@
     "embeddings": [
         {
             "name": "glove-840B",
-            "path": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/glove/glove.840B.300d.txt",
+            "path": "/media/lopez/T5/embeddings/glove.840B.300d.txt",
             "type": "glove",
             "format": "vec", 
             "lang": "en",
@@ -77,18 +77,10 @@
     ],
     "transformers": [
         {
-            "name": "allenai/scibert_scivocab_cased/dir",
-            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/scibert/scibert_scivocab_cased_hf",
-            "lang": "en"
-        },
-        {
-            "name": "portiz/matbert",
-            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matbert",
-            "lang": "en"
-        },
-        {
-            "name": "m3rg-iitd/matscibert/dir",
-            "model_dir": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/matscibert",
+            "name": "dmis-lab/biobert-base-cased-v1.2",
+            "path-config": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/bert_config.json",
+            "path-weights": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/model.ckpt-1000000",
+            "path-vocab": "/media/lopez/T5/embeddings/biobert_v1.2_pubmed/vocab.txt",
             "lang": "en"
         }
     ],
@@ -97,8 +89,6 @@
             "name": "elmo-en",
             "path-config": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
             "path_weights": "/media/lopez/T51/embeddings/elmo_2x4096_512_2048cnn_2xhighway_5.5B/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5",
-            "path-config_": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/elmo/elmo_2x4096_512_2048cnn_2xhighway_5.5B_options.json",
-            "path_weights_": "/Users/lfoppiano/development/projects/embeddings/pre-trained-embeddings/elmo/elmo_2x4096_512_2048cnn_2xhighway_5.5B_weights.hdf5",
             "path-vocab": "data/models/ELMo/en/vocab.txt",
             "path-cache": "data/models/ELMo/en/",
             "cache-training": true,
