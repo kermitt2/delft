@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+from delft.sequenceLabelling.wrapper import is_transformer_architecture
 from delft.utilities.Utilities import longest_row
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
@@ -40,7 +41,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     multiprocessing = True
     early_stop = True
 
-    if architecture and "BERT" in architecture and "BidLSTM" not in architecture:
+    if is_transformer_architecture(architecture):
         # architectures with some transformer layer/embeddings inside
 
         # non-default settings per model
