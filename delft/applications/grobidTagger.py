@@ -13,6 +13,20 @@ from delft.utilities.Utilities import longest_row
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
 
+# config = {
+#     "architectures": {
+#         "BERT.*":
+#             {
+#                 "citation": {
+#                     "max_sequence_length": 200,
+#                     "batch_size": 20
+#                 }
+#             },
+#         "BERT_BidLSTM.*": {
+#
+#         }
+# }
+
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
               embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1):
     """
@@ -26,7 +40,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     multiprocessing = True
     early_stop = True
 
-    if architecture and "BERT" in architecture:
+    if architecture and "BERT" in architecture and "BidLSTM" not in architecture:
         # architectures with some transformer layer/embeddings inside
 
         # non-default settings per model
