@@ -98,7 +98,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
         return BidLSTM_CRF_CASING(config, ntags)
 
     elif config.architecture == BERT.name:
-        preprocessor.return_bert_embeddings = True
         config.labels = preprocessor.vocab_tag
         return BERT(config, 
                     ntags, 
@@ -107,7 +106,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                     preprocessor=preprocessor)
 
     elif config.architecture == BERT_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
         preprocessor.return_features = True
         config.labels = preprocessor.vocab_tag
         return BERT_FEATURES(config, 
@@ -117,7 +115,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                     preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF.name:
-        preprocessor.return_bert_embeddings = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
         return BERT_CRF(config, 
@@ -127,7 +124,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                         preprocessor=preprocessor)
 
     elif config.architecture == BERT_ChainCRF.name:
-        preprocessor.return_bert_embeddings = True
         config.use_crf = True
         config.use_chain_crf = True
         config.labels = preprocessor.vocab_tag
@@ -138,7 +134,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                         preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
         preprocessor.return_features = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
@@ -149,7 +144,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                 preprocessor=preprocessor)
 
     elif config.architecture == BERT_ChainCRF_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
         preprocessor.return_features = True
         config.use_crf = True
         config.use_chain_crf = True
@@ -161,7 +155,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                 preprocessor=preprocessor)    
 
     elif config.architecture == BERT_CRF_CHAR.name:
-        preprocessor.return_bert_embeddings = True
         preprocessor.return_chars = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
@@ -172,7 +165,6 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                             preprocessor=preprocessor)
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
         preprocessor.return_features = True
         preprocessor.return_chars = True
         config.use_crf = True
@@ -183,35 +175,30 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                                     local_path=local_path,
                                     preprocessor=preprocessor)
     elif config.architecture == BERT_BidLSTM.name:
-        preprocessor.return_bert_embeddings = True
+        preprocessor.return_word_embeddings = False
+        preprocessor.return_chars = True
         config.labels = preprocessor.vocab_tag
         return BERT_BidLSTM(config,
                     ntags,
                     load_pretrained_weights=load_pretrained_weights,
                     local_path=local_path,
                     preprocessor=preprocessor)
-    # elif config.architecture == BidLSTM_BERT.name:
-    #     preprocessor.return_bert_embeddings = True
-    #     config.labels = preprocessor.vocab_tag
-    #     return BidLSTM_BERT(config,
-    #                         ntags,
-    #                         load_pretrained_weights=load_pretrained_weights,
-    #                         local_path=local_path,
-    #                         preprocessor=preprocessor)
     elif config.architecture == BERT_BidLSTM_CRF.name:
-        preprocessor.return_bert_embeddings = True
-        config.labels = preprocessor.vocab_tag
+        preprocessor.return_word_embeddings = False
+        preprocessor.return_chars = True
         config.use_crf = True
+        config.labels = preprocessor.vocab_tag
         return BERT_BidLSTM_CRF(config,
                     ntags,
                     load_pretrained_weights=load_pretrained_weights,
                     local_path=local_path,
                     preprocessor=preprocessor)
     elif config.architecture == BERT_BidLSTM_ChainCRF.name:
-        preprocessor.return_bert_embeddings = True
-        config.labels = preprocessor.vocab_tag
+        preprocessor.return_word_embeddings = False
+        preprocessor.return_chars = True
         config.use_crf = True
         config.use_chain_crf = True
+        config.labels = preprocessor.vocab_tag
         return BERT_BidLSTM_ChainCRF(config,
                                 ntags,
                                 load_pretrained_weights=load_pretrained_weights,
@@ -387,7 +374,6 @@ class BidLSTM_CRF(BaseModel):
 
         self.model = CRFModelWrapperDefault(base_model, ntags)
         self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
-        #self.model.summary()
         self.config = config
 
 
@@ -1203,7 +1189,10 @@ class BERT_BidLSTM(BaseModel):
     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor,
+        transformer_layers = self.init_transformer(config,
+                                                   load_pretrained_weights,
+                                                   local_path,
+                                                   preprocessor,
                                                    output_hidden_states=True)
         transformer_layers.bert.trainable = False
 
@@ -1211,49 +1200,43 @@ class BERT_BidLSTM(BaseModel):
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length),
+                           dtype='int32',
+                           name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                                    output_dim=config.char_embedding_size,
+                                                    mask_zero=True,
+                                                    name='char_embeddings'
+                                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(
+            LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
         embedding_layer = transformer_layers(input_ids_in,
                                               token_type_ids=token_type_ids,
                                               attention_mask=attention_mask)
-        last_hidden_states = embedding_layer.hidden_states[-4:]
-        concatenated_embeddings = Concatenate()([layer for layer in last_hidden_states])
+        last_hidden_states = [layer for layer in embedding_layer.hidden_states[-4:]]
+        last_hidden_states.append(chars)
+        x = Concatenate()(last_hidden_states)
+        x = Dropout(config.dropout)(x)
 
-        bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                       return_sequences=True,
-                                      recurrent_dropout=config.recurrent_dropout))(concatenated_embeddings)
-        bid_lstm = Dropout(config.dropout)(bid_lstm)
+                                      recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
 
-        label_logits = Dense(ntags, activation='softmax')(bid_lstm)
+        x = Dense(ntags, activation='softmax')(x)
 
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
+        self.model = Model(
+            inputs=[input_ids_in, char_input, token_type_ids, attention_mask],
+            outputs=[x]
+        )
         self.config = config
 
     def get_generator(self):
         return DataGeneratorTransformers
-
-
-# class BidLSTM_BERT(BaseModel):
-#     name = 'BidLSTM_BERT'
-#
-#     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
-#         super().__init__(config, ntags, load_pretrained_weights, local_path, preprocessor=preprocessor)
-#
-#         # build input, directly feed with word embedding by the data generator
-#         word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
-#         length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
-#
-#         x = Dropout(config.dropout)(word_input)
-#
-#         x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-#                                return_sequences=True,
-#                                recurrent_dropout=config.recurrent_dropout))(x)
-#         x = Dropout(config.dropout)(x)
-#         x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-#
-#         self.model = Model(inputs=[word_input, length_input], outputs=[x])
-#         self.config = config
-#
-#     def get_generator(self):
-#         return DataGenerator
 
 
 class BERT_BidLSTM_CRF(BaseModel):
@@ -1262,32 +1245,51 @@ class BERT_BidLSTM_CRF(BaseModel):
     def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor,
-                                               output_hidden_states=True)
+        transformer_layers = self.init_transformer(config,
+                                                   load_pretrained_weights,
+                                                   local_path,
+                                                   preprocessor,
+                                                   output_hidden_states=True)
         transformer_layers.bert.trainable = False
 
         input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
+
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                                    output_dim=config.char_embedding_size,
+                                                    mask_zero=True,
+                                                    name='char_embeddings'
+                                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
         embedding_layer = transformer_layers(input_ids_in,
                                              token_type_ids=token_type_ids,
                                              attention_mask=attention_mask)
 
-        last_hidden_states = embedding_layer.hidden_states[-4:]
-        concatenated_embeddings = Concatenate()([layer for layer in last_hidden_states])
+        last_hidden_states = [layer for layer in embedding_layer.hidden_states[-4:]]
+        last_hidden_states.append(chars)
+        x = Concatenate()(last_hidden_states)
+        x = Dropout(config.dropout)(x)
 
-        bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                       return_sequences=True,
-                                      recurrent_dropout=config.recurrent_dropout))(concatenated_embeddings)
-        bid_lstm = Dropout(config.dropout)(bid_lstm)
-        bid_lstm = Dense(concatenated_embeddings.shape[-1], activation='softmax')(bid_lstm)
-        bid_lstm = Dropout(config.dropout)(bid_lstm)
+                                      recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='softmax')(x)
+        x = Dropout(config.dropout)(x)
 
-        base_model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[bid_lstm])
+        base_model = Model(
+            inputs=[input_ids_in, char_input, token_type_ids, attention_mask],
+            outputs=[x])
 
         self.model = CRFModelWrapperForBERT(base_model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
+        self.model.build(
+            input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
         self.config = config
 
 
@@ -1310,24 +1312,38 @@ class BERT_BidLSTM_ChainCRF(BaseModel):
         token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
         attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
 
+        # build character based embedding
+        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+                                                    output_dim=config.char_embedding_size,
+                                                    mask_zero=True,
+                                                    name='char_embeddings'
+                                                    ))(char_input)
+
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+
         embedding_layer = transformer_layers(input_ids_in,
                                              token_type_ids=token_type_ids,
                                              attention_mask=attention_mask)
 
-        last_hidden_states = embedding_layer.hidden_states[-4:]
-        concatenated_embeddings = Concatenate()([layer for layer in last_hidden_states])
+        last_hidden_states = [layer for layer in embedding_layer.hidden_states[-4:]]
+        last_hidden_states.append(chars)
+        x = Concatenate()(last_hidden_states)
+        x = Dropout(config.dropout)(x)
 
-        bid_lstm = Bidirectional(LSTM(units=config.num_word_lstm_units,
+        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
                                       return_sequences=True,
-                                      recurrent_dropout=config.recurrent_dropout))(concatenated_embeddings)
-        bid_lstm = Dropout(config.dropout)(bid_lstm)
-        bid_lstm = Dense(concatenated_embeddings.shape[-1], activation='softmax')(bid_lstm)
-        bid_lstm = Dense(ntags)(bid_lstm)
+                                      recurrent_dropout=config.recurrent_dropout))(x)
+        x = Dropout(config.dropout)(x)
+        x = Dense(config.num_word_lstm_units, activation='softmax')(x)
+        x = Dense(ntags)(x)
 
         self.crf = ChainCRF()
-        pred = self.crf(bid_lstm)
+        pred = self.crf(x)
 
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
+        self.model = Model(
+            inputs=[input_ids_in, char_input, token_type_ids, attention_mask],
+            outputs=[pred])
         self.config = config
 
     def get_generator(self):
