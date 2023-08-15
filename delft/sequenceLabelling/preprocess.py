@@ -590,7 +590,6 @@ class Preprocessor(BaseEstimator, TransformerMixin):
                  return_casing=False,
                  return_features=False,
                  return_chars=False,
-                 return_bert_embeddings=False,
                  max_char_length=30,
                  feature_preprocessor: FeaturesPreprocessor = None,
                  ):
@@ -601,7 +600,6 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         self.return_casing = return_casing
         self.return_features = return_features
         self.return_chars = return_chars
-        self.return_bert_embeddings = return_bert_embeddings
         self.vocab_char = None
         self.vocab_tag = None
         self.vocab_case = [k for k, v in case_index.items()]
