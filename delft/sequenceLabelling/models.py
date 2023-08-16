@@ -1222,7 +1222,7 @@ class BERT_BidLSTM(BaseModel):
         x = Concatenate()(last_hidden_states)
         x = Dropout(config.dropout)(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
+        x = Bidirectional(LSTM(units=768,
                                       return_sequences=True,
                                       recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
