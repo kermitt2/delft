@@ -866,7 +866,7 @@ class BERT_FEATURES(BaseModel):
         x = Dropout(config.dropout)(x)
         label_logits = Dense(ntags, activation='softmax')(x)
 
-        self.model  = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[label_logits])
+        self.model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[label_logits])
         self.config = config
 
     def get_generator(self):
@@ -1320,14 +1320,15 @@ class BERT_BidLSTM_ChainCRF(BaseModel):
                                                     name='char_embeddings'
                                                     ))(char_input)
 
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)),
+                                name="chars_rnn")(char_embeddings)
 
         embedding_layer = transformer_layers(input_ids_in,
                                              token_type_ids=token_type_ids,
                                              attention_mask=attention_mask)
 
         last_hidden_states = [layer for layer in embedding_layer.hidden_states[-4:]]
-        last_hidden_states.append(chars)
+        last_hidden_states.append(chars) # some issue arise with this line
         x = Concatenate()(last_hidden_states)
         x = Dropout(config.dropout)(x)
 
@@ -1335,7 +1336,7 @@ class BERT_BidLSTM_ChainCRF(BaseModel):
                                       return_sequences=True,
                                       recurrent_dropout=config.recurrent_dropout))(x)
         x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='softmax')(x)
+        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
         x = Dense(ntags)(x)
 
         self.crf = ChainCRF()
