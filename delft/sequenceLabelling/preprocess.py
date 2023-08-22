@@ -357,7 +357,7 @@ class BERTPreprocessor(object):
                 and offset[0] == 0  
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
                 and not empty_token):
-                # another trick to support sentence piece tokenizer: sometimes a out of vocabulary
+                # another trick to support sentence piece tokenizer: sometimes an out of vocabulary
                 # character is tokenized as several known bytes, leading to 2 tokens for instance
                 # with the second one staring from offset 0 too. In order to align correctly the  
                 # original string, we need to skip this extra spurious token by looking at it decoded
