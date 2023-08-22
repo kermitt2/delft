@@ -141,7 +141,18 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None):
+    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
+        # TBD if valid is None, segment train to get one if early_stop is True
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            with strategy.scope():
+                self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+        else:
+            self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+
+    def train_(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None):
         # TBD if valid is None, segment train to get one if early_stop is True
 
         # we concatenate all the training+validation data to create the model vocabulary

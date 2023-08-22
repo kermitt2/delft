@@ -188,15 +188,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
             model.load()
 
     start_time = time.time()
-    if multi_gpu:
-        import tensorflow as tf
-        strategy = tf.distribute.MirroredStrategy()
-        print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
-
-        with strategy.scope():
-            model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental)
-    else:
-        model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental)
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental, multi_gpu=multi_gpu)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
