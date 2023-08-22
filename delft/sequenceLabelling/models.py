@@ -185,7 +185,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
                     preprocessor=preprocessor)
     elif config.architecture == BERT_BidLSTM_CRF.name:
         preprocessor.return_word_embeddings = False
-        preprocessor.return_chars = True
+        # preprocessor.return_chars = True
         config.use_crf = True
         config.labels = preprocessor.vocab_tag
         return BERT_BidLSTM_CRF(config,
@@ -1258,21 +1258,21 @@ class BERT_BidLSTM_CRF(BaseModel):
 
 
         # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                                    output_dim=config.char_embedding_size,
-                                                    mask_zero=True,
-                                                    name='char_embeddings'
-                                                    ))(char_input)
+        # char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
+        # char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
+        #                                             output_dim=config.char_embedding_size,
+        #                                             mask_zero=True,
+        #                                             name='char_embeddings'
+        #                                             ))(char_input)
 
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+        # chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
 
         embedding_layer = transformer_layers(input_ids_in,
                                              token_type_ids=token_type_ids,
                                              attention_mask=attention_mask)
 
         last_hidden_states = [layer for layer in embedding_layer.hidden_states[-4:]]
-        last_hidden_states.append(chars)
+        # last_hidden_states.append(chars)
         x = Concatenate()(last_hidden_states)
         x = Dropout(config.dropout)(x)
 
@@ -1284,12 +1284,14 @@ class BERT_BidLSTM_CRF(BaseModel):
         x = Dropout(config.dropout)(x)
 
         base_model = Model(
-            inputs=[input_ids_in, char_input, token_type_ids, attention_mask],
+            inputs=[input_ids_in, token_type_ids, attention_mask],
+            # inputs=[input_ids_in, char_input, token_type_ids, attention_mask],
             outputs=[x])
 
         self.model = CRFModelWrapperForBERT(base_model, ntags)
         self.model.build(
-            input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
+            input_shape=[(None, None, ), (None, None, ), (None, None, )])
+            # input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
         self.config = config
 
 
