@@ -204,7 +204,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-               use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None):
+               use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, multi_gpu=False):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -258,9 +258,9 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental, multi_gpu=multi_gpu)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental, multi_gpu=multi_gpu)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
