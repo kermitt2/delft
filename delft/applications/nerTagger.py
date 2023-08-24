@@ -8,69 +8,81 @@ from sklearn.model_selection import train_test_split
 import argparse
 import time
 
-def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length=-1, batch_size=-1,
-              patience=-1):
+def configure(architecture, dataset_type, lang, embeddings_name,
+              use_ELMo, max_sequence_length=-1, batch_size=-1,
+              patience=-1, max_epoch=-1):
 
-    max_epoch = 60
-    early_stop = True
-    multiprocessing = True
+    o_max_epoch = 60
+    o_early_stop = True
+    o_multiprocessing = True
+    o_max_sequence_length = 300
+    o_patience = 5
+    o_batch_size = 32
 
     # general RNN word embeddings input
     if embeddings_name is None:
-        embeddings_name = 'glove-840B'
+        o_embeddings_name = 'glove-840B'
         if lang == 'en':
             if dataset_type == 'conll2012':
-                embeddings_name = 'fasttext-crawl'
+                o_embeddings_name = 'fasttext-crawl'
         elif lang == 'fr':
-            embeddings_name = 'wiki.fr'
+            o_embeddings_name = 'wiki.fr'
+    else:
+        o_embeddings_name = embeddings_name
 
     if lang == 'fr':
-        multiprocessing = False
+        o_multiprocessing = False
 
     if architecture == "BidLSTM_CNN_CRF":
-        word_lstm_units = 200
-        max_epoch = 30
-        recurrent_dropout = 0.5
+        o_word_lstm_units = 200
+        o_max_epoch = 30
+        o_recurrent_dropout = 0.5
     else:
-        word_lstm_units = 100
-        max_epoch = 50
-        recurrent_dropout = 0.5
+        o_word_lstm_units = 100
+        o_max_epoch = 50
+        o_recurrent_dropout = 0.5
 
     if use_ELMo:
         # following should be done for predicting if max sequence length permits, it also boosts the runtime with ELMo embeddings signicantly
         # but requires more GPU memory
-        batch_size = 128
-        max_sequence_length = 150
+        o_batch_size = 128
+        o_max_sequence_length = 150
 
     # default bert model parameters
     if architecture.find("BERT") != -1:
-        batch_size = 32
-        early_stop = True
-        max_sequence_length = 150
-        max_epoch = 50
-        embeddings_name = None
+        o_batch_size = 32
+        o_early_stop = True
+        o_max_sequence_length = 150
+        o_max_epoch = 50
+        o_embeddings_name = None
 
     if dataset_type == 'conll2012':
-        multiprocessing = False
+        o_multiprocessing = False
 
-    if patience == -1:
-        patience = 5
+    if patience > 0:
+        o_patience = patience
 
-    if batch_size == -1:
-        batch_size = 32
+    if batch_size > 0:
+        o_batch_size = batch_size
 
-    if max_sequence_length == -1:
-        max_sequence_length = 300
+    if max_sequence_length > 0:
+        o_max_sequence_length = max_sequence_length
 
-    return batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing
+    if max_epoch > 0:
+        o_max_epoch = max_epoch
+        o_early_stop = False
+
+
+    return o_batch_size, o_max_sequence_length, o_patience, o_recurrent_dropout, o_early_stop, o_max_epoch, o_embeddings_name, o_word_lstm_units, o_multiprocessing
 
 
 # train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
-          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1, learning_rate=None):
+          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1,
+          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
-        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience)
+        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience, max_epoch)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -195,11 +207,12 @@ def train_eval(embeddings_name=None,
                 patience=-1,
                 batch_size=-1,
                 max_sequence_length=-1,
-                learning_rate=None):
+                learning_rate=None,
+                max_epoch=-1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
-                  max_sequence_length=max_sequence_length, batch_size=batch_size, patience=patience)
+                  max_sequence_length=max_sequence_length, batch_size=batch_size, patience=patience, max_epoch=max_epoch)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
@@ -613,6 +626,8 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
 
     args = parser.parse_args()
 
@@ -634,6 +649,7 @@ if __name__ == "__main__":
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     learning_rate = args.learning_rate
+    max_epoch = args.max_epoch
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
@@ -653,7 +669,8 @@ if __name__ == "__main__":
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             patience=patience,
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
+            max_epoch=max_epoch
         )
 
     if action == 'train_eval':
@@ -672,7 +689,8 @@ if __name__ == "__main__":
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             patience=patience,
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
+            max_epoch=max_epoch
             )
 
     if action == 'eval':

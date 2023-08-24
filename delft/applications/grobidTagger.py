@@ -26,6 +26,10 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     multiprocessing = True
     early_stop = True
 
+    # If max_epoch is set we disable the early_stop
+    if max_epoch > 0:
+        early_stop = False
+
     if architecture and "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
 
@@ -396,6 +400,8 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
 
     
 
@@ -415,6 +421,7 @@ if __name__ == "__main__":
     incremental = args.incremental
     patience = args.patience
     learning_rate = args.learning_rate
+    max_epoch = args.max_epoch
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -436,7 +443,8 @@ if __name__ == "__main__":
             incremental=incremental,
             input_model_path=input_model_path,
             patience=patience,
-            learning_rate=learning_rate)
+            learning_rate=learning_rate,
+            max_epoch=max_epoch)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -461,7 +469,8 @@ if __name__ == "__main__":
                 use_ELMo=use_ELMo, 
                 incremental=incremental,
                 input_model_path=input_model_path,
-                learning_rate=learning_rate)
+                learning_rate=learning_rate,
+                max_epoch=max_epoch)
 
     if action == Tasks.TAG:
         someTexts = []

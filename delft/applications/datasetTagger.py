@@ -10,7 +10,8 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_json_offsets
 from delft.utilities.misc import parse_number_ranges
 
-def configure(architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None,
+def configure(architecture, output_path=None, max_sequence_length=-1,
+              batch_size=-1, embeddings_name=None,
               max_epoch=-1, use_ELMo=False, patience=-1):
     """
     Set up the default parameters based on the model type.
@@ -56,6 +57,8 @@ def configure(architecture, output_path=None, max_sequence_length=-1, batch_size
 
     if max_epoch == -1:
         max_epoch = 60
+    else:
+        early_stop = False
 
     if patience == -1:
         patience = 5
@@ -285,6 +288,8 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
 
     args = parser.parse_args()
 
@@ -299,6 +304,7 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     patience = args.patience
     learning_rate = args.learning_rate
+    max_epoch = args.max_epoch
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -314,7 +320,8 @@ if __name__ == "__main__":
             batch_size=batch_size,
             use_ELMo=use_ELMo,
             patience=patience,
-            learning_rate=learning_rate)
+            learning_rate=learning_rate,
+            max_epoch=max_epoch)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -337,7 +344,8 @@ if __name__ == "__main__":
                 batch_size=batch_size,
                 use_ELMo=use_ELMo,
                 patience=patience,
-                learning_rate=learning_rate)
+                learning_rate=learning_rate,
+                max_epoch=max_epoch)
 
     if action == "tag":
         someTexts = []

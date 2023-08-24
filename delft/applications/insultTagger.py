@@ -5,24 +5,35 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
-def configure(architecture, embeddings_name):
-    batch_size = 20
+def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1):
+
     maxlen = 300
     patience = 5
     early_stop = True
-    max_epoch = 50
+    if max_epoch == -1:
+        max_epoch = 50
+    else:
+        early_stop = False
+
+    if batch_size == -1:
+        batch_size = 20
 
     # default bert model parameters
     if architecture.find("BERT") != -1:
-        batch_size = 10
+        if batch_size == -1:
+            batch_size = 10
         early_stop = False
-        max_epoch = 3
+        if max_epoch == -1:
+            max_epoch = 3
+        else:
+            early_stop = False
+
         embeddings_name = None
 
     return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None):
-    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name)
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None, batch_size=-1, max_epoch=-1):
+    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name, batch_size, max_epoch)
 
     root = 'data/sequenceLabelling/toxic/'
 
@@ -115,7 +126,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
-    
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+
     args = parser.parse_args()
 
     if args.action not in ('train', 'tag'):
@@ -126,13 +140,21 @@ if __name__ == "__main__":
     transformer = args.transformer
     use_ELMo = args.use_ELMo
     learning_rate = args.learning_rate
+    batch_size = args.batch_size
+    max_epoch = args.max_epoch
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo, learning_rate=learning_rate)
+        train(embeddings_name=embeddings_name,
+              architecture=architecture,
+              transformer=transformer,
+              use_ELMo=use_ELMo,
+              learning_rate=learning_rate,
+              batch_size=batch_size,
+              max_epoch=max_epoch)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 
