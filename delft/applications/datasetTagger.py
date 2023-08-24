@@ -68,7 +68,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1,
           batch_size=-1, max_epoch=-1, use_ELMo=False, patience=-1,
-          learning_rate=None):
+          learning_rate=None, multi_gpu=False):
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -116,7 +116,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                     learning_rate=learning_rate)
 
     start_time = time.time()
-    model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
+    model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     print("training runtime: %s seconds " % runtime)
@@ -132,7 +132,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
 def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False,
-               patience=-1, learning_rate=None):
+               patience=-1, learning_rate=None, multi_gpu=False):
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -285,6 +285,9 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--multi-gpu", default=False,
+                        help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
+                        action="store_true")
 
     args = parser.parse_args()
 
@@ -299,6 +302,7 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     patience = args.patience
     learning_rate = args.learning_rate
+    multi_gpu = args.multi_gpu
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -306,15 +310,16 @@ if __name__ == "__main__":
 
     if action == "train":
             train(embeddings_name=embeddings_name, 
-            architecture=architecture, 
-            transformer=transformer,
-            input_path=input_path, 
-            output_path=output,
-            max_sequence_length=max_sequence_length,
-            batch_size=batch_size,
-            use_ELMo=use_ELMo,
-            patience=patience,
-            learning_rate=learning_rate)
+                architecture=architecture,
+                transformer=transformer,
+                input_path=input_path,
+                output_path=output,
+                max_sequence_length=max_sequence_length,
+                batch_size=batch_size,
+                use_ELMo=use_ELMo,
+                patience=patience,
+                learning_rate=learning_rate,
+                multi_gpu=multi_gpu)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -337,7 +342,8 @@ if __name__ == "__main__":
                 batch_size=batch_size,
                 use_ELMo=use_ELMo,
                 patience=patience,
-                learning_rate=learning_rate)
+                learning_rate=learning_rate,
+                multi_gpu=multi_gpu)
 
     if action == "tag":
         someTexts = []

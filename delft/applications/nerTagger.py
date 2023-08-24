@@ -195,7 +195,8 @@ def train_eval(embeddings_name=None,
                 patience=-1,
                 batch_size=-1,
                 max_sequence_length=-1,
-                learning_rate=None):
+                learning_rate=None,
+                multi_gpu = False):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
@@ -453,9 +454,9 @@ def train_eval(embeddings_name=None,
 
     start_time = time.time()
     if fold_count == 1:
-        model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
+        model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     else:
-        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
+        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -613,6 +614,9 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--multi-gpu", default=False,
+                        help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
+                        action="store_true")
 
     args = parser.parse_args()
 
@@ -634,6 +638,7 @@ if __name__ == "__main__":
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     learning_rate = args.learning_rate
+    multi_gpu = args.multi_gpu
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
@@ -653,7 +658,8 @@ if __name__ == "__main__":
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             patience=patience,
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
+            multi_gpu=multi_gpu
         )
 
     if action == 'train_eval':
@@ -672,7 +678,8 @@ if __name__ == "__main__":
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             patience=patience,
-            learning_rate=learning_rate
+            learning_rate=learning_rate,
+            multi_gpu=multi_gpu
             )
 
     if action == 'eval':

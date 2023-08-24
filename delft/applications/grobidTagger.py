@@ -397,9 +397,8 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
-    parser.add_argument("--multi-gpu", default=False, help="Enable the support for distributed "
-                                                                      "computing (the batch size needs to be set "
-                                                                      "accordingly using --batch-size)",
+    parser.add_argument("--multi-gpu", default=False,
+                        help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
     
@@ -431,19 +430,19 @@ if __name__ == "__main__":
 
     if action == Tasks.TRAIN:
             train(model, 
-            embeddings_name=embeddings_name, 
-            architecture=architecture, 
-            transformer=transformer,
-            input_path=input_path, 
-            output_path=output,
-            max_sequence_length=max_sequence_length,
-            batch_size=batch_size,
-            use_ELMo=use_ELMo,
-            incremental=incremental,
-            input_model_path=input_model_path,
-            patience=patience,
-            learning_rate=learning_rate,
-            multi_gpu=multi_gpu)
+                embeddings_name=embeddings_name,
+                architecture=architecture,
+                transformer=transformer,
+                input_path=input_path,
+                output_path=output,
+                max_sequence_length=max_sequence_length,
+                batch_size=batch_size,
+                use_ELMo=use_ELMo,
+                incremental=incremental,
+                input_model_path=input_model_path,
+                patience=patience,
+                learning_rate=learning_rate,
+                multi_gpu=multi_gpu)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -468,7 +467,8 @@ if __name__ == "__main__":
                 use_ELMo=use_ELMo, 
                 incremental=incremental,
                 input_model_path=input_model_path,
-                learning_rate=learning_rate)
+                learning_rate=learning_rate,
+                multi_gpu=multi_gpu)
 
     if action == Tasks.TAG:
         someTexts = []

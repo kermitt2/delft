@@ -21,7 +21,8 @@ def configure(architecture, embeddings_name):
 
     return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None):
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None,
+          multi_gpu=False):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name)
 
     root = 'data/sequenceLabelling/toxic/'
@@ -42,7 +43,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, us
     model = Sequence(model_name, max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
         embeddings_name=embeddings_name, architecture=architecture, patience=patience, early_stop=early_stop,
         transformer_name=transformer, use_ELMo=use_ELMo, learning_rate=learning_rate)
-    model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
+    model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     print('training done')
 
     # saving the model (must be called after eval for multiple fold training)
@@ -115,7 +116,10 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
-    
+    parser.add_argument("--multi-gpu", default=False,
+                        help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
+                        action="store_true")
+
     args = parser.parse_args()
 
     if args.action not in ('train', 'tag'):
@@ -126,13 +130,18 @@ if __name__ == "__main__":
     transformer = args.transformer
     use_ELMo = args.use_ELMo
     learning_rate = args.learning_rate
+    multi_gpu = args.multi_gpu
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
     if args.action == 'train':
-        train(embeddings_name=embeddings_name, architecture=architecture, transformer=transformer, use_ELMo=use_ELMo, learning_rate=learning_rate)
+        train(embeddings_name=embeddings_name,
+              architecture=architecture,
+              transformer=transformer, use_ELMo=use_ELMo,
+              learning_rate=learning_rate,
+              multi_gpu=multi_gpu)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 
