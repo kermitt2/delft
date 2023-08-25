@@ -166,7 +166,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience)
+                                                                            patience, early_stop)
+
     model = Sequence(model_name,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
