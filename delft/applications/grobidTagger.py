@@ -14,7 +14,7 @@ MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citatio
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
-              embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1):
+              embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1, early_stop=None):
     """
     Set up the default parameters based on the model type.
     """
@@ -24,11 +24,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     multiprocessing = True
-    early_stop = True
-
-    # If max_epoch is set we disable the early_stop
-    if max_epoch > 0:
-        early_stop = False
+    o_early_stop = True
 
     if architecture and "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -60,7 +56,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 batch_size = 8
             if max_sequence_length == -1:
                 max_sequence_length = 512
-            early_stop = False
+            o_early_stop = False
             if max_epoch == -1:
                 max_epoch = 30
 
@@ -135,13 +131,16 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     if patience == -1:
         patience = 5
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience
+    if early_stop is not None:
+        o_early_stop = early_stop
+
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, o_early_stop, patience
 
 
 # train a GROBID model with all available data
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
         output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None):
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None):
 
     print('Loading data...')
     if input_path == None:
@@ -207,7 +206,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-               use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None):
+               use_ELMo=False, incremental=False, input_model_path=None, patience=-1,
+               learning_rate=None, early_stop=None):
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -233,7 +233,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience)
+                                                                            patience,
+                                                                            early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -401,9 +402,11 @@ if __name__ == "__main__":
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
-                        help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
+                        help="Maximum number of epochs for training.")
+    parser.add_argument("--early-stop", type=bool, default=None,
+                        help="Force training early termination when evaluation scores at the end of "
+                             "n epochs are not changing.")
 
-    
 
     args = parser.parse_args()
 
@@ -422,6 +425,7 @@ if __name__ == "__main__":
     patience = args.patience
     learning_rate = args.learning_rate
     max_epoch = args.max_epoch
+    early_stop = args.early_stop
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -444,7 +448,8 @@ if __name__ == "__main__":
             input_model_path=input_model_path,
             patience=patience,
             learning_rate=learning_rate,
-            max_epoch=max_epoch)
+            max_epoch=max_epoch,
+            early_stop=early_stop)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -470,7 +475,8 @@ if __name__ == "__main__":
                 incremental=incremental,
                 input_model_path=input_model_path,
                 learning_rate=learning_rate,
-                max_epoch=max_epoch)
+                max_epoch=max_epoch,
+                early_stop=early_stop)
 
     if action == Tasks.TAG:
         someTexts = []

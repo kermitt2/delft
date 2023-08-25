@@ -5,15 +5,13 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
-def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1):
+def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None):
 
     maxlen = 300
     patience = 5
-    early_stop = True
+    o_early_stop = True
     if max_epoch == -1:
         max_epoch = 50
-    else:
-        early_stop = False
 
     if batch_size == -1:
         batch_size = 20
@@ -22,18 +20,22 @@ def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1):
     if architecture.find("BERT") != -1:
         if batch_size == -1:
             batch_size = 10
-        early_stop = False
+        o_early_stop = False
         if max_epoch == -1:
             max_epoch = 3
-        else:
-            early_stop = False
 
         embeddings_name = None
 
-    return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
+    if early_stop is not None:
+        o_early_stop = early_stop
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None, batch_size=-1, max_epoch=-1):
-    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name, batch_size, max_epoch)
+    return batch_size, maxlen, patience, o_early_stop, max_epoch, embeddings_name
+
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
+          use_ELMo=False, learning_rate=None,
+          batch_size=-1, max_epoch=-1, early_stop=None):
+    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(
+        architecture, embeddings_name, batch_size, max_epoch, early_stop)
 
     root = 'data/sequenceLabelling/toxic/'
 
@@ -129,6 +131,9 @@ if __name__ == "__main__":
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument("--early-stop", type=bool, default=None,
+                        help="Force training early termination when evaluation scores at the end of "
+                             "n epochs are not changing.")
 
     args = parser.parse_args()
 
@@ -142,6 +147,7 @@ if __name__ == "__main__":
     learning_rate = args.learning_rate
     batch_size = args.batch_size
     max_epoch = args.max_epoch
+    early_stop = args.early_stop
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
@@ -154,7 +160,8 @@ if __name__ == "__main__":
               use_ELMo=use_ELMo,
               learning_rate=learning_rate,
               batch_size=batch_size,
-              max_epoch=max_epoch)
+              max_epoch=max_epoch,
+              early_stop=early_stop)
 
     if args.action == 'tag':
         someTexts = ['This is a gentle test.', 

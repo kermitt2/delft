@@ -12,14 +12,14 @@ from delft.utilities.misc import parse_number_ranges
 
 def configure(architecture, output_path=None, max_sequence_length=-1,
               batch_size=-1, embeddings_name=None,
-              max_epoch=-1, use_ELMo=False, patience=-1):
+              max_epoch=-1, use_ELMo=False, patience=-1, early_stop=None):
     """
     Set up the default parameters based on the model type.
     """
     model_name = 'datasets'
 
     multiprocessing = True
-    early_stop = True
+    o_early_stop = True
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -57,13 +57,14 @@ def configure(architecture, output_path=None, max_sequence_length=-1,
 
     if max_epoch == -1:
         max_epoch = 60
-    else:
-        early_stop = False
+
+    if early_stop is not None:
+        o_early_stop = early_stop
 
     if patience == -1:
         patience = 5
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, o_early_stop, patience
 
 
 # train a model with all available data
@@ -71,7 +72,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1,
           batch_size=-1, max_epoch=-1, use_ELMo=False, patience=-1,
-          learning_rate=None):
+          learning_rate=None, early_stop=None):
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -101,7 +102,8 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience)
+                                                                            patience,
+                                                                            early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -290,6 +292,9 @@ if __name__ == "__main__":
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
+    parser.add_argument("--early-stop", type=bool, default=None,
+                        help="Force training early termination when evaluation scores at the end of "
+                             "n epochs are not changing.")
 
     args = parser.parse_args()
 
@@ -305,6 +310,7 @@ if __name__ == "__main__":
     patience = args.patience
     learning_rate = args.learning_rate
     max_epoch = args.max_epoch
+    early_stop = args.early_stop
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -321,7 +327,8 @@ if __name__ == "__main__":
             use_ELMo=use_ELMo,
             patience=patience,
             learning_rate=learning_rate,
-            max_epoch=max_epoch)
+            max_epoch=max_epoch,
+            early_stop=early_stop)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -345,7 +352,8 @@ if __name__ == "__main__":
                 use_ELMo=use_ELMo,
                 patience=patience,
                 learning_rate=learning_rate,
-                max_epoch=max_epoch)
+                max_epoch=max_epoch,
+                early_stop=early_stop)
 
     if action == "tag":
         someTexts = []

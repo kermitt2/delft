@@ -10,7 +10,7 @@ import time
 
 def configure(architecture, dataset_type, lang, embeddings_name,
               use_ELMo, max_sequence_length=-1, batch_size=-1,
-              patience=-1, max_epoch=-1):
+              patience=-1, max_epoch=-1, early_stop=None):
 
     o_max_epoch = 60
     o_early_stop = True
@@ -70,8 +70,9 @@ def configure(architecture, dataset_type, lang, embeddings_name,
 
     if max_epoch > 0:
         o_max_epoch = max_epoch
-        o_early_stop = False
 
+    if early_stop is not None:
+        o_early_stop = early_stop
 
     return o_batch_size, o_max_sequence_length, o_patience, o_recurrent_dropout, o_early_stop, o_max_epoch, o_embeddings_name, o_word_lstm_units, o_multiprocessing
 
@@ -79,10 +80,10 @@ def configure(architecture, dataset_type, lang, embeddings_name,
 # train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
           transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1,
-          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1):
+          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1, early_stop=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
-        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience, max_epoch)
+        configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience, max_epoch, early_stop)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading data...')
@@ -628,6 +629,9 @@ if __name__ == "__main__":
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
+    parser.add_argument("--early-stop", type=bool, default=None,
+                        help="Force training early termination when evaluation scores at the end of "
+                             "n epochs are not changing.")
 
     args = parser.parse_args()
 
@@ -650,6 +654,7 @@ if __name__ == "__main__":
     batch_size = args.batch_size
     learning_rate = args.learning_rate
     max_epoch = args.max_epoch
+    early_stop = args.early_stop
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'), 
@@ -670,7 +675,8 @@ if __name__ == "__main__":
             batch_size=batch_size,
             patience=patience,
             learning_rate=learning_rate,
-            max_epoch=max_epoch
+            max_epoch=max_epoch,
+            early_stop=early_stop
         )
 
     if action == 'train_eval':
@@ -690,7 +696,8 @@ if __name__ == "__main__":
             batch_size=batch_size,
             patience=patience,
             learning_rate=learning_rate,
-            max_epoch=max_epoch
+            max_epoch=max_epoch,
+            early_stop=early_stop
             )
 
     if action == 'eval':
