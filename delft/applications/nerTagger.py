@@ -638,7 +638,7 @@ if __name__ == "__main__":
 
     action = args.action    
     if action not in ('train', 'tag', 'eval', 'train_eval'):
-        print('action not specifed, must be one of [train, train_eval, eval, tag]')
+        print('action not specified, must be one of [train, train_eval, eval, tag]')
     lang = args.lang
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
