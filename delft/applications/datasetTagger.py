@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_json_offsets
+from delft.utilities.Utilities import t_or_f
 from delft.utilities.misc import parse_number_ranges
 
 def configure(architecture, output_path=None, max_sequence_length=-1,
@@ -137,7 +138,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
 def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False,
-               patience=-1, learning_rate=None):
+               patience=-1, learning_rate=None, early_stop=None):
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -169,7 +170,8 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience=patience)
+                                                                            patience=patience,
+                                                                            early_stop=early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -292,7 +294,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
-    parser.add_argument("--early-stop", type=bool, default=None,
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
                         help="Force training early termination when evaluation scores at the end of "
                              "n epochs are not changing.")
 

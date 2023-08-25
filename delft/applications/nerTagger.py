@@ -1,7 +1,7 @@
 import os
 import numpy as np
 from delft.sequenceLabelling import Sequence
-from delft.utilities.Utilities import stats
+from delft.utilities.Utilities import stats, t_or_f
 from delft.utilities.numpy import shuffle_arrays
 from delft.sequenceLabelling.reader import load_data_and_labels_conll, load_data_and_labels_lemonde, load_data_and_labels_ontonotes
 from sklearn.model_selection import train_test_split
@@ -209,11 +209,12 @@ def train_eval(embeddings_name=None,
                 batch_size=-1,
                 max_sequence_length=-1,
                 learning_rate=None,
-                max_epoch=-1):
+                max_epoch=-1,
+                early_stop=None):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
-                  max_sequence_length=max_sequence_length, batch_size=batch_size, patience=patience, max_epoch=max_epoch)
+                  max_sequence_length=max_sequence_length, batch_size=batch_size, patience=patience, max_epoch=max_epoch, early_stop=early_stop)
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL 2003 data...')
@@ -629,7 +630,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
-    parser.add_argument("--early-stop", type=bool, default=None,
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
                         help="Force training early termination when evaluation scores at the end of "
                              "n epochs are not changing.")
 

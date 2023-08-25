@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.utilities.Utilities import longest_row
+from delft.utilities.Utilities import longest_row, t_or_f
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
@@ -403,7 +403,7 @@ if __name__ == "__main__":
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs for training.")
-    parser.add_argument("--early-stop", type=bool, default=None,
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
                         help="Force training early termination when evaluation scores at the end of "
                              "n epochs are not changing.")
 

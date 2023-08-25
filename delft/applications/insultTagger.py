@@ -5,6 +5,9 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
+from delft.utilities.Utilities import t_or_f
+
+
 def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None):
 
     maxlen = 300
@@ -131,14 +134,14 @@ if __name__ == "__main__":
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs. If specified, it is assumed that earlyStop=False.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
-    parser.add_argument("--early-stop", type=bool, default=None,
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
                         help="Force training early termination when evaluation scores at the end of "
                              "n epochs are not changing.")
 
     args = parser.parse_args()
 
     if args.action not in ('train', 'tag'):
-        print('action not specifed, must be one of [train,tag]')
+        print('action not specified, must be one of [train,tag]')
 
     embeddings_name = args.embedding
     architecture = args.architecture
