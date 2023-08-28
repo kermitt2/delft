@@ -234,10 +234,10 @@ def load_dataseer_corpus_csv(filepath):
         reuse_list = np.asarray(reuse_list)
         # map boolean values to [0,1]
         def map_boolean(x):
-            return [1.0,0.0] if x else [0.0,1.0]
+            return [1.0,0.0] if x == 'no_reuse' else [0.0,1.0]
         reuse_list = np.array(list(map(map_boolean, reuse_list)))
         print(reuse_list)
-        return np.asarray(texts_list), reuse_list, None, None, ["not_reuse", "reuse"], None, None
+        return np.asarray(texts_list), reuse_list, None, None, ["no_reuse", "reuse"], None, None
 
     # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
