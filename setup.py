@@ -22,7 +22,7 @@ setup(
         'unidecode==1.3.2',
         'pydot==1.4.0',
         'lmdb==1.2.1',
-        'transformers==4.25.1', 
+        'transformers==4.30.0', 
         'torch==1.13.1',
         'truecase',
         'requests>=2.20',
