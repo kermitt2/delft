@@ -35,7 +35,7 @@ class Tagger(object):
             atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
 
             with strategy.scope():
-                self.tag_(texts, output_format, features)
+                return self.tag_(texts, output_format, features)
         else:
             return self.tag_(texts, output_format, features)
 

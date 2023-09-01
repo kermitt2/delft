@@ -477,7 +477,7 @@ class Sequence(object):
             atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
 
             with strategy.scope():
-                self.tag_(texts, output_format, features, batch_size)
+                return self.tag_(texts, output_format, features, batch_size)
         else:
             return self.tag_(texts, output_format, features, batch_size)
 
