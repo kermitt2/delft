@@ -466,7 +466,22 @@ class Sequence(object):
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
-    def tag(self, texts, output_format, features=None, batch_size=None):
+    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                self.tag_(texts, output_format, features, batch_size)
+        else:
+            return self.tag(texts, output_format, features, batch_size)
+
+    def tag_(self, texts, output_format, features=None, batch_size=None):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
 
@@ -493,13 +508,13 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.' + str(self.model)))
 
-    def tag_file(self, file_in, output_format, file_out, batch_size=None):
+    def tag_file(self, file_in, output_format, file_out, batch_size=None, multi_gpu=False):
         # Annotate a text file containing one sentence per line, the annotations are
         # written in the output file if not None, in the standard output otherwise.
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
 
-        if batch_size != None:
+        if batch_size is not None:
             self.model_config.batch_size = batch_size
             print("---")
             print("batch_size (prediction):", self.model_config.batch_size)
@@ -517,10 +532,10 @@ class Sequence(object):
             first = True
             with open(file_in, 'r') as f:
                 texts = None
-                while texts == None or len(texts) == self.model_config.batch_size * self.nb_workers:
+                while texts is None or len(texts) == self.model_config.batch_size * self.nb_workers:
 
                   texts = next_n_lines(f, self.model_config.batch_size * self.nb_workers)
-                  annotations = tagger.tag(texts, output_format)
+                  annotations = tagger.tag(texts, output_format, multi_gpu=multi_gpu)
                   # if the following is true, we just output the JSON returned by the tagger without any modification
                   directDump = False
                   if first:

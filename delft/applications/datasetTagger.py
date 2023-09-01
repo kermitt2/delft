@@ -207,7 +207,7 @@ def eval_(input_path=None, architecture=None):
 
 
 # annotate a list of texts
-def annotate_text(texts, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
+def annotate_text(texts, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False, multi_gpu=False):
     annotations = []
 
     # load model
@@ -221,7 +221,7 @@ def annotate_text(texts, output_format, architecture='BidLSTM_CRF', features=Non
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format, features=features)
+    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     if output_format == 'json':
@@ -353,7 +353,7 @@ if __name__ == "__main__":
         someTexts.append("We also compare ShanghaiTechRGBD with other RGB-D crowd counting datasets in , and we can see that ShanghaiTechRGBD is the most challenging RGB-D crowd counting dataset in terms of the number of images and heads.")
         someTexts.append("Insulin levels of all samples were measured by ELISA kit (Mercodia)")
 
-        result = annotate_text(someTexts, "json", architecture=architecture, use_ELMo=use_ELMo)
+        result = annotate_text(someTexts, "json", architecture=architecture, use_ELMo=use_ELMo, multi_gpu=multi_gpu)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         
 

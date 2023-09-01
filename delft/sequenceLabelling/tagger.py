@@ -1,6 +1,7 @@
 import datetime
 
 import numpy as np
+import tensorflow as tf
 
 from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
 from delft.sequenceLabelling.preprocess import Preprocessor
@@ -22,7 +23,23 @@ class Tagger(object):
         self.model_config = model_config
         self.embeddings = embeddings
 
-    def tag(self, texts, output_format, features=None):
+
+    def tag(self, texts, output_format, features=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                self.tag_(texts, output_format, features)
+        else:
+            return self.tag(texts, output_format, features)
+
+    def tag_(self, texts, output_format, features=None):
 
         if output_format == 'json':
             res = {

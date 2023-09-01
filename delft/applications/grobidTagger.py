@@ -309,7 +309,7 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False, multi_gpu=False):
     annotations = []
 
     # load model
@@ -323,7 +323,7 @@ def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', featu
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format, features=features)
+    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     if output_format == 'json':
@@ -495,7 +495,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo, multi_gpu=multi_gpu)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "

@@ -51,7 +51,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, us
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False):
+def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, multi_gpu=False):
     annotations = []
 
     model_name = 'insult-' + architecture
@@ -64,7 +64,7 @@ def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None,
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format)
+    annotations = model.tag(texts, output_format, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     if output_format == 'json':

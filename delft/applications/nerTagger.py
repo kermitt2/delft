@@ -67,7 +67,8 @@ def configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_s
 
 # train a model with all available for a given dataset 
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
-          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1, learning_rate=None):
+          transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1, batch_size=-1, patience=-1,
+          learning_rate=None, multi_gpu=False):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience)
@@ -196,7 +197,7 @@ def train_eval(embeddings_name=None,
                 batch_size=-1,
                 max_sequence_length=-1,
                 learning_rate=None,
-                multi_gpu = False):
+                multi_gpu=False):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
@@ -519,7 +520,8 @@ def annotate(output_format,
              architecture='BidLSTM_CRF',
              file_in=None, 
              file_out=None,
-             use_ELMo=False):
+             use_ELMo=False,
+             multi_gpu=False):
     if file_in is None:
         raise ValueError("an input file to be annotated must be provided")
 
@@ -556,7 +558,7 @@ def annotate(output_format,
 
     start_time = time.time()
 
-    model.tag_file(file_in=file_in, output_format=output_format, file_out=file_out)
+    model.tag_file(file_in=file_in, output_format=output_format, file_out=file_out, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     print("runtime: %s seconds " % (runtime))
@@ -695,14 +697,15 @@ if __name__ == "__main__":
             print("Language not supported:", lang)
         else: 
             print(file_in)
-            result = annotate("json", 
-                            dataset_type, 
-                            lang, 
-                            architecture=architecture, 
+            annotate("json",
+                            dataset_type,
+                            lang,
+                            architecture=architecture,
                             #transformer=transformer,
-                            file_in=file_in, 
+                            file_in=file_in,
                             file_out=file_out,
-                            use_ELMo=use_ELMo)
+                            use_ELMo=use_ELMo,
+                            multi_gpu=multi_gpu)
             """
             if result is not None:
                 if file_out is None:
