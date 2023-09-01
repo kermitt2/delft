@@ -145,7 +145,12 @@ class Sequence(object):
         # TBD if valid is None, segment train to get one if early_stop is True
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
 
             with strategy.scope():
                 self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
@@ -208,7 +213,12 @@ class Sequence(object):
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            print('Number of devices: {}'.format(strategy.num_replicas_in_sync))
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
 
             with strategy.scope():
                 self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
@@ -221,7 +231,7 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         if incremental:
-            if self.model == None and self.models == None:
+            if self.model is None and self.models is None:
                 print("error: you must load a model first for an incremental training")
                 return
 
