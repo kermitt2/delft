@@ -1,5 +1,7 @@
 import os
 
+from packaging import version
+
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
@@ -473,8 +475,9 @@ class Sequence(object):
 
             # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
             # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            import atexit
-            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+            if version.parse(tf.__version__) < version.parse('2.10.0'):
+                import atexit
+                atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
 
             with strategy.scope():
                 return self.tag_(texts, output_format, features, batch_size)
