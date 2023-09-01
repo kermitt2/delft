@@ -479,7 +479,7 @@ class Sequence(object):
             with strategy.scope():
                 self.tag_(texts, output_format, features, batch_size)
         else:
-            return self.tag(texts, output_format, features, batch_size)
+            return self.tag_(texts, output_format, features, batch_size)
 
     def tag_(self, texts, output_format, features=None, batch_size=None):
         # annotate a list of sentences, return the list of annotations in the 

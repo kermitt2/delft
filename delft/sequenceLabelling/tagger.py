@@ -37,7 +37,7 @@ class Tagger(object):
             with strategy.scope():
                 self.tag_(texts, output_format, features)
         else:
-            return self.tag(texts, output_format, features)
+            return self.tag_(texts, output_format, features)
 
     def tag_(self, texts, output_format, features=None):
 
