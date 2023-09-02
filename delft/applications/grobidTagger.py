@@ -8,10 +8,25 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+from delft.sequenceLabelling.wrapper import is_transformer_architecture
 from delft.utilities.Utilities import longest_row
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
 
+
+# config = {
+#     "architectures": {
+#         "BERT.*":
+#             {
+#                 "citation": {
+#                     "max_sequence_length": 200,
+#                     "batch_size": 20
+#                 }
+#             },
+#         "BERT_BidLSTM.*": {
+#
+#         }
+# }
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
               embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1):
@@ -26,7 +41,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     multiprocessing = True
     early_stop = True
 
-    if architecture and "BERT" in architecture:
+    if is_transformer_architecture(architecture):
         # architectures with some transformer layer/embeddings inside
 
         # non-default settings per model
@@ -352,7 +367,9 @@ if __name__ == "__main__":
     word_embeddings_examples = ['glove-840B', 'fasttext-crawl', 'word2vec']
 
     architectures_transformers_based = [
-                    'BERT', 'BERT_FEATURES', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES'
+                    'BERT', 'BERT_FEATURES', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES',
+                    'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES',
+                    'BERT_BidLSTM', 'BERT_BidLSTM_CRF', 'BERT_BidLSTM_ChainCRF'
                      ]
 
     architectures = architectures_word_embeddings + architectures_transformers_based
@@ -485,6 +502,10 @@ if __name__ == "__main__":
             someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
             someTexts.append("All statistical analyses were done using computer software Prism 6 for Windows (version 6.02; GraphPad Software, San Diego, CA, USA). One-Way ANOVA was used to detect differences amongst the groups. To account for the non-normal distribution of the data, all data were sorted by rank status prior to ANOVA statistical analysis. ")
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
+        elif model.startswith('superconductors'):
+            someTexts.append("We are studying the material La 3 A 2 Ge 2 (A = Ir, Rh). The critical temperature T C = 4.7 K discovered for La 3 Ir 2 Ge 2 in this work is by about 1.2 K higher than that found for La 3 Rh 2 Ge 2.")
+            someTexts.append("In just a few months, the superconducting transition temperature (Tc) was increased to 55 K in the electron-doped system, as well as 25 K in hole-doped La1−x SrxOFeAs compound. Soon after, single crystals of LnFeAs(O1−x Fx) (Ln = Pr, Nd, Sm) were grown successfully by the NaCl/KCl flux method, though the sub-millimeter sizes limit the experimental studies on them. Therefore, FeAs-based single crystals with high crystalline quality, homogeneity and large sizes are highly desired for precise measurements of the properties. Very recently, the BaFe2As2 compound in a tetragonal ThCr2Si2-type structure with infinite Fe–As layers was reported. By replacing the alkaline earth elements (Ba and Sr) with alkali elements (Na, K, and Cs), superconductivity up to 38 K was discovered both in hole-doped and electron-doped samples. Tc leties from 2.7 K in CsFe2As2 to 38 K in A1−xKxFe2As2 (A = Ba, Sr). Meanwhile, superconductivity could also be induced in the parent phase by high pressure or by replacing some of the Fe by Co. More excitingly, large single crystals could be obtained by the Sn flux method in this family to study the rather low melting temperature and the intermetallic characteristics.")
+
 
         if architecture.find("FEATURE") == -1:
             result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo)

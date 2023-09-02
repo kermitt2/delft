@@ -8,6 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_json_offsets
+from delft.sequenceLabelling.wrapper import is_transformer_architecture
 from delft.utilities.misc import parse_number_ranges
 
 def configure(architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None,
@@ -20,7 +21,7 @@ def configure(architecture, output_path=None, max_sequence_length=-1, batch_size
     multiprocessing = True
     early_stop = True
 
-    if "BERT" in architecture:
+    if is_transformer_architecture(architecture):
         # architectures with some transformer layer/embeddings inside
         if batch_size == -1:
             #default

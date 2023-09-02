@@ -54,6 +54,11 @@ from delft.sequenceLabelling.evaluation import classification_report
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
+
+def is_transformer_architecture(architecture):
+    return architecture and "BERT" in architecture and "BidLSTM" not in architecture
+
+
 class Sequence(object):
 
     # number of parallel worker for the data generator
@@ -114,7 +119,7 @@ class Sequence(object):
             word_emb_size = 0
 
         if learning_rate is None:
-            if transformer_name is None:
+            if is_transformer_architecture(architecture) is False:
                 learning_rate = 0.001
             else:
                 learning_rate = 2e-5
@@ -158,7 +163,7 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         if incremental:
-            if self.model == None and self.models == None:
+            if self.model is None and self.models is None:
                 print("error: you must load a model first for an incremental training")
                 return
             print("Incremental training from loaded model", self.model_config.model_name)

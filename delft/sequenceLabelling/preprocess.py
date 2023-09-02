@@ -357,7 +357,7 @@ class BERTPreprocessor(object):
                 and offset[0] == 0  
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
                 and not empty_token):
-                # another trick to support sentence piece tokenizer: sometimes a out of vocabulary
+                # another trick to support sentence piece tokenizer: sometimes an out of vocabulary
                 # character is tokenized as several known bytes, leading to 2 tokens for instance
                 # with the second one staring from offset 0 too. In order to align correctly the  
                 # original string, we need to skip this extra spurious token by looking at it decoded
@@ -590,7 +590,6 @@ class Preprocessor(BaseEstimator, TransformerMixin):
                  return_casing=False,
                  return_features=False,
                  return_chars=False,
-                 return_bert_embeddings=False,
                  max_char_length=30,
                  feature_preprocessor: FeaturesPreprocessor = None,
                  ):
@@ -601,7 +600,6 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         self.return_casing = return_casing
         self.return_features = return_features
         self.return_chars = return_chars
-        self.return_bert_embeddings = return_bert_embeddings
         self.vocab_char = None
         self.vocab_tag = None
         self.vocab_case = [k for k, v in case_index.items()]

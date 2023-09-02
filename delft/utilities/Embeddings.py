@@ -18,6 +18,9 @@ import tensorflow as tf
 from tqdm import tqdm
 from pathlib import Path
 
+from delft.sequenceLabelling.config import ModelConfig
+from delft.sequenceLabelling.preprocess import BERTPreprocessor, Preprocessor
+from delft.utilities.Transformer import Transformer
 from delft.utilities.simple_elmo import ElmoModel, elmo
 
 logging.basicConfig()
@@ -81,7 +84,7 @@ class Embeddings(object):
         # below init for using ELMo embeddings
         self.use_ELMo = use_ELMo
         self.elmo_model_name = elmo_model_name
-        if elmo_model_name == None:
+        if elmo_model_name is None:
             self.elmo_model_name = 'elmo-'+self.lang
         if use_ELMo:
             #tf.compat.v1.disable_eager_execution()
@@ -479,12 +482,12 @@ class Embeddings(object):
                         destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
                         if not os.path.exists(destination_dir):
                             os.makedirs(destination_dir)
-                        try:                      
+                        try:
                             shutil.move(embeddings_path, destination_file)
                             weights_file = destination_file
                         except OSError:
                             print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
-            
+
             if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
                 print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
         print("ELMo weights used:", weights_file)
