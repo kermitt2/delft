@@ -10,7 +10,7 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.Utilities import longest_row
 
-MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter']
+MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter', 'segmentation', 'funding-acknowledgement']
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
@@ -59,6 +59,11 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             early_stop = False
             if max_epoch == -1:
                 max_epoch = 30
+        elif model.startswith("funding"):
+            if max_sequence_length == -1:
+                max_sequence_length = 512
+            if batch_size == -1:
+                batch_size = 8
 
         # default when no value provided by command line or model-specific
         if batch_size == -1:
@@ -113,6 +118,14 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                     max_sequence_length = 1500
                 else:
                     max_sequence_length = 3000
+        elif model == "funding-acknowledgement":
+            if batch_size == -1:
+                batch_size = 30
+            if max_sequence_length == -1:
+                if use_ELMo:
+                    max_sequence_length = 500
+                else:
+                    max_sequence_length = 800
             
     model_name += '-' + architecture
 
@@ -397,8 +410,6 @@ if __name__ == "__main__":
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
-    
-
     args = parser.parse_args()
 
     model = args.model
@@ -425,18 +436,18 @@ if __name__ == "__main__":
 
     if action == Tasks.TRAIN:
             train(model, 
-            embeddings_name=embeddings_name, 
-            architecture=architecture, 
-            transformer=transformer,
-            input_path=input_path, 
-            output_path=output,
-            max_sequence_length=max_sequence_length,
-            batch_size=batch_size,
-            use_ELMo=use_ELMo,
-            incremental=incremental,
-            input_model_path=input_model_path,
-            patience=patience,
-            learning_rate=learning_rate)
+                embeddings_name=embeddings_name, 
+                architecture=architecture, 
+                transformer=transformer,
+                input_path=input_path, 
+                output_path=output,
+                max_sequence_length=max_sequence_length,
+                batch_size=batch_size,
+                use_ELMo=use_ELMo,
+                incremental=incremental,
+                input_model_path=input_model_path,
+                patience=patience,
+                learning_rate=learning_rate)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
