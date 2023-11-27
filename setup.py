@@ -22,13 +22,14 @@ setup(
         'unidecode==1.3.2',
         'pydot==1.4.0',
         'lmdb==1.2.1',
-        'transformers==4.25.1', 
-        'torch==1.13.1',
+        'transformers==4.33.2', 
+        'torch==1.10.1',
         'truecase',
         'requests>=2.20',
         'pandas==1.3.5',
         'pytest',
-        'tensorflow-addons==0.19.0'  
+        'tensorflow-addons==0.19.0',
+        'accelerate>=0.20.3'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.8",
