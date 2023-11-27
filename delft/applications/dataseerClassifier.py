@@ -22,6 +22,7 @@ def configure(architecture):
     patience = 5
     early_stop = True
     max_epoch = 50
+    learning_rate = 0.001
 
     # default transformer model parameters
     if architecture == "bert":
@@ -29,8 +30,9 @@ def configure(architecture):
         early_stop = False
         max_epoch = 5
         maxlen = 300
+        learning_rate = 2e-5
 
-    return batch_size, maxlen, patience, early_stop, max_epoch
+    return batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
 
 
 def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False): 
@@ -40,11 +42,11 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     model_name = 'dataseer-binary_'+architecture
     class_weights = None
 
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer_name=transformer)
+        class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
     
     if fold_count == 1:
         model.train(xtr, y)
@@ -61,7 +63,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer_name=transformer)
+        class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
     
     if fold_count == 1:
         model.train(xtr, y)
@@ -79,7 +81,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
     model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
     use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-         class_weights=class_weights, transformer_name=transformer)
+         class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -136,41 +138,58 @@ def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", trans
     train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
-    train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    #train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for first level data type hierarchy
-    train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    #train_and_eval_primary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for second level data type hierarchy (subtypes)
     #train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
 def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None): 
     print('loading dataset type corpus...')
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
+    #xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase1-2-binary.csv")
+    #xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase3-binary.csv")
 
     # distinct values of classes
     print(list_classes)
     print(len(list_classes), "classes")
 
     print(len(xtr), "texts")
-    print(len(y), "classes")
+    print(len(y), "classifications")
 
     class_weights = None
 
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     model = Classifier('dataseer-binary_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count,  
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer_name=transformer)
+        class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
+
+    #x_train = xtr
+    #y_train = y
+
+    #print('loading dataset type corpus...')
+    #x_test, y_test, _, _, _, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase3-binary.csv")
+
+    #_, _, x_test, y_test = split_data_and_labels(x_test, y_test, 0.9)
+
+    # distinct values of classes
+    #print(list_classes)
+    #print(len(list_classes), "classes")
+
+    print(len(xtr), "texts")
+    print(len(y), "classifications")
 
     print(len(x_train), "train texts")
     print(len(y_train), "train classes")
 
     print(len(x_test), "eval texts")
-    print(len(y_test), "eval classes")
+    print(len(y_test), "eval classes")    
 
     if fold_count == 1:
         model.train(x_train, y_train)
@@ -192,13 +211,13 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
     print(len(xtr), "texts")
     print(len(y), "classes")
 
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     class_weights = {0: 1.5, 1: 1.}
 
     model = Classifier('dataseer-reuse_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer_name=transformer)
+        class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -230,11 +249,11 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     print(len(y), "classes")
 
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     model = Classifier('dataseer-first_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer_name=transformer)
+        class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -265,7 +284,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
     print(len(list_subclasses), "sub-classes")
 
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     datatypes_y = {}
     datatypes_xtr = {}
@@ -316,7 +335,7 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
         model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
             fold_number=fold_count, use_roc_auc=True, embeddings_name=embeddings_name, 
             batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop, 
-            class_weights=class_weights, transformer_name=transformer)
+            class_weights=class_weights, transformer_name=transformer, learning_rate=learning_rate)
 
         # we need to vectorize the y according to the actual list of classes
         local_y = []
@@ -354,7 +373,7 @@ def classify(texts, output_format, architecture="gru"):
 def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transformer=None):
     # general setting of parameters
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     # first binary classifier: dataset or no_dataset 
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
@@ -363,7 +382,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
 
     model_binary = Classifier('dataseer-binary_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights, transformer=transformer)
+        class_weights=class_weights, transformer=transformer, learning_rate=learning_rate)
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -394,7 +413,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
 
     model_first = Classifier('dataseer-first_'+architecture, architecture=architecture, list_classes=list_classes, max_epoch=100, fold_number=fold_count, 
         use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, patience=patience, early_stop=early_stop,
-        class_weights=class_weights)
+        class_weights=class_weights, transformer=transformer, learning_rate=learning_rate)
 
     if fold_count == 1:
         model_first.train(x_train, y_train)
@@ -537,7 +556,7 @@ if __name__ == "__main__":
 
     if args.action == 'classify':
         someTexts = ['Labeling yield and radiochemical purity was analyzed by instant thin layered chromatography (ITLC).', 
-            'NOESY and ROESY spectra64,65 were collected with typically 128 scans per t1 increment, with the residual water signal removed by the WATERGATE sequence and 1 s relaxation time.', 
+            'NOESY and ROESY spectra 64,65 were collected with typically 128 scans per t1 increment, with the residual water signal removed by the WATERGATE sequence and 1 s relaxation time.', 
             'The concentrations of Cd and Pb in feathers were measured by furnace atomic absorption spectrometry (VARIAN 240Z).']
         result = classify(someTexts, "json", architecture=architecture)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))  
