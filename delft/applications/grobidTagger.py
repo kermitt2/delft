@@ -151,9 +151,10 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 
 # train a GROBID model with all available data
+
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
         output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None):
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False):
 
     print('Loading data...')
     if input_path == None:
@@ -205,7 +206,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
             model.load()
 
     start_time = time.time()
-    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental)
+    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental, multi_gpu=multi_gpu)
+
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -221,7 +223,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
                use_ELMo=False, incremental=False, input_model_path=None, patience=-1,
-               learning_rate=None, early_stop=None):
+               learning_rate=None, early_stop=None, multi_gpu=False):
+
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -276,9 +279,9 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
+        model.train(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental, multi_gpu=multi_gpu)
     else:
-        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental)
+        model.train_nfold(x_train, y_train, f_train=f_train, x_valid=x_valid, y_valid=y_valid, f_valid=f_valid, incremental=incremental, multi_gpu=multi_gpu)
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % runtime)
@@ -327,7 +330,7 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False):
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False, multi_gpu=False):
     annotations = []
 
     # load model
@@ -341,7 +344,7 @@ def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', featu
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format, features=features)
+    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     if output_format == 'json':
@@ -415,11 +418,16 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs for training.")
     parser.add_argument("--early-stop", type=t_or_f, default=None,
                         help="Force training early termination when evaluation scores at the end of "
                              "n epochs are not changing.")
+
+    parser.add_argument("--multi-gpu", default=False,
+                        help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
+                        action="store_true")
 
     args = parser.parse_args()
 
@@ -439,6 +447,7 @@ if __name__ == "__main__":
     learning_rate = args.learning_rate
     max_epoch = args.max_epoch
     early_stop = args.early_stop
+    multi_gpu = args.multi_gpu
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -462,7 +471,8 @@ if __name__ == "__main__":
             patience=patience,
             learning_rate=learning_rate,
             max_epoch=max_epoch,
-            early_stop=early_stop)
+            early_stop=early_stop,
+            multi_gpu=multi_gpu)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -489,7 +499,8 @@ if __name__ == "__main__":
                 input_model_path=input_model_path,
                 learning_rate=learning_rate,
                 max_epoch=max_epoch,
-                early_stop=early_stop)
+                early_stop=early_stop,
+                multi_gpu=multi_gpu)
 
     if action == Tasks.TAG:
         someTexts = []
@@ -499,6 +510,7 @@ if __name__ == "__main__":
             someTexts.append("March the 27th, 2001")
             someTexts.append(" on  April 27, 2001. . ")
             someTexts.append('2018')
+            someTexts.append('2023 July the 22nd')
         elif model == 'citation':
             someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
             someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
@@ -515,7 +527,7 @@ if __name__ == "__main__":
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo, multi_gpu=multi_gpu)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
