@@ -1,5 +1,7 @@
 import os
 
+from packaging import version
+
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
@@ -141,7 +143,23 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
-    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None):
+    def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
+        # TBD if valid is None, segment train to get one if early_stop is True
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+        else:
+            self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+
+    def train_(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None):
         # TBD if valid is None, segment train to get one if early_stop is True
 
         # we concatenate all the training+validation data to create the model vocabulary
@@ -194,13 +212,28 @@ class Sequence(object):
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
 
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None):
+    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
+        else:
+            self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
+
+    def train_nfold_(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         if incremental:
-            if self.model == None and self.models == None:
+            if self.model is None and self.models is None:
                 print("error: you must load a model first for an incremental training")
                 return
 
@@ -435,7 +468,23 @@ class Sequence(object):
             print(get_report(fold_average_evaluation, digits=4, include_avgs=['micro']))
 
 
-    def tag(self, texts, output_format, features=None, batch_size=None):
+    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            if version.parse(tf.__version__) < version.parse('2.10.0'):
+                import atexit
+                atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                return self.tag_(texts, output_format, features, batch_size)
+        else:
+            return self.tag_(texts, output_format, features, batch_size)
+
+    def tag_(self, texts, output_format, features=None, batch_size=None):
         # annotate a list of sentences, return the list of annotations in the 
         # specified output_format
 
@@ -462,13 +511,13 @@ class Sequence(object):
         else:
             raise (OSError('Could not find a model.' + str(self.model)))
 
-    def tag_file(self, file_in, output_format, file_out, batch_size=None):
+    def tag_file(self, file_in, output_format, file_out, batch_size=None, multi_gpu=False):
         # Annotate a text file containing one sentence per line, the annotations are
         # written in the output file if not None, in the standard output otherwise.
         # Processing is streamed by batches so that we can process huge files without
         # memory issues
 
-        if batch_size != None:
+        if batch_size is not None:
             self.model_config.batch_size = batch_size
             print("---")
             print("batch_size (prediction):", self.model_config.batch_size)
@@ -486,10 +535,10 @@ class Sequence(object):
             first = True
             with open(file_in, 'r') as f:
                 texts = None
-                while texts == None or len(texts) == self.model_config.batch_size * self.nb_workers:
+                while texts is None or len(texts) == self.model_config.batch_size * self.nb_workers:
 
                   texts = next_n_lines(f, self.model_config.batch_size * self.nb_workers)
-                  annotations = tagger.tag(texts, output_format)
+                  annotations = tagger.tag(texts, output_format, multi_gpu=multi_gpu)
                   # if the following is true, we just output the JSON returned by the tagger without any modification
                   directDump = False
                   if first:
