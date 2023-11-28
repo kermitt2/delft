@@ -54,6 +54,13 @@ class Transformer(object):
         if resource_registry:
             self.configure_from_registry(resource_registry)
 
+        self.auth_token = None
+
+        # read possible Hugging Face access token to support private models
+        # will be None if the key does not exist
+        self.auth_token = os.getenv('HF_ACCESS_TOKEN')
+
+
     def configure_from_registry(self, resource_registry) -> None:
         """
         Fetch transformer information from the registry and infer the loading method:
@@ -119,16 +126,31 @@ class Transformer(object):
                 do_lower_case = False
 
             if do_lower_case is not None:
-                self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                               add_special_tokens=add_special_tokens,
-                                                               max_length=max_sequence_length,
-                                                               add_prefix_space=add_prefix_space, 
-                                                               do_lower_case=do_lower_case)
+                if self.auth_token != None:
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                                add_special_tokens=add_special_tokens,
+                                                                max_length=max_sequence_length,
+                                                                add_prefix_space=add_prefix_space, 
+                                                                do_lower_case=do_lower_case, 
+                                                                use_auth_token=self.auth_token)
+                else:
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                                add_special_tokens=add_special_tokens,
+                                                                max_length=max_sequence_length,
+                                                                add_prefix_space=add_prefix_space, 
+                                                                do_lower_case=do_lower_case)
             else:
-                self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                               add_special_tokens=add_special_tokens,
-                                                               max_length=max_sequence_length,
-                                                               add_prefix_space=add_prefix_space)
+                if self.auth_token != None:
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                                add_special_tokens=add_special_tokens,
+                                                                max_length=max_sequence_length,
+                                                                add_prefix_space=add_prefix_space, 
+                                                                use_auth_token=self.auth_token)
+                else:
+                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
+                                                                add_special_tokens=add_special_tokens,
+                                                                max_length=max_sequence_length,
+                                                                add_prefix_space=add_prefix_space)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
@@ -152,7 +174,22 @@ class Transformer(object):
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
+                if self.auth_token != None:
+                    try:
+                        transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True,
+                                                                    use_auth_token=self.auth_token)
+                    except:
+                        # failure might be due to safetensors format for the weights, we can try an alternative loading
+                        # for this case
+                        transformer_model = TFAutoModel.from_pretrained(self.name, use_auth_token=self.auth_token)
+                else:
+                    try:
+                        transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
+                    except:
+                        # failure might be due to safetensors format for the weights, we can try an alternative loading
+                        # for this case
+                        transformer_model = TFAutoModel.from_pretrained(self.name)
+
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
