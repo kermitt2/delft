@@ -199,7 +199,12 @@ class Transformer(object):
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                try:
+                    transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                except:
+                    # failure might be due to safetensors format for the weights, we can try an alternative loading
+                    # for this case
+                    transformer_model = TFAutoModel.from_pretrained(self.local_dir_path)
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
