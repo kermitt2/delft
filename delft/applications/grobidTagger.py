@@ -422,8 +422,8 @@ if __name__ == "__main__":
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs for training.")
     parser.add_argument("--early-stop", type=t_or_f, default=None,
-                        help="Force training early termination when evaluation scores at the end of "
-                             "n epochs are not changing.")
+                        help="Force early training termination when metrics scores are not improving " + 
+                             "after a number of epochs equals to the patience parameter.")
 
     parser.add_argument("--multi-gpu", default=False,
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
