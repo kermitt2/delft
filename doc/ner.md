@@ -34,7 +34,7 @@ Results with transformer fine-tuning for CoNLL-2003 NER dataset, including a fin
 | ---  | --- | --- | --- |
 | BERT | bert-base-cased     | DeLFT | 91.19 |  
 | BERT_CRF | bert-base-cased +CRF| DeLFT | 91.25 |  
-| BERT_ChainCRF | bert-base-cased +CRF| DeLFT |  |  
+| BERT_ChainCRF | bert-base-cased +CRF| DeLFT | 91.22 |  
 | BERT | roberta-base     | DeLFT | 91.64 |  
 
 Note: DeLFT uses `BERT` as architecture name for transformers in general, but the transformer model could be in principle any transformer variants preset in HuggingFace Hub. DeLFT supports 2 implementations of a CRF layer to be combined with RNN and transformer architectures: `CRF` based on TensorFlow Addons and `ChainCRF` a custom implementation. Both should produce similar accuracy results, but `ChainCRF` is significantly faster and robust. 

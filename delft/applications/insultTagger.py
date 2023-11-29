@@ -5,26 +5,43 @@ from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
 import time
 
-def configure(architecture, embeddings_name):
-    batch_size = 20
+from delft.utilities.Utilities import t_or_f
+
+
+def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None):
+
     maxlen = 300
     patience = 5
-    early_stop = True
-    max_epoch = 50
+    o_early_stop = True
+    if max_epoch == -1:
+        max_epoch = 50
+
+    if batch_size == -1:
+        batch_size = 20
 
     # default bert model parameters
     if architecture.find("BERT") != -1:
-        batch_size = 10
-        early_stop = False
-        max_epoch = 3
+        if batch_size == -1:
+            batch_size = 10
+        o_early_stop = False
+        if max_epoch == -1:
+            max_epoch = 3
+
         embeddings_name = None
 
-    return batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name
+    if early_stop is not None:
+        o_early_stop = early_stop
 
-def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, learning_rate=None,
-          multi_gpu=False):
-    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, embeddings_name)
+    return batch_size, maxlen, patience, o_early_stop, max_epoch, embeddings_name
 
+def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
+          use_ELMo=False, learning_rate=None,
+          batch_size=-1, max_epoch=-1, early_stop=None, multi_gpu=False):
+    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, 
+                                                                                    embeddings_name, 
+                                                                                    batch_size, 
+                                                                                    max_epoch, 
+                                                                                    early_stop)
     root = 'data/sequenceLabelling/toxic/'
 
     train_path = os.path.join(root, 'corrected.xml')
@@ -116,20 +133,32 @@ if __name__ == "__main__":
     )
     parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs.")
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
+                        help="Force early training termination when metrics scores are not improving " + 
+                             "after a number of epochs equals to the patience parameter.")
+
     parser.add_argument("--multi-gpu", default=False,
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
+
     args = parser.parse_args()
 
     if args.action not in ('train', 'tag'):
-        print('action not specifed, must be one of [train,tag]')
+        print('action not specified, must be one of [train,tag]')
 
     embeddings_name = args.embedding
     architecture = args.architecture
     transformer = args.transformer
     use_ELMo = args.use_ELMo
     learning_rate = args.learning_rate
+
+    batch_size = args.batch_size
+    max_epoch = args.max_epoch
+    early_stop = args.early_stop
     multi_gpu = args.multi_gpu
 
     if transformer == None and embeddings_name == None:
@@ -139,8 +168,12 @@ if __name__ == "__main__":
     if args.action == 'train':
         train(embeddings_name=embeddings_name,
               architecture=architecture,
-              transformer=transformer, use_ELMo=use_ELMo,
+              transformer=transformer,
+              use_ELMo=use_ELMo,
               learning_rate=learning_rate,
+              batch_size=batch_size,
+              max_epoch=max_epoch,
+              early_stop=early_stop,
               multi_gpu=multi_gpu)
 
     if args.action == 'tag':

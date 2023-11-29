@@ -617,3 +617,13 @@ if __name__ == "__main__":
         convert_conll2012_to_iob2(data_path, output_path)
     elif dataset_type == 'ontonotes':    
         ontonotes_conll2012_names(data_path, output_path)
+
+
+def t_or_f(arg):
+    ua = str(arg).upper()
+    if 'TRUE'.startswith(ua):
+        return True
+    elif 'FALSE'.startswith(ua):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected. Omit this option to use default values.')

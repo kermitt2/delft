@@ -8,17 +8,19 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_json_offsets
+from delft.utilities.Utilities import t_or_f
 from delft.utilities.misc import parse_number_ranges
 
-def configure(architecture, output_path=None, max_sequence_length=-1, batch_size=-1, embeddings_name=None,
-              max_epoch=-1, use_ELMo=False, patience=-1):
+def configure(architecture, output_path=None, max_sequence_length=-1,
+              batch_size=-1, embeddings_name=None,
+              max_epoch=-1, use_ELMo=False, patience=-1, early_stop=None):
     """
     Set up the default parameters based on the model type.
     """
     model_name = 'datasets'
 
     multiprocessing = True
-    early_stop = True
+    o_early_stop = True
 
     if "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -57,18 +59,26 @@ def configure(architecture, output_path=None, max_sequence_length=-1, batch_size
     if max_epoch == -1:
         max_epoch = 60
 
+    if early_stop is not None:
+        o_early_stop = early_stop
+
     if patience == -1:
         patience = 5
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, o_early_stop, patience
 
 
 # train a model with all available data
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
-               input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1,
-          batch_size=-1, max_epoch=-1, use_ELMo=False, patience=-1,
-          learning_rate=None, multi_gpu=False):
+                input_path=None, output_path=None, fold_count=1,
+                features_indices=None, max_sequence_length=-1,
+                batch_size=-1, use_ELMo=False, 
+                max_epoch=-1, 
+                patience=-1,
+                learning_rate=None, 
+                early_stop=None, 
+                multi_gpu=False):
+
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -98,7 +108,8 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience)
+                                                                            patience,
+                                                                            early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -130,9 +141,14 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
 
 # split data, train a model and evaluate it
 def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
-               input_path=None, output_path=None, fold_count=1,
-               features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, use_ELMo=False,
-               patience=-1, learning_rate=None, multi_gpu=False):
+                input_path=None, output_path=None, fold_count=1,
+                features_indices=None, max_sequence_length=-1, batch_size=-1, use_ELMo=False,
+                max_epoch=-1, 
+                patience=-1, 
+                learning_rate=None, 
+                early_stop=None, 
+                multi_gpu=False):
+
     print('Loading data...')
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
@@ -164,7 +180,8 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience=patience)
+                                                                            patience=patience,
+                                                                            early_stop=early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -285,9 +302,16 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs.")
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
+                        help="Force early training termination when metrics scores are not improving " + 
+                             "after a number of epochs equals to the patience parameter.")
     parser.add_argument("--multi-gpu", default=False,
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
+
 
     args = parser.parse_args()
 
@@ -302,6 +326,8 @@ if __name__ == "__main__":
     use_ELMo = args.use_ELMo
     patience = args.patience
     learning_rate = args.learning_rate
+    max_epoch = args.max_epoch
+    early_stop = args.early_stop
     multi_gpu = args.multi_gpu
 
     if transformer is None and embeddings_name is None:
@@ -310,16 +336,18 @@ if __name__ == "__main__":
 
     if action == "train":
             train(embeddings_name=embeddings_name, 
-                architecture=architecture,
-                transformer=transformer,
-                input_path=input_path,
-                output_path=output,
-                max_sequence_length=max_sequence_length,
-                batch_size=batch_size,
-                use_ELMo=use_ELMo,
-                patience=patience,
-                learning_rate=learning_rate,
-                multi_gpu=multi_gpu)
+            architecture=architecture, 
+            transformer=transformer,
+            input_path=input_path, 
+            output_path=output,
+            max_sequence_length=max_sequence_length,
+            batch_size=batch_size,
+            use_ELMo=use_ELMo,
+            patience=patience,
+            learning_rate=learning_rate,
+            max_epoch=max_epoch,
+            early_stop=early_stop,
+            multi_gpu=multi_gpu)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -343,6 +371,8 @@ if __name__ == "__main__":
                 use_ELMo=use_ELMo,
                 patience=patience,
                 learning_rate=learning_rate,
+                max_epoch=max_epoch,
+                early_stop=early_stop,
                 multi_gpu=multi_gpu)
 
     if action == "tag":

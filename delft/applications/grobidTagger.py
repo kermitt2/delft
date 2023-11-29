@@ -8,13 +8,13 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
-from delft.utilities.Utilities import longest_row
+from delft.utilities.Utilities import longest_row, t_or_f
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter', 'segmentation', 'funding-acknowledgement']
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
-              embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1):
+              embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1, early_stop=None):
     """
     Set up the default parameters based on the model type.
     """
@@ -24,7 +24,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         model_name = 'grobid-' + model
 
     multiprocessing = True
-    early_stop = True
+    o_early_stop = True
 
     if architecture and "BERT" in architecture:
         # architectures with some transformer layer/embeddings inside
@@ -56,7 +56,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                 batch_size = 8
             if max_sequence_length == -1:
                 max_sequence_length = 512
-            early_stop = False
+            o_early_stop = False
             if max_epoch == -1:
                 max_epoch = 30
         elif model.startswith("funding"):
@@ -144,13 +144,17 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
     if patience == -1:
         patience = 5
 
-    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience
+    if early_stop is not None:
+        o_early_stop = early_stop
+
+    return batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, o_early_stop, patience
 
 
 # train a GROBID model with all available data
-def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None,
-        output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1,
-        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, multi_gpu=False):
+
+def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
+        output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False):
 
     print('Loading data...')
     if input_path == None:
@@ -176,7 +180,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience)
+                                                                            patience, early_stop)
+
     model = Sequence(model_name,
                      recurrent_dropout=0.50,
                      embeddings_name=embeddings_name,
@@ -217,7 +222,9 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-               use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, multi_gpu=False):
+               use_ELMo=False, incremental=False, input_model_path=None, patience=-1,
+               learning_rate=None, early_stop=None, multi_gpu=False):
+
     print('Loading data...')
     if input_path is None:
         x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
@@ -243,7 +250,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             embeddings_name,
                                                                             max_epoch,
                                                                             use_ELMo,
-                                                                            patience)
+                                                                            patience,
+                                                                            early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -410,6 +418,13 @@ if __name__ == "__main__":
     parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
                                                                  "the best epoch before stopping a training.")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs for training.")
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
+                        help="Force early training termination when metrics scores are not improving " + 
+                             "after a number of epochs equals to the patience parameter.")
+
     parser.add_argument("--multi-gpu", default=False,
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
@@ -430,6 +445,8 @@ if __name__ == "__main__":
     incremental = args.incremental
     patience = args.patience
     learning_rate = args.learning_rate
+    max_epoch = args.max_epoch
+    early_stop = args.early_stop
     multi_gpu = args.multi_gpu
 
     if architecture is None:
@@ -441,19 +458,21 @@ if __name__ == "__main__":
 
     if action == Tasks.TRAIN:
             train(model, 
-                embeddings_name=embeddings_name,
-                architecture=architecture,
-                transformer=transformer,
-                input_path=input_path,
-                output_path=output,
-                max_sequence_length=max_sequence_length,
-                batch_size=batch_size,
-                use_ELMo=use_ELMo,
-                incremental=incremental,
-                input_model_path=input_model_path,
-                patience=patience,
-                learning_rate=learning_rate,
-                multi_gpu=multi_gpu)
+            embeddings_name=embeddings_name, 
+            architecture=architecture, 
+            transformer=transformer,
+            input_path=input_path, 
+            output_path=output,
+            max_sequence_length=max_sequence_length,
+            batch_size=batch_size,
+            use_ELMo=use_ELMo,
+            incremental=incremental,
+            input_model_path=input_model_path,
+            patience=patience,
+            learning_rate=learning_rate,
+            max_epoch=max_epoch,
+            early_stop=early_stop,
+            multi_gpu=multi_gpu)
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -479,6 +498,8 @@ if __name__ == "__main__":
                 incremental=incremental,
                 input_model_path=input_model_path,
                 learning_rate=learning_rate,
+                max_epoch=max_epoch,
+                early_stop=early_stop,
                 multi_gpu=multi_gpu)
 
     if action == Tasks.TAG:
