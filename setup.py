@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="delft",
-    version="0.3.2",
+    version="0.3.4",
     author="Patrice Lopez",
     author_email="patrice.lopez@science-miner.com",
     description="a Deep Learning Framework for Text",
@@ -22,13 +22,14 @@ setup(
         'unidecode==1.3.2',
         'pydot==1.4.0',
         'lmdb==1.2.1',
-        'transformers==4.25.1', 
+        'transformers==4.33.2', 
         'torch==1.10.1',
         'truecase',
         'requests>=2.20',
         'pandas==1.3.5',
         'pytest',
-        'tensorflow-addons==0.19.0'  
+        'tensorflow-addons==0.19.0',
+        'accelerate>=0.20.3'
     ],
     classifiers=[
         "Programming Language :: Python :: 3.8",

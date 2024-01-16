@@ -67,10 +67,10 @@ class Trainer(object):
         if self.model_config.transformer_name is not None:
             # we use a transformer layer in the architecture
             optimizer, lr_schedule = create_optimizer(
-                init_lr=2e-5, 
+                init_lr=self.training_config.learning_rate,
                 num_train_steps=nb_train_steps,
                 weight_decay_rate=0.01,
-                num_warmup_steps=0.1*nb_train_steps,
+                num_warmup_steps=0.1 * nb_train_steps,
             )
 
             if local_model.config.use_chain_crf:
@@ -139,10 +139,9 @@ class Trainer(object):
                 output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=True,
+                                      early_stopping=True,
                                       patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf)
+                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf, use_chain_crf=self.model_config.use_chain_crf, model=local_model)
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -159,9 +158,10 @@ class Trainer(object):
                 features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
             _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      eary_stopping=False,
+                                      early_stopping=False,
                                       use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf)
+                                      use_chain_crf=self.model_config.use_chain_crf,
+                                      model=local_model)
         _callbacks += (callbacks or [])
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
@@ -268,14 +268,24 @@ class Trainer(object):
                         transformer_preprocessor.tokenizer.save_pretrained(os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
-def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_crf=True, use_chain_crf=False):
+class LogLearningRateCallback(Callback):
+
+    def __init__(self, model=None):
+        super().__init__()
+        self.model = model
+
+    def on_epoch_end(self, epoch, logs):
+        if self.model is not None:
+            logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
+
+def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None):
     """
     Get callbacks.
 
     Args:
         log_dir (str): the destination to save logs
         valid (tuple): data for validation.
-        eary_stopping (bool): whether to use early stopping.
+        early_stopping (bool): whether to use early stopping.
 
     Returns:
         list: list of callbacks
@@ -296,8 +306,10 @@ def get_callbacks(log_dir=None, valid=(), eary_stopping=True, patience=5, use_cr
                                         save_weights_only=True)
         callbacks.append(save_callback)
 
-    if eary_stopping:
+    if early_stopping:
         callbacks.append(EarlyStopping(monitor='f1', patience=patience, mode='max'))
+
+    callbacks.append(LogLearningRateCallback(model))
 
     return callbacks
 

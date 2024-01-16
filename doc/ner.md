@@ -28,15 +28,20 @@ All reported scores bellow are __f-score__ for the CoNLL-2003 NER dataset. We re
 | BidGRU_CRF    | DeLFT | 90.17 / 90.55  | 91.04 / 91.40 | 92.03 / 92.44 | 92.43 / 92.71 |
 |               | [(Peters & al. 2017)](https://arxiv.org/abs/1705.00108) |  | |  | 91.93* / - |
 
-Results with BERT fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax. A CRF activation layer improves f-score in average by around +0.10 for sequence labelling task, but increase the runtime by 23%: 
+Results with transformer fine-tuning for CoNLL-2003 NER dataset, including a final CRF activation layer, instead of a softmax. A CRF activation layer improves f-score in average by around +0.10 for sequence labelling task, but increase the runtime by 23%: 
 
-| Architecture  | Implementation | f-score |
-| --- | --- | --- | 
-| bert-base-cased     | DeLFT | 91.19 |  
-| bert-base-cased +CRF| DeLFT | 91.25 |  
-| bert-base-cased     | [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) | 92.4 |
+| Architecture  | pretrained model | Implementation | f-score |
+| ---  | --- | --- | --- |
+| BERT | bert-base-cased     | DeLFT | 91.19 |  
+| BERT_CRF | bert-base-cased +CRF| DeLFT | 91.25 |  
+| BERT_ChainCRF | bert-base-cased +CRF| DeLFT | 91.22 |  
+| BERT | roberta-base     | DeLFT | 91.64 |  
 
-For DeLFT, the average is obtained with 10 training runs (see latest [full results](https://github.com/kermitt2/delft/blob/master/doc/sequence_labeling.0.3.0.txt)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not easily reproducible (if reproducible), and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition. 
+Note: DeLFT uses `BERT` as architecture name for transformers in general, but the transformer model could be in principle any transformer variants preset in HuggingFace Hub. DeLFT supports 2 implementations of a CRF layer to be combined with RNN and transformer architectures: `CRF` based on TensorFlow Addons and `ChainCRF` a custom implementation. Both should produce similar accuracy results, but `ChainCRF` is significantly faster and robust. 
+
+For reference, the original reported result for  `bert-base-cased` model in [(Devlin & al. 2018)](https://arxiv.org/abs/1810.04805) is **92.4**, using "document context".
+
+For DeLFT, the average is obtained with 10 training runs (see latest [full results](https://github.com/kermitt2/delft/blob/master/doc/sequence_labeling.0.3.0.txt)) and for (Devlin & al. 2018) averaged with 5 runs. As noted [here](https://github.com/google-research/bert/issues/223), the original CoNLL-2003 NER results with BERT reported by the Google Research paper are not easily reproducible, and the score obtained by DeLFT is very similar to those obtained by all the systems having reproduced this experiment in similar condition (e.g. without "document context"). 
 
 _*_ reported f-score using Senna word embeddings and not Glove.
 

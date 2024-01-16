@@ -1,5 +1,6 @@
 import os
 
+from delft.sequenceLabelling.trainer import LogLearningRateCallback
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.misc import print_parameters
 
@@ -60,7 +61,7 @@ class Classifier(object):
                  use_char_feature=False, 
                  batch_size=256, 
                  optimizer='adam', 
-                 learning_rate=0.001, 
+                 learning_rate=None,
                  lr_decay=0.9,
                  clip_gradients=5.0, 
                  max_epoch=50, 
@@ -81,6 +82,13 @@ class Classifier(object):
                 model_name += "_" + embeddings_name
             if transformer_name is not None:
                 model_name += "_" + transformer_name
+
+        if learning_rate is None:
+            if transformer_name is None:
+                learning_rate = 0.001
+            else:
+                learning_rate = 2e-5
+
 
         self.model = None
         self.models = None
@@ -116,9 +124,9 @@ class Classifier(object):
                                         batch_size=batch_size,
                                         transformer_name=self.transformer_name)
 
-        self.training_config = TrainingConfig(batch_size=batch_size, 
-                                              optimizer=optimizer, 
-                                              learning_rate=learning_rate,
+        self.training_config = TrainingConfig(learning_rate,
+                                              batch_size=batch_size,
+                                              optimizer=optimizer,
                                               lr_decay=lr_decay, 
                                               clip_gradients=clip_gradients, 
                                               max_epoch=max_epoch,
@@ -162,6 +170,10 @@ class Classifier(object):
                 maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
                 embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
             validation_generator = None
+
+
+        callbacks_ = callbacks if callbacks else []
+        callbacks_.append(LogLearningRateCallback(self.model))
 
         # uncomment to plot graph
         # from tensorflow.keras.utils import plot_model
