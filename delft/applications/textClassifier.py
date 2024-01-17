@@ -1,6 +1,4 @@
 import argparse
-import csv
-import json
 import sys
 import time
 
@@ -11,6 +9,7 @@ from sklearn.preprocessing import LabelEncoder, OneHotEncoder
 from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
 from delft.textClassification.reader import load_texts_and_classes_generic
+from delft.utilities.Utilities import t_or_f
 
 pretrained_transformers_examples = ['bert-base-cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased']
 
@@ -26,12 +25,12 @@ def get_one_hot(y):
     return y2
 
 
-def configure(architecture, batch_size_, max_sequence_length_, patience_):
+
+def configure(architecture, max_sequence_length_=-1, batch_size_=-1, max_epoch_=-1, patience_=-1, early_stop=True):
     batch_size = 256
     maxlen = 150 if max_sequence_length_ == -1 else max_sequence_length_
     patience = 5 if patience_ == -1 else patience_
-    early_stop = True
-    max_epoch = 60
+    max_epoch = 60 if max_epoch_ == -1 else max_epoch_
 
     # default bert model parameters
     if architecture == "bert":
@@ -44,25 +43,50 @@ def configure(architecture, batch_size_, max_sequence_length_, patience_):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(model_name, architecture, input_file, embeddings_name, fold_count, transformer=None,
-          x_index=0, y_indexes=[1], batch_size=-1, max_sequence_length=-1, patience=-1):
+def train(model_name,
+          architecture,
+          input_file,
+          embeddings_name,
+          fold_count,
+          transformer=None,
+          x_index=0,
+          y_indexes=[1],
+          batch_size=-1,
+          max_sequence_length=-1,
+          patience=-1,
+          incremental=False,
+          learning_rate=None,
+          multi_gpu=False,
+          max_epoch=50,
+          early_stop=True
+          ):
+
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size,
-                                                                    max_sequence_length, patience)
+                                                                    max_sequence_length, patience, learning_rate)
 
     print('loading ' + model_name + ' training corpus...')
     xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
 
     list_classes = list(set([y_[0] for y_ in y]))
 
-    model = Classifier(model_name, architecture=architecture, list_classes=list_classes, max_epoch=max_epoch,
-                       fold_number=fold_count, patience=patience, transformer_name=transformer,
-                       use_roc_auc=True, embeddings_name=embeddings_name, early_stop=early_stop,
-                       batch_size=batch_size, maxlen=maxlen, class_weights=None)
+    model = Classifier(model_name,
+                       architecture=architecture,
+                       list_classes=list_classes,
+                       max_epoch=max_epoch,
+                       fold_number=fold_count,
+                       patience=patience,
+                       transformer_name=transformer,
+                       use_roc_auc=True,
+                       embeddings_name=embeddings_name,
+                       early_stop=early_stop,
+                       batch_size=batch_size,
+                       maxlen=maxlen,
+                       class_weights=None)
 
     y_ = get_one_hot(y)
 
     if fold_count == 1:
-        model.train(xtr, y_)
+        model.train(xtr, y_, incremental=incremental)
     else:
         model.train_nfold(xtr, y_)
     # saving the model
@@ -87,7 +111,7 @@ def eval(model_name, architecture, input_file, x_index=0, y_indexes=[1]):
 
 def train_and_eval(model_name, architecture, input_file, embeddings_name, fold_count, transformer=None,
                 x_index=0, y_indexes=[1], batch_size=-1,
-                max_sequence_length=-1, patience=-1):
+                max_sequence_length=-1, patience=-1, multi_gpu=False):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size, max_sequence_length,
                                                                     patience)
 
@@ -107,9 +131,9 @@ def train_and_eval(model_name, architecture, input_file, embeddings_name, fold_c
     x_train, x_test, y_train, y_test = train_test_split(xtr, y_one_hot, test_size=0.1)
 
     if fold_count == 1:
-        model.train(x_train, y_train)
+        model.train(x_train, y_train, multi_gpu=multi_gpu)
     else:
-        model.train_nfold(x_train, y_train)
+        model.train_nfold(x_train, y_train, multi_gpu=multi_gpu)
 
     model.eval(x_test, y_test)
 
@@ -173,8 +197,19 @@ if __name__ == "__main__":
 
     parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
-    parser.add_argument("--patience", type=int, default=5,
-                        help="patience, number of epoques to count before stopping the training (only used in train or train_eval).")
+    parser.add_argument("--patience", type=int, default=-1, help="patience, number of extra epochs to perform after "
+                                                                "the best epoch before stopping a training.")
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present")
+    parser.add_argument("--max-epoch", type=int, default=-1,
+                        help="Maximum number of epochs for training.")
+    parser.add_argument("--early-stop", type=t_or_f, default=None,
+                        help="Force early training termination when metrics scores are not improving " +
+                             "after a number of epochs equals to the patience parameter.")
+
+    parser.add_argument("--multi-gpu", default=False,
+                        help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
+                        action="store_true")
 
     args = parser.parse_args()
 
@@ -186,7 +221,12 @@ if __name__ == "__main__":
     x_index = args.x_index
     patience = args.patience
     batch_size = args.batch_size
+    incremental = args.incremental
     max_sequence_length = args.max_sequence_length
+    learning_rate = args.learning_rate
+    max_epoch = args.max_epoch
+    early_stop = args.early_stop
+    multi_gpu = args.multi_gpu
 
     if args.action != "classify":
         if args.y_indexes is None:
@@ -204,8 +244,17 @@ if __name__ == "__main__":
 
     if args.action == 'train':
         train(model_name, architecture, input_file, embeddings_name, args.fold_count,
-              transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
-              max_sequence_length=max_sequence_length, patience=patience)
+              transformer=transformer,
+              x_index=x_index,
+              y_indexes=y_indexes,
+              batch_size=batch_size,
+              incremental=incremental,
+              max_sequence_length=max_sequence_length,
+              patience=patience,
+              learning_rate=learning_rate,
+              max_epoch=max_epoch,
+              early_stop=early_stop,
+              multi_gpu=multi_gpu)
 
     elif args.action == 'eval':
         eval(model_name, architecture, input_file, x_index=x_index, y_indexes=y_indexes)
@@ -214,9 +263,18 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train_and_eval(model_name, architecture, input_file, embeddings_name, args.fold_count,
-                            transformer=transformer, x_index=x_index, y_indexes=y_indexes, batch_size=batch_size,
-                            max_sequence_length=max_sequence_length, patience=patience)
+        train_and_eval(model_name,
+                       architecture,
+                       input_file,
+                       embeddings_name,
+                       args.fold_count,
+                       transformer=transformer,
+                       x_index=x_index,
+                       y_indexes=y_indexes,
+                       batch_size=batch_size,
+                       max_sequence_length=max_sequence_length,
+                       patience=patience,
+                       multi_gpu=multi_gpu)
 
     elif args.action == 'classify':
         lines, _ = load_texts_and_classes_generic(input_file, x_index, None)

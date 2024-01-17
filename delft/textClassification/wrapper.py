@@ -1,5 +1,7 @@
 import os
 
+from packaging import version
+
 from delft.sequenceLabelling.trainer import LogLearningRateCallback
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.misc import print_parameters
@@ -136,10 +138,25 @@ class Classifier(object):
                                               class_weights=class_weights, 
                                               multiprocessing=multiprocessing)
 
-    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
+    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                self.train_(x_train, y_train, vocab_init, incremental, callbacks)
+        else:
+            self.train_(x_train, y_train, vocab_init, incremental, callbacks)
+
+    def train_(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
 
         if incremental:
-            if self.model == None and self.models == None:
+            if self.model is None and self.models is None:
                 print("error: you must load a model first for an incremental training")
                 return
             print("Incremental training from loaded model", self.model_config.model_name)
@@ -193,7 +210,22 @@ class Classifier(object):
             callbacks=callbacks)
 
 
-    def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
+    def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
+
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            import atexit
+            atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                self.train_nfold_(x_train, y_train,vocab_init, incremental, callbacks)
+        else:
+            self.train_nfold_(x_train, y_train, vocab_init, incremental, callbacks)
+
+    def train_nfold_(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
         if incremental:
             if self.models == None:
                 print("error: you must load a model first for an incremental training")
@@ -203,8 +235,23 @@ class Classifier(object):
         else:
             self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, None, callbacks=callbacks)
 
+    def predict(self, texts, output_format='json', use_main_thread_only=False, batch_size=None, multi_gpu=False):
+        if multi_gpu:
+            strategy = tf.distribute.MirroredStrategy()
+            print('Running with multi-gpu. Number of devices: {}'.format(strategy.num_replicas_in_sync))
 
-    def predict(self, texts, output_format='json', use_main_thread_only=False, batch_size=None):
+            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
+            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
+            if version.parse(tf.__version__) < version.parse('2.10.0'):
+                import atexit
+                atexit.register(strategy._extended._collective_ops._pool.close) # type: ignore
+
+            with strategy.scope():
+                return self.predict_(texts, output_format, use_main_thread_only, batch_size)
+        else:
+            return self.predict_(texts, output_format, use_main_thread_only, batch_size)
+
+    def predict_(self, texts, output_format='json', use_main_thread_only=False, batch_size=None):
         bert_data = False
         if self.transformer_name != None:
             bert_data = True
@@ -216,7 +263,7 @@ class Classifier(object):
             print("---")
 
         if self.model_config.fold_number == 1:
-            if self.model != None: 
+            if self.model is not None:
                 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
                     maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
@@ -226,7 +273,7 @@ class Classifier(object):
             else:
                 raise (OSError('Could not find a model.'))
         else:            
-            if self.models != None: 
+            if self.models is not None:
 
                 # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
                 predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
