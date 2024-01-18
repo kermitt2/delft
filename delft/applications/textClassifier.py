@@ -93,7 +93,7 @@ def train(model_name,
     if fold_count == 1:
         model.train(xtr, y_, incremental=incremental, multi_gpu=multi_gpu)
     else:
-        model.train_nfold(xtr, y_)
+        model.train_nfold(xtr, y_, multi_gpu=multi_gpu)
     # saving the model
     model.save()
 
