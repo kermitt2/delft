@@ -61,8 +61,12 @@ def train(model_name,
           early_stop=True
           ):
 
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, batch_size,
-                                                                    max_sequence_length, patience, learning_rate)
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture,
+                                                                    max_sequence_length,
+                                                                    batch_size,
+                                                                    max_epoch,
+                                                                    patience,
+                                                                    early_stop=early_stop)
 
     print('loading ' + model_name + ' training corpus...')
     xtr, y = load_texts_and_classes_generic(input_file, x_index, y_indexes)
@@ -81,12 +85,13 @@ def train(model_name,
                        early_stop=early_stop,
                        batch_size=batch_size,
                        maxlen=maxlen,
-                       class_weights=None)
+                       class_weights=None,
+                       learning_rate=learning_rate)
 
     y_ = get_one_hot(y)
 
     if fold_count == 1:
-        model.train(xtr, y_, incremental=incremental)
+        model.train(xtr, y_, incremental=incremental, multi_gpu=multi_gpu)
     else:
         model.train_nfold(xtr, y_)
     # saving the model
