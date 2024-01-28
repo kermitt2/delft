@@ -151,7 +151,7 @@ class BaseModel(object):
                     use_multiprocessing=multiprocessing,
                     workers=nb_workers,
                     class_weight=class_weights,
-                    epochs=max_epoch, callbacks=callbacks)
+                    epochs=1, callbacks=callbacks)
 
                 y_pred = self.model.predict(
                     validation_generator, 

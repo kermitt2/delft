@@ -37,7 +37,7 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The latest DeLFT release has been tested successfully with python 3.8 and Tensorflow 2.9.3. As always, GPU(s) are required for decent training time. A GeForce GTX 1050 Ti (4GB) for instance is fine for running RNN models and BERT or RoBERTa base models. Using BERT large model is possible from a GeForce GTX 1080 Ti (11GB) with modest batch size. Using multiple GPUs (training and inference) is supported.
+The latest DeLFT release __0.3.4__ has been tested successfully with python 3.8 and Tensorflow 2.9.3. As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
 
 ## DeLFT Documentation
 
@@ -48,7 +48,7 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 PyPI packages are available for stable versions. Latest stable version is `0.3.4`:
 
 ```
-pip install delft==0.3.4
+python3 -m pip install delft==0.3.4
 ```
 
 ## DeLFT Installation
@@ -70,13 +70,13 @@ source env/bin/activate
 Install the dependencies:
 
 ```sh
-pip3 install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Finally install the project, preferably in editable state
 
 ```sh
-pip3 install -e .
+python3 -m pip install -e .
 ```
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
@@ -98,7 +98,7 @@ If you want to this work, please refer to the present GitHub project, together w
     title = {DeLFT},
     howpublished = {\url{https://github.com/kermitt2/delft}},
     publisher = {GitHub},
-    year = {2018--2023},
+    year = {2018--2024},
     archivePrefix = {swh},
     eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
 }

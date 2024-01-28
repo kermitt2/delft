@@ -278,6 +278,7 @@ class LogLearningRateCallback(Callback):
         if self.model is not None:
             logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
 
+
 def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None):
     """
     Get callbacks.

@@ -1,0 +1,115 @@
+GRU - glove-840B
+================
+
+* ensemble 10 classifiers (10 folds) *
+
+Evaluation on 73 instances:
+                   precision        recall       f-score       support
+     publisher        0.9062        0.9355        0.9206            31
+       authors        1.0000        0.8966        0.9455            29
+     undecided        0.7333        0.8462        0.7857            13
+
+Evaluation on 61 instances:
+                   precision        recall       f-score       support
+          CC-0        0.0000        0.0000        0.0000             0
+         CC-BY        0.9565        1.0000        0.9778            22
+      CC-BY-NC        0.0000        0.0000        0.0000             1
+   CC-BY-NC-ND        1.0000        1.0000        1.0000             3
+      CC-BY-SA        1.0000        1.0000        1.0000             1
+   CC-BY-NC-SA        0.0000        0.0000        0.0000             0
+      CC-BY-ND        0.0000        0.0000        0.0000             0
+     copyright        1.0000        1.0000        1.0000             8
+         other        0.0000        0.0000        0.0000             0
+     undecided        1.0000        1.0000        1.0000            26
+
+* single classifier
+
+Evaluation on 73 instances:
+                   precision        recall       f-score       support
+     publisher        0.9032        0.9032        0.9032            31
+       authors        0.8387        0.8966        0.8667            29
+     undecided        0.8182        0.6923        0.7500            13
+
+Evaluation on 72 instances:
+                   precision        recall       f-score       support
+          CC-0        0.0000        0.0000        0.0000             0
+         CC-BY        0.8788        0.9667        0.9206            30
+      CC-BY-NC        0.0000        0.0000        0.0000             4
+   CC-BY-NC-ND        1.0000        1.0000        1.0000             3
+      CC-BY-SA        1.0000        1.0000        1.0000             3
+   CC-BY-NC-SA        0.0000        0.0000        0.0000             0
+      CC-BY-ND        0.0000        0.0000        0.0000             0
+     copyright        0.9167        1.0000        0.9565            11
+         other        0.0000        0.0000        0.0000             0
+     undecided        0.9524        0.9524        0.9524            21     
+     
+     
+SciBERT
+=======
+
+Evaluation on 73 instances:
+                   precision        recall       f-score       support
+     publisher        0.9394        1.0000        0.9688            31
+       authors        1.0000        0.9655        0.9825            29
+     undecided        1.0000        0.9231        0.9600            13
+
+
+Evaluation on 70 instances:
+                   precision        recall       f-score       support
+          CC-0        0.0000        0.0000        0.0000             0
+         CC-BY        0.7568        0.9655        0.8485            29
+      CC-BY-NC        0.0000        0.0000        0.0000             4
+   CC-BY-NC-ND        0.0000        0.0000        0.0000             2
+      CC-BY-SA        0.0000        0.0000        0.0000             2
+   CC-BY-NC-SA        0.0000        0.0000        0.0000             0
+      CC-BY-ND        0.0000        0.0000        0.0000             0
+     copyright        0.8462        0.9167        0.8800            12
+         other        0.0000        0.0000        0.0000             0
+     undecided        0.9500        0.9048        0.9268            21
+     
+BERT-base
+=========
+
+Evaluation on 73 instances:
+                   precision        recall       f-score       support
+     publisher        0.9000        0.8710        0.8852            31
+       authors        0.8750        0.9655        0.9180            29
+     undecided        0.9091        0.7692        0.8333            13
+
+Evaluation on 70 instances:
+                   precision        recall       f-score       support
+          CC-0        0.0000        0.0000        0.0000             0
+         CC-BY        0.7632        1.0000        0.8657            29
+      CC-BY-NC        0.0000        0.0000        0.0000             4
+   CC-BY-NC-ND        0.0000        0.0000        0.0000             2
+      CC-BY-SA        1.0000        0.5000        0.6667             2
+   CC-BY-NC-SA        0.0000        0.0000        0.0000             0
+      CC-BY-ND        0.0000        0.0000        0.0000             0
+     copyright        1.0000        0.7500        0.8571            12
+         other        0.0000        0.0000        0.0000             0
+     undecided        0.9545        1.0000        0.9767            21
+
+
+BioLinkBERT-base
+================
+
+Evaluation on 73 instances:
+                   precision        recall       f-score       support
+     publisher        0.8788        0.9355        0.9062            31
+       authors        0.9655        0.9655        0.9655            29
+     undecided        0.8182        0.6923        0.7500            13
+
+valuation on 70 instances:
+                   precision        recall       f-score       support
+          CC-0        0.0000        0.0000        0.0000             0
+         CC-BY        0.7059        0.8276        0.7619            29
+      CC-BY-NC        0.0000        0.0000        0.0000             4
+   CC-BY-NC-ND        0.0000        0.0000        0.0000             2
+      CC-BY-SA        0.0000        0.0000        0.0000             2
+   CC-BY-NC-SA        0.0000        0.0000        0.0000             0
+      CC-BY-ND        0.0000        0.0000        0.0000             0
+     copyright        0.8000        0.6667        0.7273            12
+         other        0.0000        0.0000        0.0000             0
+     undecided        0.6923        0.8571        0.7660            21
+
+

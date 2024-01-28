@@ -16,16 +16,16 @@ source env/bin/activate
 Install the dependencies:
 
 ```sh
-pip3 install -r requirements.txt
+python3 -m pip install -r requirements.txt
 ```
 
 Finally install the project in editable state
 
 ```sh
-pip3 install -e .
+python3 -m pip install -e .
 ```
 
-Current DeLFT version is __0.3.3__, which has been tested successfully with Python 3.8 and tensorflow 2.9.3. IT will exploit your available GPU with the condition that CUDA (>=11.2) is properly installed. 
+Current DeLFT version is __0.3.4__, which has been tested successfully with Python 3.8 and tensorflow 2.9.3. It will exploit your available GPU with the condition that CUDA (>=12) is properly installed. 
 
 To ensure the availability of GPU devices for the right version of tensorflow, CUDA, CuDNN and python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
 

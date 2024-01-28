@@ -91,7 +91,6 @@ class Classifier(object):
             else:
                 learning_rate = 2e-5
 
-
         self.model = None
         self.models = None
         self.log_dir = log_dir
