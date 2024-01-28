@@ -3,6 +3,8 @@ GRU - glove-840B
 
 * ensemble 10 classifiers (10 folds) *
 
+> python3 delft/applications/licenseClassifier.py train_eval --embedding glove-840B --fold-count 10
+
 Evaluation on 73 instances:
                    precision        recall       f-score       support
      publisher        0.9062        0.9355        0.9206            31
@@ -23,6 +25,8 @@ Evaluation on 61 instances:
      undecided        1.0000        1.0000        1.0000            26
 
 * single classifier
+
+> python3 delft/applications/licenseClassifier.py train_eval --embedding glove-840B
 
 Evaluation on 73 instances:
                    precision        recall       f-score       support
@@ -47,6 +51,8 @@ Evaluation on 72 instances:
 SciBERT
 =======
 
+> python3 delft/applications/licenseClassifier.py train_eval --transformer allenai/scibert_scivocab_cased --architecture bert
+
 Evaluation on 73 instances:
                    precision        recall       f-score       support
      publisher        0.9394        1.0000        0.9688            31
@@ -67,8 +73,10 @@ Evaluation on 70 instances:
          other        0.0000        0.0000        0.0000             0
      undecided        0.9500        0.9048        0.9268            21
      
-BERT-base
-=========
+BERT-base-cased
+===============
+
+> python3 delft/applications/licenseClassifier.py train_eval --transformer bert-base-cased --architecture bert
 
 Evaluation on 73 instances:
                    precision        recall       f-score       support
@@ -92,6 +100,8 @@ Evaluation on 70 instances:
 
 BioLinkBERT-base
 ================
+
+> python3 delft/applications/licenseClassifier.py train_eval --transformer michiyasunaga/BioLinkBERT-base --architecture bert
 
 Evaluation on 73 instances:
                    precision        recall       f-score       support
