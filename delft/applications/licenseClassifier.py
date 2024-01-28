@@ -274,14 +274,14 @@ def classify(texts, output_format, embeddings_name=None, architecture="gru", tra
     model = Classifier('license_'+architecture)
     model.load()
     result2 = model.predict(texts, output_format)
-    #result[] = result2[]
+
     runtime = round(time.time() - start_time, 3)
     if output_format == 'json':
         result["runtime"] = runtime
     else:
         print("runtime: %s seconds " % (runtime))
 
-    return result
+    return result, result2
 
 
 def _read_data(file_path, data_type="copyrights"):
@@ -432,9 +432,9 @@ if __name__ == "__main__":
         y_test = train_and_eval_binary(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)    
 
     if args.action == 'classify':
-        someTexts = ['', 
-            '', 
-            '']
-        result = classify(someTexts, "json", architecture=architecture, embeddings_name=embeddings_name, transformer=transformer)
-        print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
-
+        someTexts = ['© 2005 Elsevier Inc. All rights reserved.', 
+            'This is an open-access article distributed under the terms of the Creative Commons Attribution License (http://creativecommons.org/licenses/by-nc/4.0), which permits unrestricted use, distribution, and reproduction in any medium, provided the original work is properly cited. Copyright © 2022 The Korean Association for Radiation Protection.', 
+            '© The Author(s) 2023.']
+        result1, result2 = classify(someTexts, "json", architecture=architecture, embeddings_name=embeddings_name, transformer=transformer)
+        print(json.dumps(result1, sort_keys=False, indent=4, ensure_ascii=False))
+        print(json.dumps(result2, sort_keys=False, indent=4, ensure_ascii=False))
