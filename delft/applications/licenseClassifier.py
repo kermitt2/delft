@@ -214,7 +214,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
         y_train_class_rank = np.array(y_train_class_rank)
         y_test_class_rank = np.array(y_test_class_rank)
 
-        list_classes_rank = [list_classes[class_rank], "not_"+list_classes[class_rank]]
+        list_classes_rank = [list_classes_copyright[class_rank], "not_"+list_classes_copyright[class_rank]]
 
         model = Classifier(model_name, architecture=architecture, list_classes=list_classes_rank, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
             use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
@@ -246,7 +246,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
         y_train_class_rank = np.array(y_train_class_rank)
         y_test_class_rank = np.array(y_test_class_rank)
 
-        list_classes_rank = [list_classes[class_rank], "not_"+list_classes[class_rank]]
+        list_classes_rank = [list_classes_licenses[class_rank], "not_"+list_classes_licenses[class_rank]]
 
         model = Classifier(model_name, architecture=architecture, list_classes=list_classes_rank, max_epoch=max_epoch, fold_number=fold_count, patience=patience,
             use_roc_auc=True, embeddings_name=embeddings_name, batch_size=batch_size, maxlen=maxlen, early_stop=early_stop,
