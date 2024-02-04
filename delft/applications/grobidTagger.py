@@ -10,7 +10,7 @@ from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.Utilities import longest_row, t_or_f
 
-MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter', 'segmentation', 'funding-acknowledgement']
+MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter', 'segmentation', 'funding-acknowledgement', 'patent-citation']
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
@@ -59,7 +59,12 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             o_early_stop = False
             if max_epoch == -1:
                 max_epoch = 30
-        elif model.startswith("funding"):
+        elif model.startswith("funding-acknowledgement"):
+            if max_sequence_length == -1:
+                max_sequence_length = 512
+            if batch_size == -1:
+                batch_size = 8
+        elif model == "patent-citation":
             if max_sequence_length == -1:
                 max_sequence_length = 512
             if batch_size == -1:
@@ -126,6 +131,14 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
                     max_sequence_length = 500
                 else:
                     max_sequence_length = 800
+        elif model == "patent-citation":
+            if batch_size == -1:
+                batch_size = 40
+            if max_sequence_length == -1:
+                if use_ELMo:
+                    max_sequence_length = 400
+                else:
+                    max_sequence_length = 1000
             
     model_name += '-' + architecture
 
@@ -308,6 +321,8 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False):
         x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
     print(len(x_all), 'evaluation sequences')
+
+    print("max evaluation sequence length:", str(longest_row(x_all)))
 
     model_name = 'grobid-' + model
     model_name += '-'+architecture
