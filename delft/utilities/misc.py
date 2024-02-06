@@ -67,7 +67,7 @@ def print_parameters(model_config, training_config):
     if hasattr(model_config, 'use_ELMo'):
         print("use_ELMo: ", model_config.use_ELMo)
 
-    if hasattr(training_config, 'class_weights') and training_config.class_weights != None and hasattr(model_config, 'list_classes'):
+    if hasattr(training_config, 'class_weights') and training_config.class_weights is not None and hasattr(model_config, 'list_classes'):
         list_classes = model_config.list_classes
         weight_summary = ""
         for indx, class_name in enumerate(model_config.list_classes):

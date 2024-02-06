@@ -1,10 +1,51 @@
+import csv
+
 import numpy as np
-import xml
 import gzip
 import json
-from xml.sax import make_parser, handler
 import pandas as pd
 from delft.utilities.numpy import shuffle_triple_with_view
+
+
+def load_texts_and_classes_generic(filepath, text_index: int, classes_indexes: list):
+    """
+    Load texts and classes from a file in the following simple tab-separated format:
+
+    id_0    text_0  class_00 ...    class_n0
+    id_1    text_1  class_01 ...    class_n1
+    ...
+    id_m    text_m  class_0m  ...   class_nm
+
+    text has no EOF and no tab
+
+    Returns:
+        tuple(numpy array, numpy array): texts and classes
+
+    """
+    x = []
+    y = []
+
+    delimiter = "\t"
+    if filepath.endswith(".csv"):
+        delimiter = ","
+
+    with open(filepath) as f:
+        first = True
+        tsvreader = csv.reader(f, delimiter=delimiter)
+        for line in tsvreader:
+            if len(line) == 0:
+                continue
+
+            classes = [line[i] for i in classes_indexes] if classes_indexes is not None else None
+            if first:
+                print("Sample input", "x: ", line[text_index], "y: ", classes)
+                first = False
+            x.append(line[text_index])
+
+            if classes_indexes is not None:
+                y.append(classes)
+
+    return np.asarray(x, dtype=object), np.asarray(y, dtype=object)
 
 
 def load_texts_and_classes(filepath):
@@ -66,7 +107,7 @@ def load_texts_and_classes_pandas(filepath):
     classes = df.iloc[:,2:]
     classes_list = classes.values.tolist()
 
-    return np.asarray(texts_list), np.asarray(classes_list)
+    return np.asarray(texts_list, dtype=object), np.asarray(classes_list, dtype=object)
 
 
 def load_texts_and_classes_pandas_no_id(filepath):
@@ -123,7 +164,7 @@ def load_texts_pandas(filepath):
     for j in range(0, df.shape[0]):
         texts_list.append(df.iloc[j,1])
 
-    return np.asarray(texts_list)
+    return np.asarray(texts_list, dtype=object)
 
 
 def load_citation_sentiment_corpus(filepath):
@@ -174,7 +215,7 @@ def load_citation_sentiment_corpus(filepath):
                 polarity.append(0)
             polarities.append(polarity)
 
-    return np.asarray(texts), np.asarray(polarities)
+    return np.asarray(texts, dtype=object), np.asarray(polarities, dtype=object)
 
 def load_citation_intent_corpus(filepath):
     """
@@ -272,7 +313,7 @@ def load_dataseer_corpus_csv(filepath):
     # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:,2]
     datatypes_list = datatypes.values.tolist()
-    datatypes_list = np.asarray(datatypes_list)
+    datatypes_list = np.asarray(datatypes_list, dtype=object)
     datatypes_list_lower = np.char.lower(datatypes_list)
     list_classes_datatypes = np.unique(datatypes_list_lower)    
     datatypes_final = normalize_classes(datatypes_list_lower, list_classes_datatypes)
@@ -284,7 +325,7 @@ def load_dataseer_corpus_csv(filepath):
         df = df[~df.datatype.str.contains("no_dataset")]
         datasubtypes = df.iloc[:,3]
         datasubtypes_list = datasubtypes.values.tolist()
-        datasubtypes_list = np.asarray(datasubtypes_list)
+        datasubtypes_list = np.asarray(datasubtypes_list, dtype=object)
         datasubtypes_list_lower = np.char.lower(datasubtypes_list)
         list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
         datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
@@ -302,10 +343,10 @@ def load_dataseer_corpus_csv(filepath):
     '''
 
     if df.shape[1] == 3:
-        return np.asarray(texts_list), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
+        return np.asarray(texts_list, dtype=object), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
     #elif df.shape[1] == 4:
     else:
-        return np.asarray(texts_list), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
+        return np.asarray(texts_list, dtype=object), datatypes_final, datasubtypes_final, None, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), None
     '''
     else:
         return np.asarray(texts_list), datatypes_final, datasubtypes_final, leafdatatypes_final, list_classes_datatypes.tolist(), list_classes_datasubtypes.tolist(), list_classes_leafdatatypes.tolist()
