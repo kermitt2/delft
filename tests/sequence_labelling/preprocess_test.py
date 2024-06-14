@@ -78,7 +78,7 @@ def _to_dense(a: np.array):
 
 
 def all_close(a: np.array, b: np.array):
-    return np.allclose(_to_dense(a), _to_dense(b))
+    return np.allclose(_to_dense(a).astype("float"), _to_dense(b).astype("float"))
 
 
 class TestFeaturesPreprocessor:
@@ -95,7 +95,7 @@ class TestFeaturesPreprocessor:
         features_transformed = preprocessor.fit_transform(features_batch)
         features_length = len(preprocessor.features_indices)
         assert features_length == 1
-        assert all_close(features_transformed, [[[1]]])
+        assert all_close(features_transformed, np.array([[[1]]], dtype=object))
 
     def test_should_fit_single_multiple_value_features(self):
         preprocessor = FeaturesPreprocessor()
@@ -112,14 +112,14 @@ class TestFeaturesPreprocessor:
         features_transformed = preprocessor.fit_transform(features_batch)
         features_length = len(preprocessor.features_indices)
         assert features_length == 2
-        assert all_close(features_transformed, [[[1, 13]]])
+        assert all_close(features_transformed, np.asarray([[[1, 13]]], dtype=object))
 
     def test_should_transform_unseen_to_zero(self):
         preprocessor = FeaturesPreprocessor()
         features_batch = [[[FEATURE_VALUE_1]]]
         preprocessor.fit(features_batch)
         features_transformed = preprocessor.transform([[[FEATURE_VALUE_2]]])
-        assert all_close(features_transformed, [[[0]]])
+        assert all_close(features_transformed, np.asarray([[[0]]], dtype=object))
 
     def test_should_select_features(self):
         preprocessor = FeaturesPreprocessor(features_indices=[1])
@@ -131,7 +131,7 @@ class TestFeaturesPreprocessor:
         features_transformed = preprocessor.fit_transform(features_batch)
         features_length = len(preprocessor.features_indices)
         assert features_length == 1
-        assert all_close(features_transformed, [[[1], [2], [3]]])
+        assert all_close(features_transformed, np.asarray([[[1], [2], [3]]], dtype=object))
 
     def test_serialize_to_json(self, tmp_path):
         preprocessor = FeaturesPreprocessor(features_indices=[1])

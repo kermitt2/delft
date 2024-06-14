@@ -332,7 +332,7 @@ class DataGeneratorTransformers(BaseGenerator):
 
         # to have input as sentence piece token index for transformer layer
         input_ids, token_type_ids, attention_mask, input_chars, input_features, input_labels, input_offsets = self.bert_preprocessor.tokenize_and_align_features_and_labels(
-                                                                        x_tokenized, 
+                                                                        x_tokenized,
                                                                         batch_c,
                                                                         sub_f,
                                                                         batch_y,

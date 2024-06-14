@@ -499,7 +499,10 @@ def load_data_crf_string(crfString):
 
     #print('sents:', len(sents))
     #print('featureSets:', len(featureSets))
-    return sents, featureSets
+    return (
+        np.asarray(sents, dtype='object'),
+        np.asarray(featureSets, dtype='object')
+    )
 
 
 def _translate_tags_grobid_to_IOB(tag):
@@ -735,8 +738,8 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang='en'):
         total_tokens += len(sentence)
     print('nb total tokens:', total_tokens)    
 
-    final_tokens = np.asarray(tokens)
-    final_label = np.asarray(labels)
+    final_tokens = np.asarray(tokens, dtype=object)
+    final_label = np.asarray(labels, dtype=object)
 
     return final_tokens, final_label
 
