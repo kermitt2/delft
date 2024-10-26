@@ -3,6 +3,7 @@
 import argparse
 import json
 import time
+from typing import Dict
 
 from sklearn.model_selection import train_test_split
 
@@ -166,9 +167,9 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 # train a GROBID model with all available data
 
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None,
-        output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
-          enable_wandb=False):
+          output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1,
+          use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
+          wandb_config=None):
 
     print('Loading data...')
     if input_path == None:
@@ -186,31 +187,38 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
     print("\nmax train sequence length:", str(longest_row(x_train)))
     print("max validation sequence length:", str(longest_row(x_valid)))
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = configure(model,
-                                                                            architecture,
-                                                                            output_path,
-                                                                            max_sequence_length,
-                                                                            batch_size,
-                                                                            embeddings_name,
-                                                                            max_epoch,
-                                                                            use_ELMo,
-                                                                            patience, early_stop)
+    (batch_size, max_sequence_length, model_name,
+     embeddings_name, max_epoch, multiprocessing,
+     early_stop, patience) = configure(
+        model,
+        architecture,
+        output_path,
+        max_sequence_length,
+        batch_size,
+        embeddings_name,
+        max_epoch,
+        use_ELMo,
+        patience,
+        early_stop
+    )
 
-    model = Sequence(model_name,
-                     recurrent_dropout=0.50,
-                     embeddings_name=embeddings_name,
-                     architecture=architecture,
-                     transformer_name=transformer,
-                     batch_size=batch_size,
-                     max_sequence_length=max_sequence_length,
-                     features_indices=features_indices,
-                     max_epoch=max_epoch, 
-                     use_ELMo=use_ELMo,
-                     multiprocessing=multiprocessing,
-                     early_stop=early_stop,
-                     patience=patience,
-                     learning_rate=learning_rate,
-                     enable_wandb=enable_wandb)
+    model = Sequence(
+        model_name,
+        recurrent_dropout=0.50,
+        embeddings_name=embeddings_name,
+        architecture=architecture,
+        transformer_name=transformer,
+        batch_size=batch_size,
+        max_sequence_length=max_sequence_length,
+        features_indices=features_indices,
+        max_epoch=max_epoch,
+        use_ELMo=use_ELMo,
+        multiprocessing=multiprocessing,
+        early_stop=early_stop,
+        patience=patience,
+        learning_rate=learning_rate,
+        wandb_config=wandb_config
+    )
 
     if incremental:
         if input_model_path != None:
@@ -238,7 +246,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
                use_ELMo=False, incremental=False, input_model_path=None, patience=-1,
-               learning_rate=None, early_stop=None, multi_gpu=False, enable_wandb: bool=False):
+               learning_rate=None, early_stop=None, multi_gpu=False, wandb_config=None):
 
     print('Loading data...')
     if input_path is None:
@@ -267,22 +275,11 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             use_ELMo,
                                                                             patience,
                                                                             early_stop)
-    model = Sequence(model_name,
-                    recurrent_dropout=0.50,
-                    embeddings_name=embeddings_name,
-                    architecture=architecture,
-                    transformer_name=transformer,
-                    max_sequence_length=max_sequence_length,
-                    batch_size=batch_size,
-                    fold_number=fold_count,
-                    features_indices=features_indices,
-                    max_epoch=max_epoch, 
-                    use_ELMo=use_ELMo,
-                    multiprocessing=multiprocessing,
-                    early_stop=early_stop,
-                    patience=patience,
-                    learning_rate=learning_rate,
-                     enable_wandb=enable_wandb)
+    model = Sequence(model_name, architecture=architecture, embeddings_name=embeddings_name,
+                     max_sequence_length=max_sequence_length, recurrent_dropout=0.50, batch_size=batch_size,
+                     learning_rate=learning_rate, max_epoch=max_epoch, early_stop=early_stop, patience=patience,
+                     use_ELMo=use_ELMo, fold_number=fold_count, multiprocessing=multiprocessing,
+                     features_indices=features_indices, transformer_name=transformer, wandb_config=wandb_config)
 
     if incremental:
         if input_model_path != None:
@@ -482,6 +479,12 @@ if __name__ == "__main__":
         # default word embeddings
         embeddings_name = "glove-840B"
 
+    wandb_config = None
+    if wandb:
+        wandb_config = {
+            "project": "delft-grobidTagger"
+        }
+
     if action == Tasks.TRAIN:
             train(
                 model,
@@ -500,7 +503,7 @@ if __name__ == "__main__":
                 max_epoch=max_epoch,
                 early_stop=early_stop,
                 multi_gpu=multi_gpu,
-                enable_wandb=wandb
+                wandb_config=wandb_config
             )
 
     if action == Tasks.EVAL:
@@ -530,7 +533,7 @@ if __name__ == "__main__":
                 max_epoch=max_epoch,
                 early_stop=early_stop,
                 multi_gpu=multi_gpu,
-                   enable_wandb=wandb)
+                wandb_config=wandb_config)
 
     if action == Tasks.TAG:
         someTexts = []
