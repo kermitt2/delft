@@ -109,7 +109,7 @@ class Sequence(object):
         self.embeddings = None
         self.model_local_path = None
         if wandb_config is not None:
-            if 'project' not in wandb_config:
+            if 'project' in wandb_config:
                 self.wandb_config = wandb_config
             else:
                 raise ValueError("The wandb_config should be a dictionary with at least the string parameter 'project'. ")
