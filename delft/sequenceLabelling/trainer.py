@@ -79,14 +79,12 @@ class Trainer(object):
             if local_model.config.use_chain_crf:
                 local_model.compile(
                     optimizer=optimizer,
-                    loss=local_model.crf.sparse_crf_loss_bert_masked,
-                    metrics = ["accuracy"] if self.enable_wandb else []
+                    loss=local_model.crf.sparse_crf_loss_bert_masked
                 )
             elif local_model.config.use_crf:
                 # loss is calculated by the custom CRF wrapper
                 local_model.compile(
                     optimizer=optimizer,
-                    metrics = ["accuracy"] if self.enable_wandb else []
                 )
             else:
                 # we apply a mask on the predicted labels so that the weights 
@@ -94,7 +92,6 @@ class Trainer(object):
                 local_model.compile(
                     optimizer=optimizer,
                     loss=sparse_crossentropy_masked,
-                    metrics=["accuracy"] if self.enable_wandb else []
                 )
         else:
             
@@ -109,14 +106,12 @@ class Trainer(object):
                 local_model.compile(
                     optimizer=optimizer,
                     loss=local_model.crf.loss,
-                    metrics = ["accuracy"] if self.enable_wandb else []
                 )
             elif local_model.config.use_crf:
                 if tf.executing_eagerly():
                     # loss is calculated by the custom CRF wrapper, no need to specify a loss function here
                     local_model.compile(
                         optimizer=optimizer,
-                        metrics = ["accuracy"] if self.enable_wandb else []
                     )
                 else:
                     print("compile model, graph mode")
@@ -128,7 +123,6 @@ class Trainer(object):
                     local_model.compile(
                         optimizer=optimizer,
                         loss='sparse_categorical_crossentropy',
-                        metrics = ["accuracy"] if self.enable_wandb else []
                     )
                     #local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
             else:
@@ -136,7 +130,6 @@ class Trainer(object):
                 local_model.compile(
                     optimizer=optimizer,
                     loss='sparse_categorical_crossentropy',
-                    metrics = ["accuracy"] if self.enable_wandb else []
                 )
 
         return local_model
