@@ -1,0 +1,37 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.bumpversion]
+current_version = "0.0.8"
+commit = "true"
+tag = "true"
+tag_name = "v{new_version}"
+
+[project]
+name = "delft"
+version = "0.3.4"
+description = "a Deep Learning Framework for Text"
+readme = "Readme.md"
+readme-content-type = "text/markdown"
+authors = [
+    { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" }
+]
+maintainers = [
+    { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" },
+    { name = "Luca Foppiano", email = "lucanoro@duck.com" }
+]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+
+requires-python = ">=3.7"
+classifiers = [
+    "Programming Language :: Python :: 3.8",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent"
+]
+dependencies = []
+
+[tool.setuptools.packages.find]
+exclude = ["test", "*.test", "*.test.*"]
