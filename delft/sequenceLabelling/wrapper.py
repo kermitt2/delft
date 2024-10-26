@@ -1,4 +1,5 @@
 import os
+from typing import Dict
 
 from packaging import version
 from tensorflow.python.keras.models import model_from_config
@@ -88,7 +89,7 @@ class Sequence(object):
                  multiprocessing=True,
                  features_indices=None,
                  transformer_name: str = None,
-                 enable_wandb: bool = False):
+                 wandb_config = None):
 
         if model_name is None:
             # add a dummy name based on the architecture
@@ -107,7 +108,10 @@ class Sequence(object):
         word_emb_size = 0
         self.embeddings = None
         self.model_local_path = None
-        self.enable_wandb = enable_wandb
+        if wandb_config is not None and 'project' not in wandb_config:
+            self.wandb_config = wandb_config
+        else:
+            raise ValueError("The wandb_config should be a dictionary with at least the string parameter 'project'. ")
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
@@ -146,37 +150,36 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
-        if enable_wandb:
+        if wandb_config:
             import wandb
             wandb.init(
-                project="delft",
+                project=wandb_config["project"],
                 name=model_name,
-                # settings=wandb.Settings(start_method="fork"),
                 config={
                     "model_name": self.model_config.model_name,
                     "architecture": self.model_config.architecture,
+                    "transformer_name": self.model_config.transformer_name,
+                    "embeddings_name": self.model_config.embeddings_name,
+                    "embedding_size": self.model_config.word_embedding_size,
+                    "batch_size": self.training_config.batch_size,
+                    "learning_rate": self.training_config.learning_rate,
+                    "lr_decay": self.training_config.lr_decay,
+                    "max_epoch": self.training_config.max_epoch,
+                    "early_stop": self.training_config.early_stop,
+                    "patience": self.training_config.patience,
                     "char_emb_size": self.model_config.char_embedding_size,
                     "max_char_length": self.model_config.max_char_length,
                     "max_sequence_length": self.model_config.max_sequence_length,
                     "dropout": self.model_config.dropout,
                     "recurrent_dropout": self.model_config.recurrent_dropout,
-                    "fold_number": self.model_config.fold_number,
-                    "batch_size": self.training_config.batch_size,
                     "optimizer": self.training_config.optimizer,
-                    "learning_rate": self.training_config.learning_rate,
-                    "lr_decay": self.training_config.lr_decay,
-                    "clip_gradients": self.training_config.clip_gradients,
-                    "max_epoch": self.training_config.max_epoch,
-                    "early_stop": self.training_config.early_stop,
-                    "patience": self.training_config.patience,
-                    "max_checkpoints_to_keep": self.training_config.max_checkpoints_to_keep,
-                    "multiprocessing": self.training_config.multiprocessing
+                    "clip_gradients": self.training_config.clip_gradients
                 }
             )
 
 
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
-        if self.enable_wandb:
+        if self.wandb_config:
             from wandb.integration.keras import WandbMetricsLogger
             from wandb.integration.keras import WandbModelCheckpoint
             callbacks = callbacks + [
@@ -251,7 +254,7 @@ class Sequence(object):
             checkpoint_path=self.log_dir,
             preprocessor=self.p,
             transformer_preprocessor=self.model.transformer_preprocessor,
-            enable_wandb=self.enable_wandb
+            enable_wandb=self.wandb_config
         )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:

@@ -80,18 +80,22 @@ class Trainer(object):
                 local_model.compile(
                     optimizer=optimizer,
                     loss=local_model.crf.sparse_crf_loss_bert_masked,
-                    metrics = [wandb.config.metric] if self.enable_wandb else []
+                    metrics = ["accuracy"] if self.enable_wandb else []
                 )
             elif local_model.config.use_crf:
                 # loss is calculated by the custom CRF wrapper
                 local_model.compile(
                     optimizer=optimizer,
-                    metrics = [wandb.config.metric] if self.enable_wandb else []
+                    metrics = ["accuracy"] if self.enable_wandb else []
                 )
             else:
                 # we apply a mask on the predicted labels so that the weights 
                 # corresponding to special symbols are neutralized
-                local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss=sparse_crossentropy_masked,
+                    metrics=["accuracy"] if self.enable_wandb else []
+                )
         else:
             
             lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -102,11 +106,18 @@ class Trainer(object):
             
             #optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
             if local_model.config.use_chain_crf:
-                local_model.compile(optimizer=optimizer, loss=local_model.crf.loss)
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss=local_model.crf.loss,
+                    metrics = ["accuracy"] if self.enable_wandb else []
+                )
             elif local_model.config.use_crf:
                 if tf.executing_eagerly():
                     # loss is calculated by the custom CRF wrapper, no need to specify a loss function here
-                    local_model.compile(optimizer=optimizer)
+                    local_model.compile(
+                        optimizer=optimizer,
+                        metrics = ["accuracy"] if self.enable_wandb else []
+                    )
                 else:
                     print("compile model, graph mode")
                     # always expecting a loss function here, but it is calculated internally by the CRF wapper
@@ -114,11 +125,19 @@ class Trainer(object):
                     # '<tf.Variable 'chain_kernel:0' shape=(10, 10) dtype=float32> has `None` for gradient.'
                     # however this variable cannot be accessed, so no soluton for the moment 
                     # (probably need not using keras fit and creating a custom training loop to get the gradient)
-                    local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                    local_model.compile(
+                        optimizer=optimizer,
+                        loss='sparse_categorical_crossentropy',
+                        metrics = ["accuracy"] if self.enable_wandb else []
+                    )
                     #local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
             else:
                 # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
-                local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss='sparse_categorical_crossentropy',
+                    metrics = ["accuracy"] if self.enable_wandb else []
+                )
 
         return local_model
 
