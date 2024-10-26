@@ -165,9 +165,10 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 # train a GROBID model with all available data
 
-def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None, 
+def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None,
         output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
-        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False):
+        use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
+          enable_wandb=False):
 
     print('Loading data...')
     if input_path == None:
@@ -208,7 +209,8 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
                      multiprocessing=multiprocessing,
                      early_stop=early_stop,
                      patience=patience,
-                     learning_rate=learning_rate)
+                     learning_rate=learning_rate,
+                     enable_wandb=enable_wandb)
 
     if incremental:
         if input_model_path != None:
@@ -236,7 +238,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1, 
                use_ELMo=False, incremental=False, input_model_path=None, patience=-1,
-               learning_rate=None, early_stop=None, multi_gpu=False):
+               learning_rate=None, early_stop=None, multi_gpu=False, enable_wandb: bool=False):
 
     print('Loading data...')
     if input_path is None:
@@ -279,7 +281,8 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                     multiprocessing=multiprocessing,
                     early_stop=early_stop,
                     patience=patience,
-                    learning_rate=learning_rate)
+                    learning_rate=learning_rate,
+                     enable_wandb=enable_wandb)
 
     if incremental:
         if input_model_path != None:
@@ -444,6 +447,13 @@ if __name__ == "__main__":
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable the logging of the training using Weights and Biases",
+        action="store_true"
+    )
+
     args = parser.parse_args()
 
     model = args.model
@@ -463,6 +473,7 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
+    wandb = args.wandb
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -472,22 +483,25 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     if action == Tasks.TRAIN:
-            train(model, 
-            embeddings_name=embeddings_name, 
-            architecture=architecture, 
-            transformer=transformer,
-            input_path=input_path, 
-            output_path=output,
-            max_sequence_length=max_sequence_length,
-            batch_size=batch_size,
-            use_ELMo=use_ELMo,
-            incremental=incremental,
-            input_model_path=input_model_path,
-            patience=patience,
-            learning_rate=learning_rate,
-            max_epoch=max_epoch,
-            early_stop=early_stop,
-            multi_gpu=multi_gpu)
+            train(
+                model,
+                embeddings_name=embeddings_name,
+                architecture=architecture,
+                transformer=transformer,
+                input_path=input_path,
+                output_path=output,
+                max_sequence_length=max_sequence_length,
+                batch_size=batch_size,
+                use_ELMo=use_ELMo,
+                incremental=incremental,
+                input_model_path=input_model_path,
+                patience=patience,
+                learning_rate=learning_rate,
+                max_epoch=max_epoch,
+                early_stop=early_stop,
+                multi_gpu=multi_gpu,
+                enable_wandb=wandb
+            )
 
     if action == Tasks.EVAL:
         if args.fold_count is not None and args.fold_count > 1:
@@ -515,7 +529,8 @@ if __name__ == "__main__":
                 learning_rate=learning_rate,
                 max_epoch=max_epoch,
                 early_stop=early_stop,
-                multi_gpu=multi_gpu)
+                multi_gpu=multi_gpu,
+                   enable_wandb=wandb)
 
     if action == Tasks.TAG:
         someTexts = []

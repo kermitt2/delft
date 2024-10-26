@@ -2,6 +2,7 @@ import os
 
 import numpy as np
 import tensorflow as tf
+import wandb
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from transformers import create_optimizer
 
@@ -29,7 +30,8 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor: Preprocessor=None,
-                 transformer_preprocessor=None
+                 transformer_preprocessor=None,
+                 enable_wandb = False
                  ):
 
         # for single model training
@@ -45,6 +47,7 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
+        self.enable_wandb = enable_wandb
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -74,10 +77,17 @@ class Trainer(object):
             )
 
             if local_model.config.use_chain_crf:
-                local_model.compile(optimizer=optimizer, loss=local_model.crf.sparse_crf_loss_bert_masked)
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss=local_model.crf.sparse_crf_loss_bert_masked,
+                    metrics = [wandb.config.metric] if self.enable_wandb else []
+                )
             elif local_model.config.use_crf:
                 # loss is calculated by the custom CRF wrapper
-                local_model.compile(optimizer=optimizer)
+                local_model.compile(
+                    optimizer=optimizer,
+                    metrics = [wandb.config.metric] if self.enable_wandb else []
+                )
             else:
                 # we apply a mask on the predicted labels so that the weights 
                 # corresponding to special symbols are neutralized
@@ -138,10 +148,16 @@ class Trainer(object):
                 embeddings=self.embeddings, shuffle=False, features=f_valid, 
                 output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
-            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      early_stopping=True,
-                                      patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf, use_chain_crf=self.model_config.use_chain_crf, model=local_model)
+            _callbacks = get_callbacks(
+                log_dir=self.checkpoint_path,
+                early_stopping=True,
+                patience=self.training_config.patience,
+                valid=(validation_generator, self.preprocessor),
+                use_crf=self.model_config.use_crf,
+                use_chain_crf=self.model_config.use_chain_crf,
+                model=local_model,
+                external_callbacks=callbacks
+            )
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -157,13 +173,15 @@ class Trainer(object):
                 embeddings=self.embeddings, shuffle=True, 
                 features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
-            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      early_stopping=False,
-                                      use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf,
-                                      model=local_model)
-        _callbacks += (callbacks or [])
-        nb_workers = 6
+            _callbacks = get_callbacks(
+                log_dir=self.checkpoint_path,
+                early_stopping=False,
+                use_crf=self.model_config.use_crf,
+                use_chain_crf=self.model_config.use_chain_crf,
+                model=local_model,
+                external_callbacks=callbacks
+            )
+        nb_workers = 0
         multiprocessing = self.training_config.multiprocessing
 
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
@@ -172,11 +190,13 @@ class Trainer(object):
             nb_workers = 0 
             multiprocessing = False
 
-        local_model.fit(training_generator,
+        local_model.fit(
+            training_generator,
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,
                                 workers=nb_workers,
-                                callbacks=_callbacks)
+                                callbacks=_callbacks
+        )
 
         return local_model
 
@@ -279,7 +299,7 @@ class LogLearningRateCallback(Callback):
             logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
 
 
-def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None):
+def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None, external_callbacks=None):
     """
     Get callbacks.
 
@@ -311,6 +331,9 @@ def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_c
         callbacks.append(EarlyStopping(monitor='f1', patience=patience, mode='max'))
 
     callbacks.append(LogLearningRateCallback(model))
+
+    if external_callbacks:
+        callbacks.extend(external_callbacks)
 
     return callbacks
 

@@ -1,6 +1,7 @@
 import os
 
 from packaging import version
+from tensorflow.python.keras.models import model_from_config
 
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
@@ -86,7 +87,8 @@ class Sequence(object):
                  fold_number=1,
                  multiprocessing=True,
                  features_indices=None,
-                 transformer_name: str = None):
+                 transformer_name: str = None,
+                 enable_wandb: bool = False):
 
         if model_name is None:
             # add a dummy name based on the architecture
@@ -105,6 +107,7 @@ class Sequence(object):
         word_emb_size = 0
         self.embeddings = None
         self.model_local_path = None
+        self.enable_wandb = enable_wandb
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
@@ -143,7 +146,47 @@ class Sequence(object):
                                               early_stop, patience,
                                               max_checkpoints_to_keep, multiprocessing)
 
+        if enable_wandb:
+            import wandb
+            wandb.init(
+                project="delft",
+                name=model_name,
+                # settings=wandb.Settings(start_method="fork"),
+                config={
+                    "model_name": self.model_config.model_name,
+                    "architecture": self.model_config.architecture,
+                    "char_emb_size": self.model_config.char_embedding_size,
+                    "max_char_length": self.model_config.max_char_length,
+                    "max_sequence_length": self.model_config.max_sequence_length,
+                    "dropout": self.model_config.dropout,
+                    "recurrent_dropout": self.model_config.recurrent_dropout,
+                    "fold_number": self.model_config.fold_number,
+                    "batch_size": self.training_config.batch_size,
+                    "optimizer": self.training_config.optimizer,
+                    "learning_rate": self.training_config.learning_rate,
+                    "lr_decay": self.training_config.lr_decay,
+                    "clip_gradients": self.training_config.clip_gradients,
+                    "max_epoch": self.training_config.max_epoch,
+                    "early_stop": self.training_config.early_stop,
+                    "patience": self.training_config.patience,
+                    "max_checkpoints_to_keep": self.training_config.max_checkpoints_to_keep,
+                    "multiprocessing": self.training_config.multiprocessing
+                }
+            )
+
+
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
+        if self.enable_wandb:
+            from wandb.integration.keras import WandbMetricsLogger
+            from wandb.integration.keras import WandbModelCheckpoint
+            callbacks = callbacks + [
+                WandbMetricsLogger(log_freq=5),
+                WandbModelCheckpoint("models")
+            ] if callbacks is not None else [
+                WandbMetricsLogger(log_freq=5),
+                WandbModelCheckpoint("models")
+            ]
+
         # TBD if valid is None, segment train to get one if early_stop is True
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
@@ -176,7 +219,7 @@ class Sequence(object):
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         if incremental:
-            if self.model == None and self.models == None:
+            if self.model is None and self.models is None:
                 print("error: you must load a model first for an incremental training")
                 return
             print("Incremental training from loaded model", self.model_config.model_name)
@@ -199,15 +242,17 @@ class Sequence(object):
         #plot_model(self.model, 
         #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
 
-        trainer = Trainer(self.model,
-                          self.models,
-                          self.embeddings,
-                          self.model_config,
-                          self.training_config,
-                          checkpoint_path=self.log_dir,
-                          preprocessor=self.p,
-                          transformer_preprocessor=self.model.transformer_preprocessor
-                          )
+        trainer = Trainer(
+            self.model,
+            self.models,
+            self.embeddings,
+            self.model_config,
+            self.training_config,
+            checkpoint_path=self.log_dir,
+            preprocessor=self.p,
+            transformer_preprocessor=self.model.transformer_preprocessor,
+            enable_wandb=self.enable_wandb
+        )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
             self.embeddings.clean_ELMo_cache()
