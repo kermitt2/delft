@@ -108,10 +108,11 @@ class Sequence(object):
         word_emb_size = 0
         self.embeddings = None
         self.model_local_path = None
-        if wandb_config is not None and 'project' not in wandb_config:
-            self.wandb_config = wandb_config
-        else:
-            raise ValueError("The wandb_config should be a dictionary with at least the string parameter 'project'. ")
+        if wandb_config is not None:
+            if 'project' not in wandb_config:
+                self.wandb_config = wandb_config
+            else:
+                raise ValueError("The wandb_config should be a dictionary with at least the string parameter 'project'. ")
 
         self.registry = load_resource_registry("delft/resources-registry.json")
 
