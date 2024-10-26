@@ -479,6 +479,7 @@ if __name__ == "__main__":
         # default word embeddings
         embeddings_name = "glove-840B"
 
+    wandb_config = None
     if wandb:
         wandb_config = {
             "project": "delft-grobidTagger"
@@ -532,7 +533,7 @@ if __name__ == "__main__":
                 max_epoch=max_epoch,
                 early_stop=early_stop,
                 multi_gpu=multi_gpu,
-                   enable_wandb=wandb)
+                wandb_config=wandb_config)
 
     if action == Tasks.TAG:
         someTexts = []
