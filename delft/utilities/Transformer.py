@@ -1,6 +1,8 @@
 import os
 from typing import Union, Iterable
 
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
