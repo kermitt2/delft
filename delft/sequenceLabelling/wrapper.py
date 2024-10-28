@@ -180,6 +180,8 @@ class Sequence(object):
                 }
             )
 
+            wandb.define_metric("f1", summary="max")
+
 
     def train(self, x_train, y_train, f_train=None, x_valid=None, y_valid=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
         if self.wandb_config:

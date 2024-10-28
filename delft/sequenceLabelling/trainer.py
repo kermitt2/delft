@@ -355,7 +355,7 @@ class Scorer(Callback):
     def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=False, use_chain_crf=False):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
-        validation step and we will simply produce f1 score
+        validation step and will simply produce f1 score
         """
         super(Scorer, self).__init__()
         self.valid_steps = len(validation_generator)
