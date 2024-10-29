@@ -217,7 +217,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
-        wandb_config=wandb_config
+        report_to_wandb=wandb_config
     )
 
     if incremental:
@@ -279,7 +279,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                      max_sequence_length=max_sequence_length, recurrent_dropout=0.50, batch_size=batch_size,
                      learning_rate=learning_rate, max_epoch=max_epoch, early_stop=early_stop, patience=patience,
                      use_ELMo=use_ELMo, fold_number=fold_count, multiprocessing=multiprocessing,
-                     features_indices=features_indices, transformer_name=transformer, wandb_config=wandb_config)
+                     features_indices=features_indices, transformer_name=transformer, report_to_wandb=wandb_config)
 
     if incremental:
         if input_model_path != None:

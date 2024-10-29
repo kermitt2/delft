@@ -170,7 +170,7 @@ class Transformer(object):
 
     def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
         """
-        Instanciate a transformer to be loaded in a Keras layer using the availability method of the pre-trained transformer.
+        Instantiate a transformer to be loaded in a Keras layer using the availability method of the pre-trained transformer.
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
