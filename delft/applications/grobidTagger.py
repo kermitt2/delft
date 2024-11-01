@@ -3,7 +3,6 @@
 import argparse
 import json
 import time
-from typing import Dict
 
 from sklearn.model_selection import train_test_split
 

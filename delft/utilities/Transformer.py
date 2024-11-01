@@ -1,5 +1,5 @@
 import os
-from typing import Union, Iterable
+from typing import Union
 
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
@@ -60,7 +60,6 @@ class Transformer(object):
         # will be None if the key does not exist
         self.auth_token = os.getenv('HF_ACCESS_TOKEN')
 
-
     def configure_from_registry(self, resource_registry) -> None:
         """
         Fetch transformer information from the registry and infer the loading method:
@@ -103,14 +102,13 @@ class Transformer(object):
                         print("Missing vocab-file or not a file.")
             else:
                 self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
-                #print("No configuration for", self.name, "Loading from Hugging face.")
+                # print(No configuration for", self.name, "Loading from Hugging face.")
         else:
             self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
-            #print("No configuration for", self.name, "Loading from Hugging face.")
+            # print("No configuration for", self.name, "Loading from Hugging face.")
 
     def init_preprocessor(self, max_sequence_length: int,
-                       add_special_tokens: bool = True,
-                       add_prefix_space: bool = True):
+                          add_prefix_space: bool = True):
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -126,35 +124,30 @@ class Transformer(object):
                 do_lower_case = False
 
             if do_lower_case is not None:
-                if self.auth_token != None:
+                if self.auth_token is not None:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
-                                                                max_length=max_sequence_length,
-                                                                add_prefix_space=add_prefix_space, 
-                                                                do_lower_case=do_lower_case, 
-                                                                use_auth_token=self.auth_token)
+                                                                   max_length=max_sequence_length,
+                                                                   add_prefix_space=add_prefix_space,
+                                                                   do_lower_case=do_lower_case,
+                                                                   use_auth_token=self.auth_token)
                 else:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
-                                                                max_length=max_sequence_length,
-                                                                add_prefix_space=add_prefix_space, 
-                                                                do_lower_case=do_lower_case)
+                                                                   max_length=max_sequence_length,
+                                                                   add_prefix_space=add_prefix_space,
+                                                                   do_lower_case=do_lower_case)
             else:
-                if self.auth_token != None:
+                if self.auth_token is not None:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
-                                                                max_length=max_sequence_length,
-                                                                add_prefix_space=add_prefix_space, 
-                                                                use_auth_token=self.auth_token)
+                                                                   max_length=max_sequence_length,
+                                                                   add_prefix_space=add_prefix_space,
+                                                                   use_auth_token=self.auth_token)
                 else:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
                                                                 max_length=max_sequence_length,
                                                                 add_prefix_space=add_prefix_space)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
-                                                           add_special_tokens=add_special_tokens,
                                                            max_length=max_sequence_length,
                                                            add_prefix_space=add_prefix_space)
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
@@ -210,7 +203,7 @@ class Transformer(object):
             else:
                 config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
-                #self.transformer_config = AutoConfig.from_pretrained(self.local_dir_path)
+                # self.transformer_config = AutoConfig.from_pretrained(self.local_dir_path)
                 return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
