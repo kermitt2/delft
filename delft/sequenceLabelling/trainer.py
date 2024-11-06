@@ -193,7 +193,7 @@ class Trainer(object):
                 model=local_model,
                 external_callbacks=callbacks
             )
-        nb_workers = 0
+        nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
 
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
