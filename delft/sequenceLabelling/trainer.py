@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import tensorflow as tf
-import wandb
 from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from transformers import create_optimizer
 
@@ -197,7 +196,7 @@ class Trainer(object):
         multiprocessing = self.training_config.multiprocessing
 
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-        if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
+        if self.embeddings and self.embeddings.use_ELMo:
             # worker at 0 means the training will be executed in the main thread
             nb_workers = 0 
             multiprocessing = False
