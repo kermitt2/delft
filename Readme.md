@@ -1,10 +1,11 @@
 <img align="right" width="150" height="150" src="doc/cat-delft-small.jpg">
 
 [![Documentation Status](https://readthedocs.org/projects/delft/badge/?version=latest)](https://readthedocs.org/projects/delft/?badge=latest)
-[![Build Status](https://travis-ci.org/kermitt2/delft.svg?branch=master)](https://travis-ci.org/kermitt2/delft)
+[![Build](https://github.com/kermitt2/delft/actions/workflows/ci-build-unstable.yml/badge.svg)](https://github.com/kermitt2/delft/actions/workflows/ci-build-unstable.yml)
 [![PyPI version](https://badge.fury.io/py/delft.svg)](https://badge.fury.io/py/delft)
 [![SWH](https://archive.softwareheritage.org/badge/origin/https://github.com/kermitt2/delft/)](https://archive.softwareheritage.org/browse/origin/https://github.com/kermitt2/delft/)
 [![License](http://img.shields.io/:license-apache-blue.svg)](http://www.apache.org/licenses/LICENSE-2.0.html)
+[![Downloads](https://static.pepy.tech/badge/delft)](https://pepy.tech/project/delft)
 
 
 # DeLFT
