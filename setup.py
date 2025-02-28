@@ -11,9 +11,9 @@ setup(
     url="https://github.com/kermitt2/delft",
     packages=find_packages(exclude=['test', '*.test', '*.test.*']),  
     include_package_data=True,
-    python_requires='>=3.7',
+    python_requires='>=3.10',
     classifiers=[
-        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.10",
         "License :: OSI Approved :: Apache Software License",
         "Operating System :: OS Independent",
     ],
