@@ -1,6 +1,8 @@
 import os
 from typing import Union, Iterable
 
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
@@ -126,35 +128,30 @@ class Transformer(object):
                 do_lower_case = False
 
             if do_lower_case is not None:
-                if self.auth_token != None:
+                if self.auth_token is not None:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
                                                                 max_length=max_sequence_length,
                                                                 add_prefix_space=add_prefix_space, 
                                                                 do_lower_case=do_lower_case, 
                                                                 use_auth_token=self.auth_token)
                 else:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
                                                                 max_length=max_sequence_length,
                                                                 add_prefix_space=add_prefix_space, 
                                                                 do_lower_case=do_lower_case)
             else:
                 if self.auth_token != None:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
                                                                 max_length=max_sequence_length,
                                                                 add_prefix_space=add_prefix_space, 
                                                                 use_auth_token=self.auth_token)
                 else:
                     self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                add_special_tokens=add_special_tokens,
                                                                 max_length=max_sequence_length,
                                                                 add_prefix_space=add_prefix_space)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
-                                                           add_special_tokens=add_special_tokens,
                                                            max_length=max_sequence_length,
                                                            add_prefix_space=add_prefix_space)
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
