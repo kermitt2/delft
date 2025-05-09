@@ -85,3 +85,6 @@ citations_v
 requirements-v.txt
 veracity
 data/sequenceLabelling/BEL/all_bel_relations.csv
+
+.env
+wandb

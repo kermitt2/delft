@@ -82,6 +82,20 @@ python3 -m pip install -e .
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
 
+### Send data to Weight and Biases
+
+1. Create a file `.env` in the root of the project with the following content:
+   
+    ```
+    WANDB_API_KEY=your_api_key
+    WANDB_PROJECT=your_project_name
+    WANDB_ENTITY=your_entity_name
+    ```
+2. use the parameter `--wandb` when running the scripts, e.g.
+    ```sh   
+    python -m applications.delft.grobidTagger date train --architecture BidLSTM --wandb
+    ```
+
 ## License and contact
 
 Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.
