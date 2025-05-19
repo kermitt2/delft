@@ -64,7 +64,7 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-virtualenv --system-site-packages -p python3.8 env
+virtualenv --system-site-packages -p python3.10 env
 source env/bin/activate
 ```
 
@@ -113,7 +113,7 @@ If you want to this work, please refer to the present GitHub project, together w
     title = {DeLFT},
     howpublished = {\url{https://github.com/kermitt2/delft}},
     publisher = {GitHub},
-    year = {2018--2024},
+    year = {2018--2025},
     archivePrefix = {swh},
     eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
 }

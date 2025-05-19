@@ -19,7 +19,7 @@ maintainers = [
     { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" },
     { name = "Luca Foppiano", email = "lucanoro@duck.com" }
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.10"
 
 dynamic = ['version', "dependencies"]
 
