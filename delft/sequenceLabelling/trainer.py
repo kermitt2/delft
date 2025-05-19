@@ -29,7 +29,8 @@ class Trainer(object):
                  checkpoint_path='',
                  save_path='',
                  preprocessor: Preprocessor=None,
-                 transformer_preprocessor=None
+                 transformer_preprocessor=None,
+                 enable_wandb = False
                  ):
 
         # for single model training
@@ -45,6 +46,7 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
+        self.enable_wandb = enable_wandb
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -74,14 +76,22 @@ class Trainer(object):
             )
 
             if local_model.config.use_chain_crf:
-                local_model.compile(optimizer=optimizer, loss=local_model.crf.sparse_crf_loss_bert_masked)
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss=local_model.crf.sparse_crf_loss_bert_masked
+                )
             elif local_model.config.use_crf:
                 # loss is calculated by the custom CRF wrapper
-                local_model.compile(optimizer=optimizer)
+                local_model.compile(
+                    optimizer=optimizer,
+                )
             else:
                 # we apply a mask on the predicted labels so that the weights 
                 # corresponding to special symbols are neutralized
-                local_model.compile(optimizer=optimizer, loss=sparse_crossentropy_masked)
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss=sparse_crossentropy_masked,
+                )
         else:
             
             lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
@@ -92,11 +102,16 @@ class Trainer(object):
             
             #optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
             if local_model.config.use_chain_crf:
-                local_model.compile(optimizer=optimizer, loss=local_model.crf.loss)
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss=local_model.crf.loss,
+                )
             elif local_model.config.use_crf:
                 if tf.executing_eagerly():
                     # loss is calculated by the custom CRF wrapper, no need to specify a loss function here
-                    local_model.compile(optimizer=optimizer)
+                    local_model.compile(
+                        optimizer=optimizer,
+                    )
                 else:
                     print("compile model, graph mode")
                     # always expecting a loss function here, but it is calculated internally by the CRF wapper
@@ -104,11 +119,17 @@ class Trainer(object):
                     # '<tf.Variable 'chain_kernel:0' shape=(10, 10) dtype=float32> has `None` for gradient.'
                     # however this variable cannot be accessed, so no soluton for the moment 
                     # (probably need not using keras fit and creating a custom training loop to get the gradient)
-                    local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                    local_model.compile(
+                        optimizer=optimizer,
+                        loss='sparse_categorical_crossentropy',
+                    )
                     #local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
             else:
                 # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
-                local_model.compile(optimizer=optimizer, loss='sparse_categorical_crossentropy')
+                local_model.compile(
+                    optimizer=optimizer,
+                    loss='sparse_categorical_crossentropy',
+                )
 
         return local_model
 
@@ -138,10 +159,16 @@ class Trainer(object):
                 embeddings=self.embeddings, shuffle=False, features=f_valid, 
                 output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
-            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      early_stopping=True,
-                                      patience=self.training_config.patience,
-                                      valid=(validation_generator, self.preprocessor), use_crf=self.model_config.use_crf, use_chain_crf=self.model_config.use_chain_crf, model=local_model)
+            _callbacks = get_callbacks(
+                log_dir=self.checkpoint_path,
+                early_stopping=True,
+                patience=self.training_config.patience,
+                valid=(validation_generator, self.preprocessor),
+                use_crf=self.model_config.use_crf,
+                use_chain_crf=self.model_config.use_chain_crf,
+                model=local_model,
+                external_callbacks=callbacks
+            )
         else:
             x_train = np.concatenate((x_train, x_valid), axis=0)
             y_train = np.concatenate((y_train, y_valid), axis=0)
@@ -157,12 +184,14 @@ class Trainer(object):
                 embeddings=self.embeddings, shuffle=True, 
                 features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
 
-            _callbacks = get_callbacks(log_dir=self.checkpoint_path,
-                                      early_stopping=False,
-                                      use_crf=self.model_config.use_crf,
-                                      use_chain_crf=self.model_config.use_chain_crf,
-                                      model=local_model)
-        _callbacks += (callbacks or [])
+            _callbacks = get_callbacks(
+                log_dir=self.checkpoint_path,
+                early_stopping=False,
+                use_crf=self.model_config.use_crf,
+                use_chain_crf=self.model_config.use_chain_crf,
+                model=local_model,
+                external_callbacks=callbacks
+            )
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
 
@@ -172,11 +201,13 @@ class Trainer(object):
             nb_workers = 1
             multiprocessing = False
 
-        local_model.fit(training_generator,
+        local_model.fit(
+            training_generator,
                                 epochs=max_epoch,
                                 use_multiprocessing=multiprocessing,
                                 workers=nb_workers,
-                                callbacks=_callbacks)
+                                callbacks=_callbacks
+        )
 
         return local_model
 
@@ -279,7 +310,7 @@ class LogLearningRateCallback(Callback):
             logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
 
 
-def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None):
+def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None, external_callbacks=None):
     """
     Get callbacks.
 
@@ -312,6 +343,9 @@ def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_c
 
     callbacks.append(LogLearningRateCallback(model))
 
+    if external_callbacks:
+        callbacks.extend(external_callbacks)
+
     return callbacks
 
 
@@ -320,7 +354,7 @@ class Scorer(Callback):
     def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=False, use_chain_crf=False):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
-        validation step and we will simply produce f1 score
+        validation step and will simply produce f1 score
         """
         super(Scorer, self).__init__()
         self.valid_steps = len(validation_generator)

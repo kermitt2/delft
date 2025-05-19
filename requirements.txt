@@ -21,3 +21,4 @@ tfa-nightly==0.23.0.dev20240415222534
 blingfire==0.1.8
 accelerate>=0.20.3
 Pillow
+python-dotenv
