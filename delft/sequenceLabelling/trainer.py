@@ -30,7 +30,7 @@ class Trainer(object):
                  save_path='',
                  preprocessor: Preprocessor=None,
                  transformer_preprocessor=None,
-                 enable_wandb = False
+                 report_to_wandb = False
                  ):
 
         # for single model training
@@ -46,7 +46,7 @@ class Trainer(object):
         self.save_path = save_path
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
-        self.enable_wandb = enable_wandb
+        self.enable_wandb = report_to_wandb
 
     def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
         """
@@ -351,7 +351,15 @@ def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_c
 
 class Scorer(Callback):
 
-    def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=False, use_chain_crf=False):
+    def __init__(
+            self,
+            validation_generator,
+            preprocessor=None,
+            evaluation=False,
+            use_crf=False,
+            use_chain_crf=False,
+            report_to_wandb=False
+    ):
         """
         If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
         validation step and will simply produce f1 score
@@ -370,6 +378,7 @@ class Scorer(Callback):
         self.evaluation = evaluation
         self.use_crf = use_crf
         self.use_chain_crf = use_chain_crf
+        self.report_to_wandb = report_to_wandb
 
     def on_epoch_end(self, epoch, logs={}):
         y_pred = None
@@ -464,6 +473,12 @@ class Scorer(Callback):
             self.precision = precision_score(y_true, y_pred) if has_data else 0.0
             self.recall = recall_score(y_true, y_pred) if has_data else 0.0
             self.report_as_map = compute_metrics(y_true, y_pred) if has_data else compute_metrics([], [])
+            if self.report_to_wandb:
+                import wandb
+                columns, data = to_wandb_table(self.report_as_map)
+
+                table = wandb.Table(columns=columns, data=data)
+                wandb.log({"Evaluation scores": table})
             self.report = get_report(self.report_as_map, digits=4)
             print(self.report)
 
@@ -477,4 +492,44 @@ def sparse_crossentropy_masked(y_true, y_pred):
     y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
     y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
     return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
+
+
+def to_wandb_table(report_as_map):
+    columns = ["", "precision", "recall", "f1-score", "support"]
+    # Prepare the data rows
+    data = []
+    # Add each label's metrics
+    if 'labels' in report_as_map:
+        for label, metrics in report_as_map['labels'].items():
+            row = [
+                label,
+                round(metrics['precision'], 4),
+                round(metrics['recall'], 4),
+                round(metrics['f1'], 4),
+                int(metrics['support'])
+            ]
+            data.append(row)
+    # Add micro average at the end
+    if 'micro' in report_as_map:
+        micro = report_as_map['micro']
+        micro_row = [
+            "all (micro avg.)",
+            round(micro['precision'], 4),
+            round(micro['recall'], 4),
+            round(micro['f1'], 4),
+            int(micro['support'])
+        ]
+        data.append(micro_row)
+
+    if 'macro' in report_as_map:
+        micro = report_as_map['macro']
+        micro_row = [
+            "all (macro avg.)",
+            round(micro['precision'], 4),
+            round(micro['recall'], 4),
+            round(micro['f1'], 4),
+            int(micro['support'])
+        ]
+        data.append(micro_row)
+    return columns, data
 

@@ -37,7 +37,7 @@ deprecation._PRINT_DEPRECATION_WARNINGS = False
 #from tensorflow.python.framework.ops import disable_eager_execution
 #disable_eager_execution()
 
-from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME
+from delft.sequenceLabelling.trainer import DEFAULT_WEIGHT_FILE_NAME, to_wandb_table
 from delft.sequenceLabelling.trainer import CONFIG_FILE_NAME
 from delft.sequenceLabelling.trainer import PROCESSOR_FILE_NAME
 
@@ -127,22 +127,24 @@ class Sequence(object):
             else:
                 learning_rate = 2e-5
 
-        self.model_config = ModelConfig(model_name=model_name,
-                                        architecture=architecture,
-                                        embeddings_name=embeddings_name,
-                                        word_embedding_size=word_emb_size,
-                                        char_emb_size=char_emb_size,
-                                        char_lstm_units=char_lstm_units,
-                                        max_char_length=max_char_length,
-                                        word_lstm_units=word_lstm_units,
-                                        max_sequence_length=max_sequence_length,
-                                        dropout=dropout,
-                                        recurrent_dropout=recurrent_dropout,
-                                        fold_number=fold_number,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo,
-                                        features_indices=features_indices,
-                                        transformer_name=transformer_name)
+        self.model_config = ModelConfig(
+            model_name=model_name,
+            architecture=architecture,
+            embeddings_name=embeddings_name,
+            word_embedding_size=word_emb_size,
+            char_emb_size=char_emb_size,
+            char_lstm_units=char_lstm_units,
+            max_char_length=max_char_length,
+            word_lstm_units=word_lstm_units,
+            max_sequence_length=max_sequence_length,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            fold_number=fold_number,
+            batch_size=batch_size,
+            use_ELMo=use_ELMo,
+            features_indices=features_indices,
+            transformer_name=transformer_name
+        )
 
         self.training_config = TrainingConfig(learning_rate, batch_size, optimizer,
                                               lr_decay, clip_gradients, max_epoch,
@@ -157,6 +159,7 @@ class Sequence(object):
                 print("Warning: WANDB_API_KEY not set, wandb disabled")
                 self.report_to_wandb = False
                 return
+
             wandb.init(
                 name=model_name,
                 config={
@@ -259,7 +262,7 @@ class Sequence(object):
             checkpoint_path=self.log_dir,
             preprocessor=self.p,
             transformer_preprocessor=self.model.transformer_preprocessor,
-            enable_wandb=self.report_to_wandb
+            report_to_wandb=self.report_to_wandb
         )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -314,9 +317,9 @@ class Sequence(object):
         if self.model_config.fold_number > 1:
             self.eval_nfold(x_test, y_test, features=features)
         else:
-            self.eval_single(x_test, y_test, features=features)
+            self.eval_single(x_test, y_test, features=features, report_to_wandb=self.report_to_wandb)
 
-    def eval_single(self, x_test, y_test, features=None):
+    def eval_single(self, x_test, y_test, features=None, report_to_wandb=False):
         if self.model is None:
             raise (OSError('Could not find a model.'))
         print_parameters(self.model_config, self.training_config)
@@ -335,8 +338,14 @@ class Sequence(object):
                 output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
 
             # Build the evaluator and evaluate the model
-            scorer = Scorer(test_generator, self.p, evaluation=True, use_crf=self.model_config.use_crf,
-                use_chain_crf=self.model_config.use_chain_crf)
+            scorer = Scorer(
+                test_generator,
+                self.p,
+                evaluation=True,
+                use_crf=self.model_config.use_crf,
+                use_chain_crf=self.model_config.use_chain_crf,
+                report_to_wandb=report_to_wandb
+            )
             scorer.model = self.model
             scorer.on_epoch_end(epoch=-1)
         else:
@@ -382,6 +391,12 @@ class Sequence(object):
                 print("to solve them consider increasing the maximum sequence input length of the model and retrain")
 
             report, report_as_map = classification_report(y_test, y_pred, digits=4)
+            if self.report_to_wandb:
+                import wandb
+                columns, data = to_wandb_table(report_as_map)
+                table = wandb.Table(columns=columns, data=data)
+                wandb.log({"Evaluation scores": table})
+
             print(report)
 
     def eval_nfold(self, x_test, y_test, features=None):
