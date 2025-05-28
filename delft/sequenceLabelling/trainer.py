@@ -307,7 +307,15 @@ class LogLearningRateCallback(Callback):
 
     def on_epoch_end(self, epoch, logs):
         if self.model is not None:
-            logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
+            opt = self.model.optimizer
+            lr = opt.learning_rate
+            # If lr is a schedule, call it with the current step
+            if callable(lr):
+                lr = lr(opt.iterations)
+            # If it's a tf.Variable, get its value
+            elif hasattr(lr, 'numpy'):
+                lr = lr.numpy()
+            logs.update({"lr": lr})
 
 
 def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None, external_callbacks=None):
