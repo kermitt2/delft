@@ -91,7 +91,7 @@ class Sequence(object):
              features_indices=None,
              transformer_name: str = None,
              report_to_wandb = False,
-             nb_workers=6
+             nb_workers=multiprocessing.cpu_count() - 1
          ):
 
         if model_name is None:
