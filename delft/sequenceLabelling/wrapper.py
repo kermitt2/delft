@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 
 from packaging import version
@@ -60,7 +61,7 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 class Sequence(object):
 
     # number of parallel worker for the data generator
-    nb_workers = 6
+    nb_workers = multiprocessing.cpu_count() - 1
 
     def __init__(
         self,
@@ -89,7 +90,8 @@ class Sequence(object):
              multiprocessing=True,
              features_indices=None,
              transformer_name: str = None,
-             report_to_wandb = False
+             report_to_wandb = False,
+             nb_workers=6
          ):
 
         if model_name is None:
@@ -107,6 +109,7 @@ class Sequence(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
+        self.nb_workers = nb_workers
         self.embeddings = None
         self.model_local_path = None
 
@@ -127,22 +130,23 @@ class Sequence(object):
             else:
                 learning_rate = 2e-5
 
-        self.model_config = ModelConfig(model_name=model_name,
-                                        architecture=architecture,
-                                        embeddings_name=embeddings_name,
-                                        word_embedding_size=word_emb_size,
-                                        char_emb_size=char_emb_size,
-                                        char_lstm_units=char_lstm_units,
-                                        max_char_length=max_char_length,
-                                        word_lstm_units=word_lstm_units,
-                                        max_sequence_length=max_sequence_length,
-                                        dropout=dropout,
-                                        recurrent_dropout=recurrent_dropout,
-                                        fold_number=fold_number,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo,
-                                        features_indices=features_indices,
-                                        transformer_name=transformer_name)
+        self.model_config = ModelConfig(
+            model_name=model_name,
+            architecture=architecture,
+            embeddings_name=embeddings_name,
+            word_embedding_size=word_emb_size,
+            char_emb_size=char_emb_size,
+            char_lstm_units=char_lstm_units,
+            max_char_length=max_char_length,
+            word_lstm_units=word_lstm_units,
+            max_sequence_length=max_sequence_length,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            fold_number=fold_number,
+            batch_size=batch_size,
+            use_ELMo=use_ELMo,
+            features_indices=features_indices,
+            transformer_name=transformer_name)
 
         self.training_config = TrainingConfig(learning_rate, batch_size, optimizer,
                                               lr_decay, clip_gradients, max_epoch,
@@ -259,7 +263,8 @@ class Sequence(object):
             checkpoint_path=self.log_dir,
             preprocessor=self.p,
             transformer_preprocessor=self.model.transformer_preprocessor,
-            enable_wandb=self.report_to_wandb
+            enable_wandb=self.report_to_wandb,
+            nb_workers=self.nb_workers
         )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:
@@ -298,13 +303,16 @@ class Sequence(object):
             self.model_config.case_vocab_size = len(self.p.vocab_case)
             self.models = []
 
-        trainer = Trainer(self.model,
-                          self.models,
-                          self.embeddings,
-                          self.model_config,
-                          self.training_config,
-                          checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
+        trainer = Trainer(
+            self.model,
+              self.models,
+              self.embeddings,
+              self.model_config,
+              self.training_config,
+              checkpoint_path=self.log_dir,
+              preprocessor=self.p,
+              nb_workers=self.nb_workers
+              )
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
         if self.embeddings and self.embeddings.use_ELMo:

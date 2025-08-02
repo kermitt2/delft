@@ -30,7 +30,8 @@ class Trainer(object):
                  save_path='',
                  preprocessor: Preprocessor=None,
                  transformer_preprocessor=None,
-                 enable_wandb = False
+                 enable_wandb = False,
+                 nb_workers=6
                  ):
 
         # for single model training
@@ -38,6 +39,8 @@ class Trainer(object):
 
         # for n-folds training
         self.models = models
+
+        self.nb_workers = nb_workers
 
         self.embeddings = embeddings
         self.model_config = model_config
@@ -192,7 +195,7 @@ class Trainer(object):
                 model=local_model,
                 external_callbacks=callbacks
             )
-        nb_workers = 6
+        nb_workers = self.nb_workers
         multiprocessing = self.training_config.multiprocessing
 
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
