@@ -31,36 +31,65 @@ def collate_fn(batch):
     if not labels:
         labels = None
     
-    # The batch is already processed with padding, so just stack
+    # Process inputs
     if isinstance(inputs[0], dict):
         # Dictionary of tensors
         collated_inputs = {}
         for key in inputs[0].keys():
-            values = [inp[key] for inp in inputs]
-            if isinstance(values[0], torch.Tensor):
-                collated_inputs[key] = torch.stack(values)
+            # Check if we need to pad (for variable length sequences)
+            # length key is just a scalar, so we stack
+            if key == 'length':
+                values = [inp[key] for inp in inputs]
+                collated_inputs[key] = torch.stack(values).squeeze(-1) if values[0].dim() > 0 else torch.stack(values)
+            elif key == 'char_input':
+                # char_input is (seq_len, char_seq_len), we need to pad the first dim
+                # Actually char_input is usually (seq_len, max_char_len)
+                values = [inp[key] for inp in inputs]
+                max_len = max(v.shape[0] for v in values)
+                char_dim = values[0].shape[1]
+                padded_values = []
+                for v in values:
+                    pad_len = max_len - v.shape[0]
+                    if pad_len > 0:
+                        padding = torch.zeros((pad_len, char_dim), dtype=v.dtype)
+                        padded_values.append(torch.cat([v, padding]))
+                    else:
+                        padded_values.append(v)
+                collated_inputs[key] = torch.stack(padded_values)
             else:
-                collated_inputs[key] = values
+                # word_input, casing_input, features_input - all (seq_len, ...)
+                # we need to pad dim 0
+                values = [inp[key] for inp in inputs]
+                if isinstance(values[0], torch.Tensor):
+                    # Pad tokens
+                    collated_inputs[key] = torch.nn.utils.rnn.pad_sequence(values, batch_first=True)
+                else:
+                    collated_inputs[key] = values
         
         if labels is not None:
-            collated_labels = torch.stack([l for l in labels])
+             # Pad labels
+             collated_labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True)
         else:
             collated_labels = None
             
         return collated_inputs, collated_labels
     else:
-        # Tuple/list of tensors
+        # Tuple/list behavior - falling back to simple stack but warning if not padded
+        # This branch might be unused if we always return dict in dataset
         num_inputs = len(inputs[0])
         collated_inputs = []
         for i in range(num_inputs):
             values = [inp[i] for inp in inputs]
             if isinstance(values[0], torch.Tensor):
-                collated_inputs.append(torch.stack(values))
+                 if values[0].dim() > 0:
+                    collated_inputs.append(torch.nn.utils.rnn.pad_sequence(values, batch_first=True))
+                 else:
+                    collated_inputs.append(torch.stack(values))
             else:
                 collated_inputs.append(values)
         
         if labels is not None:
-            collated_labels = torch.stack([l for l in labels])
+            collated_labels = torch.nn.utils.rnn.pad_sequence(labels, batch_first=True)
         else:
             collated_labels = None
             
@@ -316,25 +345,45 @@ class TransformerDataset(Dataset):
 
 
 def create_dataloader(
-    dataset: Dataset,
+    x, y=None,
     batch_size: int = 24,
+    preprocessor: Preprocessor = None,
+    embeddings = None,
+    features = None,
     shuffle: bool = True,
+    model_config = None,
     num_workers: int = 0,
     pin_memory: bool = True
 ) -> DataLoader:
     """
     Create a DataLoader for a DeLFT dataset.
-    
-    Args:
-        dataset: PyTorch Dataset
-        batch_size: Batch size
-        shuffle: Whether to shuffle data
-        num_workers: Number of worker processes
-        pin_memory: Whether to pin memory (faster GPU transfer)
-        
-    Returns:
-        PyTorch DataLoader
+    Factory method that creates the appropriate Dataset based on configuration.
     """
+    if model_config and model_config.transformer_name:
+        # TBD: Initialize BERT/Transformer preprocessor if needed
+        # For now, we assume preprocessor handles everything or we need to pass bert_preprocessor
+        # But wrapper only passes the standard preprocessor.
+        # This part requires attention: wrapper.py doesn't seem to have bert_preprocessor ready to pass?
+        # wrapper.py _train initializes self.p which is a Preprocessor.
+        
+        # Checking how models.py handles this. 
+        # Actually SequenceLabelingDataset handles ELMo via embeddings arg.
+         
+        # If we are here, we probably need SequenceLabelingDataset unless it's a transformer model
+        pass
+
+    # Default to SequenceLabelingDataset for now which covers RNNs
+    # TODO: Add TransformerDataset logic if needed by checking model_config
+    
+    dataset = SequenceLabelingDataset(
+        x, y,
+        preprocessor=preprocessor,
+        embeddings=embeddings,
+        features=features,
+        max_sequence_length=model_config.max_sequence_length if model_config else None,
+        use_chain_crf=model_config.use_crf if model_config else False
+    )
+
     return DataLoader(
         dataset,
         batch_size=batch_size,

@@ -10,7 +10,7 @@ import shutil
 import requests
 from urllib.parse import urlparse
 
-from tensorflow.keras.preprocessing import text
+
 
 from tqdm import tqdm 
 
@@ -155,131 +155,7 @@ def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y
     #print(charset)
 
 
-# generate the list of out of vocabulary words present in the Toxic dataset 
-# with respect to 3 embeddings: fastText, Gloves and word2vec
-def generateOOVEmbeddings():
-    # read the (DL cleaned) dataset and build the vocabulary
-    print('loading dataframes...')
-    train_df = pd.read_csv('../data/training/train2.cleaned.dl.csv')
-    test_df = pd.read_csv('../data/eval/test2.cleaned.dl.csv')
 
-    # ps: forget memory and runtime, it's python here :D
-    list_sentences_train = train_df["comment_text"].values
-    list_sentences_test = test_df["comment_text"].values
-    list_sentences_all = np.concatenate([list_sentences_train, list_sentences_test])
-
-    tokenizer = text.Tokenizer(num_words=400000)
-    tokenizer.fit_on_texts(list(list_sentences_all))
-    print('word_index size:', len(tokenizer.word_index), 'words')
-    word_index = tokenizer.word_index
-
-    # load fastText - only the words
-    print('loading fastText embeddings...')
-    voc = set()
-    f = open('/mnt/data/wikipedia/embeddings/crawl-300d-2M.vec')
-    begin = True
-    for line in f:
-        if begin:
-            begin = False
-        else: 
-            values = line.split()
-            word = ' '.join(values[:-300])
-            voc.add(word)
-    f.close()
-    print('fastText embeddings:', len(voc), 'words')
-
-    oov = []
-    for tokenStr in word_index:
-        if not tokenStr in voc:
-            oov.append(tokenStr)
-
-    print('fastText embeddings:', len(oov), 'out-of-vocabulary')
-
-    with open("../data/training/oov-fastText.txt", "w") as oovFile:
-        for w in oov:
-            oovFile.write(w)
-            oovFile.write('\n')
-    oovFile.close()
-
-    # load gloves - only the words
-    print('loading gloves embeddings...')
-    voc = set()
-    f = open('/mnt/data/wikipedia/embeddings/glove.840B.300d.txt')
-    for line in f:
-        values = line.split()
-        word = ' '.join(values[:-300])
-        voc.add(word)
-    f.close()
-    print('gloves embeddings:', len(voc), 'words')
-
-    oov = []
-    for tokenStr in word_index:
-        if not tokenStr in voc:
-            oov.append(tokenStr)
-
-    print('gloves embeddings:', len(oov), 'out-of-vocabulary')
-
-    with open("../data/training/oov-gloves.txt", "w") as oovFile:
-        for w in oov:
-            oovFile.write(w)
-            oovFile.write('\n')
-    oovFile.close()
-
-    # load word2vec - only the words
-    print('loading word2vec embeddings...')
-    voc = set()
-    f = open('/mnt/data/wikipedia/embeddings/GoogleNews-vectors-negative300.vec')
-    begin = True
-    for line in f:
-        if begin:
-            begin = False
-        else: 
-            values = line.split()
-            word = ' '.join(values[:-300])
-            voc.add(word)
-    f.close()
-    print('word2vec embeddings:', len(voc), 'words')
-
-    oov = []
-    for tokenStr in word_index:
-        if not tokenStr in voc:
-            oov.append(tokenStr)
-
-    print('word2vec embeddings:', len(oov), 'out-of-vocabulary')
-
-    with open("../data/training/oov-w2v.txt", "w") as oovFile:
-        for w in oov:    
-            oovFile.write(w)
-            oovFile.write('\n')
-    oovFile.close()
-
-     # load numberbatch - only the words
-    print('loading numberbatch embeddings...')
-    voc = set()
-    f = open('/mnt/data/wikipedia/embeddings/numberbatch-en-17.06.txt')
-    begin = True
-    for line in f:
-        if begin:
-            begin = False
-        else: 
-            values = line.split()
-            word = ' '.join(values[:-300])
-            voc.add(word)
-    f.close()
-    print('numberbatch embeddings:', len(voc), 'words')
-
-    oov = []
-    for tokenStr in word_index:
-        if not tokenStr in voc:
-            oov.append(tokenStr)
-
-    print('numberbatch embeddings:', len(oov), 'out-of-vocabulary')
-
-    with open("../data/training/oov-numberbatch.txt", "w") as oovFile:
-        for w in oov:    
-            oovFile.write(w)
-            oovFile.write('\n')
-    oovFile.close()
 
 
 def ontonotes_conll2012_names(pathin, pathout):
