@@ -1,9 +1,7 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
@@ -431,7 +429,7 @@ def train_and_eval_secondary(
         if datatype in datatypes_y:
             datatypes_y[datatype].append(datasubtype)
             datatypes_xtr[datatype].append(xtr[i])
-            if not datasubtype in datatypes_list_subclasses[datatype]:
+            if datasubtype not in datatypes_list_subclasses[datatype]:
                 datatypes_list_subclasses[datatype].append(datasubtype)
         else:
             datatypes_y[datatype] = []
@@ -445,7 +443,7 @@ def train_and_eval_secondary(
 
     for the_class in list_classes:
         print("\ntraining", the_class)
-        if not the_class in datatypes_list_subclasses:
+        if the_class not in datatypes_list_subclasses:
             print("no subclass for", the_class)
             continue
 

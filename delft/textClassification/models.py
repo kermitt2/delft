@@ -17,7 +17,7 @@ Model architectures implemented:
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Optional, Dict
 
 
 class BaseTextClassifier(nn.Module):

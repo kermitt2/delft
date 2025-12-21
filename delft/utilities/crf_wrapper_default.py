@@ -1,7 +1,5 @@
 import tensorflow as tf
 
-from tensorflow_addons.text import crf_log_norm
-from tensorflow_addons.utils import types
 
 from tensorflow_addons.text.crf_wrapper import CRFModelWrapper
 

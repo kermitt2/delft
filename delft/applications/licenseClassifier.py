@@ -1,13 +1,10 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
-from delft.utilities.numpy import concatenate_or_none, shuffle_triple_with_view
+from delft.utilities.numpy import shuffle_triple_with_view
 from delft.textClassification.reader import vectorize as vectorizer
 from delft.textClassification.reader import (
-    normalize_classes,
     load_texts_and_classes_pandas_no_id,
 )
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time

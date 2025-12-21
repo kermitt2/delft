@@ -24,7 +24,7 @@ logging.getLogger().setLevel(logging.ERROR)
 fasttext_support = True
 try:
     import fastText
-except ImportError as e:
+except ImportError:
     fasttext_support = False
 
 from delft.utilities.Utilities import download_file

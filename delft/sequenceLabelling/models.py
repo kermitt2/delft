@@ -18,8 +18,7 @@ Model architectures implemented:
 
 import torch
 import torch.nn as nn
-from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from typing import Optional, Dict, List, Tuple, Any
+from typing import Optional, Dict, List
 
 from delft.utilities.crf_pytorch import CRF, ChainCRF
 from delft.sequenceLabelling.config import ModelConfig

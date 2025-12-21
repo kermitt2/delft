@@ -442,8 +442,7 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and not self.tokenizer.convert_ids_to_tokens(input_ids[i])
-                in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
                 and not empty_token
@@ -458,8 +457,7 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and not self.tokenizer.convert_ids_to_tokens(input_ids[i])
-                in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and not empty_token
                 and not (

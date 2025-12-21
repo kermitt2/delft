@@ -7,17 +7,16 @@ Provides training loop, evaluation, and callbacks for PyTorch models.
 import os
 import json
 import logging
-from typing import Optional, List, Dict, Any, Callable
+from typing import List, Dict, Any, Callable
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.optim import Adam, AdamW
-from torch.optim.lr_scheduler import ReduceLROnPlateau, LinearLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
-from delft.sequenceLabelling.evaluation import get_entities, classification_report
+from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.preprocess import Preprocessor
 
 

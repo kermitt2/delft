@@ -1,7 +1,3 @@
-import sys
-import os
-import numpy as np
-from delft.sequenceLabelling.reader import load_data_and_labels_conll
 from delft.utilities.Utilities import truecase_sentence
 
 """

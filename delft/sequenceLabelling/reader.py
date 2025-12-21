@@ -1,10 +1,9 @@
 import numpy as np
 import xml
-from xml.sax import make_parser, handler
+from xml.sax import make_parser
 from delft.utilities.Tokenizer import (
     tokenizeAndFilterSimple,
     tokenizeAndFilter,
-    tokenize,
 )
 import re
 import os
@@ -743,7 +742,7 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang="en"):
                             line = line[: len(line) - 2] + line[-1]
 
                         if len(line) != 0:
-                            if not "<DOC" in line and not "</DOC" in line:
+                            if "<DOC" not in line and "</DOC" not in line:
                                 content += "<sentence>" + line + "</sentence>\n"
                             else:
                                 content += line + "\n"

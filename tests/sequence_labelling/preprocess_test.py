@@ -2,7 +2,6 @@ import logging
 import os
 
 import numpy as np
-import pytest
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
 from delft.sequenceLabelling.preprocess import Preprocessor, FeaturesPreprocessor

@@ -285,12 +285,12 @@ class Sequence(object):
         # TBD if valid is None, segment train to get one if early_stop is True
 
         # we concatenate all the training+validation data to create the model vocabulary
-        if not x_valid is None:
+        if x_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
         else:
             x_all = x_train
 
-        if not y_valid is None:
+        if y_valid is not None:
             y_all = np.concatenate((y_train, y_valid), axis=0)
         else:
             y_all = y_train

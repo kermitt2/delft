@@ -7,7 +7,7 @@ Replaces the Keras data generators with PyTorch equivalents.
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
-from typing import Optional, List, Tuple, Any
+from typing import Optional, List, Tuple
 
 from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view

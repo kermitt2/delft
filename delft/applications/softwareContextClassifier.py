@@ -1,13 +1,10 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.utilities.numpy import concatenate_or_none, shuffle_triple_with_view
 from delft.textClassification.reader import (
     load_software_context_corpus_json,
     load_software_dataset_context_corpus_json,
 )
-from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time

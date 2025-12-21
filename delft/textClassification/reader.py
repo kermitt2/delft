@@ -1,8 +1,6 @@
 import numpy as np
-import xml
 import gzip
 import json
-from xml.sax import make_parser, handler
 import pandas as pd
 from delft.utilities.numpy import shuffle_triple_with_view
 
@@ -366,7 +364,7 @@ def load_software_use_corpus_json(json_gz_file_path):
 
     with gzip.GzipFile(json_gz_file_path, "r") as fin:
         data = json.loads(fin.read().decode("utf-8"))
-        if not "documents" in data:
+        if "documents" not in data:
             print(
                 "There is no usable classified text in the corpus file",
                 json_gz_file_path,
@@ -375,7 +373,7 @@ def load_software_use_corpus_json(json_gz_file_path):
         for document in data["documents"]:
             for segment in document["texts"]:
                 if "entity_spans" in segment:
-                    if not "text" in segment:
+                    if "text" not in segment:
                         continue
                     text = segment["text"]
                     for entity_span in segment["entity_spans"]:
@@ -414,7 +412,7 @@ def load_software_context_corpus_json(json_gz_file_path):
 
     with gzip.GzipFile(json_gz_file_path, "r") as fin:
         data = json.loads(fin.read().decode("utf-8"))
-        if not "documents" in data:
+        if "documents" not in data:
             print(
                 "There is no usable classified text in the corpus file",
                 json_gz_file_path,
@@ -423,7 +421,7 @@ def load_software_context_corpus_json(json_gz_file_path):
         for document in data["documents"]:
             for segment in document["texts"]:
                 if "entity_spans" in segment:
-                    if not "text" in segment:
+                    if "text" not in segment:
                         continue
                     text = segment["text"]
                     for entity_span in segment["entity_spans"]:
@@ -476,7 +474,7 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
 
     with gzip.GzipFile(json_gz_file_path, "r") as fin:
         data = json.loads(fin.read().decode("utf-8"))
-        if not "documents" in data:
+        if "documents" not in data:
             print(
                 "There is no usable classified text in the corpus file",
                 json_gz_file_path,
@@ -486,7 +484,7 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
             for segment in document["texts"]:
                 if "class_attributes" not in segment:
                     continue
-                if not "text" in segment:
+                if "text" not in segment:
                     continue
                 text = segment["text"]
                 texts_list.append(text)

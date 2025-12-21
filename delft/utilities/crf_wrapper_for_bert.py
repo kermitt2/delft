@@ -1,11 +1,8 @@
 import tensorflow as tf
 
-from tensorflow_addons.text import crf_log_likelihood
-from tensorflow_addons.utils import types
 
 from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 
-import numpy as np
 
 """
 Alternative CRF model wrapper for models having a BERT/transformer layer. 

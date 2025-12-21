@@ -1,4 +1,4 @@
-import codecs, json
+import json
 
 
 # Model parameter

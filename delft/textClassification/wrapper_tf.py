@@ -40,7 +40,6 @@ from delft.textClassification.models import predict_folds
 from delft.textClassification.data_generator import DataGenerator
 
 from delft.utilities.Transformer import (
-    Transformer,
     TRANSFORMER_CONFIG_FILE_NAME,
     DEFAULT_TRANSFORMER_TOKENIZER_DIR,
 )
@@ -61,7 +60,6 @@ import transformers
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
-from tensorflow.keras.utils import plot_model
 
 
 class Classifier(object):

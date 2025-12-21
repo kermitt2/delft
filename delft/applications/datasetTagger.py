@@ -9,7 +9,6 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_json_offsets
 from delft.utilities.Utilities import t_or_f
-from delft.utilities.misc import parse_number_ranges
 
 
 def configure(

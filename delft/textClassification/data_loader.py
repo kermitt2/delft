@@ -1,6 +1,5 @@
 import torch
 from torch.utils.data import Dataset, DataLoader
-import numpy as np
 from delft.textClassification.preprocess import to_vector_single
 
 

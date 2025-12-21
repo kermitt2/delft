@@ -6,11 +6,7 @@ This module replaces the TensorFlow-based wrapper with PyTorch implementations.
 
 import os
 import time
-import json
-import re
-import math
 from itertools import islice
-from typing import List, Optional, Dict, Any
 
 import numpy as np
 
@@ -23,10 +19,6 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import torch
 
 from delft import DELFT_PROJECT_DIR
-from delft.utilities.Transformer import (
-    TRANSFORMER_CONFIG_FILE_NAME,
-    DEFAULT_TRANSFORMER_TOKENIZER_DIR,
-)
 from delft.utilities.misc import print_parameters
 
 from delft.sequenceLabelling.trainer import Trainer, Scorer
@@ -37,14 +29,14 @@ from delft.sequenceLabelling.trainer import (
 )
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
-from delft.sequenceLabelling.models import get_model, MODEL_REGISTRY
+from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor
 from delft.sequenceLabelling.data_loader import create_dataloader
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.numpy import concatenate_or_none
 
-from delft.sequenceLabelling.evaluation import classification_report, get_report
+from delft.sequenceLabelling.evaluation import classification_report
 
 import transformers
 

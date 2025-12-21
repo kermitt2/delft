@@ -2,8 +2,8 @@ import torch
 import torch.nn as nn
 import numpy as np
 import os
-from sklearn.metrics import roc_auc_score, log_loss, r2_score
-from delft.sequenceLabelling.trainer import ModelCheckpoint, EarlyStopping
+from sklearn.metrics import roc_auc_score
+from delft.sequenceLabelling.trainer import EarlyStopping
 
 
 class Trainer(object):

@@ -6,7 +6,6 @@ from tensorflow.keras.layers import (
     Embedding,
     Input,
     Dropout,
-    Reshape,
 )
 from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
 from tensorflow.keras.layers import Concatenate

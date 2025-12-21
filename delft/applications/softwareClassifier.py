@@ -1,14 +1,10 @@
 import json
-from delft.utilities.Embeddings import Embeddings
 from delft.utilities.Utilities import split_data_and_labels
 from delft.textClassification.reader import load_software_use_corpus_json
-from delft.textClassification.reader import vectorize as vectorizer
-import delft.textClassification
 from delft.textClassification import Classifier
 import argparse
 import time
 from delft.textClassification.models import architectures
-import numpy as np
 
 """
     This binary classifier is used in combination with a software mention recognition model, for characterizing

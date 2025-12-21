@@ -1,16 +1,12 @@
 import os
-import shutil
-import json
 import time
 import numpy as np
-from typing import List, Union
 
 import torch
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.models import getModel
-from delft.textClassification.preprocess import clean_text
 from delft.textClassification.data_loader import create_dataloader
 from delft.textClassification.trainer import Trainer
 

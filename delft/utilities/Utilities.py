@@ -1,5 +1,4 @@
 # some convenient methods for all models
-import pandas as pd
 import regex as re
 import numpy as np
 
@@ -101,7 +100,7 @@ def stats(
             nb_tokens += len(sentence)
             for token in sentence:
                 for character in token:
-                    if not character in charset:
+                    if character not in charset:
                         charset.append(character)
         print("\t", "nb. tokens", nb_tokens)
         nb_total_tokens += nb_tokens
@@ -120,7 +119,7 @@ def stats(
             nb_tokens += len(sentence)
             for token in sentence:
                 for character in token:
-                    if not character in charset:
+                    if character not in charset:
                         charset.append(character)
         print("\t", "nb. tokens", nb_tokens)
         nb_total_tokens += nb_tokens
@@ -139,7 +138,7 @@ def stats(
             nb_tokens += len(sentence)
             for token in sentence:
                 for character in token:
-                    if not character in charset:
+                    if character not in charset:
                         charset.append(character)
         print("\t", "nb. tokens", nb_tokens)
         nb_total_tokens += nb_tokens
@@ -207,8 +206,8 @@ def convert_conll2012_to_iob2(pathin, pathout):
             if (
                 "/english/" in subdir
                 and (file.endswith("gold_conll"))
-                and not "/pt/" in subdir
-                and not "/test/" in subdir
+                and "/pt/" not in subdir
+                and "/test/" not in subdir
             ):
                 ind = subdir.find("data/english/")
                 if ind == -1:
@@ -285,15 +284,15 @@ def convert_conll2012_to_iob2(pathin, pathout):
             if (
                 "/english/" in subdir
                 and (file.endswith("gold_conll"))
-                and not "/pt/" in subdir
-                and not "/test/" in subdir
+                and "/pt/" not in subdir
+                and "/test/" not in subdir
             ):
                 ind = subdir.find("data/english/")
                 if ind == -1:
                     print("path to ontonotes files appears invalid")
                 subsubdir = os.path.join(subdir[ind:], file.replace(".gold_conll", ""))
 
-                if not subsubdir in names_doc_ids:
+                if subsubdir not in names_doc_ids:
                     continue
 
                 pbar.update(1)

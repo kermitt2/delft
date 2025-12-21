@@ -17,7 +17,6 @@ from tensorflow.keras import initializers, regularizers, constraints
 from tensorflow.compat.v1.keras import backend as K
 from tensorflow.keras.layers import Layer, InputSpec
 import tensorflow as tf
-import sys
 
 
 def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
