@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+
 """
 Originally from Philipp Gross, https://github.com/phipleg/keras/blob/crf/keras/layers/crf.py
 
@@ -11,11 +12,13 @@ Note: relying on tensorflow.compat.v1.keras function usages, it's probably ok.
 """
 
 from tensorflow.keras import initializers, regularizers, constraints
-#from tensorflow.keras import backend as K
+
+# from tensorflow.keras import backend as K
 from tensorflow.compat.v1.keras import backend as K
 from tensorflow.keras.layers import Layer, InputSpec
 import tensorflow as tf
 import sys
+
 
 def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
     """Calculates the energy of a tag path y for a given input x (with mask),
@@ -70,7 +73,7 @@ def sparse_chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
 def chain_crf_loss(y, x, U, b_start=None, b_end=None, mask=None):
     """Variant of sparse_chain_crf_loss but with one-hot encoded tags y."""
     y_sparse = K.argmax(y, -1)
-    y_sparse = K.cast(y_sparse, 'int32')
+    y_sparse = K.cast(y_sparse, "int32")
     return sparse_chain_crf_loss(y_sparse, x, U, b_start, b_end, mask)
 
 
@@ -106,11 +109,13 @@ def viterbi_decode(x, U, b_start=None, b_end=None, mask=None):
     alpha_0 = x[:, 0, :]
     gamma_0 = K.zeros_like(alpha_0)
     initial_states = [gamma_0, alpha_0]
-    _, gamma = _forward(x,
-                        lambda B: [K.cast(K.argmax(B, axis=1), K.floatx()), K.max(B, axis=1)],
-                        initial_states,
-                        U,
-                        mask)
+    _, gamma = _forward(
+        x,
+        lambda B: [K.cast(K.argmax(B, axis=1), K.floatx()), K.max(B, axis=1)],
+        initial_states,
+        U,
+        mask,
+    )
     y = _backward(gamma, mask)
     return y
 
@@ -125,11 +130,9 @@ def free_energy(x, U, b_start=None, b_end=None, mask=None):
 def free_energy0(x, U, mask=None):
     """Free energy without boundary potential handling."""
     initial_states = [x[:, 0, :]]
-    last_alpha, _ = _forward(x,
-                             lambda B: [tf.reduce_logsumexp(B, axis=1)],                             
-                             initial_states,
-                             U,
-                             mask)
+    last_alpha, _ = _forward(
+        x, lambda B: [tf.reduce_logsumexp(B, axis=1)], initial_states, U, mask
+    )
     return last_alpha[:, 0]
 
 
@@ -165,7 +168,7 @@ def batch_gather(reference, indices):
 
 def _backward(gamma, mask):
     """Backward recurrence of the linear chain crf."""
-    gamma = K.cast(gamma, 'int32')
+    gamma = K.cast(gamma, "int32")
 
     def _backward_step(gamma_t, states):
         y_tm1 = K.squeeze(states[0], 0)
@@ -173,14 +176,11 @@ def _backward(gamma, mask):
         return y_t, [K.expand_dims(y_t, 0)]
 
     initial_states = [K.expand_dims(K.zeros_like(gamma[:, 0, 0]), 0)]
-    _, y_rev, _ = K.rnn(_backward_step,
-                        gamma,
-                        initial_states,
-                        go_backwards=True)
+    _, y_rev, _ = K.rnn(_backward_step, gamma, initial_states, go_backwards=True)
     y = K.reverse(y_rev, 1)
 
     if mask is not None:
-        mask = K.cast(mask, dtype='int32')
+        mask = K.cast(mask, dtype="int32")
         # mask output
         y *= mask
         # set masked values to -1
@@ -246,15 +246,19 @@ class ChainCRF(Layer):
     return a tensor of shape (batch_size, 1) and not (batch_size, maxlen).
     that sample weighting in temporal mode.
     """
-    def __init__(self, init='glorot_uniform',
-                 U_regularizer=None,
-                 b_start_regularizer=None,
-                 b_end_regularizer=None,
-                 U_constraint=None,
-                 b_start_constraint=None,
-                 b_end_constraint=None,
-                 weights=None,
-                 **kwargs):
+
+    def __init__(
+        self,
+        init="glorot_uniform",
+        U_regularizer=None,
+        b_start_regularizer=None,
+        b_end_regularizer=None,
+        U_constraint=None,
+        b_start_constraint=None,
+        b_end_constraint=None,
+        weights=None,
+        **kwargs,
+    ):
         super(ChainCRF, self).__init__(**kwargs)
         self.init = initializers.get(init)
         self.U_regularizer = regularizers.get(U_regularizer)
@@ -282,7 +286,7 @@ class ChainCRF(Layer):
     def _fetch_mask(self):
         mask = None
         if self._inbound_nodes:
-            #mask = self._inbound_nodes[0].input_masks[0]
+            # mask = self._inbound_nodes[0].input_masks[0]
             mask = self.get_input_mask_at(0)
         return mask
 
@@ -291,26 +295,33 @@ class ChainCRF(Layer):
         n_classes = input_shape[2]
         n_steps = input_shape[1]
         assert n_steps is None or n_steps >= 2
-        self.input_spec = [InputSpec(dtype=K.floatx(),
-                                     shape=(None, n_steps, n_classes))]
+        self.input_spec = [
+            InputSpec(dtype=K.floatx(), shape=(None, n_steps, n_classes))
+        ]
 
-        self.U = self.add_weight(shape=(n_classes, n_classes),
-                                 initializer=self.init,
-                                 name='U',
-                                 regularizer=self.U_regularizer,
-                                 constraint=self.U_constraint)
+        self.U = self.add_weight(
+            shape=(n_classes, n_classes),
+            initializer=self.init,
+            name="U",
+            regularizer=self.U_regularizer,
+            constraint=self.U_constraint,
+        )
 
-        self.b_start = self.add_weight(shape=(n_classes, ),
-                                       initializer='zero',
-                                       name='b_start',
-                                       regularizer=self.b_start_regularizer,
-                                       constraint=self.b_start_constraint)
+        self.b_start = self.add_weight(
+            shape=(n_classes,),
+            initializer="zero",
+            name="b_start",
+            regularizer=self.b_start_regularizer,
+            constraint=self.b_start_constraint,
+        )
 
-        self.b_end = self.add_weight(shape=(n_classes, ),
-                                     initializer='zero',
-                                     name='b_end',
-                                     regularizer=self.b_end_regularizer,
-                                     constraint=self.b_end_constraint)
+        self.b_end = self.add_weight(
+            shape=(n_classes,),
+            initializer="zero",
+            name="b_end",
+            regularizer=self.b_end_regularizer,
+            constraint=self.b_end_constraint,
+        )
 
         if self.initial_weights is not None:
             self.set_weights(self.initial_weights)
@@ -325,25 +336,28 @@ class ChainCRF(Layer):
         return K.in_train_phase(x, y_pred_one_hot)
 
     def loss(self, y_true, y_pred):
-        """Linear Chain Conditional Random Field loss function.
-        """
+        """Linear Chain Conditional Random Field loss function."""
         mask = self._fetch_mask()
         return chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
 
     def sparse_crf_loss_masked(self, y_true, y_pred):
         mask_value = 0
-        y_true_masked = tf.ragged.boolean_mask(y_true, tf.not_equal(y_true, mask_value)).to_tensor()
-        y_pred_masked = tf.ragged.boolean_mask(y_pred, tf.not_equal(y_true, mask_value)).to_tensor()
+        y_true_masked = tf.ragged.boolean_mask(
+            y_true, tf.not_equal(y_true, mask_value)
+        ).to_tensor()
+        y_pred_masked = tf.ragged.boolean_mask(
+            y_pred, tf.not_equal(y_true, mask_value)
+        ).to_tensor()
         return self.sparse_loss(y_true_masked, y_pred_masked)
 
     def sparse_crf_loss_bert_masked(self, y_true, y_pred):
         mask_value = 0
-        
+
         # create a boolean mask with False for labels to be ignored
         special_mask = tf.not_equal(y_true, mask_value)
         special_mask = tf.cast(special_mask, tf.float32)
         # apply the mask to true & prediction vectors, it will put to 0
-        # weights for label to ignore, normally neutralizing them for 
+        # weights for label to ignore, normally neutralizing them for
         # loss calculation
         y_pred_masked = tf.multiply(y_pred, tf.expand_dims(special_mask, -1))
 
@@ -354,22 +368,24 @@ class ChainCRF(Layer):
         Linear Chain Conditional Random Field loss function with sparse
         tag sequences.
         """
-        y_true = tf.cast(y_true, 'int32')
+        y_true = tf.cast(y_true, "int32")
 
         # note: nothing to squeeze here with sparse labels which are 2D
-        #y_true = tf.squeeze(y_true, [2])
+        # y_true = tf.squeeze(y_true, [2])
         mask = self._fetch_mask()
-        return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
+        return sparse_chain_crf_loss(
+            y_true, y_pred, self.U, self.b_start, self.b_end, mask
+        )
 
     def get_config(self):
         config = {
-            'init': initializers.serialize(self.init),
-            'U_regularizer': regularizers.serialize(self.U_regularizer),
-            'b_start_regularizer': regularizers.serialize(self.b_start_regularizer),
-            'b_end_regularizer': regularizers.serialize(self.b_end_regularizer),
-            'U_constraint': constraints.serialize(self.U_constraint),
-            'b_start_constraint': constraints.serialize(self.b_start_constraint),
-            'b_end_constraint': constraints.serialize(self.b_end_constraint)
+            "init": initializers.serialize(self.init),
+            "U_regularizer": regularizers.serialize(self.U_regularizer),
+            "b_start_regularizer": regularizers.serialize(self.b_start_regularizer),
+            "b_end_regularizer": regularizers.serialize(self.b_end_regularizer),
+            "U_constraint": constraints.serialize(self.U_constraint),
+            "b_start_constraint": constraints.serialize(self.b_start_constraint),
+            "b_end_constraint": constraints.serialize(self.b_end_constraint),
         }
         base_config = super(ChainCRF, self).get_config()
         return dict(list(base_config.items()) + list(config.items()))
@@ -377,19 +393,19 @@ class ChainCRF(Layer):
 
 def create_custom_objects():
     """Returns the custom objects, needed for loading a persisted model."""
-    instanceHolder = {'instance': None}
+    instanceHolder = {"instance": None}
 
     class ClassWrapper(ChainCRF):
         def __init__(self, *args, **kwargs):
-            instanceHolder['instance'] = self
+            instanceHolder["instance"] = self
             super(ClassWrapper, self).__init__(*args, **kwargs)
 
     def loss(*args):
-        method = getattr(instanceHolder['instance'], 'loss')
+        method = getattr(instanceHolder["instance"], "loss")
         return method(*args)
 
     def sparse_loss(*args):
-        method = getattr(instanceHolder['instance'], 'sparse_loss')
+        method = getattr(instanceHolder["instance"], "sparse_loss")
         return method(*args)
 
-    return {'ChainCRF': ClassWrapper, 'loss': loss, 'sparse_loss': sparse_loss}
+    return {"ChainCRF": ClassWrapper, "loss": loss, "sparse_loss": sparse_loss}

@@ -1,4 +1,4 @@
-# Manage pre-trained embeddings 
+# Manage pre-trained embeddings
 import gzip
 import hashlib
 import io
@@ -32,15 +32,17 @@ from delft.utilities.Utilities import download_file
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
 
+
 class Embeddings(object):
-
-    def __init__(self, name,
+    def __init__(
+        self,
+        name,
         resource_registry=None,
-        lang='en',
-        extension='vec',
+        lang="en",
+        extension="vec",
         use_cache=True,
-        load=True):
-
+        load=True,
+    ):
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
@@ -64,21 +66,21 @@ class Embeddings(object):
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
-        print('loading embeddings...')
+        print("loading embeddings...")
         begin = True
         description = self.get_description(name)
         if description is not None:
             embeddings_path = description["path"]
             self.lang = description["lang"]
             print("path:", embeddings_path)
-            if self.extension == 'bin':
+            if self.extension == "bin":
                 self.model = fastText.load_model(embeddings_path)
                 nbWords = len(self.model.get_words())
                 self.embed_size = self.model.get_dimension()
             else:
-                with open(embeddings_path, encoding='utf8') as f:
+                with open(embeddings_path, encoding="utf8") as f:
                     for line in f:
-                        line = line.strip().split(' ')
+                        line = line.strip().split(" ")
                         if begin:
                             begin = False
                             nb_words, embed_size = _fetch_header_if_available(line)
@@ -90,27 +92,37 @@ class Embeddings(object):
                                 continue
 
                         word = line[0]
-                        vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                        vector = np.array(
+                            [float(val) for val in line[1 : len(line)]], dtype="float32"
+                        )
                         if self.embed_size == 0:
                             self.embed_size = len(vector)
                         self.model[word] = vector
                 if nbWords == 0:
                     nbWords = len(self.model)
-            print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+            print(
+                "embeddings loaded for",
+                nbWords,
+                "words and",
+                self.embed_size,
+                "dimensions",
+            )
 
     def make_embeddings_lmdb(self, name="fasttext-crawl"):
-        print('\nCompiling embeddings... (this is done only one time per embeddings at first usage)')
+        print(
+            "\nCompiling embeddings... (this is done only one time per embeddings at first usage)"
+        )
         description = self.get_description(name)
 
         if description is None:
-            print('\nNo description found in embeddings registry for embeddings', name)
+            print("\nNo description found in embeddings registry for embeddings", name)
             return
 
         if description is not None:
             # the following method will possibly download the mebedding file if not available locally
             embeddings_path = self.get_embedding_path(description)
             if embeddings_path is None:
-                print('\nCould not locate a usable resource for embeddings', name)
+                print("\nCould not locate a usable resource for embeddings", name)
                 return
 
             self.load_embeddings_from_file(embeddings_path)
@@ -137,10 +149,10 @@ class Embeddings(object):
         embedding_file.close()
 
         embedding_file = open_embedding_file(embeddings_path)
-        #with open(embeddings_path, encoding='utf8') as f:
+        # with open(embeddings_path, encoding='utf8') as f:
         for line in tqdm(embedding_file, total=nb_lines):
             line = line.decode()
-            line = line.split(' ')
+            line = line.split(" ")
             if begin:
                 begin = False
                 nb_words, embed_size = _fetch_header_if_available(line)
@@ -152,43 +164,55 @@ class Embeddings(object):
 
             word = line[0]
             try:
-                if line[len(line)-1] == '\n':
-                    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                if line[len(line) - 1] == "\n":
+                    vector = np.array(
+                        [float(val) for val in line[1 : len(line) - 1]], dtype="float32"
+                    )
                 else:
-                    vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    vector = np.array(
+                        [float(val) for val in line[1 : len(line)]], dtype="float32"
+                    )
 
             except:
                 print(len(line))
-                print(line[1:len(line)])
+                print(line[1 : len(line)])
 
             if self.embed_size == 0:
                 self.embed_size = len(vector)
 
-            if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
+            if len(word.encode(encoding="UTF-8")) < self.env.max_key_size():
+                txn.put(word.encode(encoding="UTF-8"), _serialize_pickle(vector))
                 i += 1
 
         embedding_file.close()
 
-        #if i % batch_size != 0:
+        # if i % batch_size != 0:
         txn.commit()
         if nbWords == 0:
             nbWords = i
         self.vocab_size = nbWords
-        print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+        print(
+            "embeddings loaded for", nbWords, "words and", self.embed_size, "dimensions"
+        )
 
     def clean_downloads(self):
         # cleaning possible downloaded embeddings
-        if 'embedding-download-path' in self.registry and os.path.exists(self.registry['embedding-download-path']) and os.path.isdir(self.registry['embedding-download-path']):
-            for filename in os.listdir(self.registry['embedding-download-path']):
-                file_path = os.path.join(self.registry['embedding-download-path'], filename)
+        if (
+            "embedding-download-path" in self.registry
+            and os.path.exists(self.registry["embedding-download-path"])
+            and os.path.isdir(self.registry["embedding-download-path"])
+        ):
+            for filename in os.listdir(self.registry["embedding-download-path"]):
+                file_path = os.path.join(
+                    self.registry["embedding-download-path"], filename
+                )
                 try:
                     if os.path.isfile(file_path) or os.path.islink(file_path):
                         os.unlink(file_path)
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
                 except Exception as e:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+                    print("Failed to delete %s. Reason: %s" % (file_path, e))
 
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
@@ -197,22 +221,35 @@ class Embeddings(object):
 
         if self.extension == "bin":
             if fasttext_support:
-                print("embeddings are of .bin format, so they will be loaded in memory...")
+                print(
+                    "embeddings are of .bin format, so they will be loaded in memory..."
+                )
                 self.make_embeddings_simple_in_memory(name)
             else:
-                if not (sys.platform == 'linux' or sys.platform == 'darwin'):
-                    raise ValueError('FastText .bin format not supported for your platform')
+                if not (sys.platform == "linux" or sys.platform == "darwin"):
+                    raise ValueError(
+                        "FastText .bin format not supported for your platform"
+                    )
                 else:
-                    raise ValueError('Go to the documentation to get more information on how to install FastText .bin support')
+                    raise ValueError(
+                        "Go to the documentation to get more information on how to install FastText .bin support"
+                    )
 
         elif self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
-            print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
+            print(
+                "embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory..."
+            )
             embeddings_path = None
             if "path" in description:
                 embeddings_path = description["path"]
             self.lang = description["lang"]
             if embeddings_path is None or not os.path.isfile(embeddings_path):
-                raise ValueError("Embedding path for", description['name'], "is not valid", embeddings_path)
+                raise ValueError(
+                    "Embedding path for",
+                    description["name"],
+                    "is not valid",
+                    embeddings_path,
+                )
 
             self.make_embeddings_simple_in_memory(name)
 
@@ -232,12 +269,14 @@ class Embeddings(object):
                     self.lang = description["lang"]
 
                 # open the database in read mode
-                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+                self.env = lmdb.open(
+                    envFilePath, readonly=True, max_readers=2048, max_spare_txns=4
+                )
                 if self.env:
                     # we need to set self.embed_size and self.vocab_size
                     with self.env.begin() as txn:
                         stats = txn.stat()
-                        size = stats['entries']
+                        size = stats["entries"]
                         self.vocab_size = size
 
                     with self.env.begin() as txn:
@@ -256,7 +295,12 @@ class Embeddings(object):
                         # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
                         # when opening new transaction !
                         self.env.close()
-                        self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
+                        self.env = lmdb.open(
+                            envFilePath,
+                            readonly=True,
+                            max_readers=2048,
+                            max_spare_txns=2,
+                        )
 
             if load_db:
                 # create and load the database in write mode
@@ -277,24 +321,24 @@ class Embeddings(object):
 
     def get_word_vector(self, word):
         """
-            Get static embeddings (e.g. glove) for a given token
+        Get static embeddings (e.g. glove) for a given token
         """
-        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+        if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
-        if self.env is None or self.extension == 'bin':
+        if self.env is None or self.extension == "bin":
             # db not available or embeddings in bin format, the embeddings should be available in memory (normally!)
             return self.get_word_vector_in_memory(word)
         try:
             with self.env.begin() as txn:
-                vector = txn.get(word.encode(encoding='UTF-8'))
+                vector = txn.get(word.encode(encoding="UTF-8"))
                 if vector:
                     word_vector = _deserialize_pickle(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
                     # alternatively, initialize with random negative values
-                    #word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
+                    # word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
                     # alternatively use fasttext OOV ngram possibilities (if ngram available)
         except lmdb.Error:
             # no idea why, but we need to close and reopen the environment to avoid
@@ -302,15 +346,21 @@ class Embeddings(object):
             # when opening new transaction !
             self.env.close()
             envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
-            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
             return self.get_word_vector(word)
         return word_vector
 
     def get_word_vector_in_memory(self, word):
-        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+        if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
-        if self.extension == 'bin':
+        if self.extension == "bin":
             return self.model.get_word_vector(word)
         if word in self.model:
             return self.model[word]
@@ -325,24 +375,37 @@ class Embeddings(object):
         self.lang = description["lang"]
 
         if embeddings_path is None or not os.path.isfile(embeddings_path):
-            print("error: embedding path for", description['name'], "is not valid", embeddings_path)
-            if "url" in description and len(description["url"])>0:
+            print(
+                "error: embedding path for",
+                description["name"],
+                "is not valid",
+                embeddings_path,
+            )
+            if "url" in description and len(description["url"]) > 0:
                 url = description["url"]
-                download_path = self.registry['embedding-download-path']
+                download_path = self.registry["embedding-download-path"]
                 # if the download path does not exist, we create it
                 if not os.path.isdir(download_path):
                     try:
                         os.mkdir(download_path)
                     except OSError:
-                        print ("Creation of the download directory", download_path, "failed")
+                        print(
+                            "Creation of the download directory",
+                            download_path,
+                            "failed",
+                        )
 
-                print("Downloading resource file for", description['name'], "...")
+                print("Downloading resource file for", description["name"], "...")
                 embeddings_path = download_file(url, download_path)
                 if embeddings_path != None and os.path.isfile(embeddings_path):
                     print("Download sucessful:", embeddings_path)
             else:
-                print("no download url available for this embeddings resource, please review the embedding registry for", description['name'])
+                print(
+                    "no download url available for this embeddings resource, please review the embedding registry for",
+                    description["name"],
+                )
         return embeddings_path
+
 
 def _serialize_byteio(array):
     memfile = io.BytesIO()
@@ -365,12 +428,13 @@ def _serialize_pickle(a):
 def _deserialize_pickle(serialized):
     return pickle.loads(serialized)
 
+
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip
     if embeddings_path.endswith(".gz"):
         embedding_file = gzip.open(embeddings_path, mode="rb")
     elif embeddings_path.endswith(".zip"):
-        zip_file = zipfile.ZipFile(embeddings_path, 'r')
+        zip_file = zipfile.ZipFile(embeddings_path, "r")
         for filename in zip_file.namelist():
             print(filename)
             if filename.endswith("vec") or filename.endswith("txt"):
@@ -378,6 +442,7 @@ def open_embedding_file(embeddings_path):
     else:
         embedding_file = open(embeddings_path, mode="rb")
     return embedding_file
+
 
 def _get_num_lines(file_path):
     fp = open(file_path, "r+")
@@ -388,12 +453,14 @@ def _get_num_lines(file_path):
     fp.close()
     return lines
 
+
 def list_digest(strings):
     hash = hashlib.sha1()
     for s in strings:
         hash.update(struct.pack("I", len(s)))
-        hash.update(s.encode(encoding='UTF-8'))
+        hash.update(s.encode(encoding="UTF-8"))
     return hash.hexdigest()
+
 
 def is_int(s):
     try:
@@ -402,12 +469,14 @@ def is_int(s):
     except ValueError:
         return False
 
+
 def is_float(s):
     try:
         float(s)
         return True
     except ValueError:
         return False
+
 
 def _fetch_header_if_available(line):
     """
@@ -416,7 +485,7 @@ def _fetch_header_if_available(line):
     :param line: a splitted line (if not split, tried to split by spaces)
     :return: the number of words and the embedding size, if there is no header, they will be set to -1
     """
-    if type(line) == 'str':
+    if type(line) == "str":
         line = line.split(" ")
 
     nb_words = -1
@@ -429,7 +498,8 @@ def _fetch_header_if_available(line):
 
     return nb_words, embed_size
 
-def load_resource_registry(path='delft/resources-registry.json'):
+
+def load_resource_registry(path="delft/resources-registry.json"):
     """
     Load the resource registry file in memory. Each description provides a name,
     a file path (used only if necessary) and an embeddings type (to take into account
@@ -440,12 +510,12 @@ def load_resource_registry(path='delft/resources-registry.json'):
 
 
 # for ELMo embeddings
-#from delft.utilities.bilm.data import Batcher
-#from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
-#from delft.utilities.bilm.elmo import weight_layers
+# from delft.utilities.bilm.data import Batcher
+# from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
+# from delft.utilities.bilm.elmo import weight_layers
 
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
-#from gensim.models import FastText
+# from gensim.models import FastText
 
 # this is the default init size of a lmdb database for embeddings
 # based on https://github.com/kermitt2/nerd/blob/master/src/main/java/com/scienceminer/nerd/kb/db/KBDatabase.java
@@ -455,17 +525,19 @@ map_size = 100 * 1024 * 1024 * 1024
 # dim of ELMo embeddings (2 times the dim of the LSTM for LM)
 ELMo_embed_size = 1024
 
-class Embeddings(object):
 
-    def __init__(self, name,
+class Embeddings(object):
+    def __init__(
+        self,
+        name,
         resource_registry=None,
-        lang='en',
-        extension='vec',
+        lang="en",
+        extension="vec",
         use_ELMo=False,
         use_cache=True,
         load=True,
-        elmo_model_name=None):
-
+        elmo_model_name=None,
+    ):
         self.name = name
         self.embed_size = 0
         self.static_embed_size = 0
@@ -489,15 +561,17 @@ class Embeddings(object):
         self.use_ELMo = use_ELMo
         self.elmo_model_name = elmo_model_name
         if elmo_model_name == None:
-            self.elmo_model_name = 'elmo-'+self.lang
+            self.elmo_model_name = "elmo-" + self.lang
         if use_ELMo:
-            #tf.compat.v1.disable_eager_execution()
+            # tf.compat.v1.disable_eager_execution()
             self.make_ELMo()
             self.embed_size = ELMo_embed_size + self.embed_size
             description = self.get_description(self.elmo_model_name)
             self.env_ELMo = None
             if description and description["cache-training"] and self.use_cache:
-                self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
+                self.embedding_ELMo_cache = os.path.join(
+                    description["path-cache"], "cache"
+                )
                 # clean possible remaining cache
                 self.clean_ELMo_cache()
                 # create and load a cache in write mode, it will be used only for training
@@ -508,21 +582,21 @@ class Embeddings(object):
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
-        print('loading embeddings...')
+        print("loading embeddings...")
         begin = True
         description = self.get_description(name)
         if description is not None:
             embeddings_path = description["path"]
             self.lang = description["lang"]
             print("path:", embeddings_path)
-            if self.extension == 'bin':
+            if self.extension == "bin":
                 self.model = fastText.load_model(embeddings_path)
                 nbWords = len(self.model.get_words())
                 self.embed_size = self.model.get_dimension()
             else:
-                with open(embeddings_path, encoding='utf8') as f:
+                with open(embeddings_path, encoding="utf8") as f:
                     for line in f:
-                        line = line.strip().split(' ')
+                        line = line.strip().split(" ")
                         if begin:
                             begin = False
                             nb_words, embed_size = _fetch_header_if_available(line)
@@ -534,29 +608,39 @@ class Embeddings(object):
                                 continue
 
                         word = line[0]
-                        vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
-                        #else:
+                        vector = np.array(
+                            [float(val) for val in line[1 : len(line)]], dtype="float32"
+                        )
+                        # else:
                         #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
                         if self.embed_size == 0:
                             self.embed_size = len(vector)
                         self.model[word] = vector
                 if nbWords == 0:
                     nbWords = len(self.model)
-            print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+            print(
+                "embeddings loaded for",
+                nbWords,
+                "words and",
+                self.embed_size,
+                "dimensions",
+            )
 
     def make_embeddings_lmdb(self, name="fasttext-crawl"):
-        print('\nCompiling embeddings... (this is done only one time per embeddings at first usage)')
+        print(
+            "\nCompiling embeddings... (this is done only one time per embeddings at first usage)"
+        )
         description = self.get_description(name)
 
         if description is None:
-            print('\nNo description found in embeddings registry for embeddings', name)
+            print("\nNo description found in embeddings registry for embeddings", name)
             return
 
         if description is not None:
             # the following method will possibly download the mebedding file if not available locally
             embeddings_path = self.get_embedding_path(description)
             if embeddings_path is None:
-                print('\nCould not locate a usable resource for embeddings', name)
+                print("\nCould not locate a usable resource for embeddings", name)
                 return
 
             self.load_embeddings_from_file(embeddings_path)
@@ -583,10 +667,10 @@ class Embeddings(object):
         embedding_file.close()
 
         embedding_file = open_embedding_file(embeddings_path)
-        #with open(embeddings_path, encoding='utf8') as f:
+        # with open(embeddings_path, encoding='utf8') as f:
         for line in tqdm(embedding_file, total=nb_lines):
             line = line.decode()
-            line = line.split(' ')
+            line = line.split(" ")
             if begin:
                 begin = False
                 nb_words, embed_size = _fetch_header_if_available(line)
@@ -598,23 +682,27 @@ class Embeddings(object):
 
             word = line[0]
             try:
-                if line[len(line)-1] == '\n':
-                    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
+                if line[len(line) - 1] == "\n":
+                    vector = np.array(
+                        [float(val) for val in line[1 : len(line) - 1]], dtype="float32"
+                    )
                 else:
-                    vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                    vector = np.array(
+                        [float(val) for val in line[1 : len(line)]], dtype="float32"
+                    )
 
-                #vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
+                # vector = np.array([float(val) for val in line[1:len(line)]], dtype='float32')
             except:
                 print(len(line))
-                print(line[1:len(line)])
-            #else:
+                print(line[1 : len(line)])
+            # else:
             #    vector = np.array([float(val) for val in line[1:len(line)-1]], dtype='float32')
             if self.embed_size == 0:
                 self.embed_size = len(vector)
 
-            if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
-                #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
+            if len(word.encode(encoding="UTF-8")) < self.env.max_key_size():
+                txn.put(word.encode(encoding="UTF-8"), _serialize_pickle(vector))
+                # txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
                 i += 1
 
             # commit batch
@@ -624,25 +712,33 @@ class Embeddings(object):
 
         embedding_file.close()
 
-        #if i % batch_size != 0:
+        # if i % batch_size != 0:
         txn.commit()
         if nbWords == 0:
             nbWords = i
         self.vocab_size = nbWords
-        print('embeddings loaded for', nbWords, "words and", self.embed_size, "dimensions")
+        print(
+            "embeddings loaded for", nbWords, "words and", self.embed_size, "dimensions"
+        )
 
     def clean_downloads(self):
         # cleaning possible downloaded embeddings
-        if 'embedding-download-path' in self.registry and os.path.exists(self.registry['embedding-download-path']) and os.path.isdir(self.registry['embedding-download-path']):
-            for filename in os.listdir(self.registry['embedding-download-path']):
-                file_path = os.path.join(self.registry['embedding-download-path'], filename)
+        if (
+            "embedding-download-path" in self.registry
+            and os.path.exists(self.registry["embedding-download-path"])
+            and os.path.isdir(self.registry["embedding-download-path"])
+        ):
+            for filename in os.listdir(self.registry["embedding-download-path"]):
+                file_path = os.path.join(
+                    self.registry["embedding-download-path"], filename
+                )
                 try:
                     if os.path.isfile(file_path) or os.path.islink(file_path):
                         os.unlink(file_path)
                     elif os.path.isdir(file_path):
                         shutil.rmtree(file_path)
                 except Exception as e:
-                    print('Failed to delete %s. Reason: %s' % (file_path, e))
+                    print("Failed to delete %s. Reason: %s" % (file_path, e))
 
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
@@ -651,22 +747,35 @@ class Embeddings(object):
 
         if self.extension == "bin":
             if fasttext_support:
-                print("embeddings are of .bin format, so they will be loaded in memory...")
+                print(
+                    "embeddings are of .bin format, so they will be loaded in memory..."
+                )
                 self.make_embeddings_simple_in_memory(name)
             else:
-                if not (sys.platform == 'linux' or sys.platform == 'darwin'):
-                    raise ValueError('FastText .bin format not supported for your platform')
+                if not (sys.platform == "linux" or sys.platform == "darwin"):
+                    raise ValueError(
+                        "FastText .bin format not supported for your platform"
+                    )
                 else:
-                    raise ValueError('Go to the documentation to get more information on how to install FastText .bin support')
+                    raise ValueError(
+                        "Go to the documentation to get more information on how to install FastText .bin support"
+                    )
 
         elif self.embedding_lmdb_path is None or self.embedding_lmdb_path == "None":
-            print("embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory...")
+            print(
+                "embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory..."
+            )
             embeddings_path = None
             if "path" in description:
                 embeddings_path = description["path"]
             self.lang = description["lang"]
             if embeddings_path is None or not os.path.isfile(embeddings_path):
-                raise ValueError("Embedding path for", description['name'], "is not valid", embeddings_path)
+                raise ValueError(
+                    "Embedding path for",
+                    description["name"],
+                    "is not valid",
+                    embeddings_path,
+                )
 
             self.make_embeddings_simple_in_memory(name)
 
@@ -686,12 +795,14 @@ class Embeddings(object):
                     self.lang = description["lang"]
 
                 # open the database in read mode
-                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+                self.env = lmdb.open(
+                    envFilePath, readonly=True, max_readers=2048, max_spare_txns=4
+                )
                 if self.env:
                     # we need to set self.embed_size and self.vocab_size
                     with self.env.begin() as txn:
                         stats = txn.stat()
-                        size = stats['entries']
+                        size = stats["entries"]
                         self.vocab_size = size
 
                     with self.env.begin() as txn:
@@ -710,7 +821,12 @@ class Embeddings(object):
                         # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
                         # when opening new transaction !
                         self.env.close()
-                        self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
+                        self.env = lmdb.open(
+                            envFilePath,
+                            readonly=True,
+                            max_readers=2048,
+                            max_spare_txns=2,
+                        )
 
             if load_db:
                 # create and load the database in write mode
@@ -726,26 +842,32 @@ class Embeddings(object):
             options_file = None
             try:
                 weights_file, options_file = self.get_elmo_embedding_path(description)
-            except Exception as e: 
+            except Exception as e:
                 logging.error(str(e))
-                logging.error("fail to find ELMo model path for " + self.elmo_model_name)
+                logging.error(
+                    "fail to find ELMo model path for " + self.elmo_model_name
+                )
                 return
 
             graph = tf.Graph()
             with graph.as_default() as elmo_graph:
                 self.elmo_model = ElmoModel()
-                self.elmo_model.load(vocab_file=vocab_file,
-                                    options_file=options_file,
-                                    weight_file=weights_file,
-                                    max_batch_size=128,
-                                    limit=50,
-                                    full=False)
+                self.elmo_model.load(
+                    vocab_file=vocab_file,
+                    options_file=options_file,
+                    weight_file=weights_file,
+                    max_batch_size=128,
+                    limit=50,
+                    full=False,
+                )
 
             # initialize session for reuse
             with elmo_graph.as_default() as current_graph:
                 self.tf_session_elmo = tf.compat.v1.Session(graph=elmo_graph)
                 with self.tf_session_elmo.as_default() as sess:
-                    self.elmo_model.elmo_sentence_input = elmo.weight_layers("input", self.elmo_model.sentence_embeddings_op)
+                    self.elmo_model.elmo_sentence_input = elmo.weight_layers(
+                        "input", self.elmo_model.sentence_embeddings_op
+                    )
                     sess.run(tf.compat.v1.global_variables_initializer())
 
     def get_description(self, name):
@@ -762,24 +884,24 @@ class Embeddings(object):
 
     def get_word_vector(self, word):
         """
-            Get static embeddings (e.g. glove) for a given token
+        Get static embeddings (e.g. glove) for a given token
         """
-        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+        if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
-        if self.env is None or self.extension == 'bin':
+        if self.env is None or self.extension == "bin":
             # db not available or embeddings in bin format, the embeddings should be available in memory (normally!)
             return self.get_word_vector_in_memory(word)
         try:
             with self.env.begin() as txn:
-                vector = txn.get(word.encode(encoding='UTF-8'))
+                vector = txn.get(word.encode(encoding="UTF-8"))
                 if vector:
                     word_vector = _deserialize_pickle(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
                     # alternatively, initialize with random negative values
-                    #word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
+                    # word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
                     # alternatively use fasttext OOV ngram possibilities (if ngram available)
         except lmdb.Error:
             # no idea why, but we need to close and reopen the environment to avoid
@@ -787,15 +909,21 @@ class Embeddings(object):
             # when opening new transaction !
             self.env.close()
             envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
-            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
             return self.get_word_vector(word)
         return word_vector
 
     def get_word_vector_in_memory(self, word):
-        if (self.name == 'wiki.fr') or (self.name == 'wiki.fr.bin'):
+        if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
-        if self.extension == 'bin':
+        if self.extension == "bin":
             return self.model.get_word_vector(word)
         if word in self.model:
             return self.model[word]
@@ -803,7 +931,7 @@ class Embeddings(object):
             # for unknown word, we use a vector filled with 0.0
             return np.zeros((self.static_embed_size,), dtype=np.float32)
             # alternatively, initialize with random negative values
-            #return np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
+            # return np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
             # alternatively use fasttext OOV ngram possibilities (if ngram available)
 
     def get_embedding_path(self, description):
@@ -813,25 +941,36 @@ class Embeddings(object):
         self.lang = description["lang"]
 
         if embeddings_path is None or not os.path.isfile(embeddings_path):
-            print("error: embedding path for", description['name'], "is not valid", embeddings_path)
-            if "url" in description and len(description["url"])>0:
+            print(
+                "error: embedding path for",
+                description["name"],
+                "is not valid",
+                embeddings_path,
+            )
+            if "url" in description and len(description["url"]) > 0:
                 url = description["url"]
-                download_path = self.registry['embedding-download-path']
+                download_path = self.registry["embedding-download-path"]
                 # if the download path does not exist, we create it
                 if not os.path.isdir(download_path):
                     try:
                         os.mkdir(download_path)
                     except OSError:
-                        print ("Creation of the download directory", download_path, "failed")
+                        print(
+                            "Creation of the download directory",
+                            download_path,
+                            "failed",
+                        )
 
-                print("Downloading resource file for", description['name'], "...")
+                print("Downloading resource file for", description["name"], "...")
                 embeddings_path = download_file(url, download_path)
                 if embeddings_path != None and os.path.isfile(embeddings_path):
                     print("Download sucessful:", embeddings_path)
             else:
-                print("no download url available for this embeddings resource, please review the embedding registry for", description['name'])
+                print(
+                    "no download url available for this embeddings resource, please review the embedding registry for",
+                    description["name"],
+                )
         return embeddings_path
-
 
     def get_elmo_embedding_path(self, description):
         name = self.elmo_model_name
@@ -839,27 +978,43 @@ class Embeddings(object):
         options_file = description["path-config"]
 
         # check if model weights file is there and okay, otherwise donwload the ELMo weights
-        if weights_file is None or len(weights_file) == 0 or not os.path.isfile(weights_file):
+        if (
+            weights_file is None
+            or len(weights_file) == 0
+            or not os.path.isfile(weights_file)
+        ):
             print("error: weights file path for", name, "is not valid", weights_file)
             # check local alternative location in repo
-            alternative_weights_directory = os.path.join("data/models/ELMo", self.elmo_model_name)
+            alternative_weights_directory = os.path.join(
+                "data/models/ELMo", self.elmo_model_name
+            )
             alternative_weights_file = None
             if os.path.isdir(alternative_weights_directory):
                 # try to find a .hdf5 file here
                 for file in os.listdir(alternative_weights_directory):
                     if file.endswith(".hdf5"):
                         alternative_weights_file = file
-                        weights_file = os.path.join(alternative_weights_directory, alternative_weights_file)
-            
-            if alternative_weights_file == None and "url_weights" in description and len(description["url_weights"])>0:
+                        weights_file = os.path.join(
+                            alternative_weights_directory, alternative_weights_file
+                        )
+
+            if (
+                alternative_weights_file == None
+                and "url_weights" in description
+                and len(description["url_weights"]) > 0
+            ):
                 url = description["url_weights"]
-                download_path = self.registry['embedding-download-path']
+                download_path = self.registry["embedding-download-path"]
                 # if the download path does not exist, we create it
                 if not os.path.isdir(download_path):
                     try:
                         os.mkdir(download_path)
                     except OSError:
-                        print ("Creation of the download directory", download_path, "failed")
+                        print(
+                            "Creation of the download directory",
+                            download_path,
+                            "failed",
+                        )
                 print("Downloading weights file for", name, "...")
                 embeddings_path = download_file(url, download_path)
                 if embeddings_path != None and os.path.isfile(embeddings_path):
@@ -867,57 +1022,94 @@ class Embeddings(object):
                     # now move the model weights file where they are supposed to be and remove the tmp download
                     # try to move in the original path_weights
                     parent_path = None
-                    if weights_file is not None and len(weights_file)>0:
+                    if weights_file is not None and len(weights_file) > 0:
                         try:
                             path = Path(weights_file)
                             parent_path = path.parent.absolute()
                         except:
-                            print("invalid specified ELMo weights file path:", weights_file)
+                            print(
+                                "invalid specified ELMo weights file path:",
+                                weights_file,
+                            )
                     if parent_path is not None and os.path.isdir(parent_path):
                         try:
                             shutil.move(embeddings_path, weights_file)
                         except OSError:
-                            print ("Copy of ELMo weights file to ELMo directory path", weights_file, "failed")
+                            print(
+                                "Copy of ELMo weights file to ELMo directory path",
+                                weights_file,
+                                "failed",
+                            )
                     else:
                         # otherwise move to the ELMo model default path and update the description file
                         basename = ntpath.basename(embeddings_path)
-                        destination_file = os.path.join("data/models/ELMo", self.elmo_model_name, basename)
-                        print("saving downloaded ELMo weights file under", destination_file)
-                        destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
+                        destination_file = os.path.join(
+                            "data/models/ELMo", self.elmo_model_name, basename
+                        )
+                        print(
+                            "saving downloaded ELMo weights file under",
+                            destination_file,
+                        )
+                        destination_dir = os.path.join(
+                            "data/models/ELMo", self.elmo_model_name
+                        )
                         if not os.path.exists(destination_dir):
                             os.makedirs(destination_dir)
-                        try:                      
+                        try:
                             shutil.move(embeddings_path, destination_file)
                             weights_file = destination_file
                         except OSError:
-                            print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
-            
-            if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
-                print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
+                            print(
+                                "Copy of ELMo weights file to ELMo directory path",
+                                destination_file,
+                                "failed",
+                            )
+
+            if (
+                "url_weights" not in description
+                or description["url_weights"] == None
+                or len(description["url_weights"]) == 0
+            ):
+                print(
+                    "no download url available for this ELMo model weights embeddings resource, please review the embedding registry for",
+                    name,
+                )
         print("ELMo weights used:", weights_file)
 
         # now check if model config file is there and okay, otherwise donwload the ELMo config file
         if options_file is None or not os.path.isfile(options_file):
             print("error: config file path for", name, "is not valid", options_file)
             # check local alternative location in repo
-            alternative_options_directory = os.path.join("data/models/ELMo", self.elmo_model_name)
+            alternative_options_directory = os.path.join(
+                "data/models/ELMo", self.elmo_model_name
+            )
             alternative_options_file = None
             if os.path.isdir(alternative_options_directory):
                 # try to find a .json file here
                 for file in os.listdir(alternative_options_directory):
                     if file.endswith(".json"):
                         alternative_options_file = file
-                        options_file = os.path.join(alternative_options_directory, alternative_options_file)
+                        options_file = os.path.join(
+                            alternative_options_directory, alternative_options_file
+                        )
 
-            if alternative_options_file == None and "url_config" in description and len(description["url_config"])>0:
+            if (
+                alternative_options_file == None
+                and "url_config" in description
+                and len(description["url_config"]) > 0
+            ):
                 url = description["url_config"]
-                download_path = self.registry['embedding-download-path']
+                download_path = self.registry["embedding-download-path"]
                 # if the download path does not exist, we create it
                 if not os.path.isdir(download_path):
                     try:
                         os.mkdir(download_path)
                     except OSError:
-                        print ("Creation of the download directory", download_path, "failed")
+                        print(
+                            "Creation of the download directory",
+                            download_path,
+                            "failed",
+                        )
 
                 print("Downloading weights file for", name, "...")
                 embeddings_path = download_file(url, download_path)
@@ -926,33 +1118,58 @@ class Embeddings(object):
                     # now move the model weights file where they are supposed to be and remove the tmp download
                     # try to move in the original path_options
                     parent_path = None
-                    if options_file is not None and len(options_file)>0:
+                    if options_file is not None and len(options_file) > 0:
                         try:
                             path = Path(options_file)
                             parent_path = path.parent.absolute()
                         except:
-                            print("invalid specified ELMo options file path:", options_file)
+                            print(
+                                "invalid specified ELMo options file path:",
+                                options_file,
+                            )
                     if parent_path is not None and os.path.isdir(parent_path):
                         try:
                             shutil.move(embeddings_path, options_file)
                         except OSError:
-                            print ("Copy of ELMo options file to ELMo directory path", options_file, "failed")
+                            print(
+                                "Copy of ELMo options file to ELMo directory path",
+                                options_file,
+                                "failed",
+                            )
                     else:
                         # otherwise move to the ELMo model default path and update the description file
                         basename = ntpath.basename(embeddings_path)
-                        destination_file = os.path.join("data/models/ELMo", self.elmo_model_name, basename)
-                        print("saving downloaded ELMo weights file under", destination_file)
-                        destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
+                        destination_file = os.path.join(
+                            "data/models/ELMo", self.elmo_model_name, basename
+                        )
+                        print(
+                            "saving downloaded ELMo weights file under",
+                            destination_file,
+                        )
+                        destination_dir = os.path.join(
+                            "data/models/ELMo", self.elmo_model_name
+                        )
                         if not os.path.exists(destination_dir):
                             os.makedirs(destination_dir)
                         try:
                             shutil.move(embeddings_path, destination_file)
                             options_file = destination_file
                         except OSError:
-                            print ("Copy of ELMo options file to ELMo directory path", destination_file, "failed")
+                            print(
+                                "Copy of ELMo options file to ELMo directory path",
+                                destination_file,
+                                "failed",
+                            )
                         # update description file
-            if "url_config" not in description or description["url_config"] == None or len(description["url_config"]) == 0:
-                print("no download url available for this ELMo embeddings config resource, please review the embedding registry for", name)
+            if (
+                "url_config" not in description
+                or description["url_config"] == None
+                or len(description["url_config"]) == 0
+            ):
+                print(
+                    "no download url available for this ELMo embeddings config resource, please review the embedding registry for",
+                    name,
+                )
         print("ELMo config used:", options_file)
 
         return weights_file, options_file
@@ -962,7 +1179,9 @@ class Embeddings(object):
         Return the ELMo embeddings only for a full sentence
         """
         if not self.use_ELMo:
-            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+            print(
+                "Warning: ELMo embeddings requested but embeddings object wrongly initialised"
+            )
             return
 
         # Create batches of data
@@ -973,7 +1192,9 @@ class Embeddings(object):
         if elmo_result is not None:
             return elmo_result
 
-        elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
+        elmo_result = self.elmo_model.get_elmo_vectors(
+            token_list, layers="average", warmup=True, session=self.tf_session_elmo
+        )
 
         # cache computation if cache enabled
         self.cache_ELMo_lmdb_vector(token_list, elmo_result)
@@ -982,11 +1203,13 @@ class Embeddings(object):
 
     def get_sentence_vector_with_ELMo(self, token_list):
         """
-        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
+        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings
         for a full sentence
         """
         if not self.use_ELMo:
-            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
+            print(
+                "Warning: ELMo embeddings requested but embeddings object wrongly initialised"
+            )
             return
 
         local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
@@ -994,15 +1217,24 @@ class Embeddings(object):
 
         elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
         if elmo_result is None:
-            elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
+            elmo_result = self.elmo_model.get_elmo_vectors(
+                token_list, layers="average", warmup=True, session=self.tf_session_elmo
+            )
 
             # cache computation if cache enabled
             self.cache_ELMo_lmdb_vector(token_list, elmo_result)
 
-        concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
+        concatenated_result = np.zeros(
+            (len(token_list), max_size_sentence - 2, self.embed_size), dtype=np.float32
+        )
         for i in range(0, len(token_list)):
             for j in range(0, len(token_list[i])):
-                concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
+                concatenated_result[i][j] = np.concatenate(
+                    (
+                        elmo_result[i][j],
+                        self.get_word_vector(token_list[i][j]).astype("float32"),
+                    ),
+                )
         return concatenated_result
 
     def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
@@ -1013,25 +1245,34 @@ class Embeddings(object):
             # db cache not available, we don't cache ELMo stuff
             return None
         try:
-            ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
+            ELMo_vector = np.zeros(
+                (len(token_list), max_size_sentence - 2, ELMo_embed_size),
+                dtype="float32",
+            )
             with self.env_ELMo.begin() as txn:
                 for i in range(0, len(token_list)):
                     txn = self.env_ELMo.begin()
                     # get a hash for the token_list
                     the_hash = list_digest(token_list[i])
-                    vector = txn.get(the_hash.encode(encoding='UTF-8'))
+                    vector = txn.get(the_hash.encode(encoding="UTF-8"))
                     if vector:
                         # adapt expected shape/padding
                         local_embeddings = _deserialize_pickle(vector)
-                        if local_embeddings.shape[0] > max_size_sentence-2:
+                        if local_embeddings.shape[0] > max_size_sentence - 2:
                             # squeeze the extra padding space
-                            ELMo_vector[i] = local_embeddings[:max_size_sentence-2,]
-                        elif local_embeddings.shape[0] == max_size_sentence-2:
+                            ELMo_vector[i] = local_embeddings[: max_size_sentence - 2,]
+                        elif local_embeddings.shape[0] == max_size_sentence - 2:
                             # bingo~!
                             ELMo_vector[i] = local_embeddings
                         else:
                             # fill the missing space with padding
-                            filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]+2), ELMo_embed_size), dtype='float32')
+                            filler = np.zeros(
+                                (
+                                    max_size_sentence - (local_embeddings.shape[0] + 2),
+                                    ELMo_embed_size,
+                                ),
+                                dtype="float32",
+                            )
                             ELMo_vector[i] = np.concatenate((local_embeddings, filler))
                         vector = None
                     else:
@@ -1041,13 +1282,19 @@ class Embeddings(object):
             # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
             # when opening new transaction !
             self.env_ELMo.close()
-            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            self.env_ELMo = lmdb.open(
+                self.embedding_ELMo_cache,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
             return self.get_ELMo_lmdb_vector(token_list)
         return ELMo_vector
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
-        Cache in LMDB the ELMo embeddings for a given sequence 
+        Cache in LMDB the ELMo embeddings for a given sequence
         """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
@@ -1056,7 +1303,9 @@ class Embeddings(object):
         for i in range(0, len(token_list)):
             # get a hash for the token_list
             the_hash = list_digest(token_list[i])
-            txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))
+            txn.put(
+                the_hash.encode(encoding="UTF-8"), _serialize_pickle(ELMo_vector[i])
+            )
         txn.commit()
 
     def clean_ELMo_cache(self):
@@ -1074,6 +1323,7 @@ class Embeddings(object):
                 if os.path.isfile(file_path):
                     os.remove(file_path)
             os.rmdir(self.embedding_ELMo_cache)
+
 
 def _serialize_byteio(array):
     memfile = io.BytesIO()
@@ -1096,12 +1346,13 @@ def _serialize_pickle(a):
 def _deserialize_pickle(serialized):
     return pickle.loads(serialized)
 
+
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip
     if embeddings_path.endswith(".gz"):
         embedding_file = gzip.open(embeddings_path, mode="rb")
     elif embeddings_path.endswith(".zip"):
-        zip_file = zipfile.ZipFile(embeddings_path, 'r')
+        zip_file = zipfile.ZipFile(embeddings_path, "r")
         for filename in zip_file.namelist():
             print(filename)
             if filename.endswith("vec") or filename.endswith("txt"):
@@ -1109,6 +1360,7 @@ def open_embedding_file(embeddings_path):
     else:
         embedding_file = open(embeddings_path, mode="rb")
     return embedding_file
+
 
 def _get_num_lines(file_path):
     fp = open(file_path, "r+")
@@ -1119,12 +1371,14 @@ def _get_num_lines(file_path):
     fp.close()
     return lines
 
+
 def list_digest(strings):
     hash = hashlib.sha1()
     for s in strings:
         hash.update(struct.pack("I", len(s)))
-        hash.update(s.encode(encoding='UTF-8'))
+        hash.update(s.encode(encoding="UTF-8"))
     return hash.hexdigest()
+
 
 def is_int(s):
     try:
@@ -1133,12 +1387,14 @@ def is_int(s):
     except ValueError:
         return False
 
+
 def is_float(s):
     try:
         float(s)
         return True
     except ValueError:
         return False
+
 
 def _fetch_header_if_available(line):
     """
@@ -1147,7 +1403,7 @@ def _fetch_header_if_available(line):
     :param line: a splitted line (if not split, tried to split by spaces)
     :return: the number of words and the embedding size, if there is no header, they will be set to -1
     """
-    if type(line) == 'str':
+    if type(line) == "str":
         line = line.split(" ")
 
     nb_words = -1
@@ -1160,7 +1416,8 @@ def _fetch_header_if_available(line):
 
     return nb_words, embed_size
 
-def load_resource_registry(path='delft/resources-registry.json'):
+
+def load_resource_registry(path="delft/resources-registry.json"):
     """
     Load the resource registry file in memory. Each description provides a name,
     a file path (used only if necessary) and an embeddings type (to take into account

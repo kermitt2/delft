@@ -3,10 +3,12 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 from delft.textClassification.preprocess import to_vector_single
 
+
 class TextClassificationDataset(Dataset):
     """
     Dataset for text classification.
     """
+
     def __init__(self, x, y, model_config, embeddings=None, transformer_tokenizer=None):
         self.x = x
         self.y = y
@@ -15,23 +17,23 @@ class TextClassificationDataset(Dataset):
         self.transformer_tokenizer = transformer_tokenizer
         self.maxlen = model_config.maxlen
         self.list_classes = model_config.list_classes
-        self.bert_data = (model_config.transformer_name is not None)
+        self.bert_data = model_config.transformer_name is not None
 
     def __len__(self):
         return len(self.x)
 
     def __getitem__(self, idx):
         text = self.x[idx]
-        
+
         # Prepare Input
         if self.bert_data:
             inputs = self.transformer_tokenizer.encode_plus(
                 text,
                 add_special_tokens=True,
                 max_length=self.maxlen,
-                padding='max_length',
+                padding="max_length",
                 truncation=True,
-                return_tensors='pt'
+                return_tensors="pt",
             )
             # Squeeze to remove batch dimension added by return_tensors='pt'
             inputs = {k: v.squeeze(0) for k, v in inputs.items()}
@@ -44,7 +46,7 @@ class TextClassificationDataset(Dataset):
         # Prepare Label
         if self.y is not None:
             label = self.y[idx]
-            # Assumes label is already one-hot or proper format. 
+            # Assumes label is already one-hot or proper format.
             # In Keras generator: batch_y[i] = self.y[(index*self.batch_size)+i]
             # If y is categorical/one-hot, we might want to keep it float for BCEWithLogitsLoss
             # or long for CrossEntropyLoss (if single class index).
@@ -55,19 +57,29 @@ class TextClassificationDataset(Dataset):
         else:
             return inputs
 
-def create_dataloader(x, y, model_config, embeddings=None, transformer_tokenizer=None, batch_size=32, shuffle=True):
+
+def create_dataloader(
+    x,
+    y,
+    model_config,
+    embeddings=None,
+    transformer_tokenizer=None,
+    batch_size=32,
+    shuffle=True,
+):
     dataset = TextClassificationDataset(
-        x, y, 
-        model_config, 
-        embeddings=embeddings, 
-        transformer_tokenizer=transformer_tokenizer
+        x,
+        y,
+        model_config,
+        embeddings=embeddings,
+        transformer_tokenizer=transformer_tokenizer,
     )
-    
+
     loader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=0 # Simple for now
+        num_workers=0,  # Simple for now
     )
-    
+
     return loader

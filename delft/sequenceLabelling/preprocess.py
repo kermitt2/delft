@@ -12,11 +12,20 @@ LOGGER = logging.getLogger(__name__)
 
 from sklearn.base import BaseEstimator, TransformerMixin
 
-UNK = '<UNK>'
-PAD = '<PAD>'
+UNK = "<UNK>"
+PAD = "<PAD>"
 
-case_index = {'<PAD>': 0, 'numeric': 1, 'allLower': 2, 'allUpper': 3, 'initialUpper': 4, 'other': 5,
-              'mainly_numeric': 6, 'contains_digit': 7}
+case_index = {
+    "<PAD>": 0,
+    "numeric": 1,
+    "allLower": 2,
+    "allUpper": 3,
+    "initialUpper": 4,
+    "other": 5,
+    "mainly_numeric": 6,
+    "contains_digit": 7,
+}
+
 
 def calculate_cardinality(feature_vector, indices=None):
     """
@@ -77,15 +86,21 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
 
     index_list = [ind[0] for ind in columns_index if ind[0] >= 0]
     val_to_int_map = {
-        value[0]: {val_features: idx_features + (index * features_max_vector_size) for val_features, idx_features in
-                   value[1].items()} for index, value in enumerate(columns_index)}
+        value[0]: {
+            val_features: idx_features + (index * features_max_vector_size)
+            for val_features, idx_features in value[1].items()
+        }
+        for index, value in enumerate(columns_index)
+    }
 
     return index_list, val_to_int_map
 
 
 def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices=None):
     cardinality = calculate_cardinality(feature_vector, indices=indices)
-    index_list, map_to_integers = cardinality_to_index_map(cardinality, features_max_vector_size)
+    index_list, map_to_integers = cardinality_to_index_map(
+        cardinality, features_max_vector_size
+    )
 
     return index_list, map_to_integers
 
@@ -139,7 +154,11 @@ def reduce_features_vector(feature_vector, features_max_vector_size):
     reduced_features_vector = []
     for index_row in range(0, len(feature_vector)):
         reduced_features_vector.append(
-            [feature_vector[index_row][index_column] for index, index_column in enumerate(index_list)])
+            [
+                feature_vector[index_row][index_column]
+                for index, index_column in enumerate(index_list)
+            ]
+        )
 
     return reduced_features_vector
 
@@ -148,21 +167,36 @@ def get_map_to_index(X, features_indices, features_vector_size):
     pass
 
 
-def to_dict(value_list_batch: List[list], feature_indices: Set[int] = None,
-            features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE):
+def to_dict(
+    value_list_batch: List[list],
+    feature_indices: Set[int] = None,
+    features_vector_size: int = ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
+):
     if not feature_indices:
         matrix = reduce_features_vector(value_list_batch, features_vector_size)
 
-        return [{index: value for index, value in enumerate(value_list)} for value_list in matrix]
+        return [
+            {index: value for index, value in enumerate(value_list)}
+            for value_list in matrix
+        ]
     else:
-        return [{index: value for index, value in enumerate(value_list) if index in feature_indices} for value_list
-                in value_list_batch]
+        return [
+            {
+                index: value
+                for index, value in enumerate(value_list)
+                if index in feature_indices
+            }
+            for value_list in value_list_batch
+        ]
 
 
 class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
-    def __init__(self, features_indices: Iterable[int] = None,
-                 features_vocabulary_size=ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
-                 features_map_to_index=None):
+    def __init__(
+        self,
+        features_indices: Iterable[int] = None,
+        features_vocabulary_size=ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
+        features_map_to_index=None,
+    ):
         # feature_indices_set = None
         if features_map_to_index is None:
             features_map_to_index = {}
@@ -175,10 +209,13 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
     def fit(self, X):
         if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
+            indexes, mapping = reduce_features_to_indexes(
+                X, self.features_vocabulary_size
+            )
         else:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size,
-                                                          indices=self.features_indices)
+            indexes, mapping = reduce_features_to_indexes(
+                X, self.features_vocabulary_size, indices=self.features_indices
+            )
 
         self.features_map_to_index = mapping
         self.features_indices = indexes
@@ -190,11 +227,20 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
         :param extend: when set to true it's adding an additional empty feature list in the sequence.
         """
-        features_vector = [[[self.features_map_to_index[index][
-                                 value] if index in self.features_map_to_index and value in self.features_map_to_index[
-            index] else 0
-                             for index, value in enumerate(value_list) if index in self.features_indices] for
-                            value_list in document] for document in X]
+        features_vector = [
+            [
+                [
+                    self.features_map_to_index[index][value]
+                    if index in self.features_map_to_index
+                    and value in self.features_map_to_index[index]
+                    else 0
+                    for index, value in enumerate(value_list)
+                    if index in self.features_indices
+                ]
+                for value_list in document
+            ]
+            for document in X
+        ]
 
         features_count = len(self.features_indices)
 
@@ -214,8 +260,8 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
 class BERTPreprocessor(object):
     """
-    Generic transformer preprocessor for a sequence labelling data set. 
-    Input are pre-tokenized texts, possibly with features and labels to re-align with the sub-tokenization. 
+    Generic transformer preprocessor for a sequence labelling data set.
+    Input are pre-tokenized texts, possibly with features and labels to re-align with the sub-tokenization.
     Rely on HuggingFace Tokenizer library and the tokenizer instance obtained with AutoTokenizer.
     """
 
@@ -232,21 +278,42 @@ class BERTPreprocessor(object):
     def infer_BPE_SP_from_tokenizer_name(self, tokenizer_name):
         """
         Return true if the tokenizer is a BPE using encoded leading character space with byte-based tokens as in the
-        usual sentencepiece tokenizers 
+        usual sentencepiece tokenizers
         """
         result = False
         # as we rely on the HuggingFace transformer and tokenizer libraries, we list the BPE tokenizer from the model
         # name - this list was created on January 2023
-        bpe_sp_tokenizers = ["roberta", "gpt2", "albert", "xlnet", "marian", "t5", "camembert", "bart", "bigbird", 
-            "blenderbot", "clip", "flaubert", "fsmt", "xlm", "longformer", "marian", "phobert", "reformer", "rembert"]
-        tokenizer_name = tokenizer_name.lower() 
+        bpe_sp_tokenizers = [
+            "roberta",
+            "gpt2",
+            "albert",
+            "xlnet",
+            "marian",
+            "t5",
+            "camembert",
+            "bart",
+            "bigbird",
+            "blenderbot",
+            "clip",
+            "flaubert",
+            "fsmt",
+            "xlm",
+            "longformer",
+            "marian",
+            "phobert",
+            "reformer",
+            "rembert",
+        ]
+        tokenizer_name = tokenizer_name.lower()
         for bpe_tok in bpe_sp_tokenizers:
             if tokenizer_name.find(bpe_tok) != -1:
                 result = True
                 break
         return result
 
-    def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
+    def tokenize_and_align_features_and_labels(
+        self, texts, chars, text_features, text_labels, maxlen=512
+    ):
         """
         Training/evaluation usage with features: sub-tokenize+convert to ids/mask/segments input texts, realign labels
         and features given new tokens introduced by the wordpiece sub-tokenizer.
@@ -261,28 +328,33 @@ class BERTPreprocessor(object):
         target_features = None
         if text_features is not None:
             target_features = []
-        
+
         target_labels = None
         if text_labels is not None:
-            target_labels = [] 
-        
+            target_labels = []
+
         for i, text in enumerate(texts):
-            
             local_chars = chars[i]
 
             features = None
             if text_features is not None:
                 features = text_features[i]
-            
+
             label_list = None
             if text_labels is not None:
                 label_list = text_labels[i]
 
-            input_ids, token_type_ids, attention_mask, chars_block, feature_blocks, target_tags, tokens = self.convert_single_text(text, 
-                                                                                                                    local_chars, 
-                                                                                                                    features, 
-                                                                                                                    label_list, 
-                                                                                                                    maxlen)
+            (
+                input_ids,
+                token_type_ids,
+                attention_mask,
+                chars_block,
+                feature_blocks,
+                target_tags,
+                tokens,
+            ) = self.convert_single_text(
+                text, local_chars, features, label_list, maxlen
+            )
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
@@ -291,13 +363,23 @@ class BERTPreprocessor(object):
 
             if target_features is not None:
                 target_features.append(feature_blocks)
-            
+
             if target_labels is not None:
-                target_labels.append(target_tags)                
+                target_labels.append(target_tags)
 
-        return target_ids, target_type_ids, target_attention_mask, target_chars, target_features, target_labels, input_tokens
+        return (
+            target_ids,
+            target_type_ids,
+            target_attention_mask,
+            target_chars,
+            target_features,
+            target_labels,
+            input_tokens,
+        )
 
-    def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
+    def convert_single_text(
+        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length
+    ):
         """
         Converts a single sequence input into a single transformer input format using generic tokenizer
         of the transformers library, align other channel input to the new sub-tokenization
@@ -321,8 +403,14 @@ class BERTPreprocessor(object):
                 chars_tokens.append(self.empty_char_vector)
 
         # sub-tokenization
-        encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
-            max_length=max_seq_length, truncation=True, return_offsets_mapping=True)
+        encoded_result = self.tokenizer(
+            text_tokens,
+            add_special_tokens=True,
+            is_split_into_words=True,
+            max_length=max_seq_length,
+            truncation=True,
+            return_offsets_mapping=True,
+        )
 
         input_ids = encoded_result.input_ids
         offsets = encoded_result.offset_mapping
@@ -335,7 +423,7 @@ class BERTPreprocessor(object):
         chars_blocks = []
         feature_blocks = []
 
-        # tricks to support BPE/sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed 
+        # tricks to support BPE/sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed
         # spaces in the tokens (the encoding symbol for this space varies from one model to another)
         new_input_ids = []
         new_attention_mask = []
@@ -346,36 +434,47 @@ class BERTPreprocessor(object):
         for i in range(0, len(input_ids)):
             offset = offsets[i]
             if len(self.tokenizer.decode(input_ids[i])) == 0:
-                # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2 
+                # if a decoded token has a length of 0, it is typically a space added for sentence piece/camembert/GPT2
                 # which happens to be then sometimes a single token for unknown reason when with is_split_into_words=True
-                # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay 
-                # in sync - note that this case seems not appearing anymore in recent HuggingFace Tokenizer library update  
+                # we need to skip this but also remove it from attention_mask, token_type_ids and offsets to stay
+                # in sync - note that this case seems not appearing anymore in recent HuggingFace Tokenizer library update
                 empty_token = True
-                continue              
-            elif (self.is_BPE_SP  
-                and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens  
-                and offset[0] == 0  
+                continue
+            elif (
+                self.is_BPE_SP
+                and not self.tokenizer.convert_ids_to_tokens(input_ids[i])
+                in self.tokenizer.all_special_tokens
+                and offset[0] == 0
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
-                and not empty_token):
+                and not empty_token
+            ):
                 # another trick to support sentence piece tokenizer: sometimes a out of vocabulary
                 # character is tokenized as several known bytes, leading to 2 tokens for instance
-                # with the second one staring from offset 0 too. In order to align correctly the  
+                # with the second one staring from offset 0 too. In order to align correctly the
                 # original string, we need to skip this extra spurious token by looking at it decoded
                 # form: if we have a start offset of 0 and no encoding leading space symbol, this must
                 # be ignored
                 empty_token = False
                 continue
-            elif (self.is_BPE_SP and not self.tokenizer.convert_ids_to_tokens(input_ids[i]) in self.tokenizer.all_special_tokens 
-                and offset[0] == 0 
+            elif (
+                self.is_BPE_SP
+                and not self.tokenizer.convert_ids_to_tokens(input_ids[i])
+                in self.tokenizer.all_special_tokens
+                and offset[0] == 0
                 and not empty_token
                 and not (
-                    self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("Ġ")  
-                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("▁")
-                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(" ")
-                )):
+                    self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("Ġ")
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(
+                        "▁"
+                    )
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(
+                        " "
+                    )
+                )
+            ):
                 # HuggingFace Roberta and GPT2 tokenizers uses "Ġ" as leading space encoding, other sentencepiece
                 # tokenizers usually use "▁" (U+2581) for this. So this should cover existing HuggingFace tokenizers
-                # as on January 2023. 
+                # as on January 2023.
                 empty_token = False
                 continue
             else:
@@ -405,13 +504,13 @@ class BERTPreprocessor(object):
                     feature_blocks.append(features_tokens[word_idx])
                     chars_blocks.append(chars_tokens[word_idx])
                 else:
-                    # propagate the data to the new sub-token or 
+                    # propagate the data to the new sub-token or
                     # dummy/empty input for sub-tokens
                     label_ids.append("<PAD>")
                     chars_blocks.append(self.empty_char_vector)
-                    # 2 possibilities, either empty features for sub-tokens or repeating the 
-                    # feature vector of the prefix sub-token 
-                    #feature_blocks.append(self.empty_features_vector)
+                    # 2 possibilities, either empty features for sub-tokens or repeating the
+                    # feature vector of the prefix sub-token
+                    # feature_blocks.append(self.empty_features_vector)
                     feature_blocks.append(features_tokens[word_idx])
 
         # Zero-pad up to the sequence length.
@@ -430,14 +529,23 @@ class BERTPreprocessor(object):
         assert len(chars_blocks) == max_seq_length
         assert len(feature_blocks) == max_seq_length
 
-        return input_ids, token_type_ids, attention_mask, chars_blocks, feature_blocks, label_ids, offsets
+        return (
+            input_ids,
+            token_type_ids,
+            attention_mask,
+            chars_blocks,
+            feature_blocks,
+            label_ids,
+            offsets,
+        )
 
-
-    def convert_single_text_bert(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
+    def convert_single_text_bert(
+        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length
+    ):
         """
         **Deprecated** We now use Transformers Autotokenizer
 
-        Converts a single sequence input into a single BERT input format and align other channel input to this 
+        Converts a single sequence input into a single BERT input format and align other channel input to this
         new sub-tokenization
 
         The original BERT implementation works as follow:
@@ -484,23 +592,35 @@ class BERTPreprocessor(object):
             while len(chars_tokens) < len(text_tokens):
                 chars_tokens.append(self.empty_char_vector)
 
-        for text_token, label_token, chars_token, features_token in zip(text_tokens, label_tokens, chars_tokens, features_tokens):
-            text_sub_tokens = self.tokenizer.tokenize(text_token, add_special_tokens=False)
-            
+        for text_token, label_token, chars_token, features_token in zip(
+            text_tokens, label_tokens, chars_tokens, features_tokens
+        ):
+            text_sub_tokens = self.tokenizer.tokenize(
+                text_token, add_special_tokens=False
+            )
+
             # we mark added sub-tokens with the "##" prefix in order to restore token back correctly,
-            # otherwise the BERT tokenizer do not mark them all with this prefix 
+            # otherwise the BERT tokenizer do not mark them all with this prefix
             # (note: to be checked if it's the same with the non-original BERT tokenizer)
-            text_sub_tokens_marked = self.tokenizer.tokenize(text_token, add_special_tokens=False)
+            text_sub_tokens_marked = self.tokenizer.tokenize(
+                text_token, add_special_tokens=False
+            )
             for i in range(len(text_sub_tokens_marked)):
                 if i == 0:
                     continue
                 tok = text_sub_tokens_marked[i]
                 if not tok.startswith("##"):
                     text_sub_tokens_marked[i] = "##" + tok
-            
-            label_sub_tokens = [label_token] + [label_token] * (len(text_sub_tokens) - 1)
-            chars_sub_tokens = [chars_token] + [chars_token] * (len(text_sub_tokens) - 1)
-            feature_sub_tokens = [features_token] + [features_token] * (len(text_sub_tokens) - 1)
+
+            label_sub_tokens = [label_token] + [label_token] * (
+                len(text_sub_tokens) - 1
+            )
+            chars_sub_tokens = [chars_token] + [chars_token] * (
+                len(text_sub_tokens) - 1
+            )
+            feature_sub_tokens = [features_token] + [features_token] * (
+                len(text_sub_tokens) - 1
+            )
 
             tokens.extend(text_sub_tokens)
             tokens_marked.extend(text_sub_tokens_marked)
@@ -509,11 +629,11 @@ class BERTPreprocessor(object):
             chars.extend(chars_sub_tokens)
 
         if len(tokens) >= max_seq_length - 2:
-            tokens = tokens[0:(max_seq_length - 2)]
-            tokens_marked = tokens_marked[0:(max_seq_length - 2)]
-            labels = labels[0:(max_seq_length - 2)]
-            features = features[0:(max_seq_length - 2)]
-            chars = chars[0:(max_seq_length - 2)]
+            tokens = tokens[0 : (max_seq_length - 2)]
+            tokens_marked = tokens_marked[0 : (max_seq_length - 2)]
+            labels = labels[0 : (max_seq_length - 2)]
+            features = features[0 : (max_seq_length - 2)]
+            chars = chars[0 : (max_seq_length - 2)]
 
         input_tokens = []
         input_tokens_marked = []
@@ -549,7 +669,7 @@ class BERTPreprocessor(object):
 
         for token in tokens_marked:
             input_tokens_marked.append(token)
- 
+
         input_tokens.append(self.tokenizer.sep_token)
         input_tokens_marked.append(self.tokenizer.sep_token)
         segment_ids.append(0)
@@ -578,23 +698,30 @@ class BERTPreprocessor(object):
         assert len(chars_blocks) == max_seq_length
         assert len(feature_blocks) == max_seq_length
 
-        return input_ids, input_mask, segment_ids, chars_blocks, feature_blocks, label_ids, input_tokens_marked
+        return (
+            input_ids,
+            input_mask,
+            segment_ids,
+            chars_blocks,
+            feature_blocks,
+            label_ids,
+            input_tokens_marked,
+        )
 
 
 class Preprocessor(BaseEstimator, TransformerMixin):
-
-    def __init__(self,
-                 padding=True,
-                 return_lengths=False,
-                 return_word_embeddings=False,
-                 return_casing=False,
-                 return_features=False,
-                 return_chars=False,
-                 return_bert_embeddings=False,
-                 max_char_length=30,
-                 feature_preprocessor: FeaturesPreprocessor = None,
-                 ):
-
+    def __init__(
+        self,
+        padding=True,
+        return_lengths=False,
+        return_word_embeddings=False,
+        return_casing=False,
+        return_features=False,
+        return_chars=False,
+        return_bert_embeddings=False,
+        max_char_length=30,
+        feature_preprocessor: FeaturesPreprocessor = None,
+    ):
         self.padding = padding
         self.return_lengths = return_lengths
         self.return_word_embeddings = return_word_embeddings
@@ -613,27 +740,17 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         chars = {PAD: 0, UNK: 1}
         tags = {PAD: 0}
 
-        #if self.return_chars:
+        # if self.return_chars:
 
-        temp_chars = {
-            c
-            for w in set(itertools.chain(*X))
-            for c in w
-        }
+        temp_chars = {c for w in set(itertools.chain(*X)) for c in w}
 
         sorted_chars = sorted(temp_chars)
-        sorted_chars_dict = {
-            c: idx + 2
-            for idx, c in enumerate(sorted_chars)
-        }
+        sorted_chars_dict = {c: idx + 2 for idx, c in enumerate(sorted_chars)}
         chars = {**chars, **sorted_chars_dict}
 
         temp_tags = set(itertools.chain(*y))
         sorted_tags = sorted(temp_tags)
-        sorted_tags_dict = {
-            tag: idx + 1
-            for idx, tag in enumerate(sorted_tags)
-        }
+        sorted_tags_dict = {tag: idx + 1 for idx, tag in enumerate(sorted_tags)}
         tags = {**tags, **sorted_tags_dict}
 
         self.vocab_char = chars
@@ -646,28 +763,17 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         chars = self.vocab_char
         tags = self.vocab_tag
 
-        temp_chars = {
-            c 
-            for w in set(itertools.chain(*X))
-            for c in w
-            if c not in chars
-        }
+        temp_chars = {c for w in set(itertools.chain(*X)) for c in w if c not in chars}
 
         sorted_chars = sorted(temp_chars)
-        sorted_chars_dict = {
-            c: idx + len(chars)
-            for idx, c in enumerate(sorted_chars)
-        }
+        sorted_chars_dict = {c: idx + len(chars) for idx, c in enumerate(sorted_chars)}
         chars = {**chars, **sorted_chars_dict}
 
         temp_tags = set(itertools.chain(*y))
         # filter known tags
-        temp_tags = { the_tag for the_tag in temp_tags if the_tag not in tags }
+        temp_tags = {the_tag for the_tag in temp_tags if the_tag not in tags}
         sorted_tags = sorted(temp_tags)
-        sorted_tags_dict = {
-            tag: idx + len(tags)
-            for idx, tag in enumerate(sorted_tags)
-        }
+        sorted_tags_dict = {tag: idx + len(tags) for idx, tag in enumerate(sorted_tags)}
         tags = {**tags, **sorted_tags_dict}
 
         self.vocab_char = chars
@@ -681,7 +787,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
     def transform(self, X, y=None, extend=False, label_indices=False):
         """
         transforms input into sequence
-        the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch 
+        the optional boolean `extend` indicates that we need to avoid sequence of length 1 alone in a batch
         (which would cause an error with tf)
 
         Args:
@@ -689,7 +795,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             y: list of list of tags
 
         Returns:
-            numpy array: sentences with char sequences and length 
+            numpy array: sentences with char sequences and length
             numpy array: sequence of tags, either one hot encoded (default) or as indices
 
         if label_indices parameter is true, we encode tags with index integer, otherwise output hot one encoded tags
@@ -700,12 +806,12 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             char_ids = []
             lengths.append(len(sent))
             for w in sent:
-                #if self.return_chars:
+                # if self.return_chars:
                 char_ids.append(self.get_char_ids(w))
                 if extend:
                     char_ids.append([])
 
-            #if self.return_chars:
+            # if self.return_chars:
             chars.append(char_ids)
 
         if y is not None:
@@ -720,7 +826,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             sents = [chars]
 
         # lengths
-        #if self.return_lengths:
+        # if self.return_lengths:
         lengths = np.asarray(lengths, dtype=np.int32)
         lengths = lengths.reshape((lengths.shape[0], 1))
         sents.append(lengths)
@@ -748,24 +854,28 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         return [self.vocab_char.get(c, self.vocab_char[UNK]) for c in word]
 
     def pad_sequence(self, char_ids, labels=None, label_indices=False):
-        '''
+        """
         pad char and label sequences
 
         Relatively to labels, if label_indices is True, we encode labels with integer,
         otherwise with hot one encoding
-        '''
+        """
         labels_final = None
         if labels:
             labels_padded, _ = pad_sequences(labels, 0)
             labels_final = np.asarray(labels_padded)
             if not label_indices:
-                labels_final = dense_to_one_hot(labels_final, len(self.vocab_tag), nlevels=2)
+                labels_final = dense_to_one_hot(
+                    labels_final, len(self.vocab_tag), nlevels=2
+                )
 
-        #if self.return_chars:
-        char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
+        # if self.return_chars:
+        char_ids, word_lengths = pad_sequences(
+            char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length
+        )
         char_ids = np.asarray(char_ids)
         return [char_ids], labels_final
-        #else:
+        # else:
         #    return labels_final
 
     def empty_features_vector(self) -> Iterable[int]:
@@ -781,12 +891,15 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         variables = vars(self)
         output_dict = {}
         for var in variables.keys():
-            if var == 'feature_preprocessor' and variables['feature_preprocessor'] is not None:
+            if (
+                var == "feature_preprocessor"
+                and variables["feature_preprocessor"] is not None
+            ):
                 output_dict[var] = variables[var].__dict__
             else:
                 output_dict[var] = variables[var]
 
-        with open(file_path, 'w') as fp:
+        with open(file_path, "w") as fp:
             json.dump(output_dict, fp, sort_keys=False, indent=4)
 
     @classmethod
@@ -795,13 +908,16 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             variables = json.load(f)
             self = cls()
             for key, val in variables.items():
-                if key == 'feature_preprocessor' and val is not None:
+                if key == "feature_preprocessor" and val is not None:
                     preprocessor = FeaturesPreprocessor()
                     preprocessor.__dict__.update(val)
-                    if 'features_map_to_index' in preprocessor.__dict__:
-                        preprocessor.__dict__['features_map_to_index'] = {int(key): val for key, val in
-                                                                          preprocessor.__dict__[
-                                                                              'features_map_to_index'].items()}
+                    if "features_map_to_index" in preprocessor.__dict__:
+                        preprocessor.__dict__["features_map_to_index"] = {
+                            int(key): val
+                            for key, val in preprocessor.__dict__[
+                                "features_map_to_index"
+                            ].items()
+                        }
                     setattr(self, key, preprocessor)
                 else:
                     setattr(self, key, val)
@@ -842,7 +958,9 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
     """
     if nlevels == 1:
         max_length = len(max(sequences, key=len))
-        sequence_padded, sequence_length = _pad_sequences(sequences, pad_tok, max_length)
+        sequence_padded, sequence_length = _pad_sequences(
+            sequences, pad_tok, max_length
+        )
     elif nlevels == 2:
         max_length_word = max_char_length
         sequence_padded, sequence_length = [], []
@@ -853,10 +971,12 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
             sequence_length += [sl]
 
         max_length_sentence = max(map(lambda x: len(x), sequences))
-        sequence_padded, _ = _pad_sequences(sequence_padded, [pad_tok] * max_length_word, max_length_sentence)
+        sequence_padded, _ = _pad_sequences(
+            sequence_padded, [pad_tok] * max_length_word, max_length_sentence
+        )
         sequence_length, _ = _pad_sequences(sequence_length, 0, max_length_sentence)
     else:
-        raise ValueError('nlevels can take 1 or 2, not take {}.'.format(nlevels))
+        raise ValueError("nlevels can take 1 or 2, not take {}.".format(nlevels))
 
     return sequence_padded, sequence_length
 
@@ -888,7 +1008,7 @@ def dense_to_one_hot(labels_dense, num_classes, nlevels=1):
         labels_one_hot[layer_idx, component_idx, labels_dense] = 1
         return labels_one_hot
     else:
-        raise ValueError('nlevels can take 1 or 2, not take {}.'.format(nlevels))
+        raise ValueError("nlevels can take 1 or 2, not take {}.".format(nlevels))
 
 
 def prepare_preprocessor(X, y, model_config, features: np.array = None):
@@ -901,60 +1021,71 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     if features is not None and str.endswith(model_config.architecture, "FEATURES"):
         feature_preprocessor = FeaturesPreprocessor(
             features_indices=model_config.features_indices,
-            features_vocabulary_size=model_config.features_vocabulary_size
+            features_vocabulary_size=model_config.features_vocabulary_size,
         )
 
     preprocessor = Preprocessor(
         max_char_length=model_config.max_char_length,
-        feature_preprocessor=feature_preprocessor
+        feature_preprocessor=feature_preprocessor,
     )
     preprocessor.fit(X, y)
 
     # Compute features and store information in the model config
     if feature_preprocessor is not None:
         preprocessor.fit_features(features)
-        model_config.features_indices = preprocessor.feature_preprocessor.features_indices
-        model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
+        model_config.features_indices = (
+            preprocessor.feature_preprocessor.features_indices
+        )
+        model_config.features_map_to_index = (
+            preprocessor.feature_preprocessor.features_map_to_index
+        )
 
     return preprocessor
 
 
 def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True):
     """
-    Given a list of tokens convert it to a sequence of word embedding 
+    Given a list of tokens convert it to a sequence of word embedding
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
     vector when appropriate
     """
     window = tokens[-maxlen:]
 
-    # TBD: use better initializers (uniform, etc.) 
-    x = np.zeros((maxlen, embeddings.embed_size), )
+    # TBD: use better initializers (uniform, etc.)
+    x = np.zeros(
+        (maxlen, embeddings.embed_size),
+    )
 
-    # TBD: padding should be left and which vector do we use for padding? 
+    # TBD: padding should be left and which vector do we use for padding?
     # and what about masking padding later for RNN?
     for i, word in enumerate(window):
         if lowercase:
             word = _lower(word)
         if num_norm:
             word = _normalize_num(word)
-        x[i, :] = embeddings.get_word_vector(word).astype('float32')
+        x[i, :] = embeddings.get_word_vector(word).astype("float32")
 
     return x
 
-def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
+
+def to_vector_elmo(
+    tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False
+):
     """
-    Given a list of tokens convert it to a sequence of word embedding 
+    Given a list of tokens convert it to a sequence of word embedding
     vectors based on ELMo contextualized embeddings
     """
     subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
     return embeddings.get_sentence_vector_only_ELMo(subtokens)
 
 
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
+def to_vector_simple_with_elmo(
+    tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False
+):
     """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the concatenation of the provided static embeddings and 
-    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
+    Given a list of tokens convert it to a sequence of word embedding
+    vectors based on the concatenation of the provided static embeddings and
+    the ELMo contextualized embeddings, introducing <PAD> and <UNK>
     padding token vector when appropriate
     """
     subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
@@ -987,15 +1118,17 @@ def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
 
 def to_casing_single(tokens, maxlen):
     """
-    Given a list of tokens set the casing, introducing <PAD> and <UNK> padding 
+    Given a list of tokens set the casing, introducing <PAD> and <UNK> padding
     when appropriate
     """
     window = tokens[-maxlen:]
 
-    # TBD: use better initializers (uniform, etc.) 
-    x = np.zeros((maxlen), )
+    # TBD: use better initializers (uniform, etc.)
+    x = np.zeros(
+        (maxlen),
+    )
 
-    # TBD: padding should be left and which vector do we use for padding? 
+    # TBD: padding should be left and which vector do we use for padding?
     # and what about masking padding later for RNN?
     for i, word in enumerate(window):
         x[i] = float(_casing(word))
@@ -1004,7 +1137,7 @@ def to_casing_single(tokens, maxlen):
 
 
 def _casing(word):
-    casing = 'other'
+    casing = "other"
 
     numDigits = 0
     for char in word:
@@ -1013,22 +1146,24 @@ def _casing(word):
     digitFraction = numDigits / float(len(word))
 
     if word.isdigit():
-        casing = 'numeric'
+        casing = "numeric"
     elif digitFraction > 0.5:
-        casing = 'mainly_numeric'
+        casing = "mainly_numeric"
     elif word.islower():
-        casing = 'allLower'
+        casing = "allLower"
     elif word.isupper():
-        casing = 'allUpper'
+        casing = "allUpper"
     elif word[0].isupper():
-        casing = 'initialUpper'
+        casing = "initialUpper"
     elif numDigits > 0:
-        casing = 'contains_digit'
+        casing = "contains_digit"
 
     return case_index[casing]
+
 
 def _lower(word):
     return word.lower()
 
+
 def _normalize_num(word):
-    return re.sub(r'[0-9０１２３４５６７８９]', r'0', word)
+    return re.sub(r"[0-9０１２３４５６７８９]", r"0", word)

@@ -1,9 +1,15 @@
 import os
 from typing import Union
 
-from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
+from transformers import (
+    AutoTokenizer,
+    TFAutoModel,
+    AutoConfig,
+    BertTokenizer,
+    TFBertModel,
+)
 
-TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
+TRANSFORMER_CONFIG_FILE_NAME = "transformer-config.json"
 DEFAULT_TRANSFORMER_TOKENIZER_DIR = "transformer-tokenizer"
 
 LOADING_METHOD_LOCAL_MODEL_DIR = "local_model_dir"
@@ -15,21 +21,22 @@ LOADING_METHOD_DELFT_MODEL = "delft_model"
 class Transformer(object):
     """
     This class provides a wrapper around a transformer model (pre-trained or fine-tuned)
-    
-    This class makes possible to load a transformer config, tokenizer and weights using different approaches, 
+
+    This class makes possible to load a transformer config, tokenizer and weights using different approaches,
     prioritizing the most "local" method over an external access to the HuggingFace Hub:
 
-     1. loading the transformer saved locally as part of an existing full delft model (the configuration file 
+     1. loading the transformer saved locally as part of an existing full delft model (the configuration file
         name will be different)
      2. via a local directory
-     3. by specifying the weight, config and vocabulary files separately (this is likely the scenario where 
+     3. by specifying the weight, config and vocabulary files separately (this is likely the scenario where
         the user try to load a model from the downloaded bert/scibertt model from github
-     4. via the HuggingFace transformer name and HuggingFace Hub, resulting in several online requests to this 
+     4. via the HuggingFace transformer name and HuggingFace Hub, resulting in several online requests to this
         Hub, which could fail if the service is overloaded
     """
 
-    def __init__(self, name: str, resource_registry: dict = None, delft_local_path: str = None):
-
+    def __init__(
+        self, name: str, resource_registry: dict = None, delft_local_path: str = None
+    ):
         self.bert_preprocessor = None
         self.transformer_config = None
         self.loading_method = None
@@ -58,45 +65,60 @@ class Transformer(object):
 
         # read possible Hugging Face access token to support private models
         # will be None if the key does not exist
-        self.auth_token = os.getenv('HF_ACCESS_TOKEN')
+        self.auth_token = os.getenv("HF_ACCESS_TOKEN")
 
     def configure_from_registry(self, resource_registry) -> None:
         """
         Fetch transformer information from the registry and infer the loading method:
             1. if no configuration is provided is using HuggingFace with the provided name
             2. if only the directory is provided it will load the model from that directory
-            3. if the weights, config and vocab are provided (as in the vanilla models) then 
+            3. if the weights, config and vocab are provided (as in the vanilla models) then
                it will load them as BertTokenizer and BertModel
         """
 
         if self.loading_method == LOADING_METHOD_DELFT_MODEL:
             return
 
-        if 'transformers' in resource_registry:
+        if "transformers" in resource_registry:
             filtered_resources = list(
-                filter(lambda x: 'name' in x and x['name'] == self.name, resource_registry['transformers']))
+                filter(
+                    lambda x: "name" in x and x["name"] == self.name,
+                    resource_registry["transformers"],
+                )
+            )
             if len(filtered_resources) > 0:
                 transformer_configuration = list(filtered_resources)[0]
-                if 'model_dir' in transformer_configuration:
-                    self.local_dir_path = transformer_configuration['model_dir']
+                if "model_dir" in transformer_configuration:
+                    self.local_dir_path = transformer_configuration["model_dir"]
                     self.loading_method = LOADING_METHOD_LOCAL_MODEL_DIR
                 else:
                     self.loading_method = LOADING_METHOD_PLAIN_MODEL
                     if "path-config" in transformer_configuration and os.path.isfile(
-                            transformer_configuration["path-config"]):
-                        self.local_config_file = transformer_configuration["path-config"]
+                        transformer_configuration["path-config"]
+                    ):
+                        self.local_config_file = transformer_configuration[
+                            "path-config"
+                        ]
                     else:
                         print("Missing path-config or not a file.")
 
-                    if "path-weights" in transformer_configuration and os.path.isfile(
-                            transformer_configuration["path-weights"]) or os.path.isfile(
-                        transformer_configuration["path-weights"] + ".data-00000-of-00001"):
-                        self.local_weights_file = transformer_configuration["path-weights"]
+                    if (
+                        "path-weights" in transformer_configuration
+                        and os.path.isfile(transformer_configuration["path-weights"])
+                        or os.path.isfile(
+                            transformer_configuration["path-weights"]
+                            + ".data-00000-of-00001"
+                        )
+                    ):
+                        self.local_weights_file = transformer_configuration[
+                            "path-weights"
+                        ]
                     else:
                         print("Missing weights-config or not a file.")
 
                     if "path-vocab" in transformer_configuration and os.path.isfile(
-                            transformer_configuration["path-vocab"]):
+                        transformer_configuration["path-vocab"]
+                    ):
                         self.local_vocab_file = transformer_configuration["path-vocab"]
                     else:
                         print("Missing vocab-file or not a file.")
@@ -107,8 +129,9 @@ class Transformer(object):
             self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
             # print("No configuration for", self.name, "Loading from Hugging face.")
 
-    def init_preprocessor(self, max_sequence_length: int,
-                          add_prefix_space: bool = True):
+    def init_preprocessor(
+        self, max_sequence_length: int, add_prefix_space: bool = True
+    ):
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -125,43 +148,60 @@ class Transformer(object):
 
             if do_lower_case is not None:
                 if self.auth_token is not None:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                   max_length=max_sequence_length,
-                                                                   add_prefix_space=add_prefix_space,
-                                                                   do_lower_case=do_lower_case,
-                                                                   use_auth_token=self.auth_token)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.name,
+                        max_length=max_sequence_length,
+                        add_prefix_space=add_prefix_space,
+                        do_lower_case=do_lower_case,
+                        use_auth_token=self.auth_token,
+                    )
                 else:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                   max_length=max_sequence_length,
-                                                                   add_prefix_space=add_prefix_space,
-                                                                   do_lower_case=do_lower_case)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.name,
+                        max_length=max_sequence_length,
+                        add_prefix_space=add_prefix_space,
+                        do_lower_case=do_lower_case,
+                    )
             else:
                 if self.auth_token is not None:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                   max_length=max_sequence_length,
-                                                                   add_prefix_space=add_prefix_space,
-                                                                   use_auth_token=self.auth_token)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.name,
+                        max_length=max_sequence_length,
+                        add_prefix_space=add_prefix_space,
+                        use_auth_token=self.auth_token,
+                    )
                 else:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                max_length=max_sequence_length,
-                                                                add_prefix_space=add_prefix_space)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                        self.name,
+                        max_length=max_sequence_length,
+                        add_prefix_space=add_prefix_space,
+                    )
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
-            self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
-                                                           max_length=max_sequence_length,
-                                                           add_prefix_space=add_prefix_space)
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                self.local_dir_path,
+                max_length=max_sequence_length,
+                add_prefix_space=add_prefix_space,
+            )
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
             self.tokenizer = BertTokenizer.from_pretrained(self.local_vocab_file)
 
         elif self.loading_method == LOADING_METHOD_DELFT_MODEL:
-            config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+            config_path = os.path.join(
+                ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
+            )
             self.transformer_config = AutoConfig.from_pretrained(config_path)
-            self.tokenizer = AutoTokenizer.from_pretrained(os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR), config=self.transformer_config)
+            self.tokenizer = AutoTokenizer.from_pretrained(
+                os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR),
+                config=self.transformer_config,
+            )
 
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)
 
-    def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
+    def instantiate_layer(
+        self, load_pretrained_weights=True
+    ) -> Union[object, TFAutoModel, TFBertModel]:
         """
         Instantiate a transformer to be loaded in a Keras layer using the availability method of the pre-trained transformer.
         """
@@ -169,15 +209,20 @@ class Transformer(object):
             if load_pretrained_weights:
                 if self.auth_token != None:
                     try:
-                        transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True,
-                                                                    use_auth_token=self.auth_token)
+                        transformer_model = TFAutoModel.from_pretrained(
+                            self.name, from_pt=True, use_auth_token=self.auth_token
+                        )
                     except:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
-                        transformer_model = TFAutoModel.from_pretrained(self.name, use_auth_token=self.auth_token)
+                        transformer_model = TFAutoModel.from_pretrained(
+                            self.name, use_auth_token=self.auth_token
+                        )
                 else:
                     try:
-                        transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
+                        transformer_model = TFAutoModel.from_pretrained(
+                            self.name, from_pt=True
+                        )
                     except:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
@@ -186,14 +231,18 @@ class Transformer(object):
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
-                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                config_path = os.path.join(
+                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
+                )
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             if load_pretrained_weights:
                 try:
-                    transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                    transformer_model = TFAutoModel.from_pretrained(
+                        self.local_dir_path, from_pt=True
+                    )
                 except:
                     # failure might be due to safetensors format for the weights, we can try an alternative loading
                     # for this case
@@ -201,30 +250,41 @@ class Transformer(object):
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
-                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                config_path = os.path.join(
+                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
+                )
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 # self.transformer_config = AutoConfig.from_pretrained(self.local_dir_path)
                 return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
             if load_pretrained_weights:
-                self.transformer_config = AutoConfig.from_pretrained(self.local_config_file)
+                self.transformer_config = AutoConfig.from_pretrained(
+                    self.local_config_file
+                )
                 # transformer_model = TFBertModel.from_pretrained(self.local_weight_file, from_tf=True)
                 raise NotImplementedError(
                     "The load of TF weights from huggingface automodel classes is not yet implemented. \
-                    Please use load from Hugging Face Hub or from directory for the initial loading of the transformers weights.")
+                    Please use load from Hugging Face Hub or from directory for the initial loading of the transformers weights."
+                )
             else:
-                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                config_path = os.path.join(
+                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
+                )
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 return TFBertModel.from_config(self.transformer_config)
 
         else:
             # TODO: revise this
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
+                transformer_model = TFAutoModel.from_pretrained(
+                    self.local_dir_path, from_pt=True
+                )
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
-                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
+                config_path = os.path.join(
+                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
+                )
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 return TFAutoModel.from_config(self.transformer_config)

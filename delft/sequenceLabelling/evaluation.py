@@ -1,13 +1,13 @@
 """
 Derived from https://github.com/chakki-works/seqeval/blob/master/seqeval/metrics/sequence_labeling.py
 
-Produce standard evaluation metrics for sequence labeling tasks (precision, recall, f-score at field level). 
+Produce standard evaluation metrics for sequence labeling tasks (precision, recall, f-score at field level).
 
-From the seqeval version, we modify: 
+From the seqeval version, we modify:
 
-* the classification_report() method so that micro average is computed over 
-actual total predictions and not weighted by number of expected pred in each 
-label - otherwise average micro f1 scores are not consistent with f1_score() 
+* the classification_report() method so that micro average is computed over
+actual total predictions and not weighted by number of expected pred in each
+label - otherwise average micro f1 scores are not consistent with f1_score()
 
 * an evaluation report is provided both as a string for simple console output
 and as a map for further processing (e.g. n-fold average)
@@ -37,19 +37,19 @@ def get_entities(seq):
     """
     # for nested list
     if any(isinstance(s, list) for s in seq):
-        seq = [item for sublist in seq for item in sublist + ['O']]
+        seq = [item for sublist in seq for item in sublist + ["O"]]
 
-    prev_tag = 'O'
-    prev_type = ''
+    prev_tag = "O"
+    prev_type = ""
     begin_offset = 0
     chunks = []
-    for i, chunk in enumerate(seq + ['O']):
+    for i, chunk in enumerate(seq + ["O"]):
         tag = chunk[0]
-        #type_ = chunk.split('-')[-1]
-        type_ = "-".join(chunk.split('-')[1:])
+        # type_ = chunk.split('-')[-1]
+        type_ = "-".join(chunk.split("-")[1:])
 
         if end_of_chunk(prev_tag, tag, prev_type, type_):
-            chunks.append((prev_type, begin_offset, i-1))
+            chunks.append((prev_type, begin_offset, i - 1))
         if start_of_chunk(prev_tag, tag, prev_type, type_):
             begin_offset = i
         prev_tag = tag
@@ -70,17 +70,25 @@ def end_of_chunk(prev_tag, tag, prev_type, type_):
     """
     chunk_end = False
 
-    if prev_tag == 'E': chunk_end = True
-    if prev_tag == 'S': chunk_end = True
+    if prev_tag == "E":
+        chunk_end = True
+    if prev_tag == "S":
+        chunk_end = True
 
-    if prev_tag == 'B' and tag == 'B': chunk_end = True
-    if prev_tag == 'B' and tag == 'S': chunk_end = True
-    if prev_tag == 'B' and tag == 'O': chunk_end = True
-    if prev_tag == 'I' and tag == 'B': chunk_end = True
-    if prev_tag == 'I' and tag == 'S': chunk_end = True
-    if prev_tag == 'I' and tag == 'O': chunk_end = True
+    if prev_tag == "B" and tag == "B":
+        chunk_end = True
+    if prev_tag == "B" and tag == "S":
+        chunk_end = True
+    if prev_tag == "B" and tag == "O":
+        chunk_end = True
+    if prev_tag == "I" and tag == "B":
+        chunk_end = True
+    if prev_tag == "I" and tag == "S":
+        chunk_end = True
+    if prev_tag == "I" and tag == "O":
+        chunk_end = True
 
-    if prev_tag != 'O' and prev_tag != '.' and prev_type != type_:
+    if prev_tag != "O" and prev_tag != "." and prev_type != type_:
         chunk_end = True
 
     return chunk_end
@@ -98,23 +106,31 @@ def start_of_chunk(prev_tag, tag, prev_type, type_):
     """
     chunk_start = False
 
-    if tag == 'B': chunk_start = True
-    if tag == 'S': chunk_start = True
+    if tag == "B":
+        chunk_start = True
+    if tag == "S":
+        chunk_start = True
 
-    if prev_tag == 'E' and tag == 'E': chunk_start = True
-    if prev_tag == 'E' and tag == 'I': chunk_start = True
-    if prev_tag == 'S' and tag == 'E': chunk_start = True
-    if prev_tag == 'S' and tag == 'I': chunk_start = True
-    if prev_tag == 'O' and tag == 'E': chunk_start = True
-    if prev_tag == 'O' and tag == 'I': chunk_start = True
+    if prev_tag == "E" and tag == "E":
+        chunk_start = True
+    if prev_tag == "E" and tag == "I":
+        chunk_start = True
+    if prev_tag == "S" and tag == "E":
+        chunk_start = True
+    if prev_tag == "S" and tag == "I":
+        chunk_start = True
+    if prev_tag == "O" and tag == "E":
+        chunk_start = True
+    if prev_tag == "O" and tag == "I":
+        chunk_start = True
 
-    if tag != 'O' and tag != '.' and prev_type != type_:
+    if tag != "O" and tag != "." and prev_type != type_:
         chunk_start = True
 
     return chunk_start
 
 
-def f1_score(y_true, y_pred, average='micro'):
+def f1_score(y_true, y_pred, average="micro"):
     """Compute the F1 score.
     The F1 score can be interpreted as a weighted average of the precision and
     recall, where an F1 score reaches its best value at 1 and worst score at 0.
@@ -168,7 +184,7 @@ def accuracy_score(y_true, y_pred):
         y_true = [item for sublist in y_true for item in sublist]
         y_pred = [item for sublist in y_pred for item in sublist]
 
-    nb_correct = sum(y_t==y_p for y_t, y_p in zip(y_true, y_pred))
+    nb_correct = sum(y_t == y_p for y_t, y_p in zip(y_true, y_pred))
     nb_true = len(y_true)
 
     score = nb_correct / nb_true
@@ -176,7 +192,7 @@ def accuracy_score(y_true, y_pred):
     return score
 
 
-def precision_score(y_true, y_pred, average='micro'):
+def precision_score(y_true, y_pred, average="micro"):
     """Compute the precision.
     The precision is the ratio ``tp / (tp + fp)`` where ``tp`` is the number of
     true positives and ``fp`` the number of false positives. The precision is
@@ -205,7 +221,7 @@ def precision_score(y_true, y_pred, average='micro'):
     return score
 
 
-def recall_score(y_true, y_pred, average='micro'):
+def recall_score(y_true, y_pred, average="micro"):
     """Compute the recall.
     The recall is the ratio ``tp / (tp + fn)`` where ``tp`` is the number of
     true positives and ``fn`` the number of false negatives. The recall is
@@ -296,7 +312,7 @@ def compute_metrics(y_true, y_pred):
     for e in pred_entities:
         d2[e[0]].add((e[1], e[2]))
 
-    evaluation = {'labels': {}}
+    evaluation = {"labels": {}}
 
     ps, rs, f1s, s = [], [], [], []
     total_nb_correct = 0
@@ -318,7 +334,7 @@ def compute_metrics(y_true, y_pred):
         eval_block["f1"] = f1
         eval_block["support"] = nb_true
 
-        evaluation['labels'][type_name] = eval_block
+        evaluation["labels"][type_name] = eval_block
 
         ps.append(p)
         rs.append(r)
@@ -344,21 +360,24 @@ def compute_metrics(y_true, y_pred):
     # micro average
     micro_precision = total_nb_correct / total_nb_pred if total_nb_pred > 0 else 0
     micro_recall = total_nb_correct / total_nb_true if total_nb_true > 0 else 0
-    micro_f1 = 2 * micro_precision * micro_recall / (
-                micro_precision + micro_recall) if micro_precision + micro_recall > 0 else 0
+    micro_f1 = (
+        2 * micro_precision * micro_recall / (micro_precision + micro_recall)
+        if micro_precision + micro_recall > 0
+        else 0
+    )
 
     micro_eval_block = {
         "precision": micro_precision,
         "recall": micro_recall,
         "f1": micro_f1,
-        "support": np.sum(s)
+        "support": np.sum(s),
     }
     evaluation["micro"] = micro_eval_block
 
     return evaluation
 
 
-def get_report(evaluation, digits=2, include_avgs=['micro']):
+def get_report(evaluation, digits=2, include_avgs=["micro"]):
     """
     Calculate the report from the evaluation metrics.
 
@@ -372,38 +391,38 @@ def get_report(evaluation, digits=2, include_avgs=['micro']):
     """
     name_width = max([len(e) for e in evaluation.keys()])
 
-    last_line_heading = {
-        'micro': 'all (micro avg.)',
-        'macro': 'all (macro avg.)'
-    }
-    width = max(name_width, len(last_line_heading['micro']), digits)
+    last_line_heading = {"micro": "all (micro avg.)", "macro": "all (macro avg.)"}
+    width = max(name_width, len(last_line_heading["micro"]), digits)
 
     headers = ["precision", "recall", "f1-score", "support"]
-    head_fmt = u'{:>{width}s} ' + u' {:>9}' * len(headers)
-    report = head_fmt.format(u'', *headers, width=width)
-    report += u'\n\n'
+    head_fmt = "{:>{width}s} " + " {:>9}" * len(headers)
+    report = head_fmt.format("", *headers, width=width)
+    report += "\n\n"
 
-    row_fmt = u'{:>{width}s} ' + u' {:>9.{digits}f}' * 3 + u' {:>9}\n'
+    row_fmt = "{:>{width}s} " + " {:>9.{digits}f}" * 3 + " {:>9}\n"
 
-    block = evaluation['labels']
+    block = evaluation["labels"]
     labels = sorted(block.keys())
 
     for label in labels:
-        p = block[label]['precision']
-        r = block[label]['recall']
-        f1 = block[label]['f1']
-        s = block[label]['support']
+        p = block[label]["precision"]
+        r = block[label]["recall"]
+        f1 = block[label]["f1"]
+        s = block[label]["support"]
 
         report += row_fmt.format(*[label, p, r, f1, s], width=width, digits=digits)
 
-    report += u'\n'
+    report += "\n"
     for average in include_avgs:
         avg = evaluation[average]
-        report += row_fmt.format(last_line_heading[average],
-                                 avg['precision'],
-                                 avg['recall'],
-                                 avg['f1'],
-                                 avg['support'] if 'support' in avg else "",
-                                 width=width, digits=digits)
+        report += row_fmt.format(
+            last_line_heading[average],
+            avg["precision"],
+            avg["recall"],
+            avg["f1"],
+            avg["support"] if "support" in avg else "",
+            width=width,
+            digits=digits,
+        )
 
     return report

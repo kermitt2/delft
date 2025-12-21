@@ -7,17 +7,17 @@ from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
 
 import numpy as np
 
-'''
+"""
 Alternative CRF model wrapper for models having a BERT/transformer layer. 
 Loss is modified to ignore labels corresponding to tokens being special transformer symbols (e.g. SEP, 
 CL, PAD, ...), but also those introduced sub-tokens.
 The goal is to have similar effect as in pytorch when using the -100 to ignore some labels when calculating 
 the loss, but less hacky.
-'''
+"""
+
 
 @tf.keras.utils.register_keras_serializable(package="Addons")
 class CRFModelWrapperForBERT(CRFModelWrapperDefault):
-
     def train_step(self, data):
         x, y, sample_weight = self.unpack_training_data(data)
 
@@ -30,17 +30,17 @@ class CRFModelWrapperForBERT(CRFModelWrapperDefault):
             # create a boolean mask with False for labels to be ignored
             special_mask = tf.not_equal(y, mask_value)
             special_mask = tf.cast(special_mask, tf.float32)
-            #tf.print(special_mask)
-            #tf.print(potentials)
+            # tf.print(special_mask)
+            # tf.print(potentials)
             # apply the mask to prediction vectors, it will put to 0
-            # weights for label to ignore, normally neutralizing them for 
+            # weights for label to ignore, normally neutralizing them for
             # loss calculation
             potentials = tf.multiply(potentials, tf.expand_dims(special_mask, -1))
-            #tf.print(potentials)
+            # tf.print(potentials)
 
             # experiment: replace 0 by -100 because it's log-based potential
-            #the_minus = tf.fill(tf.shape(potentials), -100.0)
-            #potentials = tf.where(tf.equal(potentials, 0.0), the_minus, potentials)
+            # the_minus = tf.fill(tf.shape(potentials), -100.0)
+            # potentials = tf.where(tf.equal(potentials, 0.0), the_minus, potentials)
 
             crf_loss = self.compute_crf_loss(
                 potentials, sequence_length, kernel, y, sample_weight
@@ -54,7 +54,7 @@ class CRFModelWrapperForBERT(CRFModelWrapperDefault):
         # Return a dict mapping metric names to current value
         orig_results = {m.name: m.result() for m in self.metrics}
         crf_results = {"loss": loss, "crf_loss": crf_loss}
-        #crf_results = {"crf_loss": crf_loss}
+        # crf_results = {"crf_loss": crf_loss}
         return {**orig_results, **crf_results}
 
     def test_step(self, data):
@@ -76,7 +76,6 @@ class CRFModelWrapperForBERT(CRFModelWrapperDefault):
         self.compiled_metrics.update_state(y, decode_sequence)
         # Return a dict mapping metric names to current value
         results = {m.name: m.result() for m in self.metrics}
-        #results.update({"loss": loss, "crf_loss": crf_loss})  # append loss
+        # results.update({"loss": loss, "crf_loss": crf_loss})  # append loss
         results.update({"crf_loss": crf_loss})  # append loss
         return results
-
