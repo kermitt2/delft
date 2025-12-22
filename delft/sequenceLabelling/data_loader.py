@@ -14,7 +14,6 @@ from delft.utilities.numpy import shuffle_triple_with_view
 from delft.sequenceLabelling.preprocess import (
     to_vector_single,
     to_casing_single,
-    to_vector_simple_with_elmo,
     Preprocessor,
     BERTPreprocessor,
 )
@@ -187,12 +186,7 @@ class SequenceLabelingDataset(Dataset):
             seq_len = 2
 
         # Get word embeddings
-        if self.embeddings and self.embeddings.use_ELMo:
-            word_emb = to_vector_simple_with_elmo(
-                [x_tokens], self.embeddings, seq_len, extend=extend
-            )[0]
-        else:
-            word_emb = to_vector_single(x_tokens, self.embeddings, seq_len)
+        word_emb = to_vector_single(x_tokens, self.embeddings, seq_len)
 
         # Get character indices
         if self.preprocessor.return_chars:
@@ -546,16 +540,11 @@ class BatchedDataLoader:
         batch_size = len(batch_x)
 
         # Word embeddings
-        if self.embeddings and self.embeddings.use_ELMo:
-            word_emb = to_vector_simple_with_elmo(
-                batch_x, self.embeddings, max_len, extend=extend
-            )
-        else:
-            word_emb = np.zeros(
-                (batch_size, max_len, self.embeddings.embed_size), dtype="float32"
-            )
-            for i, tokens in enumerate(batch_x):
-                word_emb[i] = to_vector_single(tokens, self.embeddings, max_len)
+        word_emb = np.zeros(
+            (batch_size, max_len, self.embeddings.embed_size), dtype="float32"
+        )
+        for i, tokens in enumerate(batch_x):
+            word_emb[i] = to_vector_single(tokens, self.embeddings, max_len)
 
         # Character indices
         batches = self.preprocessor.transform(batch_x, extend=extend)

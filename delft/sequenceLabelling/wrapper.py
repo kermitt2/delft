@@ -74,7 +74,6 @@ class Sequence(object):
         early_stop=True,
         patience=5,
         max_checkpoints_to_keep=0,
-        use_ELMo=False,  # Deprecated - ELMo removed
         log_dir=None,
         fold_number=1,
         multiprocessing=True,
@@ -113,7 +112,7 @@ class Sequence(object):
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(
-                self.embeddings_name, resource_registry=self.registry, use_ELMo=False
+                self.embeddings_name, resource_registry=self.registry
             )
             word_emb_size = self.embeddings.embed_size
         else:
@@ -140,7 +139,6 @@ class Sequence(object):
             recurrent_dropout=recurrent_dropout,
             fold_number=fold_number,
             batch_size=batch_size,
-            use_ELMo=False,  # ELMo removed
             features_indices=features_indices,
             transformer_name=transformer_name,
         )
@@ -580,7 +578,6 @@ class Sequence(object):
             self.embeddings = Embeddings(
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
-                use_ELMo=False,
                 use_cache=False,
             )
             self.model_config.word_embedding_size = self.embeddings.embed_size

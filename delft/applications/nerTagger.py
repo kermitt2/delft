@@ -18,7 +18,6 @@ def configure(
     dataset_type,
     lang,
     embeddings_name,
-    use_ELMo,
     max_sequence_length=-1,
     batch_size=-1,
     patience=-1,
@@ -54,12 +53,6 @@ def configure(
         o_word_lstm_units = 100
         o_max_epoch = 50
         o_recurrent_dropout = 0.5
-
-    if use_ELMo:
-        # following should be done for predicting if max sequence length permits, it also boosts the runtime with ELMo embeddings signicantly
-        # but requires more GPU memory
-        o_batch_size = 128
-        o_max_sequence_length = 150
 
     # default bert model parameters
     if architecture.find("BERT") != -1:
@@ -108,7 +101,6 @@ def train(
     architecture="BidLSTM_CRF",
     transformer=None,
     data_path=None,
-    use_ELMo=False,
     max_sequence_length=-1,
     batch_size=-1,
     patience=-1,
@@ -132,7 +124,6 @@ def train(
         dataset_type,
         lang,
         embeddings_name,
-        use_ELMo,
         max_sequence_length,
         batch_size,
         patience,
@@ -163,8 +154,6 @@ def train(
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-en-conll2003-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         model = Sequence(
             model_name,
@@ -178,7 +167,6 @@ def train(
             early_stop=early_stop,
             patience=patience,
             max_sequence_length=max_sequence_length,
-            use_ELMo=use_ELMo,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
         )
@@ -207,8 +195,6 @@ def train(
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-en-conll2012-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         model = Sequence(
             model_name,
@@ -222,7 +208,6 @@ def train(
             early_stop=early_stop,
             patience=patience,
             max_sequence_length=max_sequence_length,
-            use_ELMo=use_ELMo,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
         )
@@ -239,8 +224,6 @@ def train(
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-fr-lemonde-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         model = Sequence(
             model_name,
@@ -254,7 +237,6 @@ def train(
             early_stop=early_stop,
             patience=patience,
             max_sequence_length=max_sequence_length,
-            use_ELMo=use_ELMo,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
         )
@@ -286,7 +268,6 @@ def train_eval(
     fold_count=1,
     train_with_validation_set=False,
     data_path=None,
-    use_ELMo=False,
     patience=-1,
     batch_size=-1,
     max_sequence_length=-1,
@@ -310,7 +291,6 @@ def train_eval(
         dataset_type,
         lang,
         embeddings_name,
-        use_ELMo,
         max_sequence_length=max_sequence_length,
         batch_size=batch_size,
         patience=patience,
@@ -332,8 +312,6 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-conll2003-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         if not train_with_validation_set:
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -350,7 +328,6 @@ def train_eval(
                 early_stop=True,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -371,7 +348,6 @@ def train_eval(
                 batch_size=batch_size,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -390,8 +366,6 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-ontonotes-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         model = Sequence(
             model_name,
@@ -406,7 +380,6 @@ def train_eval(
             early_stop=early_stop,
             patience=patience,
             max_sequence_length=max_sequence_length,
-            use_ELMo=use_ELMo,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
         )
@@ -426,8 +399,6 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-conll2012-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         if not train_with_validation_set:
             model = Sequence(
@@ -443,7 +414,6 @@ def train_eval(
                 early_stop=True,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -464,7 +434,6 @@ def train_eval(
                 batch_size=batch_size,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -484,8 +453,6 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         model = Sequence(
             model_name,
@@ -500,7 +467,6 @@ def train_eval(
             early_stop=early_stop,
             patience=patience,
             max_sequence_length=max_sequence_length,
-            use_ELMo=use_ELMo,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
         )
@@ -519,8 +485,6 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-force-split-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         if not train_with_validation_set:
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -537,7 +501,6 @@ def train_eval(
                 batch_size=batch_size,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -558,7 +521,6 @@ def train_eval(
                 batch_size=batch_size,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -577,8 +539,6 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-force-split-xml-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
 
         if not train_with_validation_set:
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -595,7 +555,6 @@ def train_eval(
                 batch_size=batch_size,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -616,7 +575,6 @@ def train_eval(
                 batch_size=batch_size,
                 patience=patience,
                 max_sequence_length=max_sequence_length,
-                use_ELMo=use_ELMo,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
             )
@@ -649,7 +607,6 @@ def eval(
     lang="en",
     architecture="BidLSTM_CRF",
     data_path=None,
-    use_ELMo=False,
 ):
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading CoNLL-2003 NER data...")
@@ -660,8 +617,6 @@ def eval(
 
         # load model
         model_name = "ner-en-conll2003-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
         model = Sequence(model_name)
         model.load()
 
@@ -675,8 +630,6 @@ def eval(
 
         # load model
         model_name = "ner-en-conll2012-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
         model = Sequence(model_name)
         model.load()
 
@@ -705,7 +658,6 @@ def annotate(
     architecture="BidLSTM_CRF",
     file_in=None,
     file_out=None,
-    use_ELMo=False,
     multi_gpu=False,
 ):
     if file_in is None:
@@ -719,23 +671,17 @@ def annotate(
     if (dataset_type == "conll2003") and (lang == "en"):
         # load model
         model_name = "ner-en-conll2003-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
         model = Sequence(model_name)
         model.load()
 
     elif (dataset_type == "conll2012") and (lang == "en"):
         # load model
         model_name = "ner-en-conll2012-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
         model = Sequence(model_name)
         model.load()
 
     elif lang == "fr":
         model_name = "ner-fr-lemonde-" + architecture
-        if use_ELMo:
-            model_name += "-with_ELMo"
         model = Sequence(model_name)
         model.load()
     else:
@@ -831,8 +777,6 @@ if __name__ == "__main__":
         help="path for outputting the resulting JSON NER annotations",
     )
     parser.add_argument(
-        "--use-ELMo", action="store_true", help="Use ELMo contextual embeddings"
-    )
     parser.add_argument(
         "--embedding",
         default=None,
@@ -906,7 +850,6 @@ if __name__ == "__main__":
     data_path = args.data_path
     file_in = args.file_in
     file_out = args.file_out
-    use_ELMo = args.use_ELMo
     patience = args.patience
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
@@ -929,7 +872,6 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             data_path=data_path,
-            use_ELMo=use_ELMo,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             patience=patience,
@@ -951,7 +893,6 @@ if __name__ == "__main__":
             fold_count=args.fold_count,
             train_with_validation_set=train_with_validation_set,
             data_path=data_path,
-            use_ELMo=use_ELMo,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             patience=patience,
@@ -967,7 +908,6 @@ if __name__ == "__main__":
             lang=lang,
             architecture=architecture,
             # transformer=transformer,
-            use_ELMo=use_ELMo,
         )
 
     if action == "tag":
@@ -983,7 +923,6 @@ if __name__ == "__main__":
                 # transformer=transformer,
                 file_in=file_in,
                 file_out=file_out,
-                use_ELMo=use_ELMo,
                 multi_gpu=multi_gpu,
             )
             """

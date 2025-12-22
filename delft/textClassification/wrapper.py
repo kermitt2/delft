@@ -93,7 +93,7 @@ class Classifier(object):
 
         if embeddings_name is not None:
             self.embeddings = Embeddings(
-                embeddings_name, resource_registry=self.registry, use_ELMo=False
+                embeddings_name, resource_registry=self.registry
             )
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
@@ -286,7 +286,6 @@ class Classifier(object):
             self.embeddings = Embeddings(
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
-                use_ELMo=False,
             )
 
         # Init model

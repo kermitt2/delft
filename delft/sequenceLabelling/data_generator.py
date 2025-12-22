@@ -6,7 +6,6 @@ import tensorflow.keras as keras
 from delft.sequenceLabelling.preprocess import (
     to_vector_single,
     to_casing_single,
-    to_vector_simple_with_elmo,
     Preprocessor,
     BERTPreprocessor,
 )
@@ -183,18 +182,13 @@ class DataGenerator(BaseGenerator):
             extend = True
 
         # generate data
-        if self.embeddings and self.embeddings.use_ELMo:
-            batch_x = to_vector_simple_with_elmo(
-                x_tokenized, self.embeddings, max_length_x, extend=extend
+        batch_x = np.zeros(
+            (max_iter, max_length_x, self.embeddings.embed_size), dtype="float32"
+        )
+        for i in range(0, max_iter):
+            batch_x[i] = to_vector_single(
+                x_tokenized[i], self.embeddings, max_length_x
             )
-        else:
-            batch_x = np.zeros(
-                (max_iter, max_length_x, self.embeddings.embed_size), dtype="float32"
-            )
-            for i in range(0, max_iter):
-                batch_x[i] = to_vector_single(
-                    x_tokenized[i], self.embeddings, max_length_x
-                )
 
         # store tag embeddings
         batch_y = None

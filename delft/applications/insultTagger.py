@@ -40,7 +40,6 @@ def train(
     embeddings_name=None,
     architecture="BidLSTM_CRF",
     transformer=None,
-    use_ELMo=False,
     learning_rate=None,
     batch_size=-1,
     max_epoch=-1,
@@ -62,8 +61,6 @@ def train(
     print(len(x_valid), "validation sequences")
 
     model_name = "insult-" + architecture
-    if use_ELMo:
-        model_name += "-with_ELMo"
 
     model = Sequence(
         model_name,
@@ -75,7 +72,6 @@ def train(
         patience=patience,
         early_stop=early_stop,
         transformer_name=transformer,
-        use_ELMo=use_ELMo,
         learning_rate=learning_rate,
     )
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
@@ -91,21 +87,17 @@ def annotate(
     output_format,
     architecture="BidLSTM_CRF",
     transformer=None,
-    use_ELMo=False,
     multi_gpu=False,
 ):
     annotations = []
 
     model_name = "insult-" + architecture
-    if use_ELMo:
-        model_name += "-with_ELMo"
 
     # load model
     model = Sequence(
         model_name,
         architecture=architecture,
         transformer_name=transformer,
-        use_ELMo=use_ELMo,
     )
     model.load()
 
@@ -182,8 +174,6 @@ if __name__ == "__main__":
         + "for model names",
     )
     parser.add_argument(
-        "--use-ELMo", action="store_true", help="Use ELMo contextual embeddings"
-    )
     parser.add_argument(
         "--learning-rate", type=float, default=None, help="Initial learning rate"
     )
@@ -216,7 +206,6 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
     architecture = args.architecture
     transformer = args.transformer
-    use_ELMo = args.use_ELMo
     learning_rate = args.learning_rate
 
     batch_size = args.batch_size
@@ -233,7 +222,6 @@ if __name__ == "__main__":
             embeddings_name=embeddings_name,
             architecture=architecture,
             transformer=transformer,
-            use_ELMo=use_ELMo,
             learning_rate=learning_rate,
             batch_size=batch_size,
             max_epoch=max_epoch,
@@ -252,6 +240,5 @@ if __name__ == "__main__":
             "json",
             architecture=architecture,
             transformer=transformer,
-            use_ELMo=use_ELMo,
         )
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

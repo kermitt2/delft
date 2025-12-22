@@ -1069,54 +1069,6 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
     return x
 
 
-def to_vector_elmo(
-    tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False
-):
-    """
-    Given a list of tokens convert it to a sequence of word embedding
-    vectors based on ELMo contextualized embeddings
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_only_ELMo(subtokens)
-
-
-def to_vector_simple_with_elmo(
-    tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False
-):
-    """
-    Given a list of tokens convert it to a sequence of word embedding
-    vectors based on the concatenation of the provided static embeddings and
-    the ELMo contextualized embeddings, introducing <PAD> and <UNK>
-    padding token vector when appropriate
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_with_ELMo(subtokens)
-
-
-def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
-    """
-    Extract the token list and eventually lowercase or truncate longest sequences
-
-    :param tokens: input tokens
-    :param maxlen: maximum length for each sub_token
-    :param extend: when set to true, sub tokens will be padded with an additional element
-    :param lowercase: when set to true the sub_tokens will be lowercased
-    :return:
-    """
-    subtokens = []
-    for i in range(0, len(tokens)):
-        local_tokens = []
-        for j in range(0, min(len(tokens[i]), maxlen)):
-            if lowercase:
-                local_tokens.append(_lower(tokens[i][j]))
-            else:
-                local_tokens.append(tokens[i][j])
-        if extend:
-            local_tokens.append(UNK)
-        subtokens.append(local_tokens)
-    return subtokens
-
-
 def to_casing_single(tokens, maxlen):
     """
     Given a list of tokens set the casing, introducing <PAD> and <UNK> padding

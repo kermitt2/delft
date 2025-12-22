@@ -65,9 +65,6 @@ def print_parameters(model_config, training_config):
     print("model_name:", model_config.model_name)
     print("learning_rate: ", training_config.learning_rate)
 
-    if hasattr(model_config, "use_ELMo"):
-        print("use_ELMo: ", model_config.use_ELMo)
-
     if (
         hasattr(training_config, "class_weights")
         and training_config.class_weights != None

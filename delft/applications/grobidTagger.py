@@ -35,7 +35,6 @@ def configure(
     batch_size=-1,
     embeddings_name=None,
     max_epoch=-1,
-    use_ELMo=False,
     patience=-1,
     early_stop=None,
 ):
@@ -117,10 +116,7 @@ def configure(
         elif model == "header":
             max_epoch = 80
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 1500
-                else:
-                    max_sequence_length = 2500
+                max_sequence_length = 2500
             if batch_size == -1:
                 batch_size = 9
         elif model == "date":
@@ -143,31 +139,20 @@ def configure(
             if batch_size == -1:
                 batch_size = 5
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 1500
-                else:
-                    max_sequence_length = 3000
+                max_sequence_length = 3000
         elif model == "funding-acknowledgement":
             if batch_size == -1:
                 batch_size = 30
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 500
-                else:
-                    max_sequence_length = 800
+                max_sequence_length = 800
         elif model == "patent-citation":
             if batch_size == -1:
                 batch_size = 40
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 400
-                else:
-                    max_sequence_length = 1000
+                max_sequence_length = 1000
 
     model_name += "-" + architecture
 
-    if use_ELMo:
-        model_name += "-with_ELMo"
 
     if batch_size == -1:
         batch_size = 20
@@ -210,7 +195,6 @@ def train(
     max_sequence_length=-1,
     batch_size=-1,
     max_epoch=-1,
-    use_ELMo=False,
     incremental=False,
     input_model_path=None,
     patience=-1,
@@ -256,7 +240,6 @@ def train(
         batch_size,
         embeddings_name,
         max_epoch,
-        use_ELMo,
         patience,
         early_stop,
     )
@@ -271,7 +254,6 @@ def train(
         max_sequence_length=max_sequence_length,
         features_indices=features_indices,
         max_epoch=max_epoch,
-        use_ELMo=use_ELMo,
         multiprocessing=multiprocessing,
         early_stop=early_stop,
         patience=patience,
@@ -322,7 +304,6 @@ def train_eval(
     max_sequence_length=-1,
     batch_size=-1,
     max_epoch=-1,
-    use_ELMo=False,
     incremental=False,
     input_model_path=None,
     patience=-1,
@@ -371,7 +352,6 @@ def train_eval(
         batch_size,
         embeddings_name,
         max_epoch,
-        use_ELMo,
         patience,
         early_stop,
     )
@@ -387,7 +367,6 @@ def train_eval(
         max_epoch=max_epoch,
         early_stop=early_stop,
         patience=patience,
-        use_ELMo=use_ELMo,
         fold_number=fold_count,
         multiprocessing=multiprocessing,
         features_indices=features_indices,
@@ -447,7 +426,6 @@ def eval_(
     model,
     input_path=None,
     architecture="BidLSTM_CRF",
-    use_ELMo=False,
     report_to_wandb=False,
 ):
     print("Loading data...")
@@ -466,8 +444,6 @@ def eval_(
 
     model_name = "grobid-" + model
     model_name += "-" + architecture
-    if use_ELMo:
-        model_name += "-with_ELMo"
 
     start_time = time.time()
 
@@ -491,7 +467,6 @@ def annotate_text(
     output_format,
     architecture="BidLSTM_CRF",
     features=None,
-    use_ELMo=False,
     multi_gpu=False,
 ):
     annotations = []
@@ -499,8 +474,6 @@ def annotate_text(
     # load model
     model_name = "grobid-" + model
     model_name += "-" + architecture
-    if use_ELMo:
-        model_name += "-with_ELMo"
 
     model = Sequence(model_name)
     model.load()
@@ -581,8 +554,6 @@ if __name__ == "__main__":
         help="Type of model architecture to be used, one of " + str(architectures),
     )
     parser.add_argument(
-        "--use-ELMo", action="store_true", help="Use ELMo contextual embeddings"
-    )
 
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument(
@@ -680,7 +651,6 @@ if __name__ == "__main__":
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer
-    use_ELMo = args.use_ELMo
     incremental = args.incremental
     patience = args.patience
     learning_rate = args.learning_rate
@@ -708,7 +678,6 @@ if __name__ == "__main__":
             output_path=output,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            use_ELMo=use_ELMo,
             incremental=incremental,
             input_model_path=input_model_path,
             patience=patience,
@@ -730,7 +699,7 @@ if __name__ == "__main__":
                 "A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input"
             )
         eval_(
-            model, input_path=input_path, architecture=architecture, use_ELMo=use_ELMo
+            model, input_path=input_path, architecture=architecture
         )
 
     if action == Tasks.TRAIN_EVAL:
@@ -746,7 +715,6 @@ if __name__ == "__main__":
             fold_count=args.fold_count,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
-            use_ELMo=use_ELMo,
             incremental=incremental,
             input_model_path=input_model_path,
             learning_rate=learning_rate,
@@ -798,7 +766,6 @@ if __name__ == "__main__":
                 model,
                 "json",
                 architecture=architecture,
-                use_ELMo=use_ELMo,
                 multi_gpu=multi_gpu,
             )
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

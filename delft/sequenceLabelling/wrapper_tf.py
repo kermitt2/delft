@@ -91,7 +91,6 @@ class Sequence(object):
         early_stop=True,
         patience=5,
         max_checkpoints_to_keep=0,
-        use_ELMo=False,
         log_dir=None,
         fold_number=1,
         multiprocessing=True,
@@ -125,7 +124,7 @@ class Sequence(object):
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(
-                self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo
+                self.embeddings_name, resource_registry=self.registry
             )
             word_emb_size = self.embeddings.embed_size
         else:
@@ -152,7 +151,6 @@ class Sequence(object):
             recurrent_dropout=recurrent_dropout,
             fold_number=fold_number,
             batch_size=batch_size,
-            use_ELMo=use_ELMo,
             features_indices=features_indices,
             transformer_name=transformer_name,
         )
@@ -350,8 +348,6 @@ class Sequence(object):
             features_valid=f_valid,
             callbacks=callbacks,
         )
-        if self.embeddings and self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(
         self,
@@ -461,8 +457,6 @@ class Sequence(object):
             f_valid=f_valid,
             callbacks=callbacks,
         )
-        if self.embeddings and self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test, features=None):
         if self.model_config.fold_number > 1:
@@ -980,7 +974,6 @@ class Sequence(object):
             self.embeddings = Embeddings(
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
-                use_ELMo=self.model_config.use_ELMo,
                 use_cache=False,
             )
             self.model_config.word_embedding_size = self.embeddings.embed_size
