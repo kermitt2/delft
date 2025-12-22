@@ -18,6 +18,7 @@ Model architectures implemented:
 
 import torch
 import torch.nn as nn
+import inspect
 from typing import Optional, Dict, List
 
 from delft.utilities.crf_pytorch import CRF, ChainCRF
@@ -1040,6 +1041,10 @@ class BERT(BaseSequenceLabeler):
             transformer_config = AutoConfig.from_pretrained(transformer_name)
             self.transformer = AutoModel.from_config(transformer_config)
 
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
         # Get hidden size from transformer
         hidden_size = self.transformer.config.hidden_size
 
@@ -1057,9 +1062,11 @@ class BERT(BaseSequenceLabeler):
         token_type_ids = inputs.get("token_type_ids", None)
 
         # Transformer forward
-        outputs = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        outputs = self.transformer(**transformer_args)
         sequence_output = outputs.last_hidden_state
 
         sequence_output = self.dropout(sequence_output)
@@ -1110,6 +1117,10 @@ class BERT_CRF(BaseSequenceLabeler):
             transformer_config = AutoConfig.from_pretrained(transformer_name)
             self.transformer = AutoModel.from_config(transformer_config)
 
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
         hidden_size = self.transformer.config.hidden_size
 
         self.dropout = nn.Dropout(0.1)
@@ -1124,9 +1135,11 @@ class BERT_CRF(BaseSequenceLabeler):
         attention_mask = inputs.get("attention_mask", None)
         token_type_ids = inputs.get("token_type_ids", None)
 
-        outputs = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        outputs = self.transformer(**transformer_args)
         x = self.dropout(outputs.last_hidden_state)
         emissions = self.linear(x)
 
@@ -1185,6 +1198,10 @@ class BERT_ChainCRF(BaseSequenceLabeler):
             transformer_config = AutoConfig.from_pretrained(transformer_name)
             self.transformer = AutoModel.from_config(transformer_config)
 
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
         hidden_size = self.transformer.config.hidden_size
 
         self.dropout = nn.Dropout(0.1)
@@ -1199,9 +1216,11 @@ class BERT_ChainCRF(BaseSequenceLabeler):
         attention_mask = inputs.get("attention_mask", None)
         token_type_ids = inputs.get("token_type_ids", None)
 
-        outputs = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        outputs = self.transformer(**transformer_args)
         x = self.dropout(outputs.last_hidden_state)
         emissions = self.dense(x)
 
@@ -1249,6 +1268,10 @@ class BERT_FEATURES(BaseSequenceLabeler):
             transformer_config = AutoConfig.from_pretrained(transformer_name)
             self.transformer = AutoModel.from_config(transformer_config)
 
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
         hidden_size = self.transformer.config.hidden_size
 
         # Features embedding
@@ -1289,9 +1312,11 @@ class BERT_FEATURES(BaseSequenceLabeler):
         features_input = inputs["features_input"]
 
         # Transformer
-        transformer_out = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        transformer_out = self.transformer(**transformer_args)
         text_emb = self.dropout(transformer_out.last_hidden_state)
 
         # Features
@@ -1362,6 +1387,10 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
             transformer_config = AutoConfig.from_pretrained(transformer_name)
             self.transformer = AutoModel.from_config(transformer_config)
 
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
         hidden_size = self.transformer.config.hidden_size
 
         # Features
@@ -1401,9 +1430,11 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         features_input = inputs["features_input"]
 
         # Transformer
-        transformer_out = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        transformer_out = self.transformer(**transformer_args)
         text_emb = self.dropout(transformer_out.last_hidden_state)
 
         # Features
@@ -1471,9 +1502,11 @@ class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
         token_type_ids = inputs.get("token_type_ids", None)
         features_input = inputs["features_input"]
 
-        transformer_out = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        transformer_out = self.transformer(**transformer_args)
         text_emb = self.dropout(transformer_out.last_hidden_state)
 
         batch_size, seq_len = features_input.shape[:2]
