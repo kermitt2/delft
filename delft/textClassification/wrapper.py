@@ -9,8 +9,12 @@ from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.models import getModel
 from delft.textClassification.data_loader import create_dataloader
 from delft.textClassification.trainer import Trainer
+from delft.textClassification.preprocess import TextPreprocessor
 
 from delft import DELFT_PROJECT_DIR
+
+# File names for saving/loading
+PREPROCESSOR_FILE = "preprocessor.json"
 
 
 class Classifier(object):
@@ -76,6 +80,7 @@ class Classifier(object):
         self.model = None
         self.models = None
         self.embeddings = None
+        self.preprocessor = None
 
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -255,6 +260,11 @@ class Classifier(object):
 
         self.model_config.save(os.path.join(directory, self.config_file))
 
+        # Save preprocessor if present
+        if self.preprocessor is not None:
+            self.preprocessor.save(os.path.join(directory, PREPROCESSOR_FILE))
+            print("Preprocessor saved")
+
         # Save PyTorch model
         torch.save(self.model.state_dict(), os.path.join(directory, self.weight_file))
         print(f"Model saved to {directory}")
@@ -264,6 +274,12 @@ class Classifier(object):
 
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
+
+        # Load preprocessor if present
+        preprocessor_path = os.path.join(model_path, PREPROCESSOR_FILE)
+        if os.path.exists(preprocessor_path):
+            self.preprocessor = TextPreprocessor.load(preprocessor_path)
+            print("Preprocessor loaded")
 
         # Load embeddings if needed
         if self.model_config.embeddings_name is not None:

@@ -18,20 +18,26 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from typing import Optional, Dict
+import numpy as np
 
 
 class BaseTextClassifier(nn.Module):
     """
     Base class for DeLFT PyTorch text classification models.
 
+    Supports two input modes:
+    1. Index mode: inputs are word indices [batch, seq_len], embedding layer converts to vectors
+    2. Vector mode: inputs are pre-computed embedding vectors [batch, seq_len, embed_size]
+
     Args:
         model_config: Model configuration
         training_config: Training configuration
+        vocab_size: Size of word vocabulary (enables index mode)
     """
 
     name = "BaseTextClassifier"
 
-    def __init__(self, model_config, training_config):
+    def __init__(self, model_config, training_config, vocab_size: int = None):
         super().__init__()
         self.model_config = model_config
         self.training_config = training_config
@@ -44,6 +50,42 @@ class BaseTextClassifier(nn.Module):
         self.recurrent_units = getattr(model_config, "recurrent_units", 64)
         self.dense_size = getattr(model_config, "dense_size", 32)
 
+        # Embedding layer for index-based inputs
+        self.vocab_size = vocab_size
+        self.use_embedding_layer = vocab_size is not None
+        if self.use_embedding_layer:
+            self.embedding = nn.Embedding(vocab_size, self.embed_size, padding_idx=0)
+        else:
+            self.embedding = None
+
+    def set_embedding_weights(self, weights: np.ndarray):
+        """
+        Set pretrained embedding weights.
+
+        Args:
+            weights: numpy array of shape [vocab_size, embed_size]
+        """
+        if self.embedding is not None:
+            with torch.no_grad():
+                self.embedding.weight.copy_(torch.from_numpy(weights))
+
+    def embed_inputs(self, inputs: torch.Tensor) -> torch.Tensor:
+        """
+        Convert inputs to embeddings if needed.
+
+        Args:
+            inputs: Either word indices [batch, seq_len] or vectors [batch, seq_len, embed_size]
+
+        Returns:
+            Embedded tensor [batch, seq_len, embed_size]
+        """
+        if self.use_embedding_layer and inputs.dim() == 2:
+            # Index input - lookup embeddings
+            return self.embedding(inputs)
+        else:
+            # Already embedded
+            return inputs
+
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
@@ -51,7 +93,7 @@ class BaseTextClassifier(nn.Module):
         Forward pass.
 
         Args:
-            inputs: Input embeddings [batch, seq_len, embed_size]
+            inputs: Input embeddings [batch, seq_len, embed_size] or indices [batch, seq_len]
             labels: Optional labels for training [batch, num_classes]
 
         Returns:
@@ -64,7 +106,7 @@ class BaseTextClassifier(nn.Module):
         Get predictions.
 
         Args:
-            inputs: Input embeddings
+            inputs: Input embeddings or indices
 
         Returns:
             Prediction probabilities
@@ -108,7 +150,8 @@ class lstm(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.lstm(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.lstm(x)
         x = self.dropout(x)
 
         # Global pooling
@@ -157,7 +200,8 @@ class bidLstm_simple(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.bilstm(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.bilstm(x)
         x = self.dropout(x)
 
         x_max = x.max(dim=1)[0]
@@ -205,8 +249,9 @@ class cnn(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        # Conv expects [batch, channels, seq]
-        x = inputs.transpose(1, 2)
+        # Embed inputs if needed, then transpose for conv
+        x = self.embed_inputs(inputs)
+        x = x.transpose(1, 2)
         x = self.dropout(x)
 
         x = F.relu(self.conv1(x))
@@ -266,7 +311,8 @@ class cnn2(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x = inputs.transpose(1, 2)
+        x = self.embed_inputs(inputs)
+        x = x.transpose(1, 2)
         x = self.dropout(x)
 
         x = F.relu(self.conv1(x))
@@ -321,7 +367,8 @@ class cnn3(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.gru(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.gru(x)
 
         x = x.transpose(1, 2)
         x = F.relu(self.conv1(x))
@@ -377,7 +424,8 @@ class lstm_cnn(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.lstm(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.lstm(x)
         x = self.dropout(x)
 
         x = x.transpose(1, 2)
@@ -433,7 +481,8 @@ class gru(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.bigru1(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.bigru1(x)
         x = self.dropout(x)
         x, _ = self.bigru2(x)
 
@@ -476,7 +525,8 @@ class gru_simple(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.bigru(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.bigru(x)
 
         x_max = x.max(dim=1)[0]
         x_avg = x.mean(dim=1)
@@ -525,7 +575,8 @@ class gru_lstm(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x, _ = self.bigru(inputs)
+        x = self.embed_inputs(inputs)
+        x, _ = self.bigru(x)
         x = self.dropout(x)
         x, _ = self.bilstm(x)
 
@@ -599,7 +650,8 @@ class dpcnn(BaseTextClassifier):
     def forward(
         self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
-        x = inputs.transpose(1, 2)
+        x = self.embed_inputs(inputs)
+        x = x.transpose(1, 2)
         x = self.initial_conv(x)
 
         # Block 1

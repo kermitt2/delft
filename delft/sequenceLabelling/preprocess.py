@@ -12,19 +12,22 @@ LOGGER = logging.getLogger(__name__)
 
 from sklearn.base import BaseEstimator, TransformerMixin
 
-UNK = "<UNK>"
-PAD = "<PAD>"
-
-case_index = {
-    "<PAD>": 0,
-    "numeric": 1,
-    "allLower": 2,
-    "allUpper": 3,
-    "initialUpper": 4,
-    "other": 5,
-    "mainly_numeric": 6,
-    "contains_digit": 7,
-}
+# Import shared utilities - these are re-exported for backward compatibility
+from delft.utilities.preprocess import (
+    UNK,
+    PAD,
+    case_index,
+    pad_sequences,
+    dense_to_one_hot,
+    get_casing,
+    lower as _lower,
+    normalize_num as _normalize_num,
+    calculate_cardinality,
+    cardinality_to_index_map,
+    reduce_features_to_indexes,
+    FeaturesPreprocessor,
+    BERTPreprocessor,
+)
 
 
 def calculate_cardinality(feature_vector, indices=None):
