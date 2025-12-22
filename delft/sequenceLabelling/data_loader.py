@@ -399,17 +399,30 @@ def create_dataloader(
     Factory method that creates the appropriate Dataset based on configuration.
     """
     if model_config and model_config.transformer_name:
-        # TBD: Initialize BERT/Transformer preprocessor if needed
-        # For now, we assume preprocessor handles everything or we need to pass bert_preprocessor
-        # But wrapper only passes the standard preprocessor.
-        # This part requires attention: wrapper.py doesn't seem to have bert_preprocessor ready to pass?
-        # wrapper.py _train initializes self.p which is a Preprocessor.
+        from transformers import AutoTokenizer
+        # Initialize BERT/Transformer preprocessor
+        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name)
+        bert_preprocessor = BERTPreprocessor(tokenizer)
 
-        # Checking how models.py handles this.
-        # Actually SequenceLabelingDataset handles ELMo via embeddings arg.
+        dataset = TransformerDataset(
+            x,
+            y,
+            preprocessor=preprocessor,
+            bert_preprocessor=bert_preprocessor,
+            max_sequence_length=model_config.max_sequence_length,
+            tokenize=False,  # Input x is usually already tokenized in DeLFT list-of-lists format
+            features=features,
+            use_chain_crf=model_config.use_crf if model_config else False,
+        )
 
-        # If we are here, we probably need SequenceLabelingDataset unless it's a transformer model
-        pass
+        return DataLoader(
+            dataset,
+            batch_size=batch_size,
+            shuffle=shuffle,
+            num_workers=num_workers,
+            pin_memory=pin_memory,
+            collate_fn=collate_fn,
+        )
 
     # Default to SequenceLabelingDataset for now which covers RNNs
     # TODO: Add TransformerDataset logic if needed by checking model_config

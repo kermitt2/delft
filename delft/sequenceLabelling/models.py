@@ -1113,6 +1113,7 @@ class BERT_CRF(BaseSequenceLabeler):
         hidden_size = self.transformer.config.hidden_size
 
         self.dropout = nn.Dropout(0.1)
+        self.linear = nn.Linear(hidden_size, ntags)
         self.crf = CRF(ntags)
 
     def forward(
@@ -1126,7 +1127,8 @@ class BERT_CRF(BaseSequenceLabeler):
         outputs = self.transformer(
             input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
         )
-        emissions = self.dropout(outputs.last_hidden_state)
+        x = self.dropout(outputs.last_hidden_state)
+        emissions = self.linear(x)
 
         # Create mask for CRF (ignore padding and special tokens)
         if attention_mask is not None:
