@@ -268,7 +268,7 @@ class Embeddings(object):
             if not os.path.isdir(self.embedding_lmdb_path):
                 # conservative check (likely very useless)
                 if not os.path.exists(self.embedding_lmdb_path):
-                    os.makedirs(self.embedding_lmdb_path)
+                    os.makedirs(self.embedding_lmdb_path, exist_ok=True)
 
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
