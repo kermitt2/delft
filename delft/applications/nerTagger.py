@@ -354,7 +354,7 @@ def train_eval(
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
         print(
-            "Loading all Ontonotes 5.0 XML data, evaluation will be on 10\% random partition"
+            "Loading all Ontonotes 5.0 XML data, evaluation will be on 10% random partition"
         )
         x_all, y_all = load_data_and_labels_ontonotes(data_path)
         x_train_all, x_eval, y_train_all, y_eval = train_test_split(
@@ -776,7 +776,6 @@ if __name__ == "__main__":
         default=None,
         help="path for outputting the resulting JSON NER annotations",
     )
-    parser.add_argument(
     parser.add_argument(
         "--embedding",
         default=None,

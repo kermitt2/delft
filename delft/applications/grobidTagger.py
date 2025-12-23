@@ -553,7 +553,6 @@ if __name__ == "__main__":
         "--architecture",
         help="Type of model architecture to be used, one of " + str(architectures),
     )
-    parser.add_argument(
 
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument(

@@ -174,7 +174,6 @@ if __name__ == "__main__":
         + "for model names",
     )
     parser.add_argument(
-    parser.add_argument(
         "--learning-rate", type=float, default=None, help="Initial learning rate"
     )
     parser.add_argument(

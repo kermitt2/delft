@@ -760,6 +760,9 @@ MODEL_REGISTRY = {
     "bert": bert,
 }
 
+# List of available architectures for external use
+architectures = list(MODEL_REGISTRY.keys())
+
 
 def getModel(
     model_config, training_config, load_pretrained_weights=True, local_path=None
