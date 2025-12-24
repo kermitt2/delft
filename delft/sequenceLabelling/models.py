@@ -779,6 +779,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         self.dense = nn.Linear(
             config.num_word_lstm_units * 2, config.num_word_lstm_units
         )
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
         # CRF
         self.crf = CRF(ntags)
@@ -821,8 +822,9 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         lstm_out, _ = self.bilstm(x)
         lstm_out = self.dropout(lstm_out)
 
-        # Dense
-        emissions = torch.tanh(self.dense(lstm_out))
+        # Dense layers
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.dense2(x)
 
         outputs = {"logits": emissions}
 
