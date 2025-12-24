@@ -255,17 +255,17 @@ class ChainCRF(nn.Module):
         self.b_start = None  # Start boundary energy
         self.b_end = None  # End boundary energy
 
-    def build(self, num_tags: int):
+    def build(self, num_tags: int, device=None, dtype=None):
         """Initialize layer weights."""
         self._num_tags = num_tags
 
         # Transition matrix (energy between tag pairs)
-        self.U = nn.Parameter(torch.empty(num_tags, num_tags))
+        self.U = nn.Parameter(torch.empty(num_tags, num_tags, device=device, dtype=dtype))
         nn.init.xavier_uniform_(self.U)
 
         # Boundary energies
-        self.b_start = nn.Parameter(torch.zeros(num_tags))
-        self.b_end = nn.Parameter(torch.zeros(num_tags))
+        self.b_start = nn.Parameter(torch.zeros(num_tags, device=device, dtype=dtype))
+        self.b_end = nn.Parameter(torch.zeros(num_tags, device=device, dtype=dtype))
 
         self._built = True
 
@@ -288,7 +288,7 @@ class ChainCRF(nn.Module):
             During inference: Best tag sequence [batch_size, seq_len]
         """
         if not self._built:
-            self.build(emissions.size(-1))
+            self.build(emissions.size(-1), device=emissions.device, dtype=emissions.dtype)
 
         if tags is not None:
             # Training: compute loss
