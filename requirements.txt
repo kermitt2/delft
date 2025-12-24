@@ -10,9 +10,11 @@ truecase
 requests
 pandas
 transformers
+sentencepiece
 torch
 pytorch-crf>=0.7.2
 pytest
 blingfire2
 accelerate>=0.20.3
 python-dotenv
+protobuf

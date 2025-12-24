@@ -1028,6 +1028,7 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     preprocessor = Preprocessor(
         max_char_length=model_config.max_char_length,
         feature_preprocessor=feature_preprocessor,
+        return_features=(feature_preprocessor is not None),
     )
     preprocessor.fit(X, y)
 
