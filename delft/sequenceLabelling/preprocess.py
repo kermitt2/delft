@@ -432,6 +432,8 @@ class BERTPreprocessor(object):
         new_attention_mask = []
         new_token_type_ids = []
         new_offsets = []
+        new_word_ids = []
+        original_word_ids = encoded_result.word_ids()
         # this is a boolean for flag empty tokens (e.g. "▁" or "Ġ") that some BPE tokenizer produces
         empty_token = False
         for i in range(0, len(input_ids)):
@@ -485,34 +487,47 @@ class BERTPreprocessor(object):
                 new_attention_mask.append(attention_mask[i])
                 new_token_type_ids.append(token_type_ids[i])
                 new_offsets.append(offsets[i])
+                new_word_ids.append(original_word_ids[i])
         input_ids = new_input_ids
         attention_mask = new_attention_mask
         token_type_ids = new_token_type_ids
         offsets = new_offsets
+        word_ids = new_word_ids
 
-        word_idx = -1
-        for i, offset in enumerate(offsets):
-            if offset[0] == 0 and offset[1] == 0:
-                # this is a special token
+        # Use the tokenizer's word_ids() method for reliable word boundary detection
+        # This is more robust across different tokenizer implementations (BERT, RoBERTa, modernBERT, etc.)
+        
+        prev_word_idx = None
+        for i, word_idx in enumerate(word_ids):
+            if word_idx is None:
+                # this is a special token (CLS, SEP, PAD)
                 label_ids.append("<PAD>")
                 chars_blocks.append(self.empty_char_vector)
                 feature_blocks.append(self.empty_features_vector)
-            else:
-                if offset[0] == 0:
-                    word_idx += 1
-                    # new token
+            elif word_idx != prev_word_idx:
+                # first sub-token of a new word
+                if word_idx < len(label_tokens):
                     label_ids.append(label_tokens[word_idx])
                     feature_blocks.append(features_tokens[word_idx])
                     chars_blocks.append(chars_tokens[word_idx])
                 else:
-                    # propagate the data to the new sub-token or
-                    # dummy/empty input for sub-tokens
+                    # safety fallback if word_idx is somehow out of range
                     label_ids.append("<PAD>")
                     chars_blocks.append(self.empty_char_vector)
-                    # 2 possibilities, either empty features for sub-tokens or repeating the
-                    # feature vector of the prefix sub-token
-                    # feature_blocks.append(self.empty_features_vector)
+                    feature_blocks.append(self.empty_features_vector)
+            else:
+                # subsequent sub-token of the same word
+                # dummy/empty input for sub-tokens
+                label_ids.append("<PAD>")
+                chars_blocks.append(self.empty_char_vector)
+                # 2 possibilities, either empty features for sub-tokens or repeating the
+                # feature vector of the prefix sub-token
+                # feature_blocks.append(self.empty_features_vector)
+                if word_idx < len(features_tokens):
                     feature_blocks.append(features_tokens[word_idx])
+                else:
+                    feature_blocks.append(self.empty_features_vector)
+            prev_word_idx = word_idx
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
