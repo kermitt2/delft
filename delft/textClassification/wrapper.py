@@ -164,12 +164,16 @@ class Classifier(object):
                 shuffle=False,
             )
 
+        # Ensure model output directory exists for checkpoints
+        model_dir = self._get_model_dir()
+        os.makedirs(model_dir, exist_ok=True)
+        
         trainer = Trainer(
             self.model,
             self.model_config,
             self.training_config,
             device=str(self.device),
-            checkpoint_path=self._get_model_dir(),
+            checkpoint_path=model_dir,
         )
 
         trainer.train(train_loader, valid_loader)

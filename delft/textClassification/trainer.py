@@ -3,7 +3,7 @@ import torch.nn as nn
 import numpy as np
 import os
 from sklearn.metrics import roc_auc_score
-from delft.sequenceLabelling.trainer import EarlyStopping
+from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
 
 
 class Trainer(object):
@@ -28,10 +28,15 @@ class Trainer(object):
 
         self.criterion = nn.BCEWithLogitsLoss()
 
-        # Callbacks
+        # Callbacks - use mode="min" for loss-based early stopping
         self.early_stopping = EarlyStopping(
-            patience=training_config.patience, min_delta=0
+            patience=training_config.patience, min_delta=0, mode="min"
         )
+        
+        # Model checkpoint with model-specific filename
+        checkpoint_filename = f"{model_config.model_name}_best_model.pth"
+        checkpoint_filepath = os.path.join(checkpoint_path, checkpoint_filename) if checkpoint_path else checkpoint_filename
+        self.model_checkpoint = ModelCheckpoint(checkpoint_filepath, monitor="loss", mode="min")
 
     def train(self, train_loader, valid_loader=None):
         for epoch in range(self.training_config.max_epoch):
@@ -78,24 +83,13 @@ class Trainer(object):
                 # Default to ROC-AUC if enabled, else Loss
                 if self.training_config.use_roc_auc:
                     score = val_metrics["roc_auc"]
-                    # EarlyStopping expects loss to decrease. For ROC-AUC (maximization), invoke with negative?
-                    # My EarlyStopping implementation probably expects minimization (loss).
-                    # Simple fix: Pass validation loss to early stopping.
-                    # But we want to stop based on best metric.
-                    # Let's check EarlyStopping implementation.
-                    # Assuming standard implementation which minimizes val_loss.
-                    # If we want to maximize ROC-AUC, we can subclass or adapt.
-                    # For now, let's stick to val_loss for early stopping to be safe,
-                    # but save model on best metric.
                     pass
 
-                self.early_stopping(
-                    val_metrics["loss"],
-                    self.model,
-                    os.path.join(self.checkpoint_path, "best_model.pth"),
-                )
-
-                if self.early_stopping.early_stop:
+                # Save model checkpoint if improved
+                self.model_checkpoint(self.model, val_metrics["loss"])
+                
+                # Check early stopping (uses loss for stopping decision)
+                if self.early_stopping(val_metrics["loss"]):
                     print("Early stopping")
                     break
 

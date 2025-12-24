@@ -213,11 +213,15 @@ class Trainer:
 
         # Set up callbacks
         early_stopping = EarlyStopping(patience=self.training_config.patience)
-        checkpoint = ModelCheckpoint(
-            os.path.join(self.checkpoint_path, DEFAULT_WEIGHT_FILE_NAME)
+        
+        # Use model-specific checkpoint filename to avoid conflicts between architectures
+        checkpoint_filename = f"{self.config.model_name}_{DEFAULT_WEIGHT_FILE_NAME}"
+        checkpoint_filepath = (
+            os.path.join(self.checkpoint_path, checkpoint_filename)
             if self.checkpoint_path
-            else DEFAULT_WEIGHT_FILE_NAME
+            else checkpoint_filename
         )
+        checkpoint = ModelCheckpoint(checkpoint_filepath)
 
         history = {"loss": [], "val_loss": [], "f1": [], "precision": [], "recall": []}
 
@@ -304,12 +308,8 @@ class Trainer:
             else:
                 logger.info(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
 
-        # Load best model
-        best_model_path = (
-            os.path.join(self.checkpoint_path, DEFAULT_WEIGHT_FILE_NAME)
-            if self.checkpoint_path
-            else DEFAULT_WEIGHT_FILE_NAME
-        )
+        # Load best model from model-specific checkpoint
+        best_model_path = checkpoint_filepath
         if os.path.exists(best_model_path):
             self.model.load_state_dict(
                 torch.load(best_model_path, map_location=self.device)

@@ -287,6 +287,12 @@ class Sequence(object):
                 model_config=self.model_config,
             )
 
+        # Use model output directory for checkpoints to keep files organized
+        model_output_dir = os.path.join(
+            "data/models/sequenceLabelling/", self.model_config.model_name
+        )
+        os.makedirs(model_output_dir, exist_ok=True)
+        
         # Create trainer
         trainer = Trainer(
             self.model,
@@ -294,7 +300,7 @@ class Sequence(object):
             self.training_config,
             preprocessor=self.p,
             device=str(self.device),
-            checkpoint_path=self.log_dir or "",
+            checkpoint_path=self.log_dir or model_output_dir,
             enable_wandb=self.report_to_wandb,
         )
 
@@ -325,6 +331,12 @@ class Sequence(object):
             else y_train
         )
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
+
+        # Use model output directory for checkpoints
+        model_output_dir = os.path.join(
+            "data/models/sequenceLabelling/", self.model_config.model_name
+        )
+        os.makedirs(model_output_dir, exist_ok=True)
 
         if not incremental:
             self.p = prepare_preprocessor(
@@ -388,6 +400,7 @@ class Sequence(object):
                 self.training_config,
                 preprocessor=self.p,
                 device=str(self.device),
+                checkpoint_path=model_output_dir,
             )
             trainer.train(train_loader, valid_loader)
 
