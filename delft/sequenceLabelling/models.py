@@ -16,6 +16,7 @@ Model architectures implemented:
 - BidLSTM_CRF_CASING: BiLSTM + CRF + casing features
 """
 
+import os
 import torch
 import torch.nn as nn
 import inspect
