@@ -467,6 +467,7 @@ def eval_(
     input_path=None,
     architecture="BidLSTM_CRF",
     report_to_wandb=False,
+    wandb_run_id=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -488,8 +489,12 @@ def eval_(
     start_time = time.time()
 
     # load the model
-    model = Sequence(model_name, report_to_wandb=report_to_wandb)
+    model = Sequence(model_name)
     model.load()
+    
+    # Initialize wandb for eval if requested
+    if report_to_wandb:
+        model.init_wandb_for_eval(run_id=wandb_run_id)
 
     # evaluation
     print("\nEvaluation:")
@@ -678,6 +683,12 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--wandb-run-id",
+        default=None,
+        help="Wandb run ID to resume for eval (only valid with eval action)",
+    )
+
     args = parser.parse_args()
 
     model = args.model
@@ -697,6 +708,7 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    wandb_run_id = args.wandb_run_id
 
     if architecture is None:
         raise ValueError(
@@ -738,7 +750,11 @@ if __name__ == "__main__":
                 "A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input"
             )
         eval_(
-            model, input_path=input_path, architecture=architecture
+            model,
+            input_path=input_path,
+            architecture=architecture,
+            report_to_wandb=wandb,
+            wandb_run_id=wandb_run_id,
         )
 
     if action == Tasks.TRAIN_EVAL:

@@ -164,8 +164,13 @@ class Sequence(object):
         if report_to_wandb:
             self._init_wandb(model_name)
 
-    def _init_wandb(self, model_name):
-        """Initialize Weights & Biases logging."""
+    def _init_wandb(self, model_name, run_id=None):
+        """Initialize Weights & Biases logging.
+        
+        Args:
+            model_name: Name for the wandb run
+            run_id: Optional run ID to resume an existing run
+        """
         try:
             import wandb
             from dotenv import load_dotenv
@@ -175,23 +180,43 @@ class Sequence(object):
                 print("Warning: WANDB_API_KEY not set, wandb disabled")
                 self.report_to_wandb = False
                 return
-            wandb.init(
-                name=model_name,
-                config={
-                    "model_name": self.model_config.model_name,
-                    "architecture": self.model_config.architecture,
-                    "transformer_name": self.model_config.transformer_name,
-                    "embeddings_name": self.model_config.embeddings_name,
-                    "embedding_size": self.model_config.word_embedding_size,
-                    "batch_size": self.training_config.batch_size,
-                    "learning_rate": self.training_config.learning_rate,
-                    "max_epoch": self.training_config.max_epoch,
-                },
-            )
+            
+            # Resume existing run or start new one
+            if run_id:
+                wandb.init(id=run_id, resume="must")
+                print(f"Resumed wandb run: {run_id}")
+            else:
+                wandb.init(
+                    name=model_name,
+                    config={
+                        "model_name": self.model_config.model_name,
+                        "architecture": self.model_config.architecture,
+                        "transformer_name": self.model_config.transformer_name,
+                        "embeddings_name": self.model_config.embeddings_name,
+                        "embedding_size": self.model_config.word_embedding_size,
+                        "batch_size": self.training_config.batch_size,
+                        "learning_rate": self.training_config.learning_rate,
+                        "max_epoch": self.training_config.max_epoch,
+                    },
+                )
+            self.wandb = wandb
             wandb.define_metric("f1", summary="max")
+            wandb.define_metric("eval_f1", summary="max")
         except ImportError:
             print("Warning: wandb not available")
             self.report_to_wandb = False
+
+    def init_wandb_for_eval(self, run_id=None):
+        """Initialize wandb for evaluation logging.
+        
+        Call this after model.load() to enable logging eval results to wandb.
+        
+        Args:
+            run_id: Optional wandb run ID to resume an existing run.
+                   If None, starts a new run.
+        """
+        self.report_to_wandb = True
+        self._init_wandb(self.model_config.model_name, run_id=run_id)
 
     def train(
         self,
@@ -479,8 +504,24 @@ class Sequence(object):
             [idx_to_label.get(l, "O") for l in label] for label in all_labels
         ]
 
-        report, _ = classification_report(true_labels, pred_labels, digits=4)
+        report, evaluation = classification_report(true_labels, pred_labels, digits=4)
         print(report)
+        
+        # Extract metrics for return and wandb logging
+        metrics = {}
+        if "micro" in evaluation:
+            metrics = {
+                "eval_f1": evaluation["micro"]["f1"],
+                "eval_precision": evaluation["micro"]["precision"],
+                "eval_recall": evaluation["micro"]["recall"],
+            }
+        
+        # Log to wandb if enabled
+        if self.report_to_wandb and hasattr(self, 'wandb'):
+            self.wandb.log(metrics)
+            print(f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}")
+        
+        return metrics
 
     def eval_nfold(self, x_test, y_test, features=None):
         """Evaluate n-fold models."""
