@@ -51,8 +51,6 @@ class Sequence(object):
     sequence labeling models.
     """
 
-    nb_workers = 4
-
     def __init__(
         self,
         model_name=None,
@@ -81,6 +79,7 @@ class Sequence(object):
         transformer_name: str = None,
         report_to_wandb=False,
         device=None,
+        nb_workers: int = None,
     ):
         if model_name is None:
             model_name = architecture
@@ -95,6 +94,12 @@ class Sequence(object):
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.report_to_wandb = report_to_wandb
+        
+        # Set number of workers: default to cpu_count - 1, minimum 1
+        if nb_workers is None:
+            self.nb_workers = max(1, os.cpu_count() - 1)
+        else:
+            self.nb_workers = nb_workers
 
         # Set device
         if device is None:
