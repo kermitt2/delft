@@ -35,7 +35,7 @@ def configure(architecture):
 
 
 def train(
-    embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False
+    embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False, report_to_wandb=False
 ):
     print("loading binary dataset type corpus...")
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
@@ -64,6 +64,7 @@ def train(
         class_weights=class_weights,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
     )
 
     if fold_count == 1:
@@ -761,6 +762,12 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
@@ -779,6 +786,8 @@ if __name__ == "__main__":
         # default word embeddings
         embeddings_name = "glove-840B"
 
+    wandb = args.wandb
+
     if args.action == "train":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
@@ -789,6 +798,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             cascaded=cascaded,
+            report_to_wandb=wandb,
         )
 
     if args.action == "train_eval":

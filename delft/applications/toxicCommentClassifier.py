@@ -29,7 +29,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None):
+def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, report_to_wandb=False):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier(
@@ -45,6 +45,7 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
         patience=patience,
         early_stop=early_stop,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
     )
 
     print("loading train dataset...")
@@ -120,6 +121,12 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
@@ -138,6 +145,8 @@ if __name__ == "__main__":
         # default word embeddings
         embeddings_name = "glove-840B"
 
+    wandb = args.wandb
+
     if architecture.find("bert") != -1:
         print(
             "BERT models are not supported for multi-label labelling, at least for the moment. Please choose a RNN architecture."
@@ -152,6 +161,7 @@ if __name__ == "__main__":
             fold_count=args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            report_to_wandb=wandb,
         )
 
     if action == "test":

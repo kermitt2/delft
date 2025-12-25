@@ -26,8 +26,8 @@ from delft.sequenceLabelling.trainer import (
     DEFAULT_WEIGHT_FILE_NAME,
     CONFIG_FILE_NAME,
     PROCESSOR_FILE_NAME,
-    to_wandb_table,
 )
+from delft.utilities.misc import to_wandb_table
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.models import get_model

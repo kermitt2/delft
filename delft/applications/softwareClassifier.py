@@ -40,7 +40,7 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train(embeddings_name, fold_count, architecture="gru", transformer=None, report_to_wandb=False):
     print("loading binary software use dataset...")
     xtr, y = load_software_use_corpus_json(
         "data/textClassification/software/software-use.json.gz"
@@ -65,6 +65,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
         early_stop=early_stop,
         class_weights=class_weights,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
     )
 
     if fold_count == 1:
@@ -75,7 +76,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, report_to_wandb=False):
     print("loading binary software use dataset...")
     xtr, y = load_software_use_corpus_json(
         "data/textClassification/software/software-use.json.gz"
@@ -114,6 +115,7 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
         early_stop=early_stop,
         class_weights=class_weights,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
     )
 
     if fold_count == 1:
@@ -187,6 +189,12 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
 
     args = parser.parse_args()
 
@@ -204,6 +212,8 @@ if __name__ == "__main__":
         # default word embeddings
         embeddings_name = "glove-840B"
 
+    wandb = args.wandb
+
     if args.action == "train":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
@@ -213,6 +223,7 @@ if __name__ == "__main__":
             args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            report_to_wandb=wandb,
         )
 
     if args.action == "train_eval":
@@ -224,6 +235,7 @@ if __name__ == "__main__":
             args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            report_to_wandb=wandb,
         )
 
     if args.action == "classify":

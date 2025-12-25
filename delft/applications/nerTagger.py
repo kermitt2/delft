@@ -108,6 +108,7 @@ def train(
     max_epoch=-1,
     early_stop=None,
     multi_gpu=False,
+    report_to_wandb=False,
 ):
     (
         batch_size,
@@ -169,6 +170,7 @@ def train(
             max_sequence_length=max_sequence_length,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
+            report_to_wandb=report_to_wandb,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -210,6 +212,7 @@ def train(
             max_sequence_length=max_sequence_length,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
+            report_to_wandb=report_to_wandb,
         )
     elif lang == "fr":
         print("Loading data...")
@@ -239,6 +242,7 @@ def train(
             max_sequence_length=max_sequence_length,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
+            report_to_wandb=report_to_wandb,
         )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -275,6 +279,7 @@ def train_eval(
     max_epoch=-1,
     early_stop=None,
     multi_gpu=False,
+    report_to_wandb=False,
 ):
     (
         batch_size,
@@ -330,6 +335,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -350,6 +356,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
@@ -416,6 +423,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly),
@@ -436,6 +444,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
 
     elif (lang == "fr") and (dataset_type == "ftb" or dataset_type is None):
@@ -503,6 +512,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -523,6 +533,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
     elif (lang == "fr") and (dataset_type == "ftb_force_split_xml"):
         print("Loading data for ftb_force_split_xml...")
@@ -557,6 +568,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -577,6 +589,7 @@ def train_eval(
                 max_sequence_length=max_sequence_length,
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
+                report_to_wandb=report_to_wandb,
             )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -607,6 +620,8 @@ def eval(
     lang="en",
     architecture="BidLSTM_CRF",
     data_path=None,
+    report_to_wandb=False,
+    wandb_run_id=None,
 ):
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading CoNLL-2003 NER data...")
@@ -640,6 +655,10 @@ def eval(
             lang,
         )
         return
+
+    # Initialize wandb for eval if requested
+    if report_to_wandb:
+        model.init_wandb_for_eval(run_id=wandb_run_id)
 
     start_time = time.time()
 
@@ -834,6 +853,19 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--wandb-run-id",
+        default=None,
+        help="Wandb run ID to resume for eval (only valid with eval action)",
+    )
+
     args = parser.parse_args()
 
     action = args.action
@@ -856,6 +888,8 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
+    wandb = args.wandb
+    wandb_run_id = args.wandb_run_id
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),
@@ -878,6 +912,7 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
         )
 
     if action == "train_eval":
@@ -899,6 +934,7 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
         )
 
     if action == "eval":
@@ -906,7 +942,8 @@ if __name__ == "__main__":
             dataset_type=dataset_type,
             lang=lang,
             architecture=architecture,
-            # transformer=transformer,
+            report_to_wandb=wandb,
+            wandb_run_id=wandb_run_id,
         )
 
     if action == "tag":

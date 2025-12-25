@@ -3,8 +3,10 @@ import time
 import numpy as np
 
 import torch
+from sklearn.metrics import precision_recall_fscore_support, accuracy_score, f1_score
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.models import getModel
 from delft.textClassification.data_loader import create_dataloader
@@ -47,6 +49,7 @@ class Classifier(object):
         multiprocessing=True,
         transformer_name: str = None,
         device=None,
+        report_to_wandb=False,
     ):
         self.model_config = ModelConfig(
             model_name=model_name,
@@ -81,6 +84,8 @@ class Classifier(object):
         self.models = None
         self.embeddings = None
         self.preprocessor = None
+        self.report_to_wandb = report_to_wandb
+        self.wandb = None
 
         if device is None:
             self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -98,6 +103,42 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.model_config.word_embedding_size = 0
+
+        if report_to_wandb:
+            self._init_wandb(model_name)
+
+    def _init_wandb(self, model_name, run_id=None):
+        """Initialize Weights & Biases logging."""
+        try:
+            import wandb
+            from dotenv import load_dotenv
+
+            load_dotenv(override=True)
+            if os.getenv("WANDB_API_KEY") is None:
+                print("Warning: WANDB_API_KEY not set, wandb disabled")
+                self.report_to_wandb = False
+                return
+            
+            if run_id:
+                wandb.init(id=run_id, resume="must")
+                print(f"Resumed wandb run: {run_id}")
+            else:
+                wandb.init(
+                    name=model_name,
+                    config={
+                        "model_name": self.model_config.model_name,
+                        "architecture": self.model_config.architecture,
+                        "transformer_name": self.model_config.transformer_name,
+                        "embeddings_name": self.model_config.embeddings_name,
+                        "batch_size": self.training_config.batch_size,
+                        "learning_rate": self.training_config.learning_rate,
+                        "max_epoch": self.training_config.max_epoch,
+                    },
+                )
+            self.wandb = wandb
+        except ImportError:
+            print("Warning: wandb not available")
+            self.report_to_wandb = False
 
     def train(
         self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
@@ -182,6 +223,143 @@ class Classifier(object):
         self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
     ):
         pass  # To implement if needed, following logic in wrapper.py
+
+    def eval(self, x_test, y_test):
+        """Evaluate model on test data.
+        
+        Args:
+            x_test: Test texts
+            y_test: Test labels (numpy array with shape [n_samples, n_classes])
+        """
+        print_parameters(self.model_config, self.training_config)
+        
+        if self.model is None:
+            raise OSError("Model not loaded")
+        
+        self.model.eval()
+        self.model.to(self.device)
+        
+        # Get transformer tokenizer if needed
+        transformer_tokenizer = None
+        if self.model_config.transformer_name is not None:
+            from transformers import AutoTokenizer
+            transformer_tokenizer = AutoTokenizer.from_pretrained(
+                self.model_config.transformer_name
+            )
+        
+        # Create dataloader
+        test_loader = create_dataloader(
+            x_test,
+            y_test,
+            self.model_config,
+            embeddings=self.embeddings,
+            transformer_tokenizer=transformer_tokenizer,
+            batch_size=self.model_config.batch_size,
+            shuffle=False,
+        )
+        
+        all_preds = []
+        all_labels = []
+        
+        with torch.no_grad():
+            for batch in test_loader:
+                if len(batch) == 2:
+                    inputs, labels = batch
+                    labels = labels.to(self.device)
+                else:
+                    inputs = batch
+                    labels = None
+                
+                if isinstance(inputs, dict):
+                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                else:
+                    inputs = inputs.to(self.device)
+                
+                outputs = self.model(inputs)
+                probs = torch.sigmoid(outputs["logits"])
+                all_preds.append(probs.cpu().numpy())
+                if labels is not None:
+                    all_labels.append(labels.cpu().numpy())
+        
+        y_pred_probs = np.concatenate(all_preds, axis=0)
+        y_true = np.concatenate(all_labels, axis=0) if all_labels else None
+        
+        if y_true is None:
+            print("No labels provided for evaluation")
+            return
+        
+        # Convert probabilities to binary predictions
+        y_pred_binary = (y_pred_probs > 0.5).astype(int)
+        
+        # Calculate per-class metrics
+        precision, recall, fscore, support = precision_recall_fscore_support(
+            y_true, y_pred_binary, average=None
+        )
+        
+        # Print results
+        print("\n-----------------------------------------------")
+        print(f"Evaluation on {len(x_test)} instances:")
+        print(f"{'':>14}  {'precision':>12}  {'recall':>12}  {'f-score':>12}  {'support':>12}")
+        
+        evaluation = {'labels': {}, 'micro': {}, 'macro': {}}
+        total_support = 0
+        
+        for i, class_name in enumerate(self.model_config.list_classes):
+            class_name_short = class_name[:14]
+            print(f"{class_name_short:>14}  {precision[i]:>12.4f}  {recall[i]:>12.4f}  {fscore[i]:>12.4f}  {int(support[i]):>12}")
+            evaluation['labels'][class_name] = {
+                'precision': float(precision[i]),
+                'recall': float(recall[i]),
+                'f1': float(fscore[i]),
+                'support': int(support[i])
+            }
+            total_support += int(support[i])
+        
+        # Calculate macro and micro averages
+        macro_precision = np.mean(precision)
+        macro_recall = np.mean(recall)
+        macro_f1 = np.mean(fscore)
+        
+        # Flatten for micro average calculation
+        y_true_flat = y_true.flatten()
+        y_pred_flat = y_pred_binary.flatten()
+        micro_f1 = f1_score(y_true_flat, y_pred_flat, average='micro')
+        micro_precision, micro_recall, _, _ = precision_recall_fscore_support(
+            y_true_flat, y_pred_flat, average='micro'
+        )
+        
+        print(f"{'macro avg':>14}  {macro_precision:>12.4f}  {macro_recall:>12.4f}  {macro_f1:>12.4f}  {total_support:>12}")
+        print(f"{'micro avg':>14}  {micro_precision:>12.4f}  {micro_recall:>12.4f}  {micro_f1:>12.4f}  {total_support:>12}")
+        print("-----------------------------------------------")
+        
+        evaluation['macro'] = {
+            'precision': float(macro_precision),
+            'recall': float(macro_recall),
+            'f1': float(macro_f1),
+            'support': total_support
+        }
+        evaluation['micro'] = {
+            'precision': float(micro_precision),
+            'recall': float(micro_recall),
+            'f1': float(micro_f1),
+            'support': total_support
+        }
+        
+        # Log to wandb if enabled
+        if self.report_to_wandb and hasattr(self, 'wandb') and self.wandb is not None:
+            metrics = {
+                'eval_f1': micro_f1,
+                'eval_precision': micro_precision,
+                'eval_recall': micro_recall,
+            }
+            self.wandb.log(metrics)
+            # Log evaluation table
+            columns, data = to_wandb_table(evaluation)
+            table = self.wandb.Table(columns=columns, data=data)
+            self.wandb.log({"Evaluation scores": table})
+            print(f"Logged evaluation metrics to wandb: f1={micro_f1:.4f}")
+        
+        return evaluation
 
     def predict(
         self, texts, output_format="json", use_main_thread_only=False, batch_size=None

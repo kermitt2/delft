@@ -45,6 +45,7 @@ def train(
     max_epoch=-1,
     early_stop=None,
     multi_gpu=False,
+    report_to_wandb=False,
 ):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(
         architecture, embeddings_name, batch_size, max_epoch, early_stop
@@ -73,6 +74,7 @@ def train(
         early_stop=early_stop,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
     )
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     print("training done")
@@ -197,6 +199,13 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
     args = parser.parse_args()
 
     if args.action not in ("train", "tag"):
@@ -211,6 +220,7 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
+    wandb = args.wandb
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
@@ -226,6 +236,7 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
         )
 
     if args.action == "tag":

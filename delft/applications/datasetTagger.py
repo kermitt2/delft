@@ -98,6 +98,7 @@ def train(
     learning_rate=None,
     early_stop=None,
     multi_gpu=False,
+    report_to_wandb=False,
 ):
     print("Loading data...")
     if input_path is None:
@@ -165,6 +166,7 @@ def train(
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
     )
 
     start_time = time.time()
@@ -196,6 +198,7 @@ def train_eval(
     learning_rate=None,
     early_stop=None,
     multi_gpu=False,
+    report_to_wandb=False,
 ):
     print("Loading data...")
     if input_path is None:
@@ -266,6 +269,7 @@ def train_eval(
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
     )
 
     start_time = time.time()
@@ -444,6 +448,13 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
     args = parser.parse_args()
 
     action = args.action
@@ -459,6 +470,7 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
+    wandb = args.wandb
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -478,6 +490,7 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
         )
 
     if action == "eval":
@@ -509,6 +522,7 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
         )
 
     if action == "tag":
