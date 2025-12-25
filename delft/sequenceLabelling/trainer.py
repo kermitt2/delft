@@ -308,12 +308,18 @@ class Trainer:
             else:
                 logger.info(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
 
-        # Load best model from model-specific checkpoint
+        # Load best model from model-specific checkpoint and cleanup
         best_model_path = checkpoint_filepath
         if os.path.exists(best_model_path):
             self.model.load_state_dict(
                 torch.load(best_model_path, map_location=self.device)
             )
+            # Remove checkpoint file - the wrapper will save the final model
+            try:
+                os.remove(best_model_path)
+                logger.info(f"Removed temporary checkpoint: {best_model_path}")
+            except OSError:
+                pass  # Ignore if file can't be removed
 
         return history
 
