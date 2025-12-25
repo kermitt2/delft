@@ -26,6 +26,7 @@ from delft.sequenceLabelling.trainer import (
     DEFAULT_WEIGHT_FILE_NAME,
     CONFIG_FILE_NAME,
     PROCESSOR_FILE_NAME,
+    to_wandb_table,
 )
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
@@ -518,7 +519,12 @@ class Sequence(object):
         
         # Log to wandb if enabled
         if self.report_to_wandb and hasattr(self, 'wandb'):
+            # Log metrics
             self.wandb.log(metrics)
+            # Log evaluation table
+            columns, data = to_wandb_table(evaluation)
+            table = self.wandb.Table(columns=columns, data=data)
+            self.wandb.log({"Evaluation scores": table})
             print(f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}")
         
         return metrics
