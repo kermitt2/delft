@@ -66,7 +66,13 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None, report_to_wandb=False):
+def train(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
@@ -137,7 +143,13 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, rep
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None, report_to_wandb=False):
+def train_and_eval(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",

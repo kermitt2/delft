@@ -106,7 +106,7 @@ class ModelCheckpoint:
     def _save(self, model: nn.Module):
         """Save model weights."""
         # Handle DDP wrapped models - get underlying model
-        if hasattr(model, 'module'):
+        if hasattr(model, "module"):
             state_dict = model.module.state_dict()
         else:
             state_dict = model.state_dict()
@@ -157,7 +157,7 @@ class Trainer:
 
         # Move model to device first
         model.to(self.device)
-        
+
         # Wrap model with DDP if distributed training
         if self.distributed:
             self.model = DDP(model, device_ids=[local_rank], output_device=local_rank)
@@ -169,10 +169,11 @@ class Trainer:
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.enable_wandb = enable_wandb
-        
+
         # Only enable wandb on main process for distributed training
         if self.distributed:
             from delft.utilities.distributed import is_main_process
+
             if not is_main_process():
                 self.enable_wandb = False
 
@@ -239,7 +240,7 @@ class Trainer:
 
         # Set up callbacks
         early_stopping = EarlyStopping(patience=self.training_config.patience)
-        
+
         # Use model-specific checkpoint filename to avoid conflicts between architectures
         checkpoint_filename = f"{self.config.model_name}_{DEFAULT_WEIGHT_FILE_NAME}"
         checkpoint_filepath = (
@@ -314,13 +315,16 @@ class Trainer:
                 should_save = True
                 if self.distributed:
                     from delft.utilities.distributed import is_main_process
+
                     should_save = is_main_process()
-                
+
                 if should_save and checkpoint(self._unwrapped_model, val_metrics["f1"]):
                     best_f1 = val_metrics["f1"]
 
                 # Early stopping
-                if self.training_config.early_stop and early_stopping(val_metrics["f1"]):
+                if self.training_config.early_stop and early_stopping(
+                    val_metrics["f1"]
+                ):
                     logger.info(f"Early stopping at epoch {epoch + 1}")
                     break
 
@@ -344,8 +348,9 @@ class Trainer:
         should_load = True
         if self.distributed:
             from delft.utilities.distributed import is_main_process, barrier
+
             should_load = is_main_process()
-        
+
         if should_load and os.path.exists(best_model_path):
             self._unwrapped_model.load_state_dict(
                 torch.load(best_model_path, map_location=self.device)
@@ -356,7 +361,7 @@ class Trainer:
                 logger.info(f"Removed temporary checkpoint: {best_model_path}")
             except OSError:
                 pass  # Ignore if file can't be removed
-        
+
         # Synchronize all processes after loading
         if self.distributed:
             barrier()

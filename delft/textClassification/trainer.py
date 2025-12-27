@@ -32,11 +32,17 @@ class Trainer(object):
         self.early_stopping = EarlyStopping(
             patience=training_config.patience, min_delta=0, mode="min"
         )
-        
+
         # Model checkpoint with model-specific filename
         checkpoint_filename = f"{model_config.model_name}_best_model.pth"
-        checkpoint_filepath = os.path.join(checkpoint_path, checkpoint_filename) if checkpoint_path else checkpoint_filename
-        self.model_checkpoint = ModelCheckpoint(checkpoint_filepath, monitor="loss", mode="min")
+        checkpoint_filepath = (
+            os.path.join(checkpoint_path, checkpoint_filename)
+            if checkpoint_path
+            else checkpoint_filename
+        )
+        self.model_checkpoint = ModelCheckpoint(
+            checkpoint_filepath, monitor="loss", mode="min"
+        )
 
     def train(self, train_loader, valid_loader=None):
         for epoch in range(self.training_config.max_epoch):
@@ -87,7 +93,7 @@ class Trainer(object):
 
                 # Save model checkpoint if improved
                 self.model_checkpoint(self.model, val_metrics["loss"])
-                
+
                 # Check early stopping (uses loss for stopping decision)
                 if self.early_stopping(val_metrics["loss"]):
                     print("Early stopping")

@@ -260,7 +260,9 @@ class ChainCRF(nn.Module):
         self._num_tags = num_tags
 
         # Transition matrix (energy between tag pairs)
-        self.U = nn.Parameter(torch.empty(num_tags, num_tags, device=device, dtype=dtype))
+        self.U = nn.Parameter(
+            torch.empty(num_tags, num_tags, device=device, dtype=dtype)
+        )
         nn.init.xavier_uniform_(self.U)
 
         # Boundary energies
@@ -288,7 +290,9 @@ class ChainCRF(nn.Module):
             During inference: Best tag sequence [batch_size, seq_len]
         """
         if not self._built:
-            self.build(emissions.size(-1), device=emissions.device, dtype=emissions.dtype)
+            self.build(
+                emissions.size(-1), device=emissions.device, dtype=emissions.dtype
+            )
 
         if tags is not None:
             # Training: compute loss

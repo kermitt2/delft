@@ -19,7 +19,6 @@ from delft.utilities.preprocess import (
     case_index,
     pad_sequences,
     dense_to_one_hot,
-    get_casing,
     lower as _lower,
     normalize_num as _normalize_num,
     calculate_cardinality,
@@ -447,7 +446,8 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i])
+                not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
                 and not empty_token
@@ -462,7 +462,8 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i])
+                not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and not empty_token
                 and not (
@@ -496,7 +497,7 @@ class BERTPreprocessor(object):
 
         # Use the tokenizer's word_ids() method for reliable word boundary detection
         # This is more robust across different tokenizer implementations (BERT, RoBERTa, modernBERT, etc.)
-        
+
         prev_word_idx = None
         for i, word_idx in enumerate(word_ids):
             if word_idx is None:

@@ -29,7 +29,13 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, report_to_wandb=False):
+def train(
+    embeddings_name=None,
+    fold_count=1,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier(

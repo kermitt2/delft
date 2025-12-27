@@ -393,12 +393,13 @@ def create_dataloader(
     """
     Create a DataLoader for a DeLFT dataset.
     Factory method that creates the appropriate Dataset based on configuration.
-    
+
     Args:
         distributed: If True, use DistributedSampler for multi-GPU training
     """
     if model_config and model_config.transformer_name:
         from transformers import AutoTokenizer
+
         # Initialize BERT/Transformer preprocessor
         tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name)
         bert_preprocessor = BERTPreprocessor(tokenizer)

@@ -72,9 +72,7 @@ class TextClassificationDataset(Dataset):
             inputs = {k: v.squeeze(0) for k, v in inputs.items()}
         elif self.use_preprocessor:
             # New preprocessor mode: return word indices
-            indices = to_indices_single(
-                text, self.preprocessor.vocab_word, self.maxlen
-            )
+            indices = to_indices_single(text, self.preprocessor.vocab_word, self.maxlen)
             inputs = torch.tensor(indices, dtype=torch.long)
         else:
             # Legacy mode: return embedding vectors directly
@@ -134,4 +132,3 @@ def create_dataloader(
     )
 
     return loader
-

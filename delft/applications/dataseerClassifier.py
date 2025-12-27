@@ -35,7 +35,12 @@ def configure(architecture):
 
 
 def train(
-    embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False, report_to_wandb=False
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    cascaded=False,
+    report_to_wandb=False,
 ):
     print("loading binary dataset type corpus...")
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(

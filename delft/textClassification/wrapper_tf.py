@@ -61,7 +61,6 @@ import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 
-
 class Classifier(object):
     config_file = "config.json"
     weight_file = "model_weights.hdf5"

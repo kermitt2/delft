@@ -15,8 +15,6 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.preprocess import (
     UNK,
     PAD,
-    pad_sequences,
-    dense_to_one_hot,
     BasePreprocessor,
 )
 
@@ -266,4 +264,3 @@ class TextPreprocessor(BasePreprocessor):
                 weights[idx] = embeddings.get_word_vector(word)
 
         return weights
-

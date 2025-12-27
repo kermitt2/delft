@@ -3,7 +3,7 @@ import time
 import numpy as np
 
 import torch
-from sklearn.metrics import precision_recall_fscore_support, accuracy_score, f1_score
+from sklearn.metrics import precision_recall_fscore_support, f1_score
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
@@ -118,7 +118,7 @@ class Classifier(object):
                 print("Warning: WANDB_API_KEY not set, wandb disabled")
                 self.report_to_wandb = False
                 return
-            
+
             if run_id:
                 wandb.init(id=run_id, resume="must")
                 print(f"Resumed wandb run: {run_id}")
@@ -208,7 +208,7 @@ class Classifier(object):
         # Ensure model output directory exists for checkpoints
         model_dir = self._get_model_dir()
         os.makedirs(model_dir, exist_ok=True)
-        
+
         trainer = Trainer(
             self.model,
             self.model_config,
@@ -226,27 +226,28 @@ class Classifier(object):
 
     def eval(self, x_test, y_test):
         """Evaluate model on test data.
-        
+
         Args:
             x_test: Test texts
             y_test: Test labels (numpy array with shape [n_samples, n_classes])
         """
         print_parameters(self.model_config, self.training_config)
-        
+
         if self.model is None:
             raise OSError("Model not loaded")
-        
+
         self.model.eval()
         self.model.to(self.device)
-        
+
         # Get transformer tokenizer if needed
         transformer_tokenizer = None
         if self.model_config.transformer_name is not None:
             from transformers import AutoTokenizer
+
             transformer_tokenizer = AutoTokenizer.from_pretrained(
                 self.model_config.transformer_name
             )
-        
+
         # Create dataloader
         test_loader = create_dataloader(
             x_test,
@@ -257,10 +258,10 @@ class Classifier(object):
             batch_size=self.model_config.batch_size,
             shuffle=False,
         )
-        
+
         all_preds = []
         all_labels = []
-        
+
         with torch.no_grad():
             for batch in test_loader:
                 if len(batch) == 2:
@@ -269,88 +270,96 @@ class Classifier(object):
                 else:
                     inputs = batch
                     labels = None
-                
+
                 if isinstance(inputs, dict):
                     inputs = {k: v.to(self.device) for k, v in inputs.items()}
                 else:
                     inputs = inputs.to(self.device)
-                
+
                 outputs = self.model(inputs)
                 probs = torch.sigmoid(outputs["logits"])
                 all_preds.append(probs.cpu().numpy())
                 if labels is not None:
                     all_labels.append(labels.cpu().numpy())
-        
+
         y_pred_probs = np.concatenate(all_preds, axis=0)
         y_true = np.concatenate(all_labels, axis=0) if all_labels else None
-        
+
         if y_true is None:
             print("No labels provided for evaluation")
             return
-        
+
         # Convert probabilities to binary predictions
         y_pred_binary = (y_pred_probs > 0.5).astype(int)
-        
+
         # Calculate per-class metrics
         precision, recall, fscore, support = precision_recall_fscore_support(
             y_true, y_pred_binary, average=None
         )
-        
+
         # Print results
         print("\n-----------------------------------------------")
         print(f"Evaluation on {len(x_test)} instances:")
-        print(f"{'':>14}  {'precision':>12}  {'recall':>12}  {'f-score':>12}  {'support':>12}")
-        
-        evaluation = {'labels': {}, 'micro': {}, 'macro': {}}
+        print(
+            f"{'':>14}  {'precision':>12}  {'recall':>12}  {'f-score':>12}  {'support':>12}"
+        )
+
+        evaluation = {"labels": {}, "micro": {}, "macro": {}}
         total_support = 0
-        
+
         for i, class_name in enumerate(self.model_config.list_classes):
             class_name_short = class_name[:14]
-            print(f"{class_name_short:>14}  {precision[i]:>12.4f}  {recall[i]:>12.4f}  {fscore[i]:>12.4f}  {int(support[i]):>12}")
-            evaluation['labels'][class_name] = {
-                'precision': float(precision[i]),
-                'recall': float(recall[i]),
-                'f1': float(fscore[i]),
-                'support': int(support[i])
+            print(
+                f"{class_name_short:>14}  {precision[i]:>12.4f}  {recall[i]:>12.4f}  {fscore[i]:>12.4f}  {int(support[i]):>12}"
+            )
+            evaluation["labels"][class_name] = {
+                "precision": float(precision[i]),
+                "recall": float(recall[i]),
+                "f1": float(fscore[i]),
+                "support": int(support[i]),
             }
             total_support += int(support[i])
-        
+
         # Calculate macro and micro averages
         macro_precision = np.mean(precision)
         macro_recall = np.mean(recall)
         macro_f1 = np.mean(fscore)
-        
+
         # Flatten for micro average calculation
         y_true_flat = y_true.flatten()
         y_pred_flat = y_pred_binary.flatten()
-        micro_f1 = f1_score(y_true_flat, y_pred_flat, average='micro')
+        micro_f1 = f1_score(y_true_flat, y_pred_flat, average="micro")
         micro_precision, micro_recall, _, _ = precision_recall_fscore_support(
-            y_true_flat, y_pred_flat, average='micro'
+            y_true_flat, y_pred_flat, average="micro"
         )
-        
-        print(f"{'macro avg':>14}  {macro_precision:>12.4f}  {macro_recall:>12.4f}  {macro_f1:>12.4f}  {total_support:>12}")
-        print(f"{'micro avg':>14}  {micro_precision:>12.4f}  {micro_recall:>12.4f}  {micro_f1:>12.4f}  {total_support:>12}")
+
+        print(
+            f"{'macro avg':>14}  {macro_precision:>12.4f}  {macro_recall:>12.4f}  {macro_f1:>12.4f}  {total_support:>12}"
+        )
+        print(
+            f"{'micro avg':>14}  {micro_precision:>12.4f}  {micro_recall:>12.4f}  {micro_f1:>12.4f}  {total_support:>12}"
+        )
         print("-----------------------------------------------")
-        
-        evaluation['macro'] = {
-            'precision': float(macro_precision),
-            'recall': float(macro_recall),
-            'f1': float(macro_f1),
-            'support': total_support
+
+        evaluation["macro"] = {
+            "precision": float(macro_precision),
+            "recall": float(macro_recall),
+            "f1": float(macro_f1),
+            "support": total_support,
         }
-        evaluation['micro'] = {
-            'precision': float(micro_precision),
-            'recall': float(micro_recall),
-            'f1': float(micro_f1),
-            'support': total_support
+        evaluation["micro"] = {
+            "precision": float(micro_precision),
+            "recall": float(micro_recall),
+            "f1": float(micro_f1),
+            "support": total_support,
         }
-        
+
         # Log to wandb if enabled
-        if self.report_to_wandb and hasattr(self, 'wandb') and self.wandb is not None:
+        if self.report_to_wandb and hasattr(self, "wandb") and self.wandb is not None:
             metrics = {
-                'eval_f1': micro_f1,
-                'eval_precision': micro_precision,
-                'eval_recall': micro_recall,
+                "eval_f1": micro_f1,
+                "eval_precision": micro_precision,
+                "eval_recall": micro_recall,
             }
             self.wandb.log(metrics)
             # Log evaluation table
@@ -358,7 +367,7 @@ class Classifier(object):
             table = self.wandb.Table(columns=columns, data=data)
             self.wandb.log({"Evaluation scores": table})
             print(f"Logged evaluation metrics to wandb: f1={micro_f1:.4f}")
-        
+
         return evaluation
 
     def predict(

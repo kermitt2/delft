@@ -54,7 +54,6 @@ def configure(
 
     model_name += "-" + architecture
 
-
     if batch_size == -1:
         batch_size = 20
 

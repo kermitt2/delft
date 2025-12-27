@@ -1031,13 +1031,13 @@ class BERT(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoModel
 
         transformer_name = config.transformer_name or "bert-base-uncased"
 
         # Load transformer
         # Note: local_path is for loading a locally-stored transformer (not from HuggingFace)
-        # When load_pretrained_weights=False, we load from transformer_name since fine-tuned 
+        # When load_pretrained_weights=False, we load from transformer_name since fine-tuned
         # weights will be loaded separately by the wrapper via load_state_dict()
         if load_pretrained_weights:
             if local_path and os.path.exists(os.path.join(local_path, "config.json")):
@@ -1113,7 +1113,7 @@ class BERT_CRF(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoModel
 
         transformer_name = config.transformer_name or "bert-base-uncased"
 
@@ -1194,7 +1194,7 @@ class BERT_ChainCRF(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoModel
 
         transformer_name = config.transformer_name or "bert-base-uncased"
 
@@ -1264,7 +1264,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoModel
 
         transformer_name = config.transformer_name or "bert-base-uncased"
 
@@ -1383,7 +1383,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoModel
 
         transformer_name = config.transformer_name or "bert-base-uncased"
 

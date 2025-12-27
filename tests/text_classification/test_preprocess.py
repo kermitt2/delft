@@ -4,7 +4,6 @@ Tests for text classification preprocessing in delft/textClassification/preproce
 
 import logging
 import numpy as np
-import pytest
 import os
 import tempfile
 
@@ -12,7 +11,6 @@ from delft.textClassification.preprocess import (
     TextPreprocessor,
     to_indices_single,
     clean_text,
-    create_batch_input_bert,
 )
 from delft.utilities.preprocess import UNK, PAD
 

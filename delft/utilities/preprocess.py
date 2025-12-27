@@ -5,11 +5,9 @@ This module contains common preprocessing classes and functions used by both
 sequenceLabelling and textClassification modules.
 """
 
-import itertools
-import json
 import logging
 import re
-from typing import List, Iterable, Set, Dict, Any, Optional
+from typing import Iterable, Dict
 from abc import ABC, abstractmethod
 
 import numpy as np

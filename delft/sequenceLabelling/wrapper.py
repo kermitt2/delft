@@ -95,7 +95,7 @@ class Sequence(object):
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.report_to_wandb = report_to_wandb
-        
+
         # Set number of workers: default to cpu_count - 1, minimum 1
         if nb_workers is None:
             self.nb_workers = max(1, os.cpu_count() - 1)
@@ -167,7 +167,7 @@ class Sequence(object):
 
     def _init_wandb(self, model_name, run_id=None):
         """Initialize Weights & Biases logging.
-        
+
         Args:
             model_name: Name for the wandb run
             run_id: Optional run ID to resume an existing run
@@ -181,7 +181,7 @@ class Sequence(object):
                 print("Warning: WANDB_API_KEY not set, wandb disabled")
                 self.report_to_wandb = False
                 return
-            
+
             # Resume existing run or start new one
             if run_id:
                 wandb.init(id=run_id, resume="must")
@@ -209,9 +209,9 @@ class Sequence(object):
 
     def init_wandb_for_eval(self, run_id=None):
         """Initialize wandb for evaluation logging.
-        
+
         Call this after model.load() to enable logging eval results to wandb.
-        
+
         Args:
             run_id: Optional wandb run ID to resume an existing run.
                    If None, starts a new run.
@@ -234,32 +234,50 @@ class Sequence(object):
         """Train the model."""
         distributed = False
         local_rank = 0
-        
+
         # Multi-GPU support with PyTorch DistributedDataParallel
         if multi_gpu:
-            from delft.utilities.distributed import setup_distributed, get_world_size, is_main_process
+            from delft.utilities.distributed import (
+                setup_distributed,
+                get_world_size,
+                is_main_process,
+            )
+
             local_rank = setup_distributed()
-            
+
             if get_world_size() > 1:
                 distributed = True
                 self.device = torch.device(f"cuda:{local_rank}")
                 torch.cuda.set_device(self.device)
-                
+
                 if is_main_process():
                     print(f"Running distributed training with {get_world_size()} GPUs")
             else:
                 if torch.cuda.device_count() > 1:
-                    print(f"Warning: {torch.cuda.device_count()} GPUs available but running single-process.")
-                    print("For multi-GPU training, launch with: torchrun --nproc_per_node=N")
+                    print(
+                        f"Warning: {torch.cuda.device_count()} GPUs available but running single-process."
+                    )
+                    print(
+                        "For multi-GPU training, launch with: torchrun --nproc_per_node=N"
+                    )
 
         self._train(
-            x_train, y_train, f_train, x_valid, y_valid, f_valid, 
-            incremental, callbacks, distributed, local_rank
+            x_train,
+            y_train,
+            f_train,
+            x_valid,
+            y_valid,
+            f_valid,
+            incremental,
+            callbacks,
+            distributed,
+            local_rank,
         )
-        
+
         # Cleanup distributed training
         if distributed:
             from delft.utilities.distributed import cleanup_distributed
+
             cleanup_distributed()
 
     def _train(
@@ -279,7 +297,7 @@ class Sequence(object):
         # Import distributed utilities if needed
         if distributed:
             from delft.utilities.distributed import is_main_process
-        
+
         # Concatenate all data for vocabulary building
         if x_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
@@ -354,7 +372,7 @@ class Sequence(object):
         )
         if not distributed or is_main_process():
             os.makedirs(model_output_dir, exist_ok=True)
-        
+
         # Create trainer with distributed support
         trainer = Trainer(
             self.model,
@@ -370,7 +388,7 @@ class Sequence(object):
 
         # Train
         trainer.train(train_loader, valid_loader, callbacks=callbacks)
-        
+
         # Get the unwrapped model back from trainer for saving
         if distributed:
             self.model = trainer._unwrapped_model
@@ -544,7 +562,7 @@ class Sequence(object):
 
         report, evaluation = classification_report(true_labels, pred_labels, digits=4)
         print(report)
-        
+
         # Extract metrics for return and wandb logging
         metrics = {}
         if "micro" in evaluation:
@@ -553,17 +571,19 @@ class Sequence(object):
                 "eval_precision": evaluation["micro"]["precision"],
                 "eval_recall": evaluation["micro"]["recall"],
             }
-        
+
         # Log to wandb if enabled
-        if self.report_to_wandb and hasattr(self, 'wandb'):
+        if self.report_to_wandb and hasattr(self, "wandb"):
             # Log metrics
             self.wandb.log(metrics)
             # Log evaluation table
             columns, data = to_wandb_table(evaluation)
             table = self.wandb.Table(columns=columns, data=data)
             self.wandb.log({"Evaluation scores": table})
-            print(f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}")
-        
+            print(
+                f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}"
+            )
+
         return metrics
 
     def eval_nfold(self, x_test, y_test, features=None):

@@ -189,7 +189,6 @@ def configure(
 
     model_name += "-" + architecture
 
-
     if batch_size == -1:
         batch_size = 20
 
@@ -491,7 +490,7 @@ def eval_(
     # load the model
     model = Sequence(model_name)
     model.load()
-    
+
     # Initialize wandb for eval if requested
     if report_to_wandb:
         model.init_wandb_for_eval(run_id=wandb_run_id)
