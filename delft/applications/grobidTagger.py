@@ -772,6 +772,7 @@ if __name__ == "__main__":
             batch_size=batch_size,
             incremental=incremental,
             input_model_path=input_model_path,
+            patience=patience,
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
