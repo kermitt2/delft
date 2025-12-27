@@ -7,6 +7,7 @@ Replaces the Keras data generators with PyTorch equivalents.
 import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+from torch.utils.data.distributed import DistributedSampler
 from typing import Optional, List, Tuple
 
 from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
@@ -387,10 +388,14 @@ def create_dataloader(
     model_config=None,
     num_workers: int = 0,
     pin_memory: bool = True,
+    distributed: bool = False,
 ) -> DataLoader:
     """
     Create a DataLoader for a DeLFT dataset.
     Factory method that creates the appropriate Dataset based on configuration.
+    
+    Args:
+        distributed: If True, use DistributedSampler for multi-GPU training
     """
     if model_config and model_config.transformer_name:
         from transformers import AutoTokenizer
@@ -409,10 +414,17 @@ def create_dataloader(
             use_chain_crf=model_config.use_crf if model_config else False,
         )
 
+        # Use DistributedSampler for multi-GPU training
+        sampler = None
+        if distributed:
+            sampler = DistributedSampler(dataset, shuffle=shuffle)
+            shuffle = False  # Sampler handles shuffling
+
         return DataLoader(
             dataset,
             batch_size=batch_size,
-            shuffle=shuffle,
+            shuffle=shuffle if sampler is None else False,
+            sampler=sampler,
             num_workers=num_workers,
             pin_memory=pin_memory,
             collate_fn=collate_fn,
@@ -431,10 +443,17 @@ def create_dataloader(
         use_chain_crf=model_config.use_crf if model_config else False,
     )
 
+    # Use DistributedSampler for multi-GPU training
+    sampler = None
+    if distributed:
+        sampler = DistributedSampler(dataset, shuffle=shuffle)
+        shuffle = False  # Sampler handles shuffling
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
-        shuffle=shuffle,
+        shuffle=shuffle if sampler is None else False,
+        sampler=sampler,
         num_workers=num_workers,
         pin_memory=pin_memory,
         collate_fn=collate_fn,

@@ -232,15 +232,35 @@ class Sequence(object):
         multi_gpu=False,
     ):
         """Train the model."""
-        # Multi-GPU support with PyTorch DataParallel
-        if multi_gpu and torch.cuda.device_count() > 1:
-            print(
-                f"Running with multi-gpu. Number of devices: {torch.cuda.device_count()}"
-            )
+        distributed = False
+        local_rank = 0
+        
+        # Multi-GPU support with PyTorch DistributedDataParallel
+        if multi_gpu:
+            from delft.utilities.distributed import setup_distributed, get_world_size, is_main_process
+            local_rank = setup_distributed()
+            
+            if get_world_size() > 1:
+                distributed = True
+                self.device = torch.device(f"cuda:{local_rank}")
+                torch.cuda.set_device(self.device)
+                
+                if is_main_process():
+                    print(f"Running distributed training with {get_world_size()} GPUs")
+            else:
+                if torch.cuda.device_count() > 1:
+                    print(f"Warning: {torch.cuda.device_count()} GPUs available but running single-process.")
+                    print("For multi-GPU training, launch with: torchrun --nproc_per_node=N")
 
         self._train(
-            x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks
+            x_train, y_train, f_train, x_valid, y_valid, f_valid, 
+            incremental, callbacks, distributed, local_rank
         )
+        
+        # Cleanup distributed training
+        if distributed:
+            from delft.utilities.distributed import cleanup_distributed
+            cleanup_distributed()
 
     def _train(
         self,
@@ -252,8 +272,14 @@ class Sequence(object):
         f_valid=None,
         incremental=False,
         callbacks=None,
+        distributed=False,
+        local_rank=0,
     ):
         """Internal training implementation."""
+        # Import distributed utilities if needed
+        if distributed:
+            from delft.utilities.distributed import is_main_process
+        
         # Concatenate all data for vocabulary building
         if x_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
@@ -289,11 +315,13 @@ class Sequence(object):
             )
             self.model.to(self.device)
 
-        print_parameters(self.model_config, self.training_config)
-        print(f"\nModel: {self.model_config.architecture}")
-        print(f"Parameters: {sum(p.numel() for p in self.model.parameters()):,}")
+        # Only print on main process for distributed training
+        if not distributed or is_main_process():
+            print_parameters(self.model_config, self.training_config)
+            print(f"\nModel: {self.model_config.architecture}")
+            print(f"Parameters: {sum(p.numel() for p in self.model.parameters()):,}")
 
-        # Create data loaders
+        # Create data loaders with distributed sampler if needed
         train_loader = create_dataloader(
             x_train,
             y_train,
@@ -303,6 +331,7 @@ class Sequence(object):
             features=f_train,
             shuffle=True,
             model_config=self.model_config,
+            distributed=distributed,
         )
 
         valid_loader = None
@@ -316,15 +345,17 @@ class Sequence(object):
                 features=f_valid,
                 shuffle=False,
                 model_config=self.model_config,
+                distributed=distributed,
             )
 
         # Use model output directory for checkpoints to keep files organized
         model_output_dir = os.path.join(
             "data/models/sequenceLabelling/", self.model_config.model_name
         )
-        os.makedirs(model_output_dir, exist_ok=True)
+        if not distributed or is_main_process():
+            os.makedirs(model_output_dir, exist_ok=True)
         
-        # Create trainer
+        # Create trainer with distributed support
         trainer = Trainer(
             self.model,
             self.model_config,
@@ -333,10 +364,16 @@ class Sequence(object):
             device=str(self.device),
             checkpoint_path=self.log_dir or model_output_dir,
             enable_wandb=self.report_to_wandb,
+            distributed=distributed,
+            local_rank=local_rank,
         )
 
         # Train
         trainer.train(train_loader, valid_loader, callbacks=callbacks)
+        
+        # Get the unwrapped model back from trainer for saving
+        if distributed:
+            self.model = trainer._unwrapped_model
 
     def train_nfold(
         self,

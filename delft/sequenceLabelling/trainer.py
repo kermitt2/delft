@@ -11,6 +11,7 @@ from typing import List, Dict, Any, Callable
 
 import torch
 import torch.nn as nn
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Adam, AdamW
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm import tqdm
@@ -104,7 +105,12 @@ class ModelCheckpoint:
 
     def _save(self, model: nn.Module):
         """Save model weights."""
-        torch.save(model.state_dict(), self.filepath)
+        # Handle DDP wrapped models - get underlying model
+        if hasattr(model, 'module'):
+            state_dict = model.module.state_dict()
+        else:
+            state_dict = model.state_dict()
+        torch.save(state_dict, self.filepath)
         logger.info(f"Model saved to {self.filepath}")
 
 
@@ -120,6 +126,8 @@ class Trainer:
         device: Device to train on ('cuda' or 'cpu')
         checkpoint_path: Path to save checkpoints
         enable_wandb: Whether to log to Weights & Biases
+        distributed: Whether to use DistributedDataParallel
+        local_rank: Local GPU rank for distributed training
     """
 
     def __init__(
@@ -132,11 +140,14 @@ class Trainer:
         checkpoint_path: str = "",
         save_path: str = "",
         enable_wandb: bool = False,
+        distributed: bool = False,
+        local_rank: int = 0,
     ):
-        self.model = model
         self.config = config
         self.training_config = training_config
         self.preprocessor = preprocessor
+        self.distributed = distributed
+        self.local_rank = local_rank
 
         # Set device
         if device is None:
@@ -144,11 +155,26 @@ class Trainer:
         else:
             self.device = torch.device(device)
 
-        self.model.to(self.device)
+        # Move model to device first
+        model.to(self.device)
+        
+        # Wrap model with DDP if distributed training
+        if self.distributed:
+            self.model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+            self._unwrapped_model = model  # Keep reference for saving
+        else:
+            self.model = model
+            self._unwrapped_model = model
 
         self.checkpoint_path = checkpoint_path
         self.save_path = save_path
         self.enable_wandb = enable_wandb
+        
+        # Only enable wandb on main process for distributed training
+        if self.distributed:
+            from delft.utilities.distributed import is_main_process
+            if not is_main_process():
+                self.enable_wandb = False
 
         # Initialize wandb if enabled
         if self.enable_wandb:
@@ -284,8 +310,13 @@ class Trainer:
                 # Update learning rate
                 self.scheduler.step(val_metrics["f1"])
 
-                # Model checkpoint
-                if checkpoint(self.model, val_metrics["f1"]):
+                # Model checkpoint - only on main process
+                should_save = True
+                if self.distributed:
+                    from delft.utilities.distributed import is_main_process
+                    should_save = is_main_process()
+                
+                if should_save and checkpoint(self._unwrapped_model, val_metrics["f1"]):
                     best_f1 = val_metrics["f1"]
 
                 # Early stopping
@@ -308,10 +339,15 @@ class Trainer:
             else:
                 logger.info(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
 
-        # Load best model from model-specific checkpoint and cleanup
+        # Load best model from model-specific checkpoint and cleanup (only on main process)
         best_model_path = checkpoint_filepath
-        if os.path.exists(best_model_path):
-            self.model.load_state_dict(
+        should_load = True
+        if self.distributed:
+            from delft.utilities.distributed import is_main_process, barrier
+            should_load = is_main_process()
+        
+        if should_load and os.path.exists(best_model_path):
+            self._unwrapped_model.load_state_dict(
                 torch.load(best_model_path, map_location=self.device)
             )
             # Remove checkpoint file - the wrapper will save the final model
@@ -320,6 +356,10 @@ class Trainer:
                 logger.info(f"Removed temporary checkpoint: {best_model_path}")
             except OSError:
                 pass  # Ignore if file can't be removed
+        
+        # Synchronize all processes after loading
+        if self.distributed:
+            barrier()
 
         return history
 
