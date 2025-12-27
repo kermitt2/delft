@@ -7,7 +7,6 @@ import mmap
 import os
 import pickle
 import shutil
-import ntpath
 import struct
 import sys
 import zipfile
@@ -15,7 +14,6 @@ import json
 import lmdb
 import numpy as np
 from tqdm import tqdm
-from pathlib import Path
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.ERROR)
@@ -181,7 +179,7 @@ class Embeddings(object):
                 self.embed_size = len(vector)
 
             if len(word.encode(encoding="UTF-8")) < self.env.max_key_size():
-                txn.put(word.encode(encoding="UTF-8"), _serialize_pickle(vector))
+                txn.put(word.encode(encoding="UTF-8"), _serialize_float32(vector))
                 i += 1
 
         embedding_file.close()
@@ -282,7 +280,7 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            vector = _deserialize_pickle(value)
+                            vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -333,7 +331,7 @@ class Embeddings(object):
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding="UTF-8"))
                 if vector:
-                    word_vector = _deserialize_pickle(vector)
+                    word_vector = _deserialize_float32(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
@@ -422,11 +420,29 @@ def _deserialize_byteio(serialized):
 
 
 def _serialize_pickle(a):
+    """Legacy: pickle serialization (for reading old databases)"""
     return pickle.dumps(a)
 
 
 def _deserialize_pickle(serialized):
+    """Legacy: pickle deserialization (for reading old databases)"""
     return pickle.loads(serialized)
+
+
+def _serialize_float32(array):
+    """
+    Serialize numpy array to raw float32 bytes.
+    This format is readable by both Python and Java.
+    """
+    return array.astype(np.float32).tobytes()
+
+
+def _deserialize_float32(serialized):
+    """
+    Deserialize raw float32 bytes to numpy array.
+    This format is readable by both Python and Java.
+    """
+    return np.frombuffer(serialized, dtype=np.float32)
 
 
 def open_embedding_file(embeddings_path):
