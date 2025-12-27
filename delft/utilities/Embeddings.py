@@ -1,4 +1,4 @@
-# Manage pre-trained embeddings 
+# Manage pre-trained embeddings
 import gzip
 import hashlib
 import io
@@ -7,7 +7,6 @@ import mmap
 import os
 import pickle
 import shutil
-import ntpath
 import struct
 import sys
 import zipfile
@@ -16,7 +15,6 @@ import lmdb
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-from pathlib import Path
 
 from delft.utilities.simple_elmo import ElmoModel, elmo
 
@@ -206,7 +204,7 @@ class Embeddings(object):
                 self.embed_size = len(vector)
 
             if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
+                txn.put(word.encode(encoding='UTF-8'), _serialize_float32(vector))
                 #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
                 i += 1
 
@@ -290,7 +288,7 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            vector = _deserialize_pickle(value)
+                            vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -319,7 +317,7 @@ class Embeddings(object):
             options_file = None
             try:
                 weights_file, options_file = self.get_elmo_embedding_path(description)
-            except Exception as e: 
+            except Exception as e:
                 logging.error(str(e))
                 logging.error("fail to find ELMo model path for " + self.elmo_model_name)
                 return
@@ -367,7 +365,7 @@ class Embeddings(object):
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
-                    word_vector = _deserialize_pickle(vector)
+                    word_vector = _deserialize_float32(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
@@ -443,7 +441,7 @@ class Embeddings(object):
                     if file.endswith(".hdf5"):
                         alternative_weights_file = file
                         weights_file = os.path.join(alternative_weights_directory, alternative_weights_file)
-            
+
             if alternative_weights_file == None and "url_weights" in description and len(description["url_weights"])>0:
                 url = description["url_weights"]
                 download_path = self.registry['embedding-download-path']
@@ -479,12 +477,12 @@ class Embeddings(object):
                         destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
                         if not os.path.exists(destination_dir):
                             os.makedirs(destination_dir)
-                        try:                      
+                        try:
                             shutil.move(embeddings_path, destination_file)
                             weights_file = destination_file
                         except OSError:
                             print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
-            
+
             if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
                 print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
         print("ELMo weights used:", weights_file)
@@ -575,7 +573,7 @@ class Embeddings(object):
 
     def get_sentence_vector_with_ELMo(self, token_list):
         """
-        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
+        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings
         for a full sentence
         """
         if not self.use_ELMo:
@@ -640,7 +638,7 @@ class Embeddings(object):
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
-        Cache in LMDB the ELMo embeddings for a given sequence 
+        Cache in LMDB the ELMo embeddings for a given sequence
         """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
@@ -683,11 +681,30 @@ def _deserialize_byteio(serialized):
 
 
 def _serialize_pickle(a):
+    """Legacy: pickle serialization (for reading old databases)"""
     return pickle.dumps(a)
 
 
 def _deserialize_pickle(serialized):
+    """Legacy: pickle deserialization (for reading old databases)"""
     return pickle.loads(serialized)
+
+
+def _serialize_float32(array):
+    """
+    Serialize numpy array to raw float32 bytes.
+    This format is readable by both Python and Java.
+    """
+    return array.astype(np.float32).tobytes()
+
+
+def _deserialize_float32(serialized):
+    """
+    Deserialize raw float32 bytes to numpy array.
+    This format is readable by both Python and Java.
+    """
+    return np.frombuffer(serialized, dtype=np.float32)
+
 
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip
