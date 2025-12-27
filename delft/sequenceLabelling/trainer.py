@@ -289,7 +289,7 @@ class Trainer:
                     best_f1 = val_metrics["f1"]
 
                 # Early stopping
-                if early_stopping(val_metrics["f1"]):
+                if self.training_config.early_stop and early_stopping(val_metrics["f1"]):
                     logger.info(f"Early stopping at epoch {epoch + 1}")
                     break
 
