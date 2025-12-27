@@ -1,6 +1,6 @@
 #!/bin/bash
-# Training script for all GROBID models with multiple architectures (training only)
-# Generated on 2025-12-27
+# Training script for all GROBID models with multiple architectures
+# Generated on 2025-12-24
 #
 # This script trains all available models with the following architectures:
 # - BidLSTM_CRF
@@ -59,7 +59,7 @@ train_model() {
     echo "Architecture: $architecture"
     echo "=========================================="
     
-    srun $SRUN_OPTS $PYTHON_CMD $model train \
+    srun $SRUN_OPTS $PYTHON_CMD $model train_eval \
         --architecture $architecture \
         --wandb
     

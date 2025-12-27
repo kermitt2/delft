@@ -1,6 +1,6 @@
 #!/bin/bash
-# Training script for all GROBID models with BERT_CRF architecture (training only)
-# Generated on 2025-12-27
+# Training script for all GROBID models with BERT_CRF architecture
+# Generated on 2025-12-24
 #
 # This script trains all available models with BERT_CRF using various transformers:
 # - SciBERT (cased and uncased)
@@ -61,7 +61,7 @@ train_model() {
     echo "Transformer: $transformer"
     echo "=========================================="
     
-    srun $SRUN_OPTS $PYTHON_CMD $model train \
+    srun $SRUN_OPTS $PYTHON_CMD $model train_eval \
         --architecture BERT_CRF \
         --transformer $transformer \
         --wandb
