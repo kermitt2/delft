@@ -301,7 +301,7 @@ class Trainer:
                 history["precision"].append(val_metrics["precision"])
                 history["recall"].append(val_metrics["recall"])
 
-                logger.info(
+                print(
                     f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}, "
                     f"val_f1={val_metrics['f1']:.4f}, "
                     f"val_precision={val_metrics['precision']:.4f}, "
@@ -325,7 +325,7 @@ class Trainer:
                 if self.training_config.early_stop and early_stopping(
                     val_metrics["f1"]
                 ):
-                    logger.info(f"Early stopping at epoch {epoch + 1}")
+                    print(f"Early stopping at epoch {epoch + 1}")
                     break
 
                 # Log to wandb
@@ -341,7 +341,7 @@ class Trainer:
                         }
                     )
             else:
-                logger.info(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
+                print(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
 
         # Load best model from model-specific checkpoint and cleanup (only on main process)
         best_model_path = checkpoint_filepath
