@@ -152,7 +152,7 @@ def configure(
         elif model == "header":
             max_epoch = 80
             if max_sequence_length == -1:
-                max_sequence_length = 2500
+                max_sequence_length = 3500
             if batch_size == -1:
                 batch_size = 9
         elif model == "date":
@@ -186,6 +186,14 @@ def configure(
                 batch_size = 40
             if max_sequence_length == -1:
                 max_sequence_length = 1000
+        elif model == "figure":
+            if batch_size == -1:
+                batch_size = 3
+            if max_sequence_length == -1:
+                max_sequence_length = 1000
+        elif model == "table":
+            if batch_size == -1:
+                batch_size = 3
 
     model_name += "-" + architecture
 
