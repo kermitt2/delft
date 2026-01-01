@@ -811,6 +811,55 @@ if __name__ == "__main__":
             someTexts.append(" on  April 27, 2001. . ")
             someTexts.append("2018")
             someTexts.append("2023 July the 22nd")
+        elif model == "header":
+            someTexts.append("""
+            nature genetics
+Article https://doi.org/10.1038/s41588-024-01785-9
+Analysis of 10,478 cancer genomes identifies
+candidate driver genes and opportunities for
+precision oncology
+Received: 25 September 2023
+Accepted: 1 May 2024
+Ben Kinnersley
+1,2,11, Amit Sud
+1,3,4,5,6,11, Andrew Everall1,11, Alex J. Cornish1
+,
+Daniel Chubb1, Richard Culliford1, Andreas J. Gruber
+7 , Adrian Lärkeryd8
+,
+Costas Mitsopoulos9, David Wedge
+10 & Richard Houlston
+1
+Published online: 18 June 2024
+Check for updates
+Tumor genomic profiling is increasingly seen as a prerequisite to guide the
+treatment of patients with cancer. To explore the value of whole-genome
+sequencing (WGS) in broadening the scope of cancers potentially amenable
+to a precision therapy, we analysed whole-genome sequencing data on
+10,478 patients spanning 35 cancer types recruited to the UK 100,000
+Genomes Project. We identified 330 candidate driver genes, including 74
+that are new to any cancer. We estimate that approximately 55% of patients
+studied harbor at least one clinically relevant mutation, predicting either
+sensitivity or resistance to certain treatments or clinical trial eligibility. By
+performing computational chemogenomic analysis of cancer mutations
+we identify additional targets for compounds that represent attractive
+candidates for future clinical trials. This study represents one of the most
+comprehensive efforts thus far to identify cancer driver genes in the real
+world setting and assess their impact on informing precision oncology.
+Precision oncology aims to tailor therapy to the unique biology of the
+patient’s cancer, thereby optimizing treatment efficacy and minimizing
+toxicity1,2. Underpinning precision oncology is the concept of somatic
+driver mutations as the foundation of cancer biology3,4
+.
+
+1Division of Genetics and Epidemiology, The Institute of Cancer Research, London, UK. 2University College London Cancer Institute, University College
+London, London, UK. 3Department of Medical Oncology, Dana-Farber Cancer Institute, Boston, MA, USA. 4Broad Institute of MIT and Harvard, Cambridge,
+MA, USA. 5Harvard Medical School, Boston, MA, USA. 6Centre for Immuno-Oncology, Nuffield Department of Medicine, University of Oxford, Oxford, UK.
+7Systems Biology & Biomedical Data Science Laboratory, University of Konstanz, Konstanz, Germany. 8Division of Molecular Pathology, The Institute of Cancer
+Research, London, UK. 9Division of Cancer Therapeutics, The Institute of Cancer Research, London, UK. 10Manchester Cancer Research Centre, University of
+Manchester, Manchester, UK. 11These authors contributed equally: Ben Kinnersley, Amit Sud, Andrew Everall. e-mail: richard.houlston@icr.ac.uk
+Nature Genetics | Volume 56 | September 2024 | 1868–1877 1868
+""")
         elif model == "citation":
             someTexts.append(
                 "N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996."
