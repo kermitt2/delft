@@ -10,10 +10,11 @@ Supported architectures:
 - BidLSTM_ChainCRF_FEATURES
 
 Usage:
-    python -m delft.applications.onnx_export MODEL --architecture ARCH --output OUTPUT_DIR
+    python -m delft.applications.onnx_export MODEL --architecture ARCH [--output OUTPUT_DIR]
 
 Example:
-    python -m delft.applications.onnx_export header --architecture BidLSTM_CRF --output ./exported_models/header
+    python -m delft.applications.onnx_export header --architecture BidLSTM_CRF
+    # Creates: exported_models/header-BidLSTM_CRF.onnx/
 """
 
 import os
@@ -424,7 +425,10 @@ def main():
         help="Model architecture, one of: " + str(ARCHITECTURES),
     )
     parser.add_argument(
-        "--output", required=True, help="Output directory for exported files"
+        "--output",
+        default="exported_models",
+        help="Base output directory (default: exported_models). "
+        "Model will be saved in {output}/{model}-{architecture}.onnx/",
     )
     parser.add_argument(
         "--max-seq-length",
@@ -455,9 +459,13 @@ def main():
     # Construct model name similar to grobidTagger.py
     model_name = "grobid-" + args.model + "-" + args.architecture
 
+    # Construct output directory: {base_output}/{model}-{architecture}.onnx/
+    output_subdir = f"{args.model}-{args.architecture}.onnx"
+    output_dir = os.path.join(args.output, output_subdir)
+
     export_to_onnx(
         model_name=model_name,
-        output_dir=args.output,
+        output_dir=output_dir,
         max_seq_length=args.max_seq_length,
         max_char_length=args.max_char_length,
         model_path=args.model_path,
