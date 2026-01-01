@@ -195,7 +195,109 @@ public class DeLFTModel implements Closeable {
             return labels;
         }
 
+        /**
+         * Represents an extracted entity with its label and text.
+         */
+        public static class Entity {
+            public final String label;
+            public final String text;
+            public final int startToken;
+            public final int endToken;
+
+            public Entity(String label, String text, int startToken, int endToken) {
+                this.label = label;
+                this.text = text;
+                this.startToken = startToken;
+                this.endToken = endToken;
+            }
+        }
+
+        /**
+         * Extract entities from BIO-tagged sequence.
+         * Groups consecutive tokens with the same label into entities.
+         */
+        public List<Entity> extractEntities() {
+            List<Entity> entities = new ArrayList<>();
+            if (tokens == null || tokens.length == 0) {
+                return entities;
+            }
+
+            String currentLabel = null;
+            int startIdx = -1;
+            StringBuilder currentText = new StringBuilder();
+
+            for (int i = 0; i < tokens.length; i++) {
+                String label = labels[i];
+                String baseLabel = getBaseLabel(label);
+                boolean isBegin = label.startsWith("B-") || label.startsWith("I-") && currentLabel == null;
+                boolean isInside = label.startsWith("I-");
+                boolean isO = label.equals("O");
+
+                if (isBegin || (isInside && !baseLabel.equals(currentLabel))) {
+                    // Save previous entity if exists
+                    if (currentLabel != null) {
+                        entities.add(new Entity(currentLabel, currentText.toString().trim(), startIdx, i - 1));
+                    }
+                    // Start new entity
+                    currentLabel = baseLabel;
+                    startIdx = i;
+                    currentText = new StringBuilder(tokens[i]);
+                } else if (isInside && baseLabel.equals(currentLabel)) {
+                    // Continue current entity
+                    currentText.append(" ").append(tokens[i]);
+                } else if (isO) {
+                    // End current entity if exists
+                    if (currentLabel != null) {
+                        entities.add(new Entity(currentLabel, currentText.toString().trim(), startIdx, i - 1));
+                        currentLabel = null;
+                        startIdx = -1;
+                        currentText = new StringBuilder();
+                    }
+                }
+            }
+
+            // Don't forget last entity
+            if (currentLabel != null) {
+                entities.add(new Entity(currentLabel, currentText.toString().trim(), startIdx, tokens.length - 1));
+            }
+
+            return entities;
+        }
+
+        /**
+         * Get base label without B-/I- prefix (also removes angle brackets).
+         */
+        private String getBaseLabel(String label) {
+            if (label.startsWith("B-") || label.startsWith("I-")) {
+                String base = label.substring(2);
+                // Remove angle brackets if present (e.g., <title> -> title)
+                if (base.startsWith("<") && base.endsWith(">")) {
+                    return base.substring(1, base.length() - 1);
+                }
+                return base;
+            }
+            return label;
+        }
+
+        /**
+         * Format entities as XML-like string.
+         * E.g., "<title>Analysis of 10,478 cancer genomes</title><author>Ben
+         * Kinnersley</author>"
+         */
+        public String toXmlString() {
+            List<Entity> entities = extractEntities();
+            StringBuilder sb = new StringBuilder();
+            for (Entity entity : entities) {
+                sb.append("<").append(entity.label).append(">")
+                        .append(entity.text)
+                        .append("</").append(entity.label).append(">");
+            }
+            return sb.toString();
+        }
+
         public String toJson() {
+            List<Entity> entities = extractEntities();
+
             StringBuilder sb = new StringBuilder();
             sb.append("{\n");
             sb.append("  \"text\": \"").append(escapeJson(text)).append("\",\n");
@@ -212,11 +314,32 @@ public class DeLFTModel implements Closeable {
                     sb.append(", ");
                 sb.append("\"").append(labels[i]).append("\"");
             }
+            sb.append("],\n");
+
+            // Add XML-formatted entities
+            sb.append("  \"entitiesXml\": \"").append(escapeJson(toXmlString())).append("\",\n");
+
+            // Add structured entities list
+            sb.append("  \"entities\": [");
+            for (int i = 0; i < entities.size(); i++) {
+                Entity e = entities.get(i);
+                if (i > 0)
+                    sb.append(", ");
+                sb.append("\n    {\"label\": \"").append(e.label)
+                        .append("\", \"text\": \"").append(escapeJson(e.text))
+                        .append("\", \"start\": ").append(e.startToken)
+                        .append(", \"end\": ").append(e.endToken).append("}");
+            }
+            if (!entities.isEmpty()) {
+                sb.append("\n  ");
+            }
             sb.append("]\n}");
             return sb.toString();
         }
 
         private String escapeJson(String s) {
+            if (s == null)
+                return "";
             return s.replace("\\", "\\\\")
                     .replace("\"", "\\\"")
                     .replace("\n", "\\n")

@@ -10,7 +10,10 @@ Supported architectures:
 - BidLSTM_ChainCRF_FEATURES
 
 Usage:
-    python -m delft.applications.onnx_export --model MODEL_NAME --output OUTPUT_DIR
+    python -m delft.applications.onnx_export MODEL --architecture ARCH --output OUTPUT_DIR
+
+Example:
+    python -m delft.applications.onnx_export header --architecture BidLSTM_CRF --output ./exported_models/header
 """
 
 import os
@@ -218,7 +221,7 @@ def export_embeddings(embeddings, output_path: str, vocab_words: list = None):
 def export_to_onnx(
     model_name: str,
     output_dir: str,
-    max_seq_length: int = 512,
+    max_seq_length: int = None,
     max_char_length: int = 30,
     model_path: str = None,
 ):
@@ -234,7 +237,7 @@ def export_to_onnx(
     Args:
         model_name: Name of the model to export
         output_dir: Directory to save exported files
-        max_seq_length: Maximum sequence length for ONNX model
+        max_seq_length: Maximum sequence length for ONNX model (default: from model config)
         max_char_length: Maximum character length per token
         model_path: Optional custom model path
     """
@@ -253,6 +256,11 @@ def export_to_onnx(
     preprocessor = model_wrapper.p
     model_config = model_wrapper.model_config
     training_config = model_wrapper.training_config
+
+    # Use model's configured max_sequence_length if not explicitly provided
+    if max_seq_length is None:
+        max_seq_length = model_config.max_sequence_length
+        print(f"Using max_sequence_length from model config: {max_seq_length}")
 
     # Verify architecture - list supported architectures
     arch = model_config.architecture
@@ -364,17 +372,65 @@ def export_to_onnx(
     return output_dir
 
 
+# Model lists matching grobidTagger.py
+MODEL_LIST = [
+    "affiliation-address",
+    "citation",
+    "date",
+    "header",
+    "name-citation",
+    "name-header",
+    "software",
+    "figure",
+    "table",
+    "reference-segmenter",
+    "segmentation",
+    "funding-acknowledgement",
+    "patent-citation",
+]
+
+ARCHITECTURES_WORD_EMBEDDINGS = [
+    "BidLSTM",
+    "BidLSTM_CRF",
+    "BidLSTM_ChainCRF",
+    "BidLSTM_CNN_CRF",
+    "BidGRU_CRF",
+    "BidLSTM_CNN",
+    "BidLSTM_CRF_CASING",
+    "BidLSTM_CRF_FEATURES",
+    "BidLSTM_ChainCRF_FEATURES",
+]
+
+ARCHITECTURES_TRANSFORMERS = [
+    "BERT",
+    "BERT_FEATURES",
+    "BERT_CRF",
+    "BERT_ChainCRF",
+    "BERT_CRF_FEATURES",
+    "BERT_ChainCRF_FEATURES",
+    "BERT_CRF_CHAR",
+    "BERT_CRF_CHAR_FEATURES",
+]
+
+ARCHITECTURES = ARCHITECTURES_WORD_EMBEDDINGS + ARCHITECTURES_TRANSFORMERS
+
+
 def main():
     parser = argparse.ArgumentParser(description="Export DeLFT model to ONNX format")
-    parser.add_argument("--model", required=True, help="Name of the model to export")
+    parser.add_argument("model", help="Name of the model (e.g., header, citation, date)")
+    parser.add_argument(
+        "--architecture",
+        required=True,
+        help="Model architecture, one of: " + str(ARCHITECTURES),
+    )
     parser.add_argument(
         "--output", required=True, help="Output directory for exported files"
     )
     parser.add_argument(
         "--max-seq-length",
         type=int,
-        default=512,
-        help="Maximum sequence length (default: 512)",
+        default=None,
+        help="Maximum sequence length (default: from model config)",
     )
     parser.add_argument(
         "--max-char-length",
@@ -390,8 +446,17 @@ def main():
 
     args = parser.parse_args()
 
+    # Validate architecture
+    if args.architecture not in ARCHITECTURES:
+        raise ValueError(
+            f"Unknown architecture: {args.architecture}. Must be one of: {ARCHITECTURES}"
+        )
+
+    # Construct model name similar to grobidTagger.py
+    model_name = "grobid-" + args.model + "-" + args.architecture
+
     export_to_onnx(
-        model_name=args.model,
+        model_name=model_name,
         output_dir=args.output,
         max_seq_length=args.max_seq_length,
         max_char_length=args.max_char_length,
