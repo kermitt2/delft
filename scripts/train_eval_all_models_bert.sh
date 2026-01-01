@@ -11,7 +11,7 @@
 set -e  # Exit on error
 
 # Common SLURM configuration
-SRUN_OPTS="--container-mounts=/netscratch:/netscratch,\$HOME:\$HOME \
+SRUN_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
 --container-workdir=/netscratch/lfoppiano/delft/delft-pytorch \
 --container-image=/netscratch/lfoppiano/enroot/delft-pytorch.sqsh \
 --mem=100G \
