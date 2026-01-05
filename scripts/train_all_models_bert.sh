@@ -60,8 +60,7 @@ train_model() {
     
     srun $SRUN_OPTS $PYTHON_CMD $model train \
         --architecture BERT_CRF \
-        --transformer $transformer \
-        --wandb
+        --transformer $transformer
     
     echo "Completed: $model with BERT_CRF ($transformer)"
     echo ""
