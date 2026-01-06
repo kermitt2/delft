@@ -248,6 +248,7 @@ def train(
     report_to_wandb=False,
     num_workers=None,
 ):
+    short_model_name = model  # Store short name before model gets reassigned
     print("Loading data...")
     if input_path is None:
         input_path = find_latest_train_file(model)
@@ -307,6 +308,7 @@ def train(
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name=short_model_name,
     )
 
     if incremental:
@@ -361,6 +363,7 @@ def train_eval(
     report_to_wandb=False,
     num_workers=None,
 ):
+    short_model_name = model  # Store short name before model gets reassigned
     print("Loading data...")
     if input_path is None:
         input_path = find_latest_train_file(model)
@@ -424,6 +427,7 @@ def train_eval(
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name=short_model_name,
     )
 
     if incremental:
