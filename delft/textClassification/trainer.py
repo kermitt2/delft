@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import numpy as np
 import os
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, r2_score
 from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
 
 
@@ -134,17 +134,25 @@ class Trainer(object):
         y_true = np.concatenate(all_labels, axis=0)
         y_pred = np.concatenate(all_preds, axis=0)
 
-        # Calculate ROC-AUC
-        # Handle single class vs multi-class
-        if y_true.shape[1] > 1:
-            try:
-                roc_auc = roc_auc_score(y_true, y_pred, average="macro")
-            except ValueError:
-                roc_auc = 0.0
-        else:
-            try:
-                roc_auc = roc_auc_score(y_true, y_pred)
-            except ValueError:
-                roc_auc = 0.0
+        # Calculate ROC-AUC per class with fallback for classes with single label value
+        total_roc_auc = 0.0
+        num_classes = y_true.shape[1]
+        
+        for j in range(num_classes):
+            if len(np.unique(y_true[:, j])) == 1:
+                # roc_auc_score sklearn implementation doesn't work when a class has only one label value
+                # Use r2_score as fallback (like TensorFlow version)
+                class_roc_auc = r2_score(y_true[:, j], y_pred[:, j])
+                if class_roc_auc < 0:
+                    class_roc_auc = 0
+            else:
+                try:
+                    class_roc_auc = roc_auc_score(y_true[:, j], y_pred[:, j])
+                except ValueError:
+                    class_roc_auc = 0.0
+            total_roc_auc += class_roc_auc
+        
+        roc_auc = total_roc_auc / num_classes
 
         return {"loss": avg_val_loss, "roc_auc": roc_auc}
+
