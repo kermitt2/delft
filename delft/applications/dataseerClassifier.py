@@ -100,6 +100,7 @@ def train(
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name="dataseer-binary",
     )
 
     if fold_count == 1:

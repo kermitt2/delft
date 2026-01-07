@@ -51,7 +51,10 @@ class Classifier(object):
         device=None,
         report_to_wandb=False,
         nb_workers: int = None,
+        short_model_name: str = None,
     ):
+        self.short_model_name = short_model_name
+
         self.model_config = ModelConfig(
             model_name=model_name,
             architecture=architecture,
@@ -134,6 +137,7 @@ class Classifier(object):
                     name=model_name,
                     config={
                         "model_name": self.model_config.model_name,
+                        "short_model_name": self.short_model_name,
                         "architecture": self.model_config.architecture,
                         "transformer_name": self.model_config.transformer_name,
                         "embeddings_name": self.model_config.embeddings_name,

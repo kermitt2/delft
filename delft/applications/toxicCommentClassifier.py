@@ -54,6 +54,7 @@ def train(
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name="toxic",
     )
 
     print("loading train dataset...")
