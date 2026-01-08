@@ -20,8 +20,10 @@ The ONNX export creates portable model files that can be loaded without Python/P
 | `BidLSTM_CRF_FEATURES` | ✅ Supported | Includes feature embeddings |
 | `BidLSTM_ChainCRF` | ✅ Supported | Alternative CRF implementation |
 | `BidLSTM_ChainCRF_FEATURES` | ✅ Supported | ChainCRF with features |
-| `BERT_CRF` | ❌ Not supported | Transformer models not tested |
-| Other BERT variants | ❌ Not supported | Requires additional work |
+| `BERT` | ✅ Supported | Transformer + softmax, ~400MB |
+| `BERT_CRF` | ✅ Supported | Transformer + CRF, ~400MB |
+| `BERT_ChainCRF` | ✅ Supported | Transformer + ChainCRF, ~400MB |
+| Other BERT variants | ⚠️ Experimental | May work, not fully tested |
 
 ### Text Classification
 
@@ -53,6 +55,20 @@ python -m delft.applications.onnx_export header \
 - `vocab.json` - Character and label vocabularies
 - `config.json` - Model configuration
 
+### Transformer Export (BERT)
+
+```bash
+python -m delft.applications.onnx_export header \
+    --architecture BERT_CRF \
+    --output exported_models
+```
+
+**Output files:**
+- `encoder.onnx` - Transformer encoder (~400MB, embeddings included)
+- `crf_params.json` - CRF transition matrices (for CRF variants)
+- `tokenizer/` - HuggingFace tokenizer files for Java
+- `config.json` - Model configuration with label mappings
+
 ### Text Classification Export
 
 ```bash
@@ -71,7 +87,7 @@ python -m delft.applications.onnx_export dataseer-binary \
 
 ### General Limitations
 
-1. **Word embeddings not included**: The ONNX model expects pre-computed word embeddings as input. You must load embeddings separately (e.g., from LMDB) and convert text to embedding vectors before inference.
+1. **Word embeddings not included** (BiLSTM models): BiLSTM models expect pre-computed word embeddings as input. Load embeddings separately (e.g., from LMDB). Transformer models include embeddings in the ONNX file.
 
 2. **Dynamic shapes**: Models are exported with static batch size for compatibility. Sequence length is dynamic.
 
@@ -93,15 +109,21 @@ python -m delft.applications.onnx_export dataseer-binary \
 
 ## Java Integration
 
-A Java inference library is available in `java/delft-onnx/`:
+A Java inference library is available in `java/delft-onnx/`.
 
-```bash
-cd java/delft-onnx
-./gradlew build
-./gradlew run --args="--model ../../exported_models/header-BidLSTM_CRF_FEATURES.onnx \
-    --embeddings ../../data/db/glove-840B-raw \
-    --input 'Sample text'"
-```
+### BiLSTM Models
+
+Requires word embeddings from LMDB.
+
+### Transformer Models
+
+For BERT-based models, Java integration requires:
+
+1. **Tokenizer**: Use [DJL HuggingFace tokenizers](https://github.com/deepjavalibrary/djl) or [tokenizers-java](https://github.com/huggingface/tokenizers/tree/main/bindings/java) to load the exported `tokenizer/` files
+2. **Sub-token alignment**: Map GrobidAnalyzer tokens to BERT sub-tokens
+3. **ONNX Runtime**: Load `encoder.onnx` with ONNX Runtime Java
+4. **CRF Decode**: Apply Viterbi using `crf_params.json` (for CRF variants)
+5. **Label alignment**: Map sub-token predictions back to original tokens
 
 ## Troubleshooting
 

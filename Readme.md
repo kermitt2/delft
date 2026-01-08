@@ -98,14 +98,15 @@ See the [DELFT documentation](https://delft.readthedocs.io) for usage.
 
 ### ONNX Export
 
-DeLFT supports exporting trained sequence labeling models (`BidLSTM_CRF` and `BidLSTM_CRF_FEATURES`) to ONNX format for inference in Java or other runtimes.
+DeLFT supports exporting trained models to ONNX format for inference in Java or other runtimes.
 
-**Export a model:**
+#### Sequence Labelling Models
+
+Export `BidLSTM_CRF` or `BidLSTM_CRF_FEATURES` models:
 
 ```sh
-python -m delft.sequenceLabelling.onnx_export \
-    --model grobid-date-BidLSTM_CRF_FEATURES \
-    --output exported_models/date-features
+python -m delft.applications.onnx_export header \
+    --architecture BidLSTM_CRF_FEATURES
 ```
 
 This creates:
@@ -114,7 +115,24 @@ This creates:
 - `vocab.json` - Character and label vocabularies
 - `config.json` - Model configuration
 
-**Java inference:**
+#### Text Classification Models
+
+Export embedding-based classification models (gru, lstm, cnn, etc.):
+
+```sh
+python -m delft.applications.onnx_export dataseer-binary \
+    --model-type classification \
+    --architecture gru
+```
+
+This creates:
+- `classifier.onnx` - Classification model
+- `labels.json` - Class label mappings
+- `config.json` - Model configuration
+
+> Note: BERT-based classifiers are not supported for ONNX export.
+
+#### Java Inference
 
 A Java inference library is available in `java/delft-onnx/`. Build and run:
 

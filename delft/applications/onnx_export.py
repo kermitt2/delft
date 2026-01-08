@@ -81,6 +81,40 @@ class ClassifierWrapper(torch.nn.Module):
         return outputs["logits"]
 
 
+class TransformerEncoderWrapper(torch.nn.Module):
+    """
+    Wrapper for transformer-based sequence labelling models for ONNX export.
+
+    Takes tokenized input_ids/attention_mask and returns emission scores.
+    """
+
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+        self.accepts_token_type_ids = getattr(model, 'accepts_token_type_ids', True)
+
+    def forward(self, input_ids, attention_mask, token_type_ids=None):
+        """Run transformer encoder to get emissions.
+
+        Args:
+            input_ids: Token IDs [batch, seq_len]
+            attention_mask: Attention mask [batch, seq_len]
+            token_type_ids: Optional token type IDs [batch, seq_len]
+
+        Returns:
+            emissions: Logits/emissions [batch, seq_len, num_tags]
+        """
+        inputs = {
+            "input_ids": input_ids,
+            "attention_mask": attention_mask,
+        }
+        if self.accepts_token_type_ids and token_type_ids is not None:
+            inputs["token_type_ids"] = token_type_ids
+
+        outputs = self.model(inputs, labels=None)
+        return outputs["logits"]
+
+
 def export_crf_params(model, output_path: str):
     """
     Export CRF transition matrices to JSON.
@@ -230,6 +264,62 @@ def export_class_labels(model_config, output_path: str):
 
     print(f"Exported class labels to {output_path}")
     print(f"  Number of classes: {len(model_config.list_classes)}")
+
+
+def export_tokenizer(tokenizer, output_dir: str):
+    """
+    Export HuggingFace tokenizer files for Java runtime.
+
+    Exports:
+        - vocab.txt or vocab.json (depending on tokenizer type)
+        - tokenizer_config.json
+        - special_tokens_map.json
+
+    Args:
+        tokenizer: HuggingFace tokenizer instance
+        output_dir: Directory to save tokenizer files
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    tokenizer.save_pretrained(output_dir)
+    print(f"Exported tokenizer to {output_dir}")
+    
+    # List exported files
+    for f in os.listdir(output_dir):
+        print(f"  - {f}")
+
+
+def export_transformer_config(model_config, preprocessor, accepts_token_type_ids: bool, output_path: str):
+    """
+    Export transformer model configuration for Java runtime.
+
+    Args:
+        model_config: Model configuration
+        preprocessor: The preprocessor with vocab_tag
+        accepts_token_type_ids: Whether the model accepts token_type_ids
+        output_path: Path to save JSON file
+    """
+    config = {
+        "modelName": model_config.model_name,
+        "architecture": model_config.architecture,
+        "transformerName": model_config.transformer_name,
+        "maxSequenceLength": model_config.max_sequence_length,
+        "useCRF": "CRF" in model_config.architecture or "ChainCRF" in model_config.architecture,
+        "useChainCRF": "ChainCRF" in model_config.architecture,
+        "useFeatures": "FEATURES" in model_config.architecture,
+        "useChar": "CHAR" in model_config.architecture,
+        "acceptsTokenTypeIds": accepts_token_type_ids,
+    }
+
+    # Add label mappings
+    if hasattr(preprocessor, 'vocab_tag'):
+        config["labelVocab"] = preprocessor.vocab_tag
+        config["labelIndex"] = {str(k): v for k, v in preprocessor.indice_tag.items()}
+        config["numLabels"] = len(preprocessor.vocab_tag)
+
+    with open(output_path, "w") as f:
+        json.dump(config, f, indent=2)
+
+    print(f"Exported transformer config to {output_path}")
 
 
 def export_embeddings(embeddings, output_path: str, vocab_words: list = None):
@@ -562,6 +652,161 @@ def export_classification_to_onnx(
     return output_dir
 
 
+def export_transformer_to_onnx(
+    model_name: str,
+    output_dir: str,
+    max_seq_length: int = 512,
+    model_path: str = None,
+):
+    """
+    Export a trained transformer-based sequence labelling model to ONNX format.
+
+    Creates:
+        - encoder.onnx: Transformer encoder (input_ids → emissions), ~400MB
+        - crf_params.json: CRF parameters (if applicable)
+        - tokenizer/: HuggingFace tokenizer files for Java
+        - config.json: Model configuration with label mappings
+
+    Args:
+        model_name: Name of the model to export
+        output_dir: Directory to save exported files
+        max_seq_length: Maximum sequence length (default: 512)
+        model_path: Optional custom model path
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Loading transformer model: {model_name}")
+
+    # Load the model
+    model_wrapper = Sequence(model_name)
+    if model_path:
+        model_wrapper.load(dir_path=model_path)
+    else:
+        model_wrapper.load()
+
+    model = model_wrapper.model
+    preprocessor = model_wrapper.p
+    model_config = model_wrapper.model_config
+
+    # Verify it's a transformer architecture
+    arch = model_config.architecture
+    if arch not in ARCHITECTURES_TRANSFORMERS:
+        raise ValueError(
+            f"Not a transformer architecture: {arch}. "
+            f"Must be one of: {ARCHITECTURES_TRANSFORMERS}"
+        )
+
+    print(f"Architecture: {arch}")
+    print(f"Transformer: {model_config.transformer_name}")
+
+    # Set model to eval mode
+    model.eval()
+
+    # Create transformer encoder wrapper
+    encoder = TransformerEncoderWrapper(model)
+    encoder.eval()
+
+    # Get whether model accepts token_type_ids
+    accepts_token_type_ids = encoder.accepts_token_type_ids
+    print(f"Accepts token_type_ids: {accepts_token_type_ids}")
+
+    # Create dummy inputs
+    batch_size = 1
+    seq_len = max_seq_length
+    dummy_input_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
+    dummy_attention_mask = torch.ones(batch_size, seq_len, dtype=torch.long)
+    
+    # Prepare inputs and names based on model requirements
+    if accepts_token_type_ids:
+        dummy_token_type_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
+        dummy_inputs = (dummy_input_ids, dummy_attention_mask, dummy_token_type_ids)
+        input_names = ["input_ids", "attention_mask", "token_type_ids"]
+        dynamic_axes = {
+            "input_ids": {0: "batch_size", 1: "seq_length"},
+            "attention_mask": {0: "batch_size", 1: "seq_length"},
+            "token_type_ids": {0: "batch_size", 1: "seq_length"},
+            "emissions": {0: "batch_size", 1: "seq_length"},
+        }
+    else:
+        dummy_inputs = (dummy_input_ids, dummy_attention_mask)
+        input_names = ["input_ids", "attention_mask"]
+        dynamic_axes = {
+            "input_ids": {0: "batch_size", 1: "seq_length"},
+            "attention_mask": {0: "batch_size", 1: "seq_length"},
+            "emissions": {0: "batch_size", 1: "seq_length"},
+        }
+
+    output_names = ["emissions"]
+
+    # Export to ONNX
+    onnx_path = os.path.join(output_dir, "encoder.onnx")
+    print(f"Exporting transformer to ONNX: {onnx_path}")
+    print(f"  Static shapes for export: batch=1, seq_len={seq_len}")
+    print(f"  Note: Model includes transformer weights (~400MB)")
+
+    torch.onnx.export(
+        encoder,
+        dummy_inputs,
+        onnx_path,
+        input_names=input_names,
+        output_names=output_names,
+        opset_version=14,
+        do_constant_folding=True,
+        verbose=False,
+        dynamo=False,  # Use legacy export for better compatibility
+    )
+
+    print("ONNX transformer model exported successfully")
+
+    # Export CRF params if applicable
+    if hasattr(model, 'crf'):
+        crf_path = os.path.join(output_dir, "crf_params.json")
+        export_crf_params(model, crf_path)
+    else:
+        print("No CRF layer found (softmax output model)")
+
+    # Export tokenizer
+    tokenizer_dir = os.path.join(output_dir, "tokenizer")
+    if hasattr(preprocessor, 'tokenizer') and preprocessor.tokenizer is not None:
+        export_tokenizer(preprocessor.tokenizer, tokenizer_dir)
+    else:
+        print("Warning: No tokenizer found in preprocessor, skipping tokenizer export")
+        print("  You may need to load the tokenizer separately using the transformer name")
+
+    # Export config
+    config_path = os.path.join(output_dir, "config.json")
+    export_transformer_config(model_config, preprocessor, accepts_token_type_ids, config_path)
+
+    # Verify ONNX model
+    try:
+        import onnx
+
+        onnx_model = onnx.load(onnx_path)
+        onnx.checker.check_model(onnx_model)
+        print("ONNX model verification passed")
+    except ImportError:
+        print("Warning: onnx package not installed, skipping verification")
+    except Exception as e:
+        print(f"Warning: ONNX verification failed: {e}")
+
+    print(f"\nExport complete! Files in {output_dir}:")
+    for item in os.listdir(output_dir):
+        item_path = os.path.join(output_dir, item)
+        if os.path.isdir(item_path):
+            print(f"  - {item}/")
+            for sub_item in os.listdir(item_path):
+                print(f"      - {sub_item}")
+        else:
+            # Show file size for ONNX file
+            if item.endswith('.onnx'):
+                size_mb = os.path.getsize(item_path) / (1024 * 1024)
+                print(f"  - {item} ({size_mb:.1f} MB)")
+            else:
+                print(f"  - {item}")
+
+    return output_dir
+
+
 # Model lists matching grobidTagger.py
 MODEL_LIST = [
     "affiliation-address",
@@ -707,13 +952,24 @@ def main():
         output_subdir = f"{args.model}-{args.architecture}.onnx"
         output_dir = os.path.join(args.output, output_subdir)
 
-        export_to_onnx(
-            model_name=model_name,
-            output_dir=output_dir,
-            max_seq_length=args.max_seq_length,
-            max_char_length=args.max_char_length,
-            model_path=args.model_path,
-        )
+        # Route to appropriate export function based on architecture type
+        if args.architecture in ARCHITECTURES_TRANSFORMERS:
+            # Transformer-based models (BERT, etc.)
+            export_transformer_to_onnx(
+                model_name=model_name,
+                output_dir=output_dir,
+                max_seq_length=args.max_seq_length or 512,
+                model_path=args.model_path,
+            )
+        else:
+            # Word embedding-based models (BiLSTM, etc.)
+            export_to_onnx(
+                model_name=model_name,
+                output_dir=output_dir,
+                max_seq_length=args.max_seq_length,
+                max_char_length=args.max_char_length,
+                model_path=args.model_path,
+            )
 
 
 if __name__ == "__main__":
