@@ -1,20 +1,24 @@
 """
-ONNX Export for DeLFT sequence labeling models.
+ONNX Export for DeLFT models.
 
-Exports trained BiLSTM+CRF models to ONNX format for inference in Java/other runtimes.
+Exports trained models to ONNX format for inference in Java/other runtimes.
 
-Supported architectures:
-- BidLSTM_CRF
-- BidLSTM_CRF_FEATURES
-- BidLSTM_ChainCRF
-- BidLSTM_ChainCRF_FEATURES
+Supported model types:
+1. Sequence Labelling (BiLSTM+CRF):
+   - BidLSTM_CRF, BidLSTM_CRF_FEATURES
+   - BidLSTM_ChainCRF, BidLSTM_ChainCRF_FEATURES
+
+2. Text Classification (embedding-based):
+   - gru, gru_simple, gru_lstm
+   - lstm, bidLstm_simple, lstm_cnn
+   - cnn, cnn2, cnn3, dpcnn
 
 Usage:
-    python -m delft.applications.onnx_export MODEL --architecture ARCH [--output OUTPUT_DIR]
-
-Example:
+    # Sequence labelling (default)
     python -m delft.applications.onnx_export header --architecture BidLSTM_CRF
-    # Creates: exported_models/header-BidLSTM_CRF.onnx/
+
+    # Text classification
+    python -m delft.applications.onnx_export dataseer-binary --model-type classification --architecture gru
 """
 
 import os
@@ -25,6 +29,7 @@ import torch
 import numpy as np
 
 from delft.sequenceLabelling.wrapper import Sequence
+from delft.textClassification import Classifier
 
 
 class EncoderWrapper(torch.nn.Module):
@@ -49,6 +54,30 @@ class EncoderWrapper(torch.nn.Module):
 
         # Get outputs (without labels, so no CRF loss computation)
         outputs = self.model(inputs, labels=None)
+        return outputs["logits"]
+
+
+class ClassifierWrapper(torch.nn.Module):
+    """
+    Wrapper for text classification models for ONNX export.
+
+    Takes pre-computed word embeddings and returns class logits.
+    """
+
+    def __init__(self, model):
+        super().__init__()
+        self.model = model
+
+    def forward(self, embeddings):
+        """Run classifier to get logits.
+
+        Args:
+            embeddings: Word embeddings tensor [batch, seq_len, embed_size]
+
+        Returns:
+            logits: Classification logits [batch, num_classes]
+        """
+        outputs = self.model(embeddings, labels=None)
         return outputs["logits"]
 
 
@@ -161,6 +190,46 @@ def export_config(model_config, training_config, output_path: str):
         json.dump(config, f, indent=2)
 
     print(f"Exported config to {output_path}")
+
+
+def export_classification_config(model_config, output_path: str):
+    """
+    Export text classification model configuration for Java runtime.
+    """
+    config = {
+        "modelName": model_config.model_name,
+        "architecture": model_config.architecture,
+        "wordEmbeddingSize": model_config.word_embedding_size,
+        "maxlen": model_config.maxlen,
+        "numClasses": len(model_config.list_classes),
+        "embeddingsName": model_config.embeddings_name,
+        # All current models use BCEWithLogitsLoss (sigmoid for multi-label)
+        # If models with CrossEntropyLoss are added, this should be "softmax"
+        "activationFunction": "sigmoid",
+    }
+
+    with open(output_path, "w") as f:
+        json.dump(config, f, indent=2)
+
+    print(f"Exported classification config to {output_path}")
+
+
+
+def export_class_labels(model_config, output_path: str):
+    """
+    Export class labels for text classification model.
+    """
+    labels = {
+        "labels": model_config.list_classes,
+        "labelToIndex": {label: idx for idx, label in enumerate(model_config.list_classes)},
+        "indexToLabel": {idx: label for idx, label in enumerate(model_config.list_classes)},
+    }
+
+    with open(output_path, "w") as f:
+        json.dump(labels, f, indent=2, ensure_ascii=False)
+
+    print(f"Exported class labels to {output_path}")
+    print(f"  Number of classes: {len(model_config.list_classes)}")
 
 
 def export_embeddings(embeddings, output_path: str, vocab_words: list = None):
@@ -373,6 +442,126 @@ def export_to_onnx(
     return output_dir
 
 
+def export_classification_to_onnx(
+    model_name: str,
+    output_dir: str,
+    max_seq_length: int = None,
+    model_path: str = None,
+):
+    """
+    Export a trained text classification model to ONNX format.
+
+    Creates:
+        - classifier.onnx: The classification model (embeddings → logits)
+        - config.json: Model configuration
+        - labels.json: Class labels mapping
+
+    Args:
+        model_name: Name of the model to export
+        output_dir: Directory to save exported files
+        max_seq_length: Maximum sequence length for ONNX model (default: from model config)
+        model_path: Optional custom model path
+    """
+    os.makedirs(output_dir, exist_ok=True)
+
+    print(f"Loading classification model: {model_name}")
+
+    # Load the model
+    model_wrapper = Classifier(model_name)
+    if model_path:
+        model_wrapper.load(dir_path=model_path)
+    else:
+        model_wrapper.load()
+
+    model = model_wrapper.model
+    model_config = model_wrapper.model_config
+
+    # Check architecture is supported
+    arch = model_config.architecture
+    if arch == "bert":
+        raise ValueError(
+            f"BERT architecture is not supported for ONNX export. "
+            f"Use one of: {CLASSIFICATION_ARCHITECTURES}"
+        )
+
+    # Use model's configured maxlen if not explicitly provided
+    if max_seq_length is None:
+        max_seq_length = model_config.maxlen
+        print(f"Using maxlen from model config: {max_seq_length}")
+
+    print(f"Architecture: {arch}")
+
+    # Set model to eval mode
+    model.eval()
+
+    # Create classifier wrapper
+    classifier = ClassifierWrapper(model)
+    classifier.eval()
+
+    # Determine input shapes
+    word_emb_size = model_config.word_embedding_size
+    batch_size = 1
+    seq_len = max_seq_length
+
+    # Create dummy input (pre-computed embeddings)
+    dummy_embeddings = torch.randn(batch_size, seq_len, word_emb_size)
+
+    # Input/output names
+    input_names = ["embeddings"]
+    output_names = ["logits"]
+
+    # Dynamic axes for variable batch and sequence length
+    dynamic_axes = {
+        "embeddings": {0: "batch_size", 1: "seq_length"},
+        "logits": {0: "batch_size"},
+    }
+
+    # Export to ONNX
+    onnx_path = os.path.join(output_dir, "classifier.onnx")
+    print(f"Exporting to ONNX: {onnx_path}")
+    print(f"  Static shapes: batch=1, seq_len={seq_len}, word_emb={word_emb_size}")
+
+    torch.onnx.export(
+        classifier,
+        dummy_embeddings,
+        onnx_path,
+        input_names=input_names,
+        output_names=output_names,
+        opset_version=14,
+        do_constant_folding=True,
+        verbose=False,
+        dynamo=False,  # Use legacy export for better compatibility
+    )
+
+    print("ONNX model exported successfully")
+
+    # Export config
+    config_path = os.path.join(output_dir, "config.json")
+    export_classification_config(model_config, config_path)
+
+    # Export class labels
+    labels_path = os.path.join(output_dir, "labels.json")
+    export_class_labels(model_config, labels_path)
+
+    # Verify ONNX model
+    try:
+        import onnx
+
+        onnx_model = onnx.load(onnx_path)
+        onnx.checker.check_model(onnx_model)
+        print("ONNX model verification passed")
+    except ImportError:
+        print("Warning: onnx package not installed, skipping verification")
+    except Exception as e:
+        print(f"Warning: ONNX verification failed: {e}")
+
+    print(f"\nExport complete! Files in {output_dir}:")
+    for f in os.listdir(output_dir):
+        print(f"  - {f}")
+
+    return output_dir
+
+
 # Model lists matching grobidTagger.py
 MODEL_LIST = [
     "affiliation-address",
@@ -388,6 +577,32 @@ MODEL_LIST = [
     "segmentation",
     "funding-acknowledgement",
     "patent-citation",
+]
+
+# Classification model list
+CLASSIFICATION_MODEL_LIST = [
+    "dataseer-binary",
+    "dataseer-first",
+    "dataseer-reuse",
+    "citation",
+    "license",
+    "software",
+    "software-context",
+    "toxic-comment",
+]
+
+# Classification architectures (embedding-based only, BERT not supported)
+CLASSIFICATION_ARCHITECTURES = [
+    "gru",
+    "gru_simple",
+    "gru_lstm",
+    "lstm",
+    "bidLstm_simple",
+    "lstm_cnn",
+    "cnn",
+    "cnn2",
+    "cnn3",
+    "dpcnn",
 ]
 
 ARCHITECTURES_WORD_EMBEDDINGS = [
@@ -418,11 +633,18 @@ ARCHITECTURES = ARCHITECTURES_WORD_EMBEDDINGS + ARCHITECTURES_TRANSFORMERS
 
 def main():
     parser = argparse.ArgumentParser(description="Export DeLFT model to ONNX format")
-    parser.add_argument("model", help="Name of the model (e.g., header, citation, date)")
+    parser.add_argument("model", help="Name of the model (e.g., header, date, dataseer-binary)")
     parser.add_argument(
         "--architecture",
         required=True,
-        help="Model architecture, one of: " + str(ARCHITECTURES),
+        help="Model architecture",
+    )
+    parser.add_argument(
+        "--model-type",
+        default="sequence",
+        choices=["sequence", "classification"],
+        help="Type of model: 'sequence' for sequence labelling (default), "
+        "'classification' for text classification",
     )
     parser.add_argument(
         "--output",
@@ -440,36 +662,58 @@ def main():
         "--max-char-length",
         type=int,
         default=30,
-        help="Maximum character length per token (default: 30)",
+        help="Maximum character length per token (default: 30, sequence labelling only)",
     )
     parser.add_argument(
         "--model-path",
         default=None,
-        help="Custom model path (default: data/models/sequenceLabelling/)",
+        help="Custom model path",
     )
 
     args = parser.parse_args()
 
-    # Validate architecture
-    if args.architecture not in ARCHITECTURES:
-        raise ValueError(
-            f"Unknown architecture: {args.architecture}. Must be one of: {ARCHITECTURES}"
+    if args.model_type == "classification":
+        # Text classification export
+        if args.architecture not in CLASSIFICATION_ARCHITECTURES:
+            raise ValueError(
+                f"Unknown classification architecture: {args.architecture}. "
+                f"Must be one of: {CLASSIFICATION_ARCHITECTURES}"
+            )
+
+        # Construct model name (classification models use model_architecture format)
+        model_name = args.model + "_" + args.architecture
+
+        # Construct output directory
+        output_subdir = f"{args.model}-{args.architecture}.onnx"
+        output_dir = os.path.join(args.output, output_subdir)
+
+        export_classification_to_onnx(
+            model_name=model_name,
+            output_dir=output_dir,
+            max_seq_length=args.max_seq_length,
+            model_path=args.model_path,
         )
+    else:
+        # Sequence labelling export (default)
+        if args.architecture not in ARCHITECTURES:
+            raise ValueError(
+                f"Unknown architecture: {args.architecture}. Must be one of: {ARCHITECTURES}"
+            )
 
-    # Construct model name similar to grobidTagger.py
-    model_name = "grobid-" + args.model + "-" + args.architecture
+        # Construct model name similar to grobidTagger.py
+        model_name = "grobid-" + args.model + "-" + args.architecture
 
-    # Construct output directory: {base_output}/{model}-{architecture}.onnx/
-    output_subdir = f"{args.model}-{args.architecture}.onnx"
-    output_dir = os.path.join(args.output, output_subdir)
+        # Construct output directory
+        output_subdir = f"{args.model}-{args.architecture}.onnx"
+        output_dir = os.path.join(args.output, output_subdir)
 
-    export_to_onnx(
-        model_name=model_name,
-        output_dir=output_dir,
-        max_seq_length=args.max_seq_length,
-        max_char_length=args.max_char_length,
-        model_path=args.model_path,
-    )
+        export_to_onnx(
+            model_name=model_name,
+            output_dir=output_dir,
+            max_seq_length=args.max_seq_length,
+            max_char_length=args.max_char_length,
+            model_path=args.model_path,
+        )
 
 
 if __name__ == "__main__":
