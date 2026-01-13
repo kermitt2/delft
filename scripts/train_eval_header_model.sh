@@ -112,7 +112,9 @@ submit_job() {
 }
 
 # Calculate total number of experiments
-total_experiments=$((${#ARCHITECTURES[@]} * ${#BATCH_SIZES[@]} * ${#MAX_EPOCHS[@]} * ${#PATIENCE_VALUES[@]} * ${#EARLY_STOP_VALUES[@]}))
+# When early_stop=false, patience doesn't matter, so we only run 1 experiment per combination
+# When early_stop=true, we iterate over all patience values
+total_experiments=$((${#ARCHITECTURES[@]} * ${#BATCH_SIZES[@]} * ${#MAX_EPOCHS[@]} * (${#PATIENCE_VALUES[@]} + 1)))
 
 # Main submission loop
 echo "==========================================="
@@ -128,16 +130,17 @@ experiment_count=0
 for arch in "${ARCHITECTURES[@]}"; do
     for bs in "${BATCH_SIZES[@]}"; do
         for epochs in "${MAX_EPOCHS[@]}"; do
+            # With early stopping: iterate over patience values
             for patience in "${PATIENCE_VALUES[@]}"; do
-                for early_stop in "${EARLY_STOP_VALUES[@]}"; do
-                    experiment_count=$((experiment_count + 1))
-                    
-                    # Wait if we've hit the max parallel jobs
-                    wait_for_capacity
-                    
-                    submit_job "$arch" "$bs" "$epochs" "$patience" "$early_stop" "$experiment_count"
-                done
+                experiment_count=$((experiment_count + 1))
+                wait_for_capacity
+                submit_job "$arch" "$bs" "$epochs" "$patience" "true" "$experiment_count"
             done
+            
+            # Without early stopping: patience doesn't matter, just run once
+            experiment_count=$((experiment_count + 1))
+            wait_for_capacity
+            submit_job "$arch" "$bs" "$epochs" "5" "false" "$experiment_count"  # Use default patience=5
         done
     done
 done
