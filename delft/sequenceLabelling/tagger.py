@@ -58,6 +58,7 @@ class Tagger(object):
             embeddings=self.embeddings,
             batch_size=self.model_config.batch_size,
             features=features,
+            num_workers=4,
             shuffle=False,
             model_config=self.model_config,
         )

@@ -98,6 +98,7 @@ def create_dataloader(
     preprocessor=None,
     batch_size=32,
     shuffle=True,
+    num_workers=0,
 ):
     """
     Create a DataLoader for text classification.
@@ -111,6 +112,7 @@ def create_dataloader(
         preprocessor: TextPreprocessor instance (new mode)
         batch_size: batch size
         shuffle: whether to shuffle data
+        num_workers: number of worker processes for data loading
 
     Returns:
         DataLoader instance
@@ -128,7 +130,7 @@ def create_dataloader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=0,  # Simple for now
+        num_workers=num_workers,
     )
 
     return loader

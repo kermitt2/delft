@@ -50,6 +50,7 @@ class Classifier(object):
         transformer_name: str = None,
         device=None,
         report_to_wandb=False,
+        nb_workers: int = None,
     ):
         self.model_config = ModelConfig(
             model_name=model_name,
@@ -103,6 +104,12 @@ class Classifier(object):
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.model_config.word_embedding_size = 0
+
+        # Set number of workers: default to cpu_count - 1, minimum 1
+        if nb_workers is None:
+            self.nb_workers = max(1, os.cpu_count() - 1)
+        else:
+            self.nb_workers = nb_workers
 
         if report_to_wandb:
             self._init_wandb(model_name)
@@ -194,6 +201,7 @@ class Classifier(object):
             transformer_tokenizer=transformer_tokenizer,
             batch_size=self.training_config.batch_size,
             shuffle=True,
+            num_workers=self.nb_workers,
         )
 
         valid_loader = None
@@ -206,6 +214,7 @@ class Classifier(object):
                 transformer_tokenizer=transformer_tokenizer,
                 batch_size=self.training_config.batch_size,
                 shuffle=False,
+                num_workers=self.nb_workers,
             )
 
         # Ensure model output directory exists for checkpoints
@@ -260,6 +269,7 @@ class Classifier(object):
             transformer_tokenizer=transformer_tokenizer,
             batch_size=self.model_config.batch_size,
             shuffle=False,
+            num_workers=self.nb_workers,
         )
 
         all_preds = []
@@ -408,6 +418,7 @@ class Classifier(object):
             transformer_tokenizer=transformer_tokenizer,
             batch_size=self.model_config.batch_size,
             shuffle=False,
+            num_workers=self.nb_workers,
         )
 
         all_preds = []

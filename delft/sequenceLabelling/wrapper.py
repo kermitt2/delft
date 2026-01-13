@@ -352,6 +352,7 @@ class Sequence(object):
             features=f_train,
             shuffle=True,
             model_config=self.model_config,
+            num_workers=self.nb_workers,
             distributed=distributed,
         )
 
@@ -366,6 +367,7 @@ class Sequence(object):
                 features=f_valid,
                 shuffle=False,
                 model_config=self.model_config,
+                num_workers=self.nb_workers,
                 distributed=distributed,
             )
 
@@ -472,6 +474,7 @@ class Sequence(object):
                 batch_size=self.training_config.batch_size,
                 shuffle=True,
                 model_config=self.model_config,
+                num_workers=self.nb_workers,
             )
             valid_loader = create_dataloader(
                 fold_x_valid,
@@ -481,6 +484,7 @@ class Sequence(object):
                 batch_size=self.training_config.batch_size,
                 shuffle=False,
                 model_config=self.model_config,
+                num_workers=self.nb_workers,
             )
 
             trainer = Trainer(
@@ -519,6 +523,7 @@ class Sequence(object):
             features=features,
             shuffle=False,
             model_config=self.model_config,
+            num_workers=self.nb_workers,
         )
 
         # Evaluate
@@ -613,6 +618,7 @@ class Sequence(object):
                 features=features,
                 shuffle=False,
                 model_config=self.model_config,
+                num_workers=self.nb_workers,
             )
 
             scorer = Scorer(test_loader, self.p, evaluation=True)
