@@ -246,6 +246,7 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -305,6 +306,7 @@ def train(
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if incremental:
@@ -357,6 +359,7 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -420,6 +423,7 @@ def train_eval(
         features_indices=features_indices,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if incremental:
@@ -697,6 +701,13 @@ if __name__ == "__main__":
         help="Wandb run ID to resume for eval (only valid with eval action)",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval, 4 for tagging.",
+    )
+
     args = parser.parse_args()
 
     model = args.model
@@ -717,6 +728,7 @@ if __name__ == "__main__":
     multi_gpu = args.multi_gpu
     wandb = args.wandb
     wandb_run_id = args.wandb_run_id
+    num_workers = args.num_workers
 
     if architecture is None:
         raise ValueError(
@@ -745,6 +757,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == Tasks.EVAL:
@@ -786,6 +799,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == Tasks.TAG:

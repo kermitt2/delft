@@ -109,6 +109,7 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     (
         batch_size,
@@ -171,6 +172,7 @@ def train(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
+            nb_workers=num_workers,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -213,6 +215,7 @@ def train(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
+            nb_workers=num_workers,
         )
     elif lang == "fr":
         print("Loading data...")
@@ -243,6 +246,7 @@ def train(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
+            nb_workers=num_workers,
         )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -280,6 +284,7 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     (
         batch_size,
@@ -336,6 +341,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -357,6 +363,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
@@ -389,6 +396,7 @@ def train_eval(
             max_sequence_length=max_sequence_length,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
+            nb_workers=num_workers,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -424,6 +432,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly),
@@ -445,6 +454,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
 
     elif (lang == "fr") and (dataset_type == "ftb" or dataset_type is None):
@@ -478,6 +488,7 @@ def train_eval(
             max_sequence_length=max_sequence_length,
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
+            nb_workers=num_workers,
         )
     elif (lang == "fr") and (dataset_type == "ftb_force_split"):
         print("Loading data for ftb_force_split...")
@@ -513,6 +524,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -534,6 +546,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
     elif (lang == "fr") and (dataset_type == "ftb_force_split_xml"):
         print("Loading data for ftb_force_split_xml...")
@@ -569,6 +582,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -590,6 +604,7 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                nb_workers=num_workers,
             )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -866,6 +881,13 @@ if __name__ == "__main__":
         help="Wandb run ID to resume for eval (only valid with eval action)",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval, 4 for tagging.",
+    )
+
     args = parser.parse_args()
 
     action = args.action
@@ -890,6 +912,7 @@ if __name__ == "__main__":
     multi_gpu = args.multi_gpu
     wandb = args.wandb
     wandb_run_id = args.wandb_run_id
+    num_workers = args.num_workers
 
     # name of embeddings refers to the file delft/resources-registry.json
     # be sure to use here the same name as in the registry ('glove-840B', 'fasttext-crawl', 'word2vec'),
@@ -913,6 +936,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "train_eval":
@@ -935,6 +959,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "eval":

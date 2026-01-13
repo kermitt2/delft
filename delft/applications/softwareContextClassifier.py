@@ -52,6 +52,7 @@ def train(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    num_workers=None,
 ):
     print("loading multiclass software context dataset...")
     xtr, y = load_software_context_corpus_json(
@@ -88,6 +89,7 @@ def train(
         class_weights=class_weights,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -104,6 +106,7 @@ def train_and_eval(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    num_workers=None,
 ):
     print("loading multiclass software context dataset...")
     xtr, y = load_software_context_corpus_json(
@@ -145,6 +148,7 @@ def train_and_eval(
         class_weights=class_weights,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -364,6 +368,13 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
+
     args = parser.parse_args()
 
     if args.action not in (
@@ -389,6 +400,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
@@ -400,6 +412,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if args.action == "train_binary":
@@ -423,6 +436,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if args.action == "train_eval_binary":

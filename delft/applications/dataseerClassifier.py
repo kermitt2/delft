@@ -69,6 +69,7 @@ def train(
     early_stop=None,
     max_epoch=-1,
     learning_rate=None,
+    num_workers=None,
 ):
     print("loading binary dataset type corpus...")
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
@@ -98,6 +99,7 @@ def train(
         transformer_name=transformer,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -130,6 +132,7 @@ def train(
         class_weights=class_weights,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -163,6 +166,7 @@ def train(
         class_weights=class_weights,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -838,6 +842,13 @@ if __name__ == "__main__":
         help="Maximum sequence length.",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
+
     args = parser.parse_args()
 
     if args.action not in ("train", "train_eval", "classify"):
@@ -856,6 +867,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
@@ -874,6 +886,7 @@ if __name__ == "__main__":
             early_stop=args.early_stop,
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
+            num_workers=num_workers,
         )
 
     if args.action == "train_eval":

@@ -33,6 +33,7 @@ def train(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    num_workers=None,
 ):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
@@ -51,6 +52,7 @@ def train(
         class_weights=class_weights,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     print("loading citation sentiment corpus...")
@@ -72,6 +74,7 @@ def train_and_eval(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    num_workers=None,
 ):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
@@ -90,6 +93,7 @@ def train_and_eval(
         class_weights=class_weights,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     print("loading citation sentiment corpus...")
@@ -179,6 +183,13 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
+
     args = parser.parse_args()
 
     if args.action not in ("train", "train_eval", "classify"):
@@ -196,6 +207,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
@@ -207,6 +219,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if args.action == "train_eval":
@@ -219,6 +232,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if args.action == "classify":

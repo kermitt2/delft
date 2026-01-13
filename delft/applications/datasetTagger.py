@@ -98,6 +98,7 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -166,6 +167,7 @@ def train(
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     start_time = time.time()
@@ -198,6 +200,7 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -269,6 +272,7 @@ def train_eval(
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     start_time = time.time()
@@ -454,6 +458,13 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval.",
+    )
+
     args = parser.parse_args()
 
     action = args.action
@@ -470,6 +481,7 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -490,6 +502,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "eval":
@@ -522,6 +535,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "tag":

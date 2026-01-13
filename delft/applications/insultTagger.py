@@ -46,6 +46,7 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(
         architecture, embeddings_name, batch_size, max_epoch, early_stop
@@ -75,6 +76,7 @@ def train(
         transformer_name=transformer,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     print("training done")
@@ -206,6 +208,13 @@ if __name__ == "__main__":
         action="store_true",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train.",
+    )
+
     args = parser.parse_args()
 
     if args.action not in ("train", "tag"):
@@ -221,6 +230,7 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if transformer == None and embeddings_name == None:
         # default word embeddings
@@ -237,6 +247,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if args.action == "tag":

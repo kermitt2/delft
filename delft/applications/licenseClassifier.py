@@ -103,6 +103,7 @@ def train(
     early_stop=None,
     max_epoch=-1,
     learning_rate=None,
+    num_workers=None,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -135,6 +136,7 @@ def train(
         report_to_wandb=report_to_wandb,
         short_model_name="copyright",
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -170,6 +172,7 @@ def train(
         report_to_wandb=report_to_wandb,
         short_model_name="license",
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -192,6 +195,7 @@ def train_and_eval(
     early_stop=None,
     max_epoch=-1,
     learning_rate=None,
+    num_workers=None,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -229,6 +233,7 @@ def train_and_eval(
         report_to_wandb=report_to_wandb,
         short_model_name="copyright",
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -269,6 +274,7 @@ def train_and_eval(
         report_to_wandb=report_to_wandb,
         short_model_name="license",
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -681,6 +687,13 @@ if __name__ == "__main__":
         help="Maximum sequence length.",
     )
 
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
+
     args = parser.parse_args()
 
     if args.action not in (
@@ -706,6 +719,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
@@ -723,6 +737,7 @@ if __name__ == "__main__":
             early_stop=args.early_stop,
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
+            num_workers=num_workers,
         )
 
     if args.action == "train_binary":
@@ -752,6 +767,7 @@ if __name__ == "__main__":
             early_stop=args.early_stop,
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
+            num_workers=num_workers,
         )
 
     if args.action == "train_eval_binary":
