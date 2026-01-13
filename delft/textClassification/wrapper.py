@@ -133,6 +133,9 @@ class Classifier(object):
                         "batch_size": self.training_config.batch_size,
                         "learning_rate": self.training_config.learning_rate,
                         "max_epoch": self.training_config.max_epoch,
+                        "patience": self.training_config.patience,
+                        "early_stop": self.training_config.early_stop,
+                        "maxlen": self.model_config.maxlen,
                     },
                 )
             self.wandb = wandb

@@ -1,5 +1,5 @@
 import json
-from delft.utilities.Utilities import split_data_and_labels
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.textClassification.reader import vectorize as vectorizer
 from delft.textClassification.reader import (
@@ -49,21 +49,46 @@ class_weights_licenses = {
 }
 
 
-def configure(architecture):
-    batch_size = 256
-    maxlen = 300
-    patience = 5
-    early_stop = True
-    max_epoch = 60
+def configure(
+    architecture,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+):
+    # Default values
+    o_batch_size = 256
+    o_maxlen = 300
+    o_patience = 5
+    o_early_stop = True
+    o_max_epoch = 60
+    o_learning_rate = 0.001
 
-    # default bert model parameters
+    # Architecture-specific defaults
     if architecture == "bert":
-        batch_size = 16
-        early_stop = False
-        max_epoch = 6
-        maxlen = 200
+        o_batch_size = 16
+        o_early_stop = False
+        o_max_epoch = 6
+        o_maxlen = 200
+        o_learning_rate = 2e-5
 
-    return batch_size, maxlen, patience, early_stop, max_epoch
+    # Override with user-provided values
+    if batch_size != -1:
+        o_batch_size = batch_size
+    if maxlen != -1:
+        o_maxlen = maxlen
+    if patience != -1:
+        o_patience = patience
+    if early_stop is not None:
+        o_early_stop = early_stop
+    if max_epoch != -1:
+        o_max_epoch = max_epoch
+    if learning_rate is not None:
+        o_learning_rate = learning_rate
+
+    return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
 
 
 def train(
@@ -72,6 +97,12 @@ def train(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -83,7 +114,9 @@ def train(
 
     # copyright ownwer classifier
     model_name = "copyright_" + architecture
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
 
     model = Classifier(
         model_name,
@@ -100,6 +133,8 @@ def train(
         class_weights=class_weights_copyright,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        short_model_name="copyright",
+        learning_rate=learning_rate,
     )
 
     if fold_count == 1:
@@ -133,6 +168,8 @@ def train(
         class_weights=class_weights_licenses,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        short_model_name="license",
+        learning_rate=learning_rate,
     )
 
     if fold_count == 1:
@@ -149,6 +186,12 @@ def train_and_eval(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -163,7 +206,9 @@ def train_and_eval(
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_copyrights, 0.9)
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
 
     print(list_classes_copyright)
 
@@ -182,6 +227,8 @@ def train_and_eval(
         class_weights=class_weights_copyright,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        short_model_name="copyright",
+        learning_rate=learning_rate,
     )
 
     if fold_count == 1:
@@ -203,7 +250,6 @@ def train_and_eval(
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_licenses, 0.9)
-    # batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
     class_weights_licenses = None
 
     model = Classifier(
@@ -221,6 +267,8 @@ def train_and_eval(
         class_weights=class_weights_licenses,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        short_model_name="license",
+        learning_rate=learning_rate,
     )
 
     if fold_count == 1:
@@ -596,6 +644,42 @@ if __name__ == "__main__":
         help="Enable logging to Weights and Biases",
         action="store_true",
     )
+    parser.add_argument(
+        "--max-epoch",
+        type=int,
+        default=-1,
+        help="Maximum number of epochs for training.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=-1,
+        help="Batch size for training.",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+        help="Initial learning rate.",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=-1,
+        help="Patience for early stopping (number of epochs without improvement).",
+    )
+    parser.add_argument(
+        "--early-stop",
+        type=t_or_f,
+        default=None,
+        help="Enable early stopping (true/false).",
+    )
+    parser.add_argument(
+        "--maxlen",
+        type=int,
+        default=-1,
+        help="Maximum sequence length.",
+    )
 
     args = parser.parse_args()
 
@@ -633,6 +717,12 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
         )
 
     if args.action == "train_binary":
@@ -656,6 +746,12 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
         )
 
     if args.action == "train_eval_binary":

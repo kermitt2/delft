@@ -150,7 +150,8 @@ def configure(
             if batch_size == -1:
                 batch_size = 30
         elif model == "header":
-            max_epoch = 80
+            if max_epoch == -1:
+                max_epoch = 80
             if max_sequence_length == -1:
                 max_sequence_length = 3500
             if batch_size == -1:

@@ -198,6 +198,9 @@ class Sequence(object):
                         "batch_size": self.training_config.batch_size,
                         "learning_rate": self.training_config.learning_rate,
                         "max_epoch": self.training_config.max_epoch,
+                        "patience": self.training_config.patience,
+                        "early_stop": self.training_config.early_stop,
+                        "max_sequence_length": self.model_config.max_sequence_length,
                     },
                 )
             self.wandb = wandb

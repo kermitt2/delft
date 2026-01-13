@@ -1,5 +1,5 @@
 import json
-from delft.utilities.Utilities import split_data_and_labels
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
 from delft.textClassification import Classifier
@@ -14,24 +14,46 @@ import numpy as np
 """
 
 
-def configure(architecture):
-    # default RNN model parameters
-    batch_size = 200
-    maxlen = 300
-    patience = 5
-    early_stop = True
-    max_epoch = 50
-    learning_rate = 0.001
+def configure(
+    architecture,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+):
+    # Default RNN model parameters
+    o_batch_size = 200
+    o_maxlen = 300
+    o_patience = 5
+    o_early_stop = True
+    o_max_epoch = 50
+    o_learning_rate = 0.001
 
-    # default transformer model parameters
+    # Architecture-specific defaults
     if architecture == "bert":
-        batch_size = 16
-        early_stop = False
-        max_epoch = 5
-        maxlen = 300
-        learning_rate = 2e-5
+        o_batch_size = 16
+        o_early_stop = False
+        o_max_epoch = 5
+        o_maxlen = 300
+        o_learning_rate = 2e-5
 
-    return batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    # Override with user-provided values
+    if batch_size != -1:
+        o_batch_size = batch_size
+    if maxlen != -1:
+        o_maxlen = maxlen
+    if patience != -1:
+        o_patience = patience
+    if early_stop is not None:
+        o_early_stop = early_stop
+    if max_epoch != -1:
+        o_max_epoch = max_epoch
+    if learning_rate is not None:
+        o_learning_rate = learning_rate
+
+    return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
 
 
 def train(
@@ -41,6 +63,12 @@ def train(
     transformer=None,
     cascaded=False,
     report_to_wandb=False,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
 ):
     print("loading binary dataset type corpus...")
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
@@ -51,7 +79,7 @@ def train(
     class_weights = None
 
     batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
-        architecture
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
     )
 
     model = Classifier(
@@ -773,6 +801,42 @@ if __name__ == "__main__":
         help="Enable logging to Weights and Biases",
         action="store_true",
     )
+    parser.add_argument(
+        "--max-epoch",
+        type=int,
+        default=-1,
+        help="Maximum number of epochs for training.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=-1,
+        help="Batch size for training.",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+        help="Initial learning rate.",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=-1,
+        help="Patience for early stopping (number of epochs without improvement).",
+    )
+    parser.add_argument(
+        "--early-stop",
+        type=t_or_f,
+        default=None,
+        help="Enable early stopping (true/false).",
+    )
+    parser.add_argument(
+        "--maxlen",
+        type=int,
+        default=-1,
+        help="Maximum sequence length.",
+    )
 
     args = parser.parse_args()
 
@@ -804,6 +868,12 @@ if __name__ == "__main__":
             transformer=transformer,
             cascaded=cascaded,
             report_to_wandb=wandb,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
         )
 
     if args.action == "train_eval":
