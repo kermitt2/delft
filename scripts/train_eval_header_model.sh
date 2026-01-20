@@ -23,7 +23,7 @@ SBATCH_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
 -p V100-32GB,RTX3090,RTXA6000 \
 --gpus=1 \
 --nodes=1 \
---time=3-00:00"
+--time=1-00:00"
 
 PYTHON_CMD=".venv/bin/python -m delft.applications.grobidTagger"
 
@@ -37,7 +37,7 @@ ARCHITECTURES=(
 )
 
 # Hyperparameter grid
-LEARNING_RATE="1e-4"  # Fixed learning rate
+LEARNING_RATE="1e-3"  # Fixed learning rate
 BATCH_SIZES=(4 8 16 32)
 MAX_EPOCHS=(50 100)
 PATIENCE_VALUES=(5 10 15)
