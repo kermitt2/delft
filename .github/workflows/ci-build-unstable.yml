@@ -12,12 +12,12 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: [ 3.8, 3.9 ]
+        python-version: [ '3.11', '3.12', '3.13' ]
     steps:
       - name: Cleanup more disk space
         run: sudo rm -rf /usr/share/dotnet && sudo rm -rf /opt/ghc && sudo rm -rf "/usr/local/share/boost" && sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - uses: actions/checkout@v2
-      - name: Set up Python 3.8
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: ${{ matrix.python-version }}

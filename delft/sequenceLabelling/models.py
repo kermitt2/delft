@@ -1,1160 +1,1606 @@
-from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
-from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
-from tensorflow.keras.layers import Concatenate
-from tensorflow.keras.models import Model
-from tensorflow.keras.models import clone_model
+"""
+PyTorch sequence labeling models for DeLFT.
 
+This module contains PyTorch implementations of the sequence labeling architectures,
+replacing the TensorFlow/Keras implementations.
+
+Model architectures implemented:
+- BidLSTM: BiLSTM + softmax
+- BidLSTM_CRF: BiLSTM + CRF
+- BidLSTM_ChainCRF: BiLSTM + ChainCRF
+- BidLSTM_CNN: BiLSTM + CNN character encoder
+- BidLSTM_CNN_CRF: BiLSTM + CNN + CRF
+- BidGRU_CRF: BiGRU + CRF
+- BidLSTM_CRF_FEATURES: BiLSTM + CRF + discrete features
+- BidLSTM_ChainCRF_FEATURES: BiLSTM + ChainCRF + features
+- BidLSTM_CRF_CASING: BiLSTM + CRF + casing features
+"""
+
+import os
+import torch
+import torch.nn as nn
+import inspect
+from typing import Optional, Dict, List
+
+from delft.utilities.crf_pytorch import CRF, ChainCRF
 from delft.sequenceLabelling.config import ModelConfig
-from delft.sequenceLabelling.preprocess import Preprocessor, BERTPreprocessor
-from delft.utilities.Transformer import Transformer
-from delft.utilities.crf_wrapper_default import CRFModelWrapperDefault
-from delft.utilities.crf_wrapper_for_bert import CRFModelWrapperForBERT
-
-from delft.utilities.crf_layer import ChainCRF
-from delft.sequenceLabelling.data_generator import DataGenerator, DataGeneratorTransformers
-from delft.utilities.Embeddings import load_resource_registry
-
-"""
-The sequence labeling models.
-
-Each architecture model is a class implementing a Keras architecture. 
-The architecture class can also define the data generator class object to be used, the loss function,
-the metrics and the optimizer.
-"""
 
 
-def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
+class CharacterEncoder(nn.Module):
     """
-    Return a model instance by its name. This is a facilitator function. 
-    """
-    print(config.architecture)
+    Character-level encoder using BiLSTM.
 
-    if config.architecture == BidLSTM.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        return BidLSTM(config, ntags)
-
-    elif config.architecture == BidLSTM_CRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CRF(config, ntags)
-
-    elif config.architecture == BidLSTM_ChainCRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        return BidLSTM_ChainCRF(config, ntags)
-
-    elif config.architecture == BidLSTM_CNN.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_casing = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        return BidLSTM_CNN(config, ntags)
-
-    elif config.architecture == BidLSTM_CNN_CRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_casing = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CNN_CRF(config, ntags)
-
-    elif config.architecture == BidGRU_CRF.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidGRU_CRF(config, ntags)
-
-    elif config.architecture == BidLSTM_CRF_FEATURES.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_features = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CRF_FEATURES(config, ntags)
-
-    elif config.architecture == BidLSTM_ChainCRF_FEATURES.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_features = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        return BidLSTM_ChainCRF_FEATURES(config, ntags)
-
-    elif config.architecture == BidLSTM_CRF_CASING.name:
-        preprocessor.return_word_embeddings = True
-        preprocessor.return_casing = True
-        preprocessor.return_chars = True
-        preprocessor.return_lengths = True
-        config.use_crf = True
-        return BidLSTM_CRF_CASING(config, ntags)
-
-    elif config.architecture == BERT.name:
-        preprocessor.return_bert_embeddings = True
-        config.labels = preprocessor.vocab_tag
-        return BERT(config, 
-                    ntags, 
-                    load_pretrained_weights=load_pretrained_weights, 
-                    local_path=local_path,
-                    preprocessor=preprocessor)
-
-    elif config.architecture == BERT_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_features = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_FEATURES(config, 
-                    ntags, 
-                    load_pretrained_weights=load_pretrained_weights, 
-                    local_path=local_path,
-                    preprocessor=preprocessor)
-
-    elif config.architecture == BERT_CRF.name:
-        preprocessor.return_bert_embeddings = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF(config, 
-                        ntags, 
-                        load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path,
-                        preprocessor=preprocessor)
-
-    elif config.architecture == BERT_ChainCRF.name:
-        preprocessor.return_bert_embeddings = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_ChainCRF(config, 
-                        ntags, 
-                        load_pretrained_weights=load_pretrained_weights, 
-                        local_path=local_path,
-                        preprocessor=preprocessor)
-
-    elif config.architecture == BERT_CRF_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_features = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF_FEATURES(config, 
-                                ntags, 
-                                load_pretrained_weights=load_pretrained_weights, 
-                                local_path=local_path,
-                                preprocessor=preprocessor)
-
-    elif config.architecture == BERT_ChainCRF_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_features = True
-        config.use_crf = True
-        config.use_chain_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_ChainCRF_FEATURES(config, 
-                                ntags, 
-                                load_pretrained_weights=load_pretrained_weights, 
-                                local_path=local_path,
-                                preprocessor=preprocessor)    
-
-    elif config.architecture == BERT_CRF_CHAR.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_chars = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF_CHAR(config, 
-                            ntags,      
-                            load_pretrained_weights=load_pretrained_weights, 
-                            local_path=local_path,
-                            preprocessor=preprocessor)
-
-    elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
-        preprocessor.return_bert_embeddings = True
-        preprocessor.return_features = True
-        preprocessor.return_chars = True
-        config.use_crf = True
-        config.labels = preprocessor.vocab_tag
-        return BERT_CRF_CHAR_FEATURES(config, 
-                                    ntags, 
-                                    load_pretrained_weights=load_pretrained_weights, 
-                                    local_path=local_path,
-                                    preprocessor=preprocessor)
-    else:
-        raise (OSError('Model name does exist: ' + config.architecture))
-
-
-class BaseModel(object):
-    """
-    Base class for DeLFT sequence labeling models
+    Encodes character sequences for each token using a bidirectional LSTM.
 
     Args:
-        config (ModelConfig): DeLFT model configuration object
-        ntags (integer): number of different labels of the model
-        load_pretrained_weights (boolean): used only when the model contains a transformer layer - indicate whether 
-                                           or not we load the pretrained weights of this transformer. For training
-                                           a new model set it to True. When getting the full Keras model to load
-                                           existing weights, set it False to avoid reloading the pretrained weights. 
-        local_path (string): used only when the model contains a transformer layer - the path where to load locally the 
-                             pretrained transformer. If None, the transformer model will be fetched from HuggingFace 
-                             transformers hub.
+        char_vocab_size: Size of character vocabulary
+        char_embedding_size: Dimension of character embeddings
+        hidden_size: Size of LSTM hidden state
     """
 
-    transformer_config = None
-    transformer_preprocessor = None
+    def __init__(
+        self, char_vocab_size: int, char_embedding_size: int, hidden_size: int
+    ):
+        super().__init__()
+        self.char_embeddings = nn.Embedding(
+            char_vocab_size, char_embedding_size, padding_idx=0
+        )
+        self.bilstm = nn.LSTM(
+            char_embedding_size, hidden_size, batch_first=True, bidirectional=True
+        )
+        self.output_size = hidden_size * 2
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool=True, local_path: str=None, preprocessor=None):
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode characters for each token.
+
+        Args:
+            x: Character indices [batch, seq_len, max_char_len]
+
+        Returns:
+            Character encodings [batch, seq_len, hidden*2]
+        """
+        batch_size, seq_len, max_char_len = x.shape
+
+        # Reshape for character processing
+        x = x.view(batch_size * seq_len, max_char_len)
+
+        # Embed characters
+        char_emb = self.char_embeddings(x)  # [batch*seq, max_char, emb_size]
+
+        # Encode with BiLSTM
+        _, (hidden, _) = self.bilstm(char_emb)
+
+        # Concatenate forward and backward hidden states
+        hidden = torch.cat([hidden[0], hidden[1]], dim=-1)  # [batch*seq, hidden*2]
+
+        # Reshape back
+        output = hidden.view(batch_size, seq_len, -1)
+
+        return output
+
+
+class CharacterCNNEncoder(nn.Module):
+    """
+    Character-level encoder using CNN.
+
+    Encodes character sequences using 1D convolution and max pooling.
+
+    Args:
+        char_vocab_size: Size of character vocabulary
+        char_embedding_size: Dimension of character embeddings
+        num_filters: Number of CNN filters
+        kernel_size: Size of convolution kernel
+    """
+
+    def __init__(
+        self,
+        char_vocab_size: int,
+        char_embedding_size: int,
+        num_filters: int = 30,
+        kernel_size: int = 3,
+    ):
+        super().__init__()
+        self.char_embeddings = nn.Embedding(
+            char_vocab_size, char_embedding_size, padding_idx=0
+        )
+        self.conv = nn.Conv1d(
+            char_embedding_size, num_filters, kernel_size, padding="same"
+        )
+        self.output_size = num_filters
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Encode characters using CNN.
+
+        Args:
+            x: Character indices [batch, seq_len, max_char_len]
+
+        Returns:
+            Character encodings [batch, seq_len, num_filters]
+        """
+        batch_size, seq_len, max_char_len = x.shape
+
+        # Reshape for processing
+        x = x.view(batch_size * seq_len, max_char_len)
+
+        # Embed characters
+        char_emb = self.char_embeddings(x)  # [batch*seq, max_char, emb_size]
+
+        # CNN expects [batch, channels, length]
+        char_emb = char_emb.transpose(1, 2)
+
+        # Apply convolution
+        conv_out = torch.tanh(self.conv(char_emb))  # [batch*seq, filters, max_char]
+
+        # Global max pooling
+        pooled = conv_out.max(dim=2)[0]  # [batch*seq, filters]
+
+        # Reshape back
+        output = pooled.view(batch_size, seq_len, -1)
+
+        return output
+
+
+class BaseSequenceLabeler(nn.Module):
+    """
+    Base class for DeLFT PyTorch sequence labeling models.
+
+    Args:
+        config: Model configuration
+        ntags: Number of output tags/labels
+    """
+
+    name = "BaseSequenceLabeler"
+    use_crf = False
+    use_chain_crf = False
+
+    def __init__(self, config: ModelConfig, ntags: int = None):
+        super().__init__()
         self.config = config
         self.ntags = ntags
-        self.model = None
-        self.local_path = local_path
-        self.load_pretrained_weights = load_pretrained_weights
-        
-        self.registry = load_resource_registry("delft/resources-registry.json")
 
-    def predict(self, X, *args, **kwargs):
-        y_pred = self.model.predict(X, batch_size=1)
-        return y_pred
-
-    def evaluate(self, X, y):
-        score = self.model.evaluate(X, y, batch_size=1)
-        return score
-
-    def save(self, filepath):
-        self.model.save_weights(filepath)
-
-    def load(self, filepath):
-        print('loading model weights', filepath)
-        self.model.load_weights(filepath=filepath)
-
-    def __getattr__(self, name):
-        return getattr(self.model, name)
-
-    def clone_model(self):
-        model_copy = clone_model(self.model)
-        model_copy.set_weights(self.model.get_weights())
-        return model_copy
-
-    def get_generator(self):
-        # default generator
-        return DataGenerator
-
-    def print_summary(self):
-        if hasattr(self.model, 'base_model'):
-            self.model.base_model.summary()
-        self.model.summary()
-
-    def init_transformer(self, config: ModelConfig, 
-                         load_pretrained_weights: bool, 
-                         local_path: str,
-                         preprocessor: Preprocessor):
-        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
-        print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
-        transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
-        self.transformer_config = transformer.transformer_config
-        transformer.init_preprocessor(max_sequence_length=config.max_sequence_length)
-
-        self.transformer_preprocessor = BERTPreprocessor(transformer.tokenizer, 
-                                                         preprocessor.empty_features_vector(), 
-                                                         preprocessor.empty_char_vector())
-
-        return transformer_model
-
-
-class BidLSTM(BaseModel):
-    """
-    A Keras implementation of simple BidLSTM for sequence labelling with character and word inputs, and softmax final layer.
-    """
-    name = 'BidLSTM'
-
-    def __init__(self, config, ntags=None):
-        super().__init__(config, ntags)
-
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
-
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
-
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
-
-        # combine characters and word embeddings
-        x = Concatenate()([word_input, chars])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        pred = Dense(ntags, activation='softmax')(x)
-
-        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
-        #self.model.summary()
-        self.config = config
-
-
-class BidLSTM_CRF(BaseModel):
-    """
-    A Keras implementation of BidLSTM-CRF for sequence labelling.
-
-    References
-    --
-    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
-    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
-    https://arxiv.org/abs/1603.01360
-    """
-    name = 'BidLSTM_CRF'
-
-    def __init__(self, config, ntags=None):
-        super().__init__(config, ntags)
-
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
-
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
-
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
-
-        # combine characters and word embeddings
-        x = Concatenate()([word_input, chars])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-
-        base_model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
-
-        self.model = CRFModelWrapperDefault(base_model, ntags)
-        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
-        #self.model.summary()
-        self.config = config
-
-
-class BidLSTM_ChainCRF(BaseModel):
-    """
-    A Keras implementation of BidLSTM-CRF for sequence labelling with an alternative CRF layer implementation.
-
-    References
-    --
-    Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer.
-    "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016.
-    https://arxiv.org/abs/1603.01360
-    """
-    name = 'BidLSTM_ChainCRF'
-
-    def __init__(self, config, ntags=None):
-        super().__init__(config, ntags)
-
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
-
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=False,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
-
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
-
-        # combine characters and word embeddings
-        x = Concatenate()([word_input, chars])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
-
-        self.model = Model(inputs=[word_input, char_input, length_input], outputs=[pred])
-        self.config = config
-
-
-class BidLSTM_CNN(BaseModel):
-    """
-    A Keras implementation of BidLSTM-CNN for sequence labelling.
-
-    References
-    --
-    Jason P. C. Chiu, Eric Nichols. "Named Entity Recognition with Bidirectional LSTM-CNNs". 2016. 
-    https://arxiv.org/abs/1511.08308
-    """
-
-    name = 'BidLSTM_CNN'
-
-    def __init__(self, config, ntags=None):
-        super().__init__(config, ntags)
-
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
-
-        # build character based embedding        
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(
-                                Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=False,
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        dropout = Dropout(config.dropout)(char_embeddings)
-
-        conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
-        maxpool_out = TimeDistributed(GlobalMaxPooling1D())(conv1d_out)
-        chars = Dropout(config.dropout)(maxpool_out)
-
-        # custom features input and embeddings
-        casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
-        casing_embedding = Embedding(input_dim=config.case_vocab_size,
-                           output_dim=config.case_embedding_size,
-                           #mask_zero=True,
-                           trainable=False,
-                           name='casing_embedding')(casing_input)
-        casing_embedding = Dropout(config.dropout)(casing_embedding)
-
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32')
-
-        # combine words, custom features and characters
-        x = Concatenate(axis=-1)([word_input, casing_embedding, chars])
-        x = Dropout(config.dropout)(x)
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        #pred = TimeDistributed(Dense(ntags, activation='softmax'))(x)
-        pred = Dense(ntags, activation='softmax')(x)
-
-        self.model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[pred])
-        self.config = config
-
-
-class BidLSTM_CNN_CRF(BaseModel):
-    """
-    A Keras implementation of BidLSTM-CNN-CRF for sequence labelling.
-
-    References
-    --
-    Xuezhe Ma and Eduard Hovy. "End-to-end Sequence Labeling via Bi-directional LSTM-CNNs-CRF". 2016. 
-    https://arxiv.org/abs/1603.01354
-    """
-
-    name = 'BidLSTM_CNN_CRF'
-
-    def __init__(self, config, ntags=None):
-        super().__init__(config, ntags)
-
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
-
-        # build character based embedding        
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(
-                                Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=False,
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        dropout = Dropout(config.dropout)(char_embeddings)
-
-        conv1d_out = TimeDistributed(Conv1D(kernel_size=3, filters=30, padding='same',activation='tanh', strides=1))(dropout)
-        maxpool_out = TimeDistributed(GlobalMaxPooling1D())(conv1d_out)
-        chars = Dropout(config.dropout)(maxpool_out)
-
-        # custom features input and embeddings
-        casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
-
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
         """
-        casing_embedding = Embedding(input_dim=config.case_vocab_size, 
-                           output_dim=config.case_embedding_size,
-                           mask_zero=True,
-                           trainable=False,
-                           name='casing_embedding')(casing_input)
-        casing_embedding = Dropout(config.dropout)(casing_embedding)
+        Forward pass.
+
+        Args:
+            inputs: Dictionary of input tensors
+            labels: Optional labels for training
+
+        Returns:
+            Dictionary with 'logits' and optionally 'loss'
         """
+        raise NotImplementedError
 
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32')
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """
+        Decode best tag sequence.
 
-        # combine words, custom features and characters
-        x = Concatenate(axis=-1)([word_input, chars])
-        x = Dropout(config.dropout)(x)
+        Args:
+            inputs: Dictionary of input tensors
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        Returns:
+            List of tag sequences
+        """
+        raise NotImplementedError
 
-        base_model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(base_model, ntags)
-        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, None), (None, None, 1)])
-        self.config = config
+    def save(self, filepath: str):
+        """Save model weights."""
+        torch.save(self.state_dict(), filepath)
+
+    def load(self, filepath: str, map_location: str = None):
+        """Load model weights."""
+        state_dict = torch.load(filepath, map_location=map_location)
+        self.load_state_dict(state_dict)
 
 
-class BidGRU_CRF(BaseModel):
+class BidLSTM(BaseSequenceLabeler):
     """
-    A Keras implementation of BidGRU-CRF for sequence labelling.
+    Bidirectional LSTM with softmax output for sequence labeling.
+
+    Architecture:
+    - Word embeddings (provided as input)
+    - Character BiLSTM encoder
+    - BiLSTM encoder
+    - Dense + Softmax
     """
 
-    name = 'BidGRU_CRF'
+    name = "BidLSTM"
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config: ModelConfig, ntags: int = None):
         super().__init__(config, ntags)
 
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+        # Character encoder
+        self.char_encoder = CharacterEncoder(
+            config.char_vocab_size,
+            config.char_embedding_size,
+            config.num_char_lstm_units,
+        )
 
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
+        # Input size: word embeddings + character encodings
+        input_size = config.word_embedding_size + self.char_encoder.output_size
 
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
 
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+        self.dropout = nn.Dropout(config.dropout)
 
-        # combine characters and word embeddings
-        x = Concatenate()([word_input, chars])
-        x = Dropout(config.dropout)(x)
+        # Output layer
+        self.classifier = nn.Linear(config.num_word_lstm_units * 2, ntags)
 
-        x = Bidirectional(GRU(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Bidirectional(GRU(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        # Loss function
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
 
-        base_model = Model(inputs=[word_input, char_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(base_model, ntags)
-        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, 1)])
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]  # [batch, seq, emb_size]
+        char_input = inputs["char_input"]  # [batch, seq, max_char]
 
-        self.config = config
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Concatenate word and character embeddings
+        x = torch.cat([word_emb, char_encoded], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Classification
+        logits = self.classifier(lstm_out)
+
+        outputs = {"logits": logits}
+
+        if labels is not None:
+            # Reshape for cross-entropy loss
+            loss = self.loss_fn(logits.view(-1, self.ntags), labels.view(-1))
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using argmax."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = outputs["logits"].argmax(dim=-1)
+        return predictions.tolist()
 
 
-class BidLSTM_CRF_CASING(BaseModel):
+class BidLSTM_CRF(BaseSequenceLabeler):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling with additinal features related to casing
-    (inferred from word forms).
+    Bidirectional LSTM with CRF output for sequence labeling.
+
+    Architecture:
+    - Word embeddings (provided as input)
+    - Character BiLSTM encoder
+    - BiLSTM encoder
+    - Dense + CRF
     """
 
-    name = 'BidLSTM_CRF_CASING'
+    name = "BidLSTM_CRF"
+    use_crf = True
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config: ModelConfig, ntags: int = None):
         super().__init__(config, ntags)
 
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+        # Character encoder
+        self.char_encoder = CharacterEncoder(
+            config.char_vocab_size,
+            config.char_embedding_size,
+            config.num_char_lstm_units,
+        )
 
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
+        # Input size
+        input_size = config.word_embedding_size + self.char_encoder.output_size
 
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units, return_sequences=False)))(char_embeddings)
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
 
-        # custom features input and embeddings
-        casing_input = Input(batch_shape=(None, None,), dtype='int32', name='casing_input')
+        self.dropout = nn.Dropout(config.dropout)
 
-        casing_embedding = Embedding(input_dim=config.case_vocab_size,
-                           output_dim=config.case_embedding_size,
-                           #mask_zero=True,
-                           trainable=False,
-                           name='casing_embedding')(casing_input)
-        casing_embedding = Dropout(config.dropout)(casing_embedding)
+        # Pre-CRF dense layer
+        self.dense = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+        self.linear = nn.Linear(config.num_word_lstm_units, ntags)
 
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+        # CRF layer
+        self.crf = CRF(ntags)
 
-        # combine characters and word embeddings
-        x = Concatenate()([word_input, casing_embedding, chars])
-        x = Dropout(config.dropout)(x)
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        # Get sequence lengths for masking
+        lengths = inputs.get("length", None)
+        if lengths is not None:
+            # Create mask from lengths
+            batch_size, seq_len = word_emb.shape[:2]
+            mask = torch.arange(seq_len, device=word_emb.device).expand(
+                batch_size, seq_len
+            )
+            mask = mask < lengths.squeeze(-1).unsqueeze(-1)
+            mask = mask.float()
+        else:
+            mask = None
 
-        base_model = Model(inputs=[word_input, char_input, casing_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(base_model, ntags)
-        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None), (None, None, 1)])
-        self.config = config
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Concatenate
+        x = torch.cat([word_emb, char_encoded], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Dense
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.linear(x)
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            # CRF loss
+            loss = self.crf(emissions, labels, mask=mask)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+
+            # Get mask
+            lengths = inputs.get("length", None)
+            if lengths is not None:
+                batch_size, seq_len = outputs["logits"].shape[:2]
+                mask = torch.arange(seq_len, device=outputs["logits"].device).expand(
+                    batch_size, seq_len
+                )
+                mask = mask < lengths.squeeze(-1).unsqueeze(-1)
+                mask = mask.float()
+            else:
+                mask = None
+
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        return predictions
 
 
-class BidLSTM_CRF_FEATURES(BaseModel):
+class BidLSTM_ChainCRF(BaseSequenceLabeler):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling using tokens combined with 
-    additional generic discrete features information.
+    Bidirectional LSTM with ChainCRF output.
+
+    Uses alternative CRF implementation with explicit boundary handling.
     """
 
-    name = 'BidLSTM_CRF_FEATURES'
+    name = "BidLSTM_ChainCRF"
+    use_crf = True
+    use_chain_crf = True
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config: ModelConfig, ntags: int = None):
         super().__init__(config, ntags)
 
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+        # Character encoder
+        self.char_encoder = CharacterEncoder(
+            config.char_vocab_size,
+            config.char_embedding_size,
+            config.num_char_lstm_units,
+        )
 
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
+        # Input size
+        input_size = config.word_embedding_size + self.char_encoder.output_size
 
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
-                                                   return_sequences=False)))(char_embeddings)
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
 
-        # layout features input and embeddings
-        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
+        self.dropout = nn.Dropout(config.dropout)
 
-        # The input dimension is calculated by
-        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
-                                       output_dim=config.features_embedding_size,
-                                       # mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td")(features_input)
+        # Pre-CRF layers
+        self.dense1 = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
-        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
-                                                 name="features_embedding_td_2")(features_embedding)
+        # ChainCRF layer
+        self.crf = ChainCRF(ntags)
 
-        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
 
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
 
-        # combine characters, features and word embeddings
-        x = Concatenate()([word_input, chars, features_embedding_out])
-        x = Dropout(config.dropout)(x)
+        # Concatenate
+        x = torch.cat([word_emb, char_encoded], dim=-1)
+        x = self.dropout(x)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
 
-        base_model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[x])
-        self.model = CRFModelWrapperDefault(base_model, ntags)
-        self.model.build(input_shape=[(None, None, config.word_embedding_size), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, 1)])
-        self.config = config
+        # Dense layers
+        x = torch.tanh(self.dense1(lstm_out))
+        emissions = self.dense2(x)
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
 
 
-class BidLSTM_ChainCRF_FEATURES(BaseModel):
+class BidLSTM_CNN(BaseSequenceLabeler):
     """
-    A Keras implementation of BidLSTM-CRF for sequence labelling using tokens combined with 
-    additional generic discrete features information and with an alternative CRF layer implementation.
+    Bidirectional LSTM with CNN character encoder.
+
+    Architecture:
+    - Word embeddings + CNN character encoding + casing features
+    - BiLSTM encoder
+    - Dense + Softmax
     """
 
-    name = 'BidLSTM_ChainCRF_FEATURES'
+    name = "BidLSTM_CNN"
 
-    def __init__(self, config, ntags=None):
+    def __init__(self, config: ModelConfig, ntags: int = None):
         super().__init__(config, ntags)
 
-        # build input, directly feed with word embedding by the data generator
-        word_input = Input(shape=(None, config.word_embedding_size), name='word_input')
+        # Character CNN encoder
+        self.char_encoder = CharacterCNNEncoder(
+            config.char_vocab_size, config.char_embedding_size
+        )
 
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    mask_zero=False,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
+        # Casing embedding
+        self.casing_embedding = nn.Embedding(
+            config.case_vocab_size, config.case_embedding_size, padding_idx=0
+        )
 
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
-                                                   return_sequences=False)))(char_embeddings)
+        # Input size
+        input_size = (
+            config.word_embedding_size
+            + self.char_encoder.output_size
+            + config.case_embedding_size
+        )
 
-        # layout features input and embeddings
-        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
 
-        # The input dimension is calculated by
-        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
-                                       output_dim=config.features_embedding_size,
-                                       # mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td")(features_input)
+        self.dropout = nn.Dropout(config.dropout)
 
-        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
-                                                 name="features_embedding_td_2")(features_embedding)
+        # Output layer
+        self.classifier = nn.Linear(config.num_word_lstm_units * 2, ntags)
 
-        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
+        # Loss function
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
 
-        # length of sequence not used by the model, but used by the training scorer
-        length_input = Input(batch_shape=(None, 1), dtype='int32', name='length_input')
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
+        casing_input = inputs["casing_input"]
 
-        # combine characters, features and word embeddings
-        x = Concatenate()([word_input, chars, features_embedding_out])
-        x = Dropout(config.dropout)(x)
+        # Encode characters with CNN
+        char_encoded = self.char_encoder(char_input)
 
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
+        # Embed casing
+        casing_emb = self.casing_embedding(casing_input)
+        casing_emb = self.dropout(casing_emb)
 
-        self.model = Model(inputs=[word_input, char_input, features_input, length_input], outputs=[pred])
-        self.config = config
+        # Concatenate all inputs
+        x = torch.cat([word_emb, char_encoded, casing_emb], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Classification
+        logits = self.classifier(lstm_out)
+
+        outputs = {"logits": logits}
+
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, self.ntags), labels.view(-1))
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using argmax."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = outputs["logits"].argmax(dim=-1)
+        return predictions.tolist()
 
 
-class BERT(BaseModel):
+class BidLSTM_CNN_CRF(BaseSequenceLabeler):
     """
-    A Keras implementation of BERT for sequence labelling with softmax activation final layer. 
-
-    For training, the BERT layer will be loaded with weights of existing pre-trained BERT model given by the 
-    field transformer of the model config (load_pretrained_weights=True).
-
-    For an existing trained model, the BERT layer will be simply initialized (load_pretrained_weights=False),
-    without loading pre-trained weights (the weight of the transformer layer will be loaded with the full Keras
-    saved model). 
-
-    When initializing the model, we can provide a local_path to load locally the transformer config and (if 
-    necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
+    Bidirectional LSTM-CNN with CRF output.
     """
 
-    name = 'BERT'
+    name = "BidLSTM_CNN_CRF"
+    use_crf = True
 
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
+    def __init__(self, config: ModelConfig, ntags: int = None):
+        super().__init__(config, ntags)
+
+        # Character CNN encoder
+        self.char_encoder = CharacterCNNEncoder(
+            config.char_vocab_size, config.char_embedding_size
+        )
+
+        # Input size (word emb + char encoding, casing is optional input but not used in emission)
+        input_size = config.word_embedding_size + self.char_encoder.output_size
+
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
+
+        self.dropout = nn.Dropout(config.dropout)
+
+        # Pre-CRF dense
+        self.dense = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+
+        # CRF
+        self.crf = CRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
+
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Concatenate
+        x = torch.cat([word_emb, char_encoded], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Dense
+        emissions = torch.tanh(self.dense(lstm_out))
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+class BidGRU_CRF(BaseSequenceLabeler):
+    """
+    Bidirectional GRU with CRF output.
+
+    Uses GRU instead of LSTM.
+    """
+
+    name = "BidGRU_CRF"
+    use_crf = True
+
+    def __init__(self, config: ModelConfig, ntags: int = None):
+        super().__init__(config, ntags)
+
+        # Character encoder
+        self.char_encoder = CharacterEncoder(
+            config.char_vocab_size,
+            config.char_embedding_size,
+            config.num_char_lstm_units,
+        )
+
+        # Input size
+        input_size = config.word_embedding_size + self.char_encoder.output_size
+
+        # Stack of 2 BiGRU layers
+        self.bigru1 = nn.GRU(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
+        self.bigru2 = nn.GRU(
+            config.num_word_lstm_units * 2,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
+
+        self.dropout = nn.Dropout(config.dropout)
+
+        # Pre-CRF dense
+        self.dense = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+
+        # CRF
+        self.crf = CRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
+
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Concatenate
+        x = torch.cat([word_emb, char_encoded], dim=-1)
+        x = self.dropout(x)
+
+        # BiGRU layers
+        gru_out, _ = self.bigru1(x)
+        gru_out = self.dropout(gru_out)
+        gru_out, _ = self.bigru2(gru_out)
+
+        # Dense
+        emissions = torch.tanh(self.dense(gru_out))
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
+    """
+    BiLSTM + CRF with additional discrete features.
+
+    Incorporates layout or other categorical features alongside word/char embeddings.
+    """
+
+    name = "BidLSTM_CRF_FEATURES"
+    use_crf = True
+
+    def __init__(self, config: ModelConfig, ntags: int = None):
+        super().__init__(config, ntags)
+
+        # Character encoder
+        self.char_encoder = CharacterEncoder(
+            config.char_vocab_size,
+            config.char_embedding_size,
+            config.num_char_lstm_units,
+        )
+
+        # Features embedding
+        num_features = len(config.features_indices) if config.features_indices else 1
+        features_vocab_size = config.features_vocabulary_size * num_features + 1
+        self.features_embedding = nn.Embedding(
+            features_vocab_size, config.features_embedding_size, padding_idx=0
+        )
+        self.features_lstm = nn.LSTM(
+            config.features_embedding_size,
+            config.features_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        # Input size
+        input_size = (
+            config.word_embedding_size
+            + self.char_encoder.output_size
+            + config.features_lstm_units * 2
+        )
+
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
+
+        self.dropout = nn.Dropout(config.dropout)
+
+        # Pre-CRF dense
+        self.dense = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
+
+        # CRF
+        self.crf = CRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
+        features_input = inputs["features_input"]
+
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Process features
+        batch_size, seq_len = features_input.shape[:2]
+        features_emb = self.features_embedding(features_input)
+
+        # If features have multiple dimensions, process with LSTM
+        if len(features_emb.shape) == 4:
+            # [batch, seq, num_features, emb] -> [batch*seq, num_features, emb]
+            features_emb_flat = features_emb.view(
+                -1, features_emb.shape[2], features_emb.shape[3]
+            )
+            _, (hidden, _) = self.features_lstm(features_emb_flat)
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1)
+            features_encoded = features_encoded.view(batch_size, seq_len, -1)
+        else:
+            # Simple embedding
+            features_encoded = features_emb.view(batch_size, seq_len, -1)
+
+        features_encoded = self.dropout(features_encoded)
+
+        # Concatenate all inputs
+        x = torch.cat([word_emb, char_encoded, features_encoded], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Dense layers
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.dense2(x)
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+class BidLSTM_ChainCRF_FEATURES(BidLSTM_CRF_FEATURES):
+    """BiLSTM + ChainCRF with features."""
+
+    name = "BidLSTM_ChainCRF_FEATURES"
+    use_chain_crf = True
+
+    def __init__(self, config: ModelConfig, ntags: int = None):
+        super().__init__(config, ntags)
+        # Replace CRF with ChainCRF
+        self.crf = ChainCRF(ntags)
+        # Add extra dense layer before CRF (matching Keras architecture)
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
+        features_input = inputs["features_input"]
+
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Process features
+        batch_size, seq_len = features_input.shape[:2]
+        features_emb = self.features_embedding(features_input)
+
+        if len(features_emb.shape) == 4:
+            features_emb_flat = features_emb.view(
+                -1, features_emb.shape[2], features_emb.shape[3]
+            )
+            _, (hidden, _) = self.features_lstm(features_emb_flat)
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1)
+            features_encoded = features_encoded.view(batch_size, seq_len, -1)
+        else:
+            features_encoded = features_emb.view(batch_size, seq_len, -1)
+
+        features_encoded = self.dropout(features_encoded)
+
+        # Concatenate
+        x = torch.cat([word_emb, char_encoded, features_encoded], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Dense layers
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.dense2(x)
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+class BidLSTM_CRF_CASING(BaseSequenceLabeler):
+    """
+    BiLSTM + CRF with casing features.
+    """
+
+    name = "BidLSTM_CRF_CASING"
+    use_crf = True
+
+    def __init__(self, config: ModelConfig, ntags: int = None):
+        super().__init__(config, ntags)
+
+        # Character encoder
+        self.char_encoder = CharacterEncoder(
+            config.char_vocab_size,
+            config.char_embedding_size,
+            config.num_char_lstm_units,
+        )
+
+        # Casing embedding
+        self.casing_embedding = nn.Embedding(
+            config.case_vocab_size, config.case_embedding_size, padding_idx=0
+        )
+
+        # Input size
+        input_size = (
+            config.word_embedding_size
+            + self.char_encoder.output_size
+            + config.case_embedding_size
+        )
+
+        # Main BiLSTM
+        self.bilstm = nn.LSTM(
+            input_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+        )
+
+        self.dropout = nn.Dropout(config.dropout)
+
+        # Pre-CRF dense
+        self.dense = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+
+        # CRF
+        self.crf = CRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        word_emb = inputs["word_input"]
+        char_input = inputs["char_input"]
+        casing_input = inputs["casing_input"]
+
+        # Encode characters
+        char_encoded = self.char_encoder(char_input)
+
+        # Embed casing
+        casing_emb = self.casing_embedding(casing_input)
+        casing_emb = self.dropout(casing_emb)
+
+        # Concatenate
+        x = torch.cat([word_emb, char_encoded, casing_emb], dim=-1)
+        x = self.dropout(x)
+
+        # BiLSTM
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        # Dense
+        emissions = torch.tanh(self.dense(lstm_out))
+
+        outputs = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            outputs["loss"] = loss
+
+        return outputs
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+# ============================================================================
+# BERT/Transformer-based Models
+# ============================================================================
+
+
+class BERT(BaseSequenceLabeler):
+    """
+    BERT/Transformer-based sequence labeler with softmax output.
+
+    Uses HuggingFace transformers for the backbone.
+
+    Args:
+        config: Model configuration (must include transformer_name)
+        ntags: Number of output tags
+        load_pretrained_weights: Whether to load pretrained transformer weights
+        local_path: Local path to load transformer from
+    """
+
+    name = "BERT"
+
+    def __init__(
+        self,
+        config: ModelConfig,
+        ntags: int = None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+    ):
+        super().__init__(config, ntags)
+
+        from transformers import AutoModel
+
+        transformer_name = config.transformer_name or "bert-base-uncased"
+
+        # Load transformer
+        # Note: local_path is for loading a locally-stored transformer (not from HuggingFace)
+        # When load_pretrained_weights=False, we load from transformer_name since fine-tuned
+        # weights will be loaded separately by the wrapper via load_state_dict()
+        if load_pretrained_weights:
+            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
+                # Check if local_path is a valid transformer directory
+                self.transformer = AutoModel.from_pretrained(local_path)
+            else:
+                self.transformer = AutoModel.from_pretrained(transformer_name)
+        else:
+            # Load pretrained transformer (weights will be replaced by load_state_dict later)
+            self.transformer = AutoModel.from_pretrained(transformer_name)
+
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
+        # Get hidden size from transformer
+        hidden_size = self.transformer.config.hidden_size
+
+        self.dropout = nn.Dropout(0.1)
+        self.classifier = nn.Linear(hidden_size, ntags)
+
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs.get("attention_mask", None)
+        token_type_ids = inputs.get("token_type_ids", None)
+
+        # Transformer forward
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        outputs = self.transformer(**transformer_args)
+        sequence_output = outputs.last_hidden_state
+
+        sequence_output = self.dropout(sequence_output)
+        logits = self.classifier(sequence_output)
+
+        result = {"logits": logits}
+
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, self.ntags), labels.view(-1))
+            result["loss"] = loss
+
+        return result
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using argmax."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = outputs["logits"].argmax(dim=-1)
+        return predictions.tolist()
+
+
+class BERT_CRF(BaseSequenceLabeler):
+    """
+    BERT/Transformer-based sequence labeler with CRF output.
+    """
+
+    name = "BERT_CRF"
+    use_crf = True
+
+    def __init__(
+        self,
+        config: ModelConfig,
+        ntags: int = None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+    ):
+        super().__init__(config, ntags)
+
+        from transformers import AutoModel
+
+        transformer_name = config.transformer_name or "bert-base-uncased"
+
+        if load_pretrained_weights:
+            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
+                self.transformer = AutoModel.from_pretrained(local_path)
+            else:
+                self.transformer = AutoModel.from_pretrained(transformer_name)
+        else:
+            self.transformer = AutoModel.from_pretrained(transformer_name)
+
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
+        hidden_size = self.transformer.config.hidden_size
+
+        self.dropout = nn.Dropout(0.1)
+        self.linear = nn.Linear(hidden_size, ntags)
+        self.crf = CRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs.get("attention_mask", None)
+        token_type_ids = inputs.get("token_type_ids", None)
+
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        outputs = self.transformer(**transformer_args)
+        x = self.dropout(outputs.last_hidden_state)
+        emissions = self.linear(x)
+
+        # Create mask for CRF (ignore padding and special tokens)
+        if attention_mask is not None:
+            mask = attention_mask.float()
+        else:
+            mask = None
+
+        result = {"logits": emissions}
+
+        if labels is not None:
+            # Mask out special token labels (typically 0)
+            loss = self.crf(emissions, labels, mask=mask)
+            result["loss"] = loss
+
+        return result
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            attention_mask = inputs.get("attention_mask", None)
+            mask = attention_mask.float() if attention_mask is not None else None
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        return predictions
+
+
+class BERT_ChainCRF(BaseSequenceLabeler):
+    """
+    BERT/Transformer-based sequence labeler with ChainCRF output.
+    """
+
+    name = "BERT_ChainCRF"
+    use_crf = True
+    use_chain_crf = True
+
+    def __init__(
+        self,
+        config: ModelConfig,
+        ntags: int = None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+    ):
+        super().__init__(config, ntags)
+
+        from transformers import AutoModel
+
+        transformer_name = config.transformer_name or "bert-base-uncased"
+
+        if load_pretrained_weights:
+            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
+                self.transformer = AutoModel.from_pretrained(local_path)
+            else:
+                self.transformer = AutoModel.from_pretrained(transformer_name)
+        else:
+            self.transformer = AutoModel.from_pretrained(transformer_name)
+
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
+        hidden_size = self.transformer.config.hidden_size
+
+        self.dropout = nn.Dropout(0.1)
+        self.dense = nn.Linear(hidden_size, ntags)
+        self.crf = ChainCRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs.get("attention_mask", None)
+        token_type_ids = inputs.get("token_type_ids", None)
+
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        outputs = self.transformer(**transformer_args)
+        x = self.dropout(outputs.last_hidden_state)
+        emissions = self.dense(x)
+
+        result = {"logits": emissions}
+
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            result["loss"] = loss
+
+        return result
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+class BERT_FEATURES(BaseSequenceLabeler):
+    """
+    BERT + softmax with additional discrete features.
+    """
+
+    name = "BERT_FEATURES"
+
+    def __init__(
+        self,
+        config: ModelConfig,
+        ntags: int = None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+    ):
+        super().__init__(config, ntags)
+
+        from transformers import AutoModel
+
+        transformer_name = config.transformer_name or "bert-base-uncased"
+
+        if load_pretrained_weights:
+            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
+                self.transformer = AutoModel.from_pretrained(local_path)
+            else:
+                self.transformer = AutoModel.from_pretrained(transformer_name)
+        else:
+            self.transformer = AutoModel.from_pretrained(transformer_name)
+
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
+        hidden_size = self.transformer.config.hidden_size
+
+        # Features embedding
+        num_features = len(config.features_indices) if config.features_indices else 1
+        features_vocab_size = config.features_vocabulary_size * num_features + 1
+        self.features_embedding = nn.Embedding(
+            features_vocab_size, config.features_embedding_size, padding_idx=0
+        )
+        self.features_lstm = nn.LSTM(
+            config.features_embedding_size,
+            config.features_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        # Combined processing
+        combined_size = hidden_size + config.features_lstm_units * 2
+
+        self.bilstm = nn.LSTM(
+            combined_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        self.dropout = nn.Dropout(config.dropout)
+        self.classifier = nn.Linear(config.num_word_lstm_units * 2, ntags)
+
+        self.loss_fn = nn.CrossEntropyLoss(ignore_index=0)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs.get("attention_mask", None)
+        token_type_ids = inputs.get("token_type_ids", None)
+        features_input = inputs["features_input"]
+
+        # Transformer
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        transformer_out = self.transformer(**transformer_args)
+        text_emb = self.dropout(transformer_out.last_hidden_state)
+
+        # Features
+        batch_size, seq_len = features_input.shape[:2]
+        features_emb = self.features_embedding(features_input)
+
+        if len(features_emb.shape) == 4:
+            features_emb_flat = features_emb.view(
+                -1, features_emb.shape[2], features_emb.shape[3]
+            )
+            _, (hidden, _) = self.features_lstm(features_emb_flat)
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1)
+            features_encoded = features_encoded.view(batch_size, seq_len, -1)
+        else:
+            features_encoded = features_emb.view(batch_size, seq_len, -1)
+
+        features_encoded = self.dropout(features_encoded)
+
+        # Combine
+        x = torch.cat([text_emb, features_encoded], dim=-1)
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+
+        logits = self.classifier(lstm_out)
+
+        result = {"logits": logits}
+
+        if labels is not None:
+            loss = self.loss_fn(logits.view(-1, self.ntags), labels.view(-1))
+            result["loss"] = loss
+
+        return result
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using argmax."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = outputs["logits"].argmax(dim=-1)
+        return predictions.tolist()
+
+
+class BERT_CRF_FEATURES(BaseSequenceLabeler):
+    """
+    BERT + CRF with additional discrete features.
+    """
+
+    name = "BERT_CRF_FEATURES"
+    use_crf = True
+
+    def __init__(
+        self,
+        config: ModelConfig,
+        ntags: int = None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+    ):
+        super().__init__(config, ntags)
+
+        from transformers import AutoModel
+
+        transformer_name = config.transformer_name or "bert-base-uncased"
+
+        if load_pretrained_weights:
+            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
+                self.transformer = AutoModel.from_pretrained(local_path)
+            else:
+                self.transformer = AutoModel.from_pretrained(transformer_name)
+        else:
+            self.transformer = AutoModel.from_pretrained(transformer_name)
+
+        # Check if transformer accepts token_type_ids
+        forward_signature = inspect.signature(self.transformer.forward)
+        self.accepts_token_type_ids = "token_type_ids" in forward_signature.parameters
+
+        hidden_size = self.transformer.config.hidden_size
+
+        # Features
+        num_features = len(config.features_indices) if config.features_indices else 1
+        features_vocab_size = config.features_vocabulary_size * num_features + 1
+        self.features_embedding = nn.Embedding(
+            features_vocab_size, config.features_embedding_size, padding_idx=0
+        )
+        self.features_lstm = nn.LSTM(
+            config.features_embedding_size,
+            config.features_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+        )
+
+        combined_size = hidden_size + config.features_lstm_units * 2
+
+        self.bilstm = nn.LSTM(
+            combined_size,
+            config.num_word_lstm_units,
+            batch_first=True,
+            bidirectional=True,
+        )
+        self.dropout = nn.Dropout(config.dropout)
+        self.dense = nn.Linear(
+            config.num_word_lstm_units * 2, config.num_word_lstm_units
+        )
+        self.crf = CRF(ntags)
+
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        """Forward pass."""
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs.get("attention_mask", None)
+        token_type_ids = inputs.get("token_type_ids", None)
+        features_input = inputs["features_input"]
+
+        # Transformer
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
+
+        transformer_out = self.transformer(**transformer_args)
+        text_emb = self.dropout(transformer_out.last_hidden_state)
+
+        # Features
+        batch_size, seq_len = features_input.shape[:2]
+        features_emb = self.features_embedding(features_input)
+        if len(features_emb.shape) == 4:
+            features_emb_flat = features_emb.view(
+                -1, features_emb.shape[2], features_emb.shape[3]
+            )
+            _, (hidden, _) = self.features_lstm(features_emb_flat)
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1).view(
+                batch_size, seq_len, -1
+            )
+        else:
+            features_encoded = features_emb.view(batch_size, seq_len, -1)
+        features_encoded = self.dropout(features_encoded)
+
+        # Combine
+        x = torch.cat([text_emb, features_encoded], dim=-1)
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+        emissions = torch.tanh(self.dense(lstm_out))
+
+        result = {"logits": emissions}
+
+        if labels is not None:
+            mask = attention_mask.float() if attention_mask is not None else None
+            loss = self.crf(emissions, labels, mask=mask)
+            result["loss"] = loss
+
+        return result
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
+        """Decode using Viterbi."""
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            attention_mask = inputs.get("attention_mask", None)
+            mask = attention_mask.float() if attention_mask is not None else None
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        return predictions
+
+
+class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
+    """BERT + ChainCRF with features."""
+
+    name = "BERT_ChainCRF_FEATURES"
+    use_chain_crf = True
+
+    def __init__(
+        self,
+        config: ModelConfig,
+        ntags: int = None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+    ):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
+        self.crf = ChainCRF(ntags)
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+    def forward(
+        self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
+    ) -> Dict[str, torch.Tensor]:
+        input_ids = inputs["input_ids"]
+        attention_mask = inputs.get("attention_mask", None)
+        token_type_ids = inputs.get("token_type_ids", None)
+        features_input = inputs["features_input"]
 
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
+        transformer_args = {"input_ids": input_ids, "attention_mask": attention_mask}
+        if self.accepts_token_type_ids:
+            transformer_args["token_type_ids"] = token_type_ids
 
-        #embedding_layer = transformer_model(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        embedding_layer = Dropout(0.1)(embedding_layer)
-        label_logits = Dense(ntags, activation='softmax')(embedding_layer)
+        transformer_out = self.transformer(**transformer_args)
+        text_emb = self.dropout(transformer_out.last_hidden_state)
 
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[label_logits])
-        self.config = config
+        batch_size, seq_len = features_input.shape[:2]
+        features_emb = self.features_embedding(features_input)
+        if len(features_emb.shape) == 4:
+            features_emb_flat = features_emb.view(
+                -1, features_emb.shape[2], features_emb.shape[3]
+            )
+            _, (hidden, _) = self.features_lstm(features_emb_flat)
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1).view(
+                batch_size, seq_len, -1
+            )
+        else:
+            features_encoded = features_emb.view(batch_size, seq_len, -1)
+        features_encoded = self.dropout(features_encoded)
 
-    def get_generator(self):
-        return DataGeneratorTransformers
+        x = torch.cat([text_emb, features_encoded], dim=-1)
+        lstm_out, _ = self.bilstm(x)
+        lstm_out = self.dropout(lstm_out)
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.dense2(x)
 
-class BERT_FEATURES(BaseModel):
+        result = {"logits": emissions}
+        if labels is not None:
+            loss = self.crf(emissions, labels)
+            result["loss"] = loss
+        return result
+
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+        with torch.no_grad():
+            outputs = self.forward(inputs)
+            predictions = self.crf.decode(outputs["logits"])
+        return predictions
+
+
+# Model registry
+MODEL_REGISTRY = {
+    "BidLSTM": BidLSTM,
+    "BidLSTM_CRF": BidLSTM_CRF,
+    "BidLSTM_ChainCRF": BidLSTM_ChainCRF,
+    "BidLSTM_CNN": BidLSTM_CNN,
+    "BidLSTM_CNN_CRF": BidLSTM_CNN_CRF,
+    "BidGRU_CRF": BidGRU_CRF,
+    "BidLSTM_CRF_FEATURES": BidLSTM_CRF_FEATURES,
+    "BidLSTM_ChainCRF_FEATURES": BidLSTM_ChainCRF_FEATURES,
+    "BidLSTM_CRF_CASING": BidLSTM_CRF_CASING,
+    # BERT models
+    "BERT": BERT,
+    "BERT_CRF": BERT_CRF,
+    "BERT_ChainCRF": BERT_ChainCRF,
+    "BERT_FEATURES": BERT_FEATURES,
+    "BERT_CRF_FEATURES": BERT_CRF_FEATURES,
+    "BERT_ChainCRF_FEATURES": BERT_ChainCRF_FEATURES,
+}
+
+
+def get_model(
+    config: ModelConfig,
+    ntags: int,
+    load_pretrained_weights: bool = True,
+    local_path: str = None,
+) -> BaseSequenceLabeler:
     """
-    A Keras implementation of BERT for sequence labelling combined with additional generic discrete features 
-    information and with softmax activation final layer. 
+    Get a model instance by architecture name.
 
-    For training, the BERT layer will be loaded with weights of existing pre-trained BERT model given by the 
-    field transformer of the model config (load_pretrained_weights=True).
+    Args:
+        config: Model configuration with architecture name
+        ntags: Number of output tags
+        load_pretrained_weights: Whether to load pretrained transformer weights
+        local_path: Local path for transformer models
 
-    For an existing trained model, the BERT layer will be simply initialized (load_pretrained_weights=False),
-    without loading pre-trained weights (the weight of the transformer layer will be loaded with the full Keras
-    saved model). 
-
-    When initializing the model, we can provide a local_path to load locally the transformer config and (if 
-    necessary) the transformer weights. If local_path=None, these files will be fetched from HuggingFace Hub.
+    Returns:
+        Model instance
     """
-
-    name = 'BERT_FEATURES'
-
-    def __init__(self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
-
-        # layout features input and embeddings
-        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
-
-        # The input dimension is calculated by
-        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
-                                       output_dim=config.features_embedding_size,
-                                       # mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td")(features_input)
-
-        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
-                                                 name="features_embedding_td_2")(features_embedding)
-
-        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
-
-        # combine feature and text embeddings
-        x = Concatenate()([text_embedding_layer, features_embedding_out])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        label_logits = Dense(ntags, activation='softmax')(x)
-
-        self.model  = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[label_logits])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
-
-
-class BERT_CRF(BaseModel):
-    """
-    A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
-    of existing pre-trained BERT model given by the field transformer in the config. 
-    """
-
-    name = 'BERT_CRF'
-
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool =True, local_path: str= None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        #embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        x = Dropout(0.1)(embedding_layer)
-
-        base_model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[x])
-
-        self.model = CRFModelWrapperForBERT(base_model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, ), (None, None, )])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
-
-
-class BERT_ChainCRF(BaseModel):
-    """
-    A Keras implementation of BERT-CRF for sequence labelling. The BERT layer will be loaded with weights
-    of existing pre-trained BERT model given by the field transformer in the config. 
-
-    This architecture uses an alternative CRF layer implementation.
-    """
-
-    name = 'BERT_ChainCRF'
-
-    def __init__(self, config: ModelConfig, ntags=None, load_pretrained_weights:bool=True, local_path: str=None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        #embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
-        embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        embedding_layer = Dropout(0.1)(embedding_layer)
-        x = Dense(ntags)(embedding_layer)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
-
-        self.model = Model(inputs=[input_ids_in, token_type_ids, attention_mask], outputs=[pred])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
-
-
-class BERT_CRF_FEATURES(BaseModel):
-    """
-    A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
-    additional generic discrete features information. The BERT layer will be loaded with weights
-    of existing pre-trained BERT model given by the field transformer in the config. 
-    """
-
-    name = 'BERT_CRF_FEATURES'
-
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
-
-        # layout features input and embeddings
-        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
-
-        # The input dimension is calculated by
-        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
-                                       output_dim=config.features_embedding_size,
-                                       # mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td")(features_input)
-
-        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
-                                                 name="features_embedding_td_2")(features_embedding)
-
-        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
-
-        # combine feature and text embeddings
-        x = Concatenate()([text_embedding_layer, features_embedding_out])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-
-        base_model = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[x])
-
-        self.model = CRFModelWrapperForBERT(base_model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
-
-
-class BERT_ChainCRF_FEATURES(BaseModel):
-    """
-    A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
-    additional generic discrete features information. The BERT layer will be loaded with weights
-    of existing pre-trained BERT model given by the field transformer in the config. 
-
-    This architecture uses an alternative CRF layer implementation.
-    """
-
-    name = 'BERT_ChainCRF_FEATURES'
-
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
-
-        # layout features input and embeddings
-        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
-
-        # The input dimension is calculated by
-        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
-                                       output_dim=config.features_embedding_size,
-                                       # mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td")(features_input)
-
-        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
-                                                 name="features_embedding_td_2")(features_embedding)
-
-        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
-
-        # combine feature and text embeddings
-        x = Concatenate()([text_embedding_layer, features_embedding_out])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-
-        x = Dense(ntags)(x)
-        self.crf = ChainCRF()
-        pred = self.crf(x)
-
-        self.model  = Model(inputs=[input_ids_in, features_input, token_type_ids, attention_mask], outputs=[pred])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
-
-
-class BERT_CRF_CHAR(BaseModel):
-    """
-    A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
-    a character input channel. The BERT layer will be loaded with weights of existing 
-    pre-trained BERT model given by the field transformer in the config. 
-    """
-
-    name = 'BERT_CRF_CHAR'
-
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path:str=None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
-
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
-                                    trainable=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
-                                                    return_sequences=False)),
-                                                    name="chars_rnn")(char_embeddings)
-
-        # combine characters and word embeddings
-        x = Concatenate()([text_embedding_layer, chars])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-
-        base_model = Model(inputs=[input_ids_in, char_input, token_type_ids, attention_mask], outputs=[x])
-        self.model = CRFModelWrapperForBERT(base_model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, ), (None, None, )])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
-
-
-class BERT_CRF_CHAR_FEATURES(BaseModel):
-    """
-    A Keras implementation of BERT-CRF for sequence labelling using tokens combined with 
-    additional generic discrete features information and a character input channel. The 
-    BERT layer will be loaded with weights of existing pre-trained BERT model given by 
-    the field transformer in the config. 
-    """
-
-    name = 'BERT_CRF_CHAR_FEATURES'
-
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str= None, preprocessor=None):
-        super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
-
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
-
-        input_ids_in = Input(shape=(None,), name='input_token', dtype='int32')
-        token_type_ids = Input(shape=(None,), name='input_token_type', dtype='int32')
-        attention_mask = Input(shape=(None,), name='input_attention_mask', dtype='int32')
-
-        #text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids)[0]
-        text_embedding_layer = transformer_layers(input_ids_in, token_type_ids=token_type_ids, attention_mask=attention_mask)[0]
-        text_embedding_layer = Dropout(0.1)(text_embedding_layer)
-
-        # build character based embedding
-        char_input = Input(shape=(None, config.max_char_length), dtype='int32', name='char_input')
-        char_embeddings = TimeDistributed(Embedding(input_dim=config.char_vocab_size,
-                                    output_dim=config.char_embedding_size,
-                                    #mask_zero=True,
-                                    trainable=True,
-                                    #embeddings_initializer=RandomUniform(minval=-0.5, maxval=0.5),
-                                    name='char_embeddings'
-                                    ))(char_input)
-
-        chars = TimeDistributed(Bidirectional(LSTM(config.num_char_lstm_units,
-                                                    return_sequences=False)),
-                                                    name="chars_rnn")(char_embeddings)
-
-        # layout features input and embeddings
-        features_input = Input(shape=(None, len(config.features_indices)), dtype='float32', name='features_input')
-
-        # The input dimension is calculated by
-        # features_vocabulary_size (default 12) * number_of_features + 1 (the zero is reserved for masking / padding)
-        features_embedding = TimeDistributed(Embedding(input_dim=config.features_vocabulary_size * len(config.features_indices) + 1,
-                                       output_dim=config.features_embedding_size,
-                                       # mask_zero=True,
-                                       trainable=True,
-                                       name='features_embedding'), name="features_embedding_td")(features_input)
-
-        features_embedding_bd = TimeDistributed(Bidirectional(LSTM(config.features_lstm_units, return_sequences=False)),
-                                                 name="features_embedding_td_2")(features_embedding)
-
-        features_embedding_out = Dropout(config.dropout)(features_embedding_bd)
-
-        # combine feature, characters and word embeddings
-        x = Concatenate()([text_embedding_layer, chars, features_embedding_out])
-        x = Dropout(config.dropout)(x)
-
-        x = Bidirectional(LSTM(units=config.num_word_lstm_units,
-                               return_sequences=True,
-                               recurrent_dropout=config.recurrent_dropout))(x)
-        x = Dropout(config.dropout)(x)
-        x = Dense(config.num_word_lstm_units, activation='tanh')(x)
-
-        base_model = Model(inputs=[input_ids_in, char_input, features_input, token_type_ids, attention_mask], outputs=[x])
-        self.model = CRFModelWrapperForBERT(base_model, ntags)
-        self.model.build(input_shape=[(None, None, ), (None, None, config.max_char_length), (None, None, len(config.features_indices)), (None, None, ), (None, None, )])
-        self.config = config
-
-    def get_generator(self):
-        return DataGeneratorTransformers
+    architecture = config.architecture
+
+    if architecture not in MODEL_REGISTRY:
+        raise ValueError(
+            f"Unknown architecture: {architecture}. "
+            f"Available: {list(MODEL_REGISTRY.keys())}"
+        )
+
+    model_class = MODEL_REGISTRY[architecture]
+
+    # BERT models take additional arguments
+    if architecture.startswith("BERT"):
+        return model_class(config, ntags, load_pretrained_weights, local_path)
+    else:
+        return model_class(config, ntags)

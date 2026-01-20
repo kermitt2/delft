@@ -1,480 +1,609 @@
+"""
+PyTorch Trainer for DeLFT sequence labeling models.
+
+Provides training loop, evaluation, and callbacks for PyTorch models.
+"""
+
 import os
+import json
+import logging
+from typing import List, Dict, Any, Callable
 
-import numpy as np
-import tensorflow as tf
-from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
-from transformers import create_optimizer
+import torch
+import torch.nn as nn
+from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.optim import Adam, AdamW
+from torch.optim.lr_scheduler import ReduceLROnPlateau
+from tqdm import tqdm
 
-from delft.sequenceLabelling.config import ModelConfig
-from delft.sequenceLabelling.data_generator import DataGeneratorTransformers
-from delft.sequenceLabelling.evaluation import f1_score, accuracy_score, precision_score, recall_score
-from delft.sequenceLabelling.evaluation import get_report, compute_metrics
-from delft.sequenceLabelling.models import get_model
+from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
+from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
-from delft.utilities.misc import print_parameters
-
-DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
-CONFIG_FILE_NAME = 'config.json'
-PROCESSOR_FILE_NAME = 'preprocessor.json'
-
-class Trainer(object):
-
-    def __init__(self,
-                 model,
-                 models,
-                 embeddings,
-                 model_config: ModelConfig,
-                 training_config,
-                 checkpoint_path='',
-                 save_path='',
-                 preprocessor: Preprocessor=None,
-                 transformer_preprocessor=None,
-                 enable_wandb = False
-                 ):
-
-        # for single model training
-        self.model = model
-
-        # for n-folds training
-        self.models = models
-
-        self.embeddings = embeddings
-        self.model_config = model_config
-        self.training_config = training_config
-        self.checkpoint_path = checkpoint_path
-        self.save_path = save_path
-        self.preprocessor = preprocessor
-        self.transformer_preprocessor = transformer_preprocessor
-        self.enable_wandb = enable_wandb
-
-    def train(self, x_train, y_train, x_valid, y_valid, features_train: np.array = None, features_valid: np.array = None, callbacks=None):
-        """
-        Train the instance self.model
-        """      
-        self.model = self.compile_model(self.model, len(x_train))
-
-        # uncomment to plot graph
-        #plot_model(self.model,
-        #    to_file='data/models/sequenceLabelling/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
-
-        self.model = self.train_model(self.model, x_train, y_train, x_valid=x_valid, y_valid=y_valid,
-                                  f_train=features_train, f_valid=features_valid,
-                                  max_epoch=self.training_config.max_epoch, callbacks=callbacks)
-
-    def compile_model(self, local_model, train_size):
-
-        nb_train_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
-        
-        if self.model_config.transformer_name is not None:
-            # we use a transformer layer in the architecture
-            optimizer, lr_schedule = create_optimizer(
-                init_lr=self.training_config.learning_rate,
-                num_train_steps=nb_train_steps,
-                weight_decay_rate=0.01,
-                num_warmup_steps=0.1 * nb_train_steps,
-            )
-
-            if local_model.config.use_chain_crf:
-                local_model.compile(
-                    optimizer=optimizer,
-                    loss=local_model.crf.sparse_crf_loss_bert_masked
-                )
-            elif local_model.config.use_crf:
-                # loss is calculated by the custom CRF wrapper
-                local_model.compile(
-                    optimizer=optimizer,
-                )
-            else:
-                # we apply a mask on the predicted labels so that the weights 
-                # corresponding to special symbols are neutralized
-                local_model.compile(
-                    optimizer=optimizer,
-                    loss=sparse_crossentropy_masked,
-                )
-        else:
-            
-            lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
-                initial_learning_rate=self.training_config.learning_rate,
-                decay_steps=nb_train_steps,
-                decay_rate=0.1)
-            optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
-            
-            #optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
-            if local_model.config.use_chain_crf:
-                local_model.compile(
-                    optimizer=optimizer,
-                    loss=local_model.crf.loss,
-                )
-            elif local_model.config.use_crf:
-                if tf.executing_eagerly():
-                    # loss is calculated by the custom CRF wrapper, no need to specify a loss function here
-                    local_model.compile(
-                        optimizer=optimizer,
-                    )
-                else:
-                    print("compile model, graph mode")
-                    # always expecting a loss function here, but it is calculated internally by the CRF wapper
-                    # the following will fail in graph mode because 
-                    # '<tf.Variable 'chain_kernel:0' shape=(10, 10) dtype=float32> has `None` for gradient.'
-                    # however this variable cannot be accessed, so no soluton for the moment 
-                    # (probably need not using keras fit and creating a custom training loop to get the gradient)
-                    local_model.compile(
-                        optimizer=optimizer,
-                        loss='sparse_categorical_crossentropy',
-                    )
-                    #local_model.compile(optimizer=optimizer, loss=InnerLossPusher(local_model))
-            else:
-                # only sparse label encoding is used (no one-hot encoded labels as it was the case in DeLFT < 0.3)
-                local_model.compile(
-                    optimizer=optimizer,
-                    loss='sparse_categorical_crossentropy',
-                )
-
-        return local_model
-
-    def train_model(self, local_model, x_train, y_train, f_train=None,
-                    x_valid=None, y_valid=None, f_valid=None, max_epoch=50, callbacks=None):
-        """
-        The parameter model local_model must be compiled before calling this method.
-        This model will be returned with trained weights
-        """
-        # todo: if valid set is None, create it as random segment of the shuffled train set
-
-        generator = local_model.get_generator()
-        if self.training_config.early_stop:
-            training_generator = generator(x_train, y_train, 
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size, 
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, 
-                shuffle=True, features=f_train, use_chain_crf=self.model_config.use_chain_crf)
-
-            validation_generator = generator(x_valid, y_valid,  
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size, 
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=False, features=f_valid, 
-                output_input_offsets=True, use_chain_crf=self.model_config.use_chain_crf)
-
-            _callbacks = get_callbacks(
-                log_dir=self.checkpoint_path,
-                early_stopping=True,
-                patience=self.training_config.patience,
-                valid=(validation_generator, self.preprocessor),
-                use_crf=self.model_config.use_crf,
-                use_chain_crf=self.model_config.use_chain_crf,
-                model=local_model,
-                external_callbacks=callbacks
-            )
-        else:
-            x_train = np.concatenate((x_train, x_valid), axis=0)
-            y_train = np.concatenate((y_train, y_valid), axis=0)
-            feature_all = None
-            if f_train is not None:
-                feature_all = np.concatenate((f_train, f_valid), axis=0)
-
-            training_generator = generator(x_train, y_train,
-                batch_size=self.training_config.batch_size, preprocessor=self.preprocessor, 
-                bert_preprocessor=self.transformer_preprocessor,
-                char_embed_size=self.model_config.char_embedding_size, 
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings, shuffle=True, 
-                features=feature_all, use_chain_crf=self.model_config.use_chain_crf)
-
-            _callbacks = get_callbacks(
-                log_dir=self.checkpoint_path,
-                early_stopping=False,
-                use_crf=self.model_config.use_crf,
-                use_chain_crf=self.model_config.use_chain_crf,
-                model=local_model,
-                external_callbacks=callbacks
-            )
-        nb_workers = 6
-        multiprocessing = self.training_config.multiprocessing
-
-        # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-        if self.embeddings and self.embeddings.use_ELMo:
-            # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0 
-            multiprocessing = False
-
-        local_model.fit(
-            training_generator,
-                                epochs=max_epoch,
-                                use_multiprocessing=multiprocessing,
-                                workers=nb_workers,
-                                callbacks=_callbacks
-        )
-
-        return local_model
-
-    def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, callbacks=None):
-        """
-        n-fold training for the instance model
-
-        for RNN models:
-        -> the n models are stored in self.models, and self.model left unset at this stage
-        fold number is available with self.model_config.fold_number 
-
-        for models with transformer layer:
-        -> fold models are saved on disk (because too large) and self.models is not used, we identify the usage
-        of folds with self.model_config.fold_number     
-        """
-
-        fold_count = self.model_config.fold_number
-        fold_size = len(x_train) // fold_count
-
-        dir_path = 'data/models/sequenceLabelling/'
-        output_directory = os.path.join(dir_path, self.model_config.model_name)
-        print("Output directory:", output_directory)
-        if not os.path.exists(output_directory):
-            os.makedirs(output_directory)
-
-        if self.model_config.transformer_name is not None:
-            # save the config, preprocessor and transformer layer config on disk
-            self.model_config.save(os.path.join(output_directory, CONFIG_FILE_NAME))
-            self.preprocessor.save(os.path.join(output_directory, PROCESSOR_FILE_NAME))
-
-        for fold_id in range(0, fold_count):
-            if x_valid is None:
-                # segment train and valid
-                fold_start = fold_size * fold_id
-                fold_end = fold_start + fold_size
-
-                if fold_id == fold_size - 1:
-                    fold_end = len(x_train)
-
-                train_x = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
-                train_y = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
-                train_f = np.concatenate([f_train[:fold_start], f_train[fold_end:]])
-
-                val_x = x_train[fold_start:fold_end]
-                val_y = y_train[fold_start:fold_end]
-                val_f = f_train[fold_start:fold_end]
-            else:
-                # reuse given segmentation
-                train_x = x_train
-                train_y = y_train
-                train_f = f_train
-
-                val_x = x_valid
-                val_y = y_valid
-                val_f = f_valid
-
-            foldModel = get_model(self.model_config, 
-                               self.preprocessor, 
-                               ntags=len(self.preprocessor.vocab_tag), 
-                               load_pretrained_weights=True)
-
-            if fold_id == 0:
-                print_parameters(self.model_config, self.training_config)
-                foldModel.print_summary()
-
-            print('\n------------------------ fold ' + str(fold_id) + '--------------------------------------')
-            self.transformer_preprocessor = foldModel.transformer_preprocessor
-            foldModel = self.compile_model(foldModel, len(train_x))
-            foldModel = self.train_model(foldModel, 
-                                    train_x,
-                                    train_y,
-                                    x_valid=val_x,
-                                    y_valid=val_y,
-                                    f_train=train_f,
-                                    f_valid=val_f,
-                                    max_epoch=self.training_config.max_epoch,
-                                    callbacks=callbacks)
-
-            if self.model_config.transformer_name is None:
-                self.models.append(foldModel)
-            else:
-                # save the model with transformer layer on disk
-                weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(fold_id)+".hdf5")
-                foldModel.save(os.path.join(output_directory, weight_file))
-                if fold_id == 0:
-                    foldModel.transformer_config.to_json_file(os.path.join(output_directory, TRANSFORMER_CONFIG_FILE_NAME))
-                    if self.model_config.transformer_name is not None:
-                        transformer_preprocessor = foldModel.transformer_preprocessor
-                        transformer_preprocessor.tokenizer.save_pretrained(os.path.join(output_directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
 
 
-class LogLearningRateCallback(Callback):
+# Default file names
+DEFAULT_WEIGHT_FILE_NAME = "model_weights.pt"
+CONFIG_FILE_NAME = "config.json"
+PROCESSOR_FILE_NAME = "preprocessor.json"
 
-    def __init__(self, model=None):
-        super().__init__()
-        self.model = model
-
-    def on_epoch_end(self, epoch, logs):
-        if self.model is not None:
-            logs.update({"lr": self.model.optimizer._decayed_lr(tf.float32)})
+logger = logging.getLogger(__name__)
 
 
-def get_callbacks(log_dir=None, valid=(), early_stopping=True, patience=5, use_crf=True, use_chain_crf=False, model=None, external_callbacks=None):
+class EarlyStopping:
     """
-    Get callbacks.
+    Early stopping callback to stop training when validation metric stops improving.
 
     Args:
-        log_dir (str): the destination to save logs
-        valid (tuple): data for validation.
-        early_stopping (bool): whether to use early stopping.
-
-    Returns:
-        list: list of callbacks
+        patience: Number of epochs to wait before stopping
+        min_delta: Minimum change to qualify as improvement
+        mode: 'min' or 'max' depending on monitored metric
     """
-    callbacks = []
 
-    if valid:
-        callbacks.append(Scorer(*valid, use_crf=use_crf, use_chain_crf=use_chain_crf))
+    def __init__(self, patience: int = 5, min_delta: float = 0.0, mode: str = "max"):
+        self.patience = patience
+        self.min_delta = min_delta
+        self.mode = mode
+        self.counter = 0
+        self.best_score = None
+        self.should_stop = False
 
-    if log_dir:
-        if not os.path.exists(log_dir):
-            print('Successfully made a directory: {}'.format(log_dir))
-            os.mkdir(log_dir)
+    def __call__(self, score: float) -> bool:
+        if self.best_score is None:
+            self.best_score = score
+            return False
 
-        file_name = '_'.join(['model_weights', '{epoch:02d}']) + '.h5'
-        save_callback = ModelCheckpoint(os.path.join(log_dir, file_name),
-                                        monitor='f1',
-                                        save_weights_only=True)
-        callbacks.append(save_callback)
+        if self.mode == "max":
+            improved = score > self.best_score + self.min_delta
+        else:
+            improved = score < self.best_score - self.min_delta
 
-    if early_stopping:
-        callbacks.append(EarlyStopping(monitor='f1', patience=patience, mode='max'))
+        if improved:
+            self.best_score = score
+            self.counter = 0
+        else:
+            self.counter += 1
+            if self.counter >= self.patience:
+                self.should_stop = True
 
-    callbacks.append(LogLearningRateCallback(model))
-
-    if external_callbacks:
-        callbacks.extend(external_callbacks)
-
-    return callbacks
+        return self.should_stop
 
 
-class Scorer(Callback):
+class ModelCheckpoint:
+    """
+    Save model weights when validation metric improves.
 
-    def __init__(self, validation_generator, preprocessor=None, evaluation=False, use_crf=False, use_chain_crf=False):
+    Args:
+        filepath: Path to save model weights
+        monitor: Metric to monitor
+        mode: 'min' or 'max'
+    """
+
+    def __init__(self, filepath: str, monitor: str = "f1", mode: str = "max"):
+        self.filepath = filepath
+        self.monitor = monitor
+        self.mode = mode
+        self.best_score = None
+
+    def __call__(self, model: nn.Module, score: float) -> bool:
+        """Save model if score improved. Returns True if saved."""
+        if self.best_score is None:
+            self.best_score = score
+            self._save(model)
+            return True
+
+        if self.mode == "max":
+            improved = score > self.best_score
+        else:
+            improved = score < self.best_score
+
+        if improved:
+            self.best_score = score
+            self._save(model)
+            return True
+
+        return False
+
+    def _save(self, model: nn.Module):
+        """Save model weights."""
+        # Handle DDP wrapped models - get underlying model
+        if hasattr(model, "module"):
+            state_dict = model.module.state_dict()
+        else:
+            state_dict = model.state_dict()
+        torch.save(state_dict, self.filepath)
+        logger.info(f"Model saved to {self.filepath}")
+
+
+class Trainer:
+    """
+    Trainer for PyTorch sequence labeling models.
+
+    Args:
+        model: PyTorch model
+        config: Model configuration
+        training_config: Training configuration
+        preprocessor: Data preprocessor
+        device: Device to train on ('cuda' or 'cpu')
+        checkpoint_path: Path to save checkpoints
+        enable_wandb: Whether to log to Weights & Biases
+        distributed: Whether to use DistributedDataParallel
+        local_rank: Local GPU rank for distributed training
+    """
+
+    def __init__(
+        self,
+        model: nn.Module,
+        config: ModelConfig,
+        training_config: TrainingConfig,
+        preprocessor: Preprocessor = None,
+        device: str = None,
+        checkpoint_path: str = "",
+        save_path: str = "",
+        enable_wandb: bool = False,
+        distributed: bool = False,
+        local_rank: int = 0,
+    ):
+        self.config = config
+        self.training_config = training_config
+        self.preprocessor = preprocessor
+        self.distributed = distributed
+        self.local_rank = local_rank
+
+        # Set device
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
+
+        # Move model to device first
+        model.to(self.device)
+
+        # Wrap model with DDP if distributed training
+        if self.distributed:
+            self.model = DDP(model, device_ids=[local_rank], output_device=local_rank)
+            self._unwrapped_model = model  # Keep reference for saving
+        else:
+            self.model = model
+            self._unwrapped_model = model
+
+        self.checkpoint_path = checkpoint_path
+        self.save_path = save_path
+        self.enable_wandb = enable_wandb
+
+        # Only enable wandb on main process for distributed training
+        if self.distributed:
+            from delft.utilities.distributed import is_main_process
+
+            if not is_main_process():
+                self.enable_wandb = False
+
+        # Initialize wandb if enabled
+        if self.enable_wandb:
+            try:
+                import wandb
+
+                self.wandb = wandb
+            except ImportError:
+                logger.warning("wandb not available, disabling logging")
+                self.enable_wandb = False
+
+    def compile_model(self, train_size: int):
         """
-        If evaluation is True, we produce a full evaluation with complete report, otherwise it is a
-        validation step and will simply produce f1 score
+        Set up optimizer and learning rate scheduler.
+
+        Args:
+            train_size: Number of training samples (for learning rate scheduling)
         """
-        super(Scorer, self).__init__()
-        self.valid_steps = len(validation_generator)
-        self.valid_batches = validation_generator
-        self.p = preprocessor
+        # Choose optimizer
+        if self.config.transformer_name:
+            # Use AdamW for transformer models
+            self.optimizer = AdamW(
+                self.model.parameters(),
+                lr=self.training_config.learning_rate,
+                weight_decay=0.01,
+            )
+        else:
+            self.optimizer = Adam(
+                self.model.parameters(), lr=self.training_config.learning_rate
+            )
+
+        # Learning rate scheduler
+        num_training_steps = (
+            train_size // self.training_config.batch_size
+        ) * self.training_config.max_epoch
+
+        self.scheduler = ReduceLROnPlateau(
+            self.optimizer, mode="max", factor=0.5, patience=2
+        )
+
+    def train(
+        self, train_loader, valid_loader=None, callbacks: List[Callable] = None
+    ) -> Dict[str, Any]:
+        """
+        Train the model.
+
+        Args:
+            train_loader: Training data loader
+            valid_loader: Validation data loader (optional)
+            callbacks: List of callback functions
+
+        Returns:
+            Training history dictionary
+        """
+        # Compile model
+        train_size = (
+            len(train_loader.dataset)
+            if hasattr(train_loader, "dataset")
+            else len(train_loader) * self.training_config.batch_size
+        )
+        self.compile_model(train_size)
+
+        # Set up callbacks
+        early_stopping = EarlyStopping(patience=self.training_config.patience)
+
+        # Use model-specific checkpoint filename to avoid conflicts between architectures
+        checkpoint_filename = f"{self.config.model_name}_{DEFAULT_WEIGHT_FILE_NAME}"
+        checkpoint_filepath = (
+            os.path.join(self.checkpoint_path, checkpoint_filename)
+            if self.checkpoint_path
+            else checkpoint_filename
+        )
+        checkpoint = ModelCheckpoint(checkpoint_filepath)
+
+        history = {"loss": [], "val_loss": [], "f1": [], "precision": [], "recall": []}
+
+        best_f1 = 0.0
+
+        for epoch in range(self.training_config.max_epoch):
+            # Training phase
+            self.model.train()
+            train_loss = 0.0
+            num_batches = 0
+
+            train_iter = tqdm(
+                train_loader, desc=f"Epoch {epoch + 1}/{self.training_config.max_epoch}"
+            )
+
+            for batch in train_iter:
+                inputs, labels = batch
+
+                # Move to device
+                inputs = self._to_device(inputs)
+                if labels is not None:
+                    labels = labels.to(self.device)
+
+                # Forward pass
+                self.optimizer.zero_grad()
+                outputs = self.model(inputs, labels=labels)
+                loss = outputs["loss"]
+
+                # Backward pass
+                loss.backward()
+
+                # Gradient clipping
+                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+
+                self.optimizer.step()
+
+                train_loss += loss.item()
+                num_batches += 1
+
+                train_iter.set_postfix({"loss": train_loss / num_batches})
+
+            avg_train_loss = train_loss / num_batches
+            history["loss"].append(avg_train_loss)
+
+            # Validation phase
+            if valid_loader is not None:
+                val_metrics = self.evaluate(valid_loader)
+                history["val_loss"].append(val_metrics.get("loss", 0))
+                history["f1"].append(val_metrics["f1"])
+                history["precision"].append(val_metrics["precision"])
+                history["recall"].append(val_metrics["recall"])
+
+                print(
+                    f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}, "
+                    f"val_f1={val_metrics['f1']:.4f}, "
+                    f"val_precision={val_metrics['precision']:.4f}, "
+                    f"val_recall={val_metrics['recall']:.4f}"
+                )
+
+                # Update learning rate
+                self.scheduler.step(val_metrics["f1"])
+
+                # Model checkpoint - only on main process
+                should_save = True
+                if self.distributed:
+                    from delft.utilities.distributed import is_main_process
+
+                    should_save = is_main_process()
+
+                if should_save and checkpoint(self._unwrapped_model, val_metrics["f1"]):
+                    best_f1 = val_metrics["f1"]
+
+                # Early stopping
+                if self.training_config.early_stop and early_stopping(
+                    val_metrics["f1"]
+                ):
+                    print(f"Early stopping at epoch {epoch + 1}")
+                    break
+
+                # Log to wandb
+                if self.enable_wandb:
+                    self.wandb.log(
+                        {
+                            "epoch": epoch + 1,
+                            "train_loss": avg_train_loss,
+                            "val_f1": val_metrics["f1"],
+                            "val_precision": val_metrics["precision"],
+                            "val_recall": val_metrics["recall"],
+                            "learning_rate": self.optimizer.param_groups[0]["lr"],
+                        }
+                    )
+            else:
+                print(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
+
+        # Load best model from model-specific checkpoint and cleanup (only on main process)
+        best_model_path = checkpoint_filepath
+        should_load = True
+        if self.distributed:
+            from delft.utilities.distributed import is_main_process, barrier
+
+            should_load = is_main_process()
+
+        if should_load and os.path.exists(best_model_path):
+            self._unwrapped_model.load_state_dict(
+                torch.load(best_model_path, map_location=self.device)
+            )
+            # Remove checkpoint file - the wrapper will save the final model
+            try:
+                os.remove(best_model_path)
+                logger.info(f"Removed temporary checkpoint: {best_model_path}")
+            except OSError:
+                pass  # Ignore if file can't be removed
+
+        # Synchronize all processes after loading
+        if self.distributed:
+            barrier()
+
+        return history
+
+    def evaluate(self, data_loader) -> Dict[str, float]:
+        """
+        Evaluate model on a dataset.
+
+        Args:
+            data_loader: Data loader for evaluation
+
+        Returns:
+            Dictionary with metrics (f1, precision, recall, loss)
+        """
+        self.model.eval()
+
+        all_predictions = []
+        all_labels = []
+        total_loss = 0.0
+        num_batches = 0
+
+        with torch.no_grad():
+            for batch in data_loader:
+                inputs, labels = batch
+
+                inputs = self._to_device(inputs)
+                if labels is not None:
+                    labels = labels.to(self.device)
+
+                # Forward pass
+                outputs = self.model(inputs, labels=labels)
+
+                if "loss" in outputs:
+                    total_loss += outputs["loss"].item()
+                    num_batches += 1
+
+                # Get predictions
+                if hasattr(self.model, "decode"):
+                    predictions = self.model.decode(inputs)
+                else:
+                    predictions = outputs["logits"].argmax(dim=-1).tolist()
+
+                # Collect predictions and labels
+                if isinstance(predictions, torch.Tensor):
+                    predictions = predictions.tolist()
+
+                if labels is not None:
+                    labels_list = labels.tolist()
+
+                    for pred, label in zip(predictions, labels_list):
+                        # Filter padding (label == 0)
+                        valid_pred = []
+                        valid_label = []
+                        for p, l in zip(pred, label):
+                            if l != 0:  # Skip padding
+                                valid_pred.append(p)
+                                valid_label.append(l)
+                        all_predictions.append(valid_pred)
+                        all_labels.append(valid_label)
+
+        # Convert indices back to labels
+        if self.preprocessor:
+            idx_to_label = {
+                idx: label for label, idx in self.preprocessor.vocab_tag.items()
+            }
+
+            pred_labels = []
+            true_labels = []
+
+            for pred, label in zip(all_predictions, all_labels):
+                pred_labels.append([idx_to_label.get(p, "O") for p in pred])
+                true_labels.append([idx_to_label.get(l, "O") for l in label])
+
+            # Calculate metrics
+            report, evaluation = classification_report(
+                true_labels, pred_labels, digits=4
+            )
+
+            # Use evaluation dictionary directly
+            metrics = {
+                "f1": evaluation["micro"]["f1"],
+                "precision": evaluation["micro"]["precision"],
+                "recall": evaluation["micro"]["recall"],
+            }
+        else:
+            # Simple accuracy-based metrics if no preprocessor
+            correct = sum(
+                1
+                for p, l in zip(all_predictions, all_labels)
+                if len(p) == len(l) and all(pi == li for pi, li in zip(p, l))
+            )
+            total = len(all_predictions)
+            metrics = {
+                "f1": correct / total if total > 0 else 0,
+                "precision": correct / total if total > 0 else 0,
+                "recall": correct / total if total > 0 else 0,
+            }
+
+        if num_batches > 0:
+            metrics["loss"] = total_loss / num_batches
+
+        return metrics
+
+    def _parse_report(self, report: str) -> Dict[str, float]:
+        """Parse classification report to extract aggregate metrics."""
+        # Default values
+        metrics = {"f1": 0.0, "precision": 0.0, "recall": 0.0}
+
+        for line in report.split("\n"):
+            if "micro avg" in line or "weighted avg" in line:
+                parts = line.split()
+                if len(parts) >= 4:
+                    try:
+                        metrics["precision"] = float(parts[-4])
+                        metrics["recall"] = float(parts[-3])
+                        metrics["f1"] = float(parts[-2])
+                    except (ValueError, IndexError):
+                        pass
+                break
+
+        return metrics
+
+    def _to_device(self, inputs) -> Dict[str, torch.Tensor]:
+        """Move inputs to device."""
+        if isinstance(inputs, dict):
+            return {
+                k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+                for k, v in inputs.items()
+            }
+        elif isinstance(inputs, (list, tuple)):
+            return [
+                v.to(self.device) if isinstance(v, torch.Tensor) else v for v in inputs
+            ]
+        elif isinstance(inputs, torch.Tensor):
+            return inputs.to(self.device)
+        return inputs
+
+    def save_config(self, dir_path: str):
+        """Save model and training configuration."""
+        os.makedirs(dir_path, exist_ok=True)
+
+        config_dict = {
+            "model_config": self.config.__dict__,
+            "training_config": self.training_config.__dict__
+            if self.training_config
+            else {},
+        }
+
+        config_path = os.path.join(dir_path, CONFIG_FILE_NAME)
+        with open(config_path, "w") as f:
+            json.dump(config_dict, f, indent=2)
+
+
+class Scorer:
+    """
+    Callback for computing and logging metrics during training.
+
+    Args:
+        valid_loader: Validation data loader
+        preprocessor: Data preprocessor
+        evaluation: Whether this is final evaluation (more detailed)
+    """
+
+    def __init__(
+        self, valid_loader, preprocessor: Preprocessor = None, evaluation: bool = False
+    ):
+        self.valid_loader = valid_loader
+        self.preprocessor = preprocessor
+        self.evaluation = evaluation
 
         self.f1 = -1.0
-        self.accuracy = -1.0
         self.precision = -1.0
         self.recall = -1.0
         self.report = None
-        self.report_as_map = None
-        self.evaluation = evaluation
-        self.use_crf = use_crf
-        self.use_chain_crf = use_chain_crf
 
-    def on_epoch_end(self, epoch, logs={}):
-        y_pred = None
-        y_true = None
-        for i, (data, label) in enumerate(self.valid_batches):
-            if i == self.valid_steps:
-                break
-            y_true_batch = label       
+    def on_epoch_end(self, model: nn.Module, device: torch.device) -> Dict[str, float]:
+        """Compute metrics at end of epoch."""
+        model.eval()
 
-            if isinstance(self.valid_batches, DataGeneratorTransformers):
-                y_true_batch = np.asarray(y_true_batch, dtype=object)
+        all_predictions = []
+        all_labels = []
 
-                # we need to remove one vector of the data corresponding to the token offsets, this vector is not 
-                # expected by the model, but we need it to restore correctly the labels (which are produced
-                # according to the sub-segmentation of wordpiece, not the expected segmentation)
-                input_offsets = data[-1]
-                data = data[:-1]
+        with torch.no_grad():
+            for batch in self.valid_loader:
+                inputs, labels = batch
 
-                y_pred_batch = self.model.predict_on_batch(data)
+                # Move to device
+                if isinstance(inputs, dict):
+                    inputs = {
+                        k: v.to(device) if isinstance(v, torch.Tensor) else v
+                        for k, v in inputs.items()
+                    }
 
-                if not self.use_crf:
-                    y_pred_batch = np.argmax(y_pred_batch, -1)
+                # Get predictions
+                if hasattr(model, "decode"):
+                    predictions = model.decode(inputs)
+                else:
+                    outputs = model(inputs)
+                    predictions = outputs["logits"].argmax(dim=-1).tolist()
 
-                if self.use_chain_crf:
-                    y_pred_batch = np.argmax(y_pred_batch, -1)
+                if isinstance(predictions, torch.Tensor):
+                    predictions = predictions.tolist()
 
-                # results have been produced by a model using a transformer layer, so a few things to do
-                # the labels are sparse, so integers and not one hot encoded
-                # we need to restore back the labels for wordpiece to the labels for normal tokens
-                # for this we can use the marked tokens provided by the generator 
-                new_y_pred_batch = []
-                new_y_true_batch = []
-                for y_pred_text, y_true_text, offsets_text in zip(y_pred_batch, y_true_batch, input_offsets):
-                    new_y_pred_text = []
-                    new_y_true_text = []
-                    # this is the result per sequence, realign labels:
-                    for q in range(len(offsets_text)):
-                        if offsets_text[q][0] == 0 and offsets_text[q][1] == 0:
-                            # special token
-                            continue
-                        if offsets_text[q][0] != 0: 
-                            # added sub-token
-                            continue
-                        new_y_pred_text.append(y_pred_text[q]) 
-                        new_y_true_text.append(y_true_text[q])
-                    new_y_pred_batch.append(new_y_pred_text)
-                    new_y_true_batch.append(new_y_true_text)
-                y_pred_batch = new_y_pred_batch
-                y_true_batch = new_y_true_batch
+                if labels is not None:
+                    labels_list = labels.tolist()
 
-                y_true_batch = [self.p.inverse_transform(y) for y in y_true_batch]
-                y_pred_batch = [self.p.inverse_transform(y) for y in y_pred_batch]
-            else:
-                # no transformer layer around, no mess to manage with the sub-tokenization...
-                y_pred_batch = self.model.predict_on_batch(data)
+                    for pred, label in zip(predictions, labels_list):
+                        valid_pred = []
+                        valid_label = []
+                        for p, l in zip(pred, label):
+                            if l != 0:
+                                valid_pred.append(p)
+                                valid_label.append(l)
+                        all_predictions.append(valid_pred)
+                        all_labels.append(valid_label)
 
-                if not self.use_crf:
-                    # one hot encoded predictions
-                    y_pred_batch = np.argmax(y_pred_batch, -1)
+        # Convert to labels and compute metrics
+        if self.preprocessor:
+            idx_to_label = {
+                idx: label for label, idx in self.preprocessor.vocab_tag.items()
+            }
 
-                if self.use_chain_crf:
-                    # one hot encoded predictions and labels
-                    y_pred_batch = np.argmax(y_pred_batch, -1)
-                    y_true_batch = np.argmax(y_true_batch, -1)
+            pred_labels = [
+                [idx_to_label.get(p, "O") for p in pred] for pred in all_predictions
+            ]
+            true_labels = [
+                [idx_to_label.get(l, "O") for l in label] for label in all_labels
+            ]
 
-                # we also have the input length available 
-                sequence_lengths = data[-1] # this is the vectors "length_input" of the models input, always last 
-                # shape of (batch_size, 1), we want (batch_size)
-                sequence_lengths = np.reshape(sequence_lengths, (-1,))
+            self.report, evaluation = classification_report(
+                true_labels, pred_labels, digits=4
+            )
 
-                y_pred_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_pred_batch, sequence_lengths)]
-                y_true_batch = [self.p.inverse_transform(y[:l]) for y, l in zip(y_true_batch, sequence_lengths)]
-
-            if i == 0:
-                y_pred = y_pred_batch
-                y_true = y_true_batch
-            else:
-                y_pred.extend(y_pred_batch)
-                y_true.extend(y_true_batch)
-
-        '''
-        for i in range(0,len(y_pred)):
-            print("pred", y_pred[i])
-            print("true", y_true[i])
-        '''
-        has_data = y_true is not None and y_pred is not None
-        f1 = f1_score(y_true, y_pred) if has_data else 0.0
-        print("\tf1 (micro): {:04.2f}".format(f1 * 100))
+            # Parse metrics
+            if "micro" in evaluation:
+                self.precision = evaluation["micro"]["precision"]
+                self.recall = evaluation["micro"]["recall"]
+                self.f1 = evaluation["micro"]["f1"]
 
         if self.evaluation:
-            self.accuracy = accuracy_score(y_true, y_pred) if has_data else 0.0
-            self.precision = precision_score(y_true, y_pred) if has_data else 0.0
-            self.recall = recall_score(y_true, y_pred) if has_data else 0.0
-            self.report_as_map = compute_metrics(y_true, y_pred) if has_data else compute_metrics([], [])
-            self.report = get_report(self.report_as_map, digits=4)
             print(self.report)
 
-        # save eval
-        logs['f1'] = f1
-        self.f1 = f1
-
-
-def sparse_crossentropy_masked(y_true, y_pred):
-    mask_value = 0
-    y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
-    y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
-    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
-
+        return {"f1": self.f1, "precision": self.precision, "recall": self.recall}

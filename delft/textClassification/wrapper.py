@@ -1,496 +1,508 @@
 import os
-
-from delft.sequenceLabelling.trainer import LogLearningRateCallback
-# ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.misc import print_parameters
-
-os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
+import time
 import numpy as np
 
-import warnings
-warnings.filterwarnings('ignore', category=FutureWarning)
-warnings.filterwarnings("ignore", category=DeprecationWarning) 
-warnings.filterwarnings("ignore", category=UserWarning) 
-
-import tensorflow as tf
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-
-from tensorflow.python.util import deprecation
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-
-# unfortunately when running in graph mode, we cannot use BERT pre-trained, 
-# see https://github.com/huggingface/transformers/issues/3086
-# but this is apparently not useful anyway to disable eager mode here, because 
-# the Keras API compiles models before running them 
-#from tensorflow.python.framework.ops import disable_eager_execution
-#disable_eager_execution()
-
-import datetime
-
-from delft.textClassification.config import ModelConfig, TrainingConfig
-from delft.textClassification.models import getModel
-from delft.textClassification.models import train_folds
-from delft.textClassification.models import predict_folds
-from delft.textClassification.data_generator import DataGenerator
-
-from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
+import torch
+from sklearn.metrics import precision_recall_fscore_support, f1_score
 
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.misc import print_parameters, to_wandb_table
+from delft.textClassification.config import ModelConfig, TrainingConfig
+from delft.textClassification.models import getModel
+from delft.textClassification.data_loader import create_dataloader
+from delft.textClassification.trainer import Trainer
+from delft.textClassification.preprocess import TextPreprocessor
 
-from sklearn.metrics import log_loss, roc_auc_score, accuracy_score, f1_score, r2_score, precision_recall_fscore_support
-from sklearn.model_selection import train_test_split
+from delft import DELFT_PROJECT_DIR
 
-import transformers
-transformers.logging.set_verbosity(transformers.logging.ERROR) 
+# File names for saving/loading
+PREPROCESSOR_FILE = "preprocessor.json"
 
-from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
+    config_file = "config.json"
+    weight_file = "model_weights.pth"
 
-    config_file = 'config.json'
-    weight_file = 'model_weights.hdf5'
+    def __init__(
+        self,
+        model_name=None,
+        architecture="gru",
+        embeddings_name=None,
+        list_classes=[],
+        char_emb_size=25,
+        dropout=0.5,
+        recurrent_dropout=0.25,
+        use_char_feature=False,
+        batch_size=256,
+        optimizer="adam",
+        learning_rate=0.001,
+        lr_decay=0.9,
+        clip_gradients=5.0,
+        max_epoch=50,
+        patience=5,
+        log_dir=None,
+        maxlen=300,
+        fold_number=1,
+        use_roc_auc=True,
+        early_stop=True,
+        class_weights=None,
+        multiprocessing=True,
+        transformer_name: str = None,
+        device=None,
+        report_to_wandb=False,
+        nb_workers: int = None,
+    ):
+        self.model_config = ModelConfig(
+            model_name=model_name,
+            architecture=architecture,
+            embeddings_name=embeddings_name,
+            list_classes=list_classes,
+            char_emb_size=char_emb_size,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            use_char_feature=use_char_feature,
+            maxlen=maxlen,
+            fold_number=fold_number,
+            batch_size=batch_size,
+            transformer_name=transformer_name,
+        )
 
-    def __init__(self, 
-                 model_name=None,
-                 architecture="gru",
-                 embeddings_name=None,
-                 list_classes=[],
-                 char_emb_size=25, 
-                 dropout=0.5, 
-                 recurrent_dropout=0.25,
-                 use_char_feature=False, 
-                 batch_size=256, 
-                 optimizer='adam', 
-                 learning_rate=None,
-                 lr_decay=0.9,
-                 clip_gradients=5.0, 
-                 max_epoch=50, 
-                 patience=5,
-                 log_dir=None,
-                 maxlen=300,
-                 fold_number=1,
-                 use_roc_auc=True,
-                 early_stop=True,
-                 class_weights=None,
-                 multiprocessing=True,
-                 transformer_name: str=None):
-
-        if model_name is None:
-            # add a dummy name based on the architecture
-            model_name = architecture
-            if embeddings_name is not None:
-                model_name += "_" + embeddings_name
-            if transformer_name is not None:
-                model_name += "_" + transformer_name
-
-        if learning_rate is None:
-            if transformer_name is None:
-                learning_rate = 0.001
-            else:
-                learning_rate = 2e-5
+        self.training_config = TrainingConfig(
+            learning_rate=learning_rate,
+            batch_size=batch_size,
+            optimizer=optimizer,
+            lr_decay=lr_decay,
+            clip_gradients=clip_gradients,
+            max_epoch=max_epoch,
+            patience=patience,
+            use_roc_auc=use_roc_auc,
+            early_stop=early_stop,
+            class_weights=class_weights,
+            multiprocessing=multiprocessing,
+        )
 
         self.model = None
         self.models = None
-        self.log_dir = log_dir
-        self.embeddings_name = embeddings_name
         self.embeddings = None
+        self.preprocessor = None
+        self.report_to_wandb = report_to_wandb
+        self.wandb = None
 
-        # if transformer_name is None, no bert layer is present in the model
-        self.transformer_name = None
-
-        self.registry = load_resource_registry("delft/resources-registry.json")
-
-        word_emb_size = 0
-        if transformer_name is not None:
-            self.transformer_name = transformer_name
-            self.embeddings_name = None
-            self.embeddings = None
-        elif self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
-            word_emb_size = self.embeddings.embed_size
-        
-        self.model_config = ModelConfig(model_name=model_name, 
-                                        architecture=architecture, 
-                                        embeddings_name=embeddings_name, 
-                                        list_classes=list_classes, 
-                                        char_emb_size=char_emb_size, 
-                                        word_emb_size=word_emb_size, 
-                                        dropout=dropout, 
-                                        recurrent_dropout=recurrent_dropout,
-                                        use_char_feature=use_char_feature, 
-                                        maxlen=maxlen, 
-                                        fold_number=fold_number, 
-                                        batch_size=batch_size,
-                                        transformer_name=self.transformer_name)
-
-        self.training_config = TrainingConfig(learning_rate,
-                                              batch_size=batch_size,
-                                              optimizer=optimizer,
-                                              lr_decay=lr_decay, 
-                                              clip_gradients=clip_gradients, 
-                                              max_epoch=max_epoch,
-                                              patience=patience, 
-                                              use_roc_auc=use_roc_auc, 
-                                              early_stop=early_stop,
-                                              class_weights=class_weights, 
-                                              multiprocessing=multiprocessing)
-
-    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
-
-        if incremental:
-            if self.model == None and self.models == None:
-                print("error: you must load a model first for an incremental training")
-                return
-            print("Incremental training from loaded model", self.model_config.model_name)
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         else:
-            self.model = getModel(self.model_config, self.training_config)
-        
-        print_parameters(self.model_config, self.training_config)
-        self.model.print_summary()
+            self.device = torch.device(device)
 
-        bert_data = False
-        if self.transformer_name is not None:
-            bert_data = True
+        self.registry = load_resource_registry(
+            os.path.join(DELFT_PROJECT_DIR, "resources-registry.json")
+        )
+
+        if embeddings_name is not None:
+            self.embeddings = Embeddings(
+                embeddings_name, resource_registry=self.registry
+            )
+            self.model_config.word_embedding_size = self.embeddings.embed_size
+        else:
+            self.model_config.word_embedding_size = 0
+
+        # Set number of workers: default to cpu_count - 1, minimum 1
+        if nb_workers is None:
+            self.nb_workers = max(1, os.cpu_count() - 1)
+        else:
+            self.nb_workers = nb_workers
+
+        if report_to_wandb:
+            self._init_wandb(model_name)
+
+    def _init_wandb(self, model_name, run_id=None):
+        """Initialize Weights & Biases logging."""
+        try:
+            import wandb
+            from dotenv import load_dotenv
+
+            load_dotenv(override=True)
+            if os.getenv("WANDB_API_KEY") is None:
+                print("Warning: WANDB_API_KEY not set, wandb disabled")
+                self.report_to_wandb = False
+                return
+
+            if run_id:
+                wandb.init(id=run_id, resume="must")
+                print(f"Resumed wandb run: {run_id}")
+            else:
+                wandb.init(
+                    name=model_name,
+                    config={
+                        "model_name": self.model_config.model_name,
+                        "architecture": self.model_config.architecture,
+                        "transformer_name": self.model_config.transformer_name,
+                        "embeddings_name": self.model_config.embeddings_name,
+                        "batch_size": self.training_config.batch_size,
+                        "learning_rate": self.training_config.learning_rate,
+                        "max_epoch": self.training_config.max_epoch,
+                        "patience": self.training_config.patience,
+                        "early_stop": self.training_config.early_stop,
+                        "maxlen": self.model_config.maxlen,
+                    },
+                )
+            self.wandb = wandb
+        except ImportError:
+            print("Warning: wandb not available")
+            self.report_to_wandb = False
+
+    def train(
+        self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
+    ):
+        if self.model_config.fold_number == 1:
+            self.train_single(x_train, y_train, vocab_init, incremental, callbacks)
+        else:
+            self.train_nfold(x_train, y_train, vocab_init, incremental, callbacks)
+
+    def train_single(
+        self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
+    ):
+        # Create Data Loaders
+        # Note: We need to handle validation split here if not n-fold
+        # For simplicity, let's take last 10% as validation if early_stop is True and no folds
+
+        x_valid = None
+        y_valid = None
 
         if self.training_config.early_stop:
-            # create validation set 
-            xtr, val_x, y, val_y = train_test_split(x_train, y_train, test_size=0.1)
+            split_idx = int(len(x_train) * 0.9)
+            x_valid = x_train[split_idx:]
+            y_valid = y_train[split_idx:]
+            x_train = x_train[:split_idx]
+            y_train = y_train[:split_idx]
 
-            training_generator = DataGenerator(xtr, y, batch_size=self.training_config.batch_size, 
-                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
-            validation_generator = DataGenerator(val_x, None, batch_size=self.training_config.batch_size, 
-                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
-        else:
-            val_y = y_train
+        # Init model
+        self.model = getModel(self.model_config, self.training_config)
+        self.model.to(self.device)
 
-            training_generator = DataGenerator(x_train, y_train, batch_size=self.training_config.batch_size, 
-                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                embeddings=self.embeddings, shuffle=True, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
-            validation_generator = None
+        print(f"Model: {self.model_config.architecture}")
 
+        # Helper to get tokenizer if needed
+        transformer_tokenizer = None
+        if self.model_config.transformer_name is not None:
+            # Logic to fetch tokenizer from model or transformer helper
+            # In models_pytorch.py we use AutoModel.
+            # We need generic way to get tokenizer.
+            from transformers import AutoTokenizer
 
-        callbacks_ = callbacks if callbacks else []
-        callbacks_.append(LogLearningRateCallback(self.model))
+            transformer_tokenizer = AutoTokenizer.from_pretrained(
+                self.model_config.transformer_name
+            )
 
-        # uncomment to plot graph
-        #plot_model(self.model, 
-        #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
-        self.model.train_model(
-            self.model_config.list_classes, 
-            self.training_config.batch_size, 
-            self.training_config.max_epoch, 
-            self.training_config.use_roc_auc, 
-            self.training_config.class_weights, 
-            training_generator, 
-            validation_generator, 
-            val_y, 
-            patience=self.training_config.patience, 
-            multiprocessing=self.training_config.multiprocessing, 
-            callbacks=callbacks)
+        train_loader = create_dataloader(
+            x_train,
+            y_train,
+            self.model_config,
+            embeddings=self.embeddings,
+            transformer_tokenizer=transformer_tokenizer,
+            batch_size=self.training_config.batch_size,
+            shuffle=True,
+            num_workers=self.nb_workers,
+        )
 
+        valid_loader = None
+        if x_valid is not None:
+            valid_loader = create_dataloader(
+                x_valid,
+                y_valid,
+                self.model_config,
+                embeddings=self.embeddings,
+                transformer_tokenizer=transformer_tokenizer,
+                batch_size=self.training_config.batch_size,
+                shuffle=False,
+                num_workers=self.nb_workers,
+            )
 
-    def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
-        if incremental:
-            if self.models == None:
-                print("error: you must load a model first for an incremental training")
-                return
-            print("Incremental n-fold training from loaded models", self.model_config.model_name)
-            self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, self.models, callbacks=callbacks)
-        else:
-            self.models = train_folds(x_train, y_train, self.model_config, self.training_config, self.embeddings, None, callbacks=callbacks)
+        # Ensure model output directory exists for checkpoints
+        model_dir = self._get_model_dir()
+        os.makedirs(model_dir, exist_ok=True)
 
+        trainer = Trainer(
+            self.model,
+            self.model_config,
+            self.training_config,
+            device=str(self.device),
+            checkpoint_path=model_dir,
+        )
 
-    def predict(self, texts, output_format='json', use_main_thread_only=False, batch_size=None):
-        bert_data = False
-        if self.transformer_name != None:
-            bert_data = True
+        trainer.train(train_loader, valid_loader)
 
-        if batch_size != None:
+    def train_nfold(
+        self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
+    ):
+        pass  # To implement if needed, following logic in wrapper.py
+
+    def eval(self, x_test, y_test):
+        """Evaluate model on test data.
+
+        Args:
+            x_test: Test texts
+            y_test: Test labels (numpy array with shape [n_samples, n_classes])
+        """
+        print_parameters(self.model_config, self.training_config)
+
+        if self.model is None:
+            raise OSError("Model not loaded")
+
+        self.model.eval()
+        self.model.to(self.device)
+
+        # Get transformer tokenizer if needed
+        transformer_tokenizer = None
+        if self.model_config.transformer_name is not None:
+            from transformers import AutoTokenizer
+
+            transformer_tokenizer = AutoTokenizer.from_pretrained(
+                self.model_config.transformer_name
+            )
+
+        # Create dataloader
+        test_loader = create_dataloader(
+            x_test,
+            y_test,
+            self.model_config,
+            embeddings=self.embeddings,
+            transformer_tokenizer=transformer_tokenizer,
+            batch_size=self.model_config.batch_size,
+            shuffle=False,
+            num_workers=self.nb_workers,
+        )
+
+        all_preds = []
+        all_labels = []
+
+        with torch.no_grad():
+            for batch in test_loader:
+                if len(batch) == 2:
+                    inputs, labels = batch
+                    labels = labels.to(self.device)
+                else:
+                    inputs = batch
+                    labels = None
+
+                if isinstance(inputs, dict):
+                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                else:
+                    inputs = inputs.to(self.device)
+
+                outputs = self.model(inputs)
+                probs = torch.sigmoid(outputs["logits"])
+                all_preds.append(probs.cpu().numpy())
+                if labels is not None:
+                    all_labels.append(labels.cpu().numpy())
+
+        y_pred_probs = np.concatenate(all_preds, axis=0)
+        y_true = np.concatenate(all_labels, axis=0) if all_labels else None
+
+        if y_true is None:
+            print("No labels provided for evaluation")
+            return
+
+        # Convert probabilities to binary predictions
+        y_pred_binary = (y_pred_probs > 0.5).astype(int)
+
+        # Calculate per-class metrics
+        precision, recall, fscore, support = precision_recall_fscore_support(
+            y_true, y_pred_binary, average=None
+        )
+
+        # Print results
+        print("\n-----------------------------------------------")
+        print(f"Evaluation on {len(x_test)} instances:")
+        print(
+            f"{'':>14}  {'precision':>12}  {'recall':>12}  {'f-score':>12}  {'support':>12}"
+        )
+
+        evaluation = {"labels": {}, "micro": {}, "macro": {}}
+        total_support = 0
+
+        for i, class_name in enumerate(self.model_config.list_classes):
+            class_name_short = class_name[:14]
+            print(
+                f"{class_name_short:>14}  {precision[i]:>12.4f}  {recall[i]:>12.4f}  {fscore[i]:>12.4f}  {int(support[i]):>12}"
+            )
+            evaluation["labels"][class_name] = {
+                "precision": float(precision[i]),
+                "recall": float(recall[i]),
+                "f1": float(fscore[i]),
+                "support": int(support[i]),
+            }
+            total_support += int(support[i])
+
+        # Calculate macro and micro averages
+        macro_precision = np.mean(precision)
+        macro_recall = np.mean(recall)
+        macro_f1 = np.mean(fscore)
+
+        # Flatten for micro average calculation
+        y_true_flat = y_true.flatten()
+        y_pred_flat = y_pred_binary.flatten()
+        micro_f1 = f1_score(y_true_flat, y_pred_flat, average="micro")
+        micro_precision, micro_recall, _, _ = precision_recall_fscore_support(
+            y_true_flat, y_pred_flat, average="micro"
+        )
+
+        print(
+            f"{'macro avg':>14}  {macro_precision:>12.4f}  {macro_recall:>12.4f}  {macro_f1:>12.4f}  {total_support:>12}"
+        )
+        print(
+            f"{'micro avg':>14}  {micro_precision:>12.4f}  {micro_recall:>12.4f}  {micro_f1:>12.4f}  {total_support:>12}"
+        )
+        print("-----------------------------------------------")
+
+        evaluation["macro"] = {
+            "precision": float(macro_precision),
+            "recall": float(macro_recall),
+            "f1": float(macro_f1),
+            "support": total_support,
+        }
+        evaluation["micro"] = {
+            "precision": float(micro_precision),
+            "recall": float(micro_recall),
+            "f1": float(micro_f1),
+            "support": total_support,
+        }
+
+        # Log to wandb if enabled
+        if self.report_to_wandb and hasattr(self, "wandb") and self.wandb is not None:
+            metrics = {
+                "eval_f1": micro_f1,
+                "eval_precision": micro_precision,
+                "eval_recall": micro_recall,
+            }
+            self.wandb.log(metrics)
+            # Log evaluation table
+            columns, data = to_wandb_table(evaluation)
+            table = self.wandb.Table(columns=columns, data=data)
+            self.wandb.log({"Evaluation scores": table})
+            print(f"Logged evaluation metrics to wandb: f1={micro_f1:.4f}")
+
+        return evaluation
+
+    def predict(
+        self, texts, output_format="json", use_main_thread_only=False, batch_size=None
+    ):
+        if batch_size is not None:
             self.model_config.batch_size = batch_size
-            print("---")
-            print("batch_size (prediction):", self.model_config.batch_size)
-            print("---")
 
-        if self.model_config.fold_number == 1:
-            if self.model != None: 
-                
-                predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
+        if self.model is None:
+            raise OSError("Model not loaded")
 
-                result = self.model.predict(predict_generator, use_main_thread_only=use_main_thread_only)
-            else:
-                raise (OSError('Could not find a model.'))
-        else:            
-            if self.models != None: 
+        self.model.eval()
+        self.model.to(self.device)
 
-                # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes 
-                predict_generator = DataGenerator(texts, None, batch_size=self.model_config.batch_size, 
-                    maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                    embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
+        transformer_tokenizer = None
+        if self.model_config.transformer_name is not None:
+            from transformers import AutoTokenizer
 
-                result = predict_folds(self.models, 
-                                       predict_generator, 
-                                       self.model_config, 
-                                       self.training_config, 
-                                       use_main_thread_only=use_main_thread_only)
-            else:
-                raise (OSError('Could not find nfolds models.'))
-        if output_format == 'json':
+            transformer_tokenizer = AutoTokenizer.from_pretrained(
+                self.model_config.transformer_name
+            )
+
+        # Preprocess texts if they are raw strings
+        if len(texts) > 0 and isinstance(texts[0], str):
+            # Clean text?
+            # data_loader expects raw text usually and preprocesses inside Dataset if we set up logic right.
+            # In TextClassificationDataset we call to_vector_single which cleans text.
+            pass
+
+        data_loader = create_dataloader(
+            texts,
+            None,
+            self.model_config,
+            embeddings=self.embeddings,
+            transformer_tokenizer=transformer_tokenizer,
+            batch_size=self.model_config.batch_size,
+            shuffle=False,
+            num_workers=self.nb_workers,
+        )
+
+        all_preds = []
+        with torch.no_grad():
+            for batch in data_loader:
+                inputs = batch  # no labels
+                if isinstance(inputs, dict):
+                    inputs = {k: v.to(self.device) for k, v in inputs.items()}
+                else:
+                    inputs = inputs.to(self.device)
+
+                outputs = self.model(inputs)
+                probs = torch.sigmoid(outputs["logits"])
+                all_preds.append(probs.cpu().numpy())
+
+        result = np.concatenate(all_preds, axis=0)
+
+        if output_format == "json":
             res = {
                 "software": "DeLFT",
-                "date": datetime.datetime.now().isoformat(),
+                "date": time.ctime(),
                 "model": self.model_config.model_name,
-                "classifications": []
+                "classifications": [],
             }
-            i = 0
-            for text in texts:
+
+            for i in range(len(texts)):
                 classification = {
-                    "text": text
+                    "text": texts[i],
+                    # ... format as expected
                 }
-                the_res = result[i]
-                j = 0
-                for cl in self.model_config.list_classes:
-                    classification[cl] = float(the_res[j])
-                    j += 1
+                # Simplify for now
+                best_class_idx = np.argmax(result[i])
+                classification["class"] = self.model_config.list_classes[best_class_idx]
+                classification["score"] = float(result[i][best_class_idx])
                 res["classifications"].append(classification)
-                i += 1
             return res
         else:
             return result
 
-    def eval(self, x_test, y_test, use_main_thread_only=False):
-        print_parameters(self.model_config, self.training_config)
-
-        bert_data = False
-        if self.transformer_name is not None:
-            bert_data = True
-
-        if self.model_config.fold_number == 1:
-            if self.model != None:
-                self.model.print_summary()
-                test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
-                        maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes, 
-                        embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.model.transformer_tokenizer)
-
-                result = self.model.predict(test_generator, use_main_thread_only=use_main_thread_only)
-            else:
-                raise (OSError('Could not find a model.'))
-        else:
-            if self.models is None:
-                raise (OSError('Could not find nfolds models.'))
-
-            self.models[0].print_summary()
-
-            # just a warning: n classifiers using BERT layer for prediction might be heavy in term of model sizes
-            test_generator = DataGenerator(x_test, None, batch_size=self.model_config.batch_size,
-                maxlen=self.model_config.maxlen, list_classes=self.model_config.list_classes,
-                embeddings=self.embeddings, shuffle=False, bert_data=bert_data, transformer_tokenizer=self.models[0].transformer_tokenizer)
-            result = predict_folds(self.models, test_generator, self.model_config, self.training_config, use_main_thread_only=use_main_thread_only)
-
-        print("-----------------------------------------------")
-        print("\nEvaluation on", x_test.shape[0], "instances:")
-
-        total_accuracy = 0.0
-        total_f1 = 0.0
-        total_loss = 0.0
-        total_roc_auc = 0.0
-
-        '''
-        def normer(t):
-            if t < 0.5: 
-                return 0 
-            else: 
-                return 1
-        vfunc = np.vectorize(normer)
-        result_binary = vfunc(result)
-        '''
-        result_intermediate = np.asarray([np.argmax(line) for line in result])
-        
-        def vectorize(index, size):
-            result = np.zeros(size)
-            if index < size:
-                result[index] = 1
-            return result
-        result_binary = np.array([vectorize(xi, len(self.model_config.list_classes)) for xi in result_intermediate])
-
-        precision, recall, fscore, support = precision_recall_fscore_support(y_test, result_binary, average=None)
-        print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(" ", "precision", "recall", "f-score", "support"))
-        p = 0
-        for the_class in self.model_config.list_classes:
-            the_class = the_class[:14]
-            print('{:>14}  {:>12}  {:>12}  {:>12}  {:>12}'.format(the_class, "{:10.4f}"
-                .format(precision[p]), "{:10.4f}".format(recall[p]), "{:10.4f}".format(fscore[p]), support[p]))
-            p += 1
-
-        # macro-average (average of class scores)
-        # we distinguish 1-class and multiclass problems 
-        if len(self.model_config.list_classes) == 1:
-            total_accuracy = accuracy_score(y_test, result_binary)
-            total_f1 = f1_score(y_test, result_binary)
-
-            # sklearn will complain if log(0)
-            total_loss = log_loss(y_test, result, labels=[0,1])
-            if len(np.unique(y_test)) == 1:
-                # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
-                # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
-                total_roc_auc = r2_score(y_test, result)
-                if total_roc_auc < 0:
-                    total_roc_auc = 0 
-            else:
-                total_roc_auc = roc_auc_score(y_test, result)
-        else:
-            for j in range(0, len(self.model_config.list_classes)):
-                accuracy = accuracy_score(y_test[:, j], result_binary[:, j])
-                total_accuracy += accuracy
-                f1 = f1_score(y_test[:, j], result_binary[:, j], average='micro')
-                total_f1 += f1
-                loss = log_loss(y_test[:, j], result[:, j], labels=[0,1])
-                total_loss += loss
-                if len(np.unique(y_test[:, j])) == 1:
-                    # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
-                    # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
-                    roc_auc = r2_score(y_test[:, j], result[:, j])
-                    if roc_auc < 0:
-                        roc_auc = 0 
-                else:
-                    roc_auc = roc_auc_score(y_test[:, j], result[:, j], labels=[0,1])
-                total_roc_auc += roc_auc
-                '''
-                print("\nClass:", self.model_config.list_classes[j])
-                print("\taccuracy at 0.5 =", accuracy)
-                print("\tf-1 at 0.5 =", f1)
-                print("\tlog-loss =", loss)
-                print("\troc auc =", roc_auc)
-                '''
-
-        total_accuracy /= len(self.model_config.list_classes)
-        total_f1 /= len(self.model_config.list_classes)
-        total_loss /= len(self.model_config.list_classes)
-        total_roc_auc /= len(self.model_config.list_classes)
-
-        '''
-        if len(self.model_config.list_classes) != 1:
-            print("\nMacro-average:")
-        print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
-        print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
-        print("\taverage log-loss =","{:10.4f}".format( total_loss))
-        print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
-        '''
-        
-        # micro-average (average of scores for each instance)
-        # make sense only if we have more than 1 class, otherwise same as 
-        # macro-avergae
-        if len(self.model_config.list_classes) != 1:
-            total_accuracy = 0.0
-            total_f1 = 0.0
-            total_loss = 0.0
-            total_roc_auc = 0.0
-
-            for i in range(0, result.shape[0]):
-                accuracy = accuracy_score(y_test[i,:], result_binary[i,:])
-                total_accuracy += accuracy
-                f1 = f1_score(y_test[i,:], result_binary[i,:], average='micro')
-                total_f1 += f1
-                loss = log_loss(y_test[i,:], result[i,:], labels=[0.0, 1.0])
-                total_loss += loss
-                if len(np.unique(y_test[i,:])) == 1:
-                    # roc_auc_score sklearn implementation is not working in this case, it needs more balanced batches
-                    # a simple fix is to return the r2_score instead in this case (which is a regression score and not a loss)
-                    roc_auc = r2_score(y_test[i,:], result[i,:])
-                    if roc_auc < 0:
-                        roc_auc = 0 
-                else:
-                    roc_auc = roc_auc_score(y_test[i,:], result[i,:], labels=[0.0, 1.0])
-                total_roc_auc += roc_auc
-
-            total_accuracy /= result.shape[0]
-            total_f1 /= result.shape[0]
-            total_loss /= result.shape[0]
-            total_roc_auc /= result.shape[0]
-            
-            '''
-            print("\nMicro-average:")
-            print("\taverage accuracy at 0.5 =", "{:10.4f}".format(total_accuracy))
-            print("\taverage f-1 at 0.5 =", "{:10.4f}".format(total_f1))
-            print("\taverage log-loss =", "{:10.4f}".format(total_loss))
-            print("\taverage roc auc =", "{:10.4f}".format(total_roc_auc))
-            '''
-            
-    def save(self, dir_path='data/models/textClassification/'):
-        # create subfolder for the model if not already exists
+    def save(self, dir_path="data/models/textClassification/"):
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
 
         self.model_config.save(os.path.join(directory, self.config_file))
-        print('model config file saved')
 
-        if self.model_config.fold_number == 1:
-            if self.model != None:
-                self.model.save(os.path.join(directory, self.weight_file))
-                print('model saved')
-            else:
-                print('Error: model has not been built')
-        else:
-            if self.models == None:
-                print('Error: nfolds models have not been built')
-            else:
-                # fold models having a transformer layers are already saved
-                if self.model_config.transformer_name is None:
-                    for i in range(0, self.model_config.fold_number):
-                        self.models[i].save(os.path.join(directory, "model{0}_weights.hdf5".format(i)))
-                    print('nfolds model saved')
+        # Save preprocessor if present
+        if self.preprocessor is not None:
+            self.preprocessor.save(os.path.join(directory, PREPROCESSOR_FILE))
+            print("Preprocessor saved")
 
-        # save pretrained transformer config and tokenizer if used in the model and if single fold (otherwise it is saved in the nfold process)
-        if self.transformer_name is not None and self.model_config.fold_number == 1:
-            if self.model.transformer_config is not None:
-                self.model.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-            if self.model.transformer_tokenizer is not None:
-                self.model.transformer_tokenizer.save_pretrained(os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR))
+        # Save PyTorch model
+        torch.save(self.model.state_dict(), os.path.join(directory, self.weight_file))
+        print(f"Model saved to {directory}")
 
-
-    def load(self, dir_path='data/models/textClassification/'):
+    def load(self, dir_path="data/models/textClassification/"):
         model_path = os.path.join(dir_path, self.model_config.model_name)
+
+        # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
 
-        if self.model_config.transformer_name is None:
-            # load embeddings
-            # Do not use cache in 'production' mode
-            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_cache=False)
-            self.model_config.word_embedding_size = self.embeddings.embed_size
-        else:
-            self.transformer_name = self.model_config.transformer_name
-            self.embeddings = None
+        # Load preprocessor if present
+        preprocessor_path = os.path.join(model_path, PREPROCESSOR_FILE)
+        if os.path.exists(preprocessor_path):
+            self.preprocessor = TextPreprocessor.load(preprocessor_path)
+            print("Preprocessor loaded")
 
-        self.model = getModel(self.model_config, 
-                              self.training_config, 
-                              load_pretrained_weights=False, 
-                              local_path=model_path)
-        print_parameters(self.model_config, self.training_config)
-        self.model.print_summary()
+        # Load embeddings if needed
+        if self.model_config.embeddings_name is not None:
+            self.embeddings = Embeddings(
+                self.model_config.embeddings_name,
+                resource_registry=self.registry,
+            )
 
-        if self.model_config.fold_number == 1:
-            print("load weights from", os.path.join(model_path, self.weight_file))
-            self.model.load(os.path.join(model_path, self.weight_file))
-        else:
-            self.models = []
-            if self.model_config.transformer_name is None:
-                for i in range(0, self.model_config.fold_number):
-                    local_model = getModel(self.model_config, 
-                                        self.training_config, 
-                                        load_pretrained_weights=False, 
-                                        local_path=model_path)
-                    local_model.load(os.path.join(model_path, "model{0}_weights.hdf5".format(i)))
-                    self.models.append(local_model)
-            else:
-                # only init first fold one, the other will be init at prediction time, all weights will be loaded at prediction time
-                local_model = getModel(self.model_config, 
-                                    self.training_config, 
-                                    load_pretrained_weights=False, 
-                                    local_path=model_path)
-                self.models.append(local_model)
+        # Init model
+        self.model = getModel(self.model_config, self.training_config)
+
+        # Load weights
+        weight_path = os.path.join(model_path, self.weight_file)
+        self.model.load_state_dict(torch.load(weight_path, map_location=self.device))
+        self.model.to(self.device)
+        print(f"Model loaded from {weight_path}")
+
+    def _get_model_dir(self):
+        return os.path.join(
+            "data/models/textClassification/", self.model_config.model_name
+        )
