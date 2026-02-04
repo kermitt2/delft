@@ -128,8 +128,13 @@ def export_crf_params(model, output_path: str):
     params = {}
 
     # Handle different CRF implementations
+    # Standard Contract: crf_params.json MUST contain "transitions" in [from_tag][to_tag] orientation.
+    # Java Code (CRFDecoder.java) iterates as transitions[prevTag][currentTag].
+    
     if hasattr(crf, "crf"):
         # Using pytorch-crf wrapper (standard CRF class)
+        # pytorch-crf stores transitions as [from_tag, to_tag]
+        # This already matches Java's expected [from_tag][to_tag] format.
         inner_crf = crf.crf
         params["transitions"] = inner_crf.transitions.detach().cpu().numpy().tolist()
         params["startTransitions"] = (
@@ -176,6 +181,7 @@ def export_vocab(preprocessor, model_config, output_path: str):
         "tagVocab": preprocessor.vocab_tag,
         "tagIndex": {str(k): v for k, v in preprocessor.indice_tag.items()},
         "maxCharLength": preprocessor.max_char_length,
+        "returnChars": preprocessor.return_chars,
     }
 
     # Add feature info if available
