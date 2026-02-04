@@ -51,7 +51,10 @@ class Classifier(object):
         device=None,
         report_to_wandb=False,
         nb_workers: int = None,
+        short_model_name: str = None,
     ):
+        self.short_model_name = short_model_name
+
         self.model_config = ModelConfig(
             model_name=model_name,
             architecture=architecture,
@@ -134,6 +137,7 @@ class Classifier(object):
                     name=model_name,
                     config={
                         "model_name": self.model_config.model_name,
+                        "short_model_name": self.short_model_name,
                         "architecture": self.model_config.architecture,
                         "transformer_name": self.model_config.transformer_name,
                         "embeddings_name": self.model_config.embeddings_name,
@@ -169,6 +173,11 @@ class Classifier(object):
         y_valid = None
 
         if self.training_config.early_stop:
+            # Shuffle before splitting to ensure balanced class distribution in validation
+            indices = np.random.permutation(len(x_train))
+            x_train = x_train[indices]
+            y_train = y_train[indices]
+            
             split_idx = int(len(x_train) * 0.9)
             x_valid = x_train[split_idx:]
             y_valid = y_train[split_idx:]
@@ -472,6 +481,12 @@ class Classifier(object):
 
         # Save PyTorch model
         torch.save(self.model.state_dict(), os.path.join(directory, self.weight_file))
+        
+        # Remove the best model checkpoint if it exists
+        best_model_checkpoint = os.path.join(directory, f"{self.model_config.model_name}_best_model.pth")
+        if os.path.exists(best_model_checkpoint):
+            os.remove(best_model_checkpoint)
+        
         print(f"Model saved to {directory}")
 
     def load(self, dir_path="data/models/textClassification/"):

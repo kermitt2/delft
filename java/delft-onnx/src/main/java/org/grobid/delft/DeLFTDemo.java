@@ -1,7 +1,13 @@
 package org.grobid.delft;
 
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Command-line demonstrator for DeLFT ONNX inference.
@@ -20,6 +26,7 @@ public class DeLFTDemo {
         int embeddingSize = 300;
         int maxSeqLength = 512;
         String inputText = null;
+        String inputFile = null;
 
         // Parse arguments
         for (int i = 0; i < args.length; i++) {
@@ -39,14 +46,34 @@ public class DeLFTDemo {
                 case "--input":
                     inputText = args[++i];
                     break;
+                case "--input-file":
+                    inputFile = args[++i];
+                    break;
                 case "--help":
                     printUsage();
                     return;
             }
         }
 
+        // If no direct input but input file provided, read from file
+        List<String> inputTexts = new ArrayList<>();
+        if (inputText != null) {
+            inputTexts.add(inputText);
+        } else if (inputFile != null) {
+            try {
+                inputTexts = readInputFile(inputFile);
+                if (inputTexts.isEmpty()) {
+                    System.err.println("Error: Input file is empty: " + inputFile);
+                    System.exit(1);
+                }
+            } catch (IOException e) {
+                System.err.println("Error reading input file: " + e.getMessage());
+                System.exit(1);
+            }
+        }
+
         // Validate
-        if (modelDir == null || embeddingsPath == null || inputText == null) {
+        if (modelDir == null || embeddingsPath == null || inputTexts.isEmpty()) {
             System.err.println("Error: Missing required arguments");
             printUsage();
             System.exit(1);
@@ -67,22 +94,34 @@ public class DeLFTDemo {
                 System.err.println("Number of features: " + model.getNumFeatures());
             }
 
-            // Run inference
-            System.err.println("Processing input: " + inputText);
-            DeLFTModel.AnnotationResult result;
+            // Run inference for each input
+            System.err.println("Processing " + inputTexts.size() + " input(s)");
 
-            if (model.hasFeatures()) {
-                // Feature model: tokenize and generate sample features
-                String[] tokens = inputText.split("\\s+");
-                String[][] features = createSampleDateFeatures(tokens);
-                System.err.println("Generated sample features for " + tokens.length + " tokens");
-                result = model.annotateTokens(tokens, features);
-            } else {
-                result = model.annotate(inputText);
+            System.out.println("["); // Start JSON array
+            for (int i = 0; i < inputTexts.size(); i++) {
+                String text = inputTexts.get(i);
+                System.err.println("Processing: " + text);
+                DeLFTModel.AnnotationResult result;
+
+                if (model.hasFeatures()) {
+                    // Feature model: tokenize and generate sample features
+                    String[] tokens = text.split("\\s+");
+                    String[][] features = createSampleDateFeatures(tokens);
+                    System.err.println("Generated sample features for " + tokens.length + " tokens");
+                    result = model.annotateTokens(tokens, features);
+                } else {
+                    result = model.annotate(text);
+                }
+
+                // Print result as JSON
+                System.out.print(result.toJson());
+                if (i < inputTexts.size() - 1) {
+                    System.out.println(",");
+                } else {
+                    System.out.println();
+                }
             }
-
-            // Print result as JSON
-            System.out.println(result.toJson());
+            System.out.println("]"); // End JSON array
 
             // Clean up
             model.close();
@@ -162,6 +201,31 @@ public class DeLFTDemo {
         return features;
     }
 
+    /**
+     * Read input text from a file as a single sequence.
+     * All lines are concatenated with spaces.
+     */
+    private static List<String> readInputFile(String filePath) throws IOException {
+        List<String> texts = new ArrayList<>();
+        StringBuilder content = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(filePath))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                line = line.trim();
+                if (!line.isEmpty()) {
+                    if (content.length() > 0) {
+                        content.append(" ");
+                    }
+                    content.append(line);
+                }
+            }
+        }
+        if (content.length() > 0) {
+            texts.add(content.toString());
+        }
+        return texts;
+    }
+
     private static void printUsage() {
         System.out.println("DeLFT ONNX Inference Demo");
         System.out.println();
@@ -171,7 +235,8 @@ public class DeLFTDemo {
         System.out.println("Required Options:");
         System.out.println("  --model <path>          Path to exported model directory");
         System.out.println("  --embeddings <path>     Path to LMDB embeddings database");
-        System.out.println("  --input <text>          Text to annotate");
+        System.out.println("  --input <text>          Text to annotate (or use --input-file)");
+        System.out.println("  --input-file <path>     File with input texts (one per line)");
         System.out.println();
         System.out.println("Optional:");
         System.out.println("  --embedding-size <n>    Embedding dimension (default: 300)");
@@ -183,6 +248,12 @@ public class DeLFTDemo {
         System.out.println("    --model ./exported_models/date-features \\");
         System.out.println("    --embeddings ./data/db/glove-840B \\");
         System.out.println("    --input \"December 25, 2024\"");
+        System.out.println();
+        System.out.println("  Or with input file:");
+        System.out.println("  java -jar delft-onnx.jar \\");
+        System.out.println("    --model ./exported_models/header-BidLSTM_CRF \\");
+        System.out.println("    --embeddings ./data/db/glove-840B \\");
+        System.out.println("    --input-file ./header_samples.txt");
         System.out.println();
         System.out.println("Note: For feature models (BidLSTM_CRF_FEATURES), sample features are");
         System.out.println("      auto-generated for demo purposes.");

@@ -53,6 +53,7 @@ def train(
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name="citations",
     )
 
     print("loading citation sentiment corpus...")
@@ -94,6 +95,7 @@ def train_and_eval(
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name="citations",
     )
 
     print("loading citation sentiment corpus...")

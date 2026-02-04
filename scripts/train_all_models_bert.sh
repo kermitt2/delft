@@ -37,7 +37,6 @@ MODELS=(
     "citation"
     "date"
     "figure"
-    # "fulltext"
     "funding-acknowledgement"
     "header"
     "name-citation"

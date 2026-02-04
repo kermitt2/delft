@@ -133,6 +133,9 @@ def train(
         early_stop,
     )
 
+    # Extract short model name for wandb (e.g., "ner-en-conll2003")
+    short_model_name = f"ner-{lang}-{dataset_type}"
+
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading data...")
         x_train1, y_train1 = load_data_and_labels_conll(
@@ -173,6 +176,7 @@ def train(
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -216,6 +220,7 @@ def train(
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
     elif lang == "fr":
         print("Loading data...")
@@ -247,6 +252,7 @@ def train(
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -308,6 +314,9 @@ def train_eval(
         early_stop=early_stop,
     )
 
+    # Extract short model name for wandb (e.g., "ner-en-conll2003")
+    short_model_name = f"ner-{lang}-{dataset_type}"
+
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading CoNLL 2003 data...")
         x_train, y_train = load_data_and_labels_conll(
@@ -342,6 +351,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -364,6 +374,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
@@ -433,6 +444,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly),
@@ -455,6 +467,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
 
     elif (lang == "fr") and (dataset_type == "ftb" or dataset_type is None):
@@ -525,6 +538,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -547,6 +561,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
     elif (lang == "fr") and (dataset_type == "ftb_force_split_xml"):
         print("Loading data for ftb_force_split_xml...")
@@ -583,6 +598,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -605,6 +621,7 @@ def train_eval(
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)

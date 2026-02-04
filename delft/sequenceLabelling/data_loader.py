@@ -444,11 +444,36 @@ def create_dataloader(
         use_chain_crf=model_config.use_crf if model_config else False,
     )
 
+    # Limit num_workers based on dataset size to avoid overhead from idle workers
+    num_batches = max(1, len(dataset) // batch_size)
+    if num_workers > num_batches:
+        import logging
+        logging.getLogger(__name__).warning(
+            f"Reducing num_workers from {num_workers} to {num_batches} "
+            f"(dataset has {len(dataset)} samples, {num_batches} batches)"
+        )
+        num_workers = num_batches
+
     # Use DistributedSampler for multi-GPU training
     sampler = None
     if distributed:
         sampler = DistributedSampler(dataset, shuffle=shuffle)
         shuffle = False  # Sampler handles shuffling
+
+    # Create worker_init_fn for LMDB fork safety
+    # LMDB environments opened before fork() cannot be safely used in child processes.
+    # Each worker must reopen the LMDB environment to get its own handle.
+    worker_init = None
+    if embeddings is not None and num_workers > 0:
+        def lmdb_worker_init_fn(worker_id):
+            """Reopen LMDB environment in each worker process for fork safety."""
+            # Get the dataset from the worker's DataLoader
+            worker_info = torch.utils.data.get_worker_info()
+            if worker_info is not None:
+                dataset = worker_info.dataset
+                if hasattr(dataset, 'embeddings') and dataset.embeddings is not None:
+                    dataset.embeddings.reopen_lmdb()
+        worker_init = lmdb_worker_init_fn
 
     return DataLoader(
         dataset,
@@ -458,6 +483,7 @@ def create_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         collate_fn=collate_fn,
+        worker_init_fn=worker_init,
     )
 
 
