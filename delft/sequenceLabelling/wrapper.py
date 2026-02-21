@@ -122,7 +122,6 @@ class Sequence(object):
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
-            word_emb_size = 0
 
         if learning_rate is None:
             if transformer_name is None:
@@ -148,10 +147,18 @@ class Sequence(object):
             features_indices=features_indices,
             transformer_name=transformer_name)
 
-        self.training_config = TrainingConfig(learning_rate, batch_size, optimizer,
-                                              lr_decay, clip_gradients, max_epoch,
-                                              early_stop, patience,
-                                              max_checkpoints_to_keep, multiprocessing)
+        self.training_config = TrainingConfig(
+            learning_rate,
+            batch_size,
+            optimizer,
+            lr_decay,
+            clip_gradients,
+            max_epoch,
+            early_stop,
+            patience,
+            max_checkpoints_to_keep,
+            multiprocessing
+        )
 
         if report_to_wandb:
             import wandb
