@@ -312,7 +312,13 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False, report_to_wandb=False):
+def eval_(
+        model,
+        input_path=None,
+        architecture='BidLSTM_CRF',
+        use_ELMo=False,
+        report_to_wandb=False
+    ):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -507,7 +513,13 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input")
-        eval_(model, input_path=input_path, architecture=architecture, use_ELMo=use_ELMo)
+        eval_(
+            model,
+            input_path=input_path,
+            architecture=architecture,
+            use_ELMo=use_ELMo,
+            report_to_wandb=wandb
+        )
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
