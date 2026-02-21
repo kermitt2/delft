@@ -61,7 +61,7 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 class Sequence(object):
 
     # number of parallel worker for the data generator
-    nb_workers = multiprocessing.cpu_count() - 1
+    nb_workers = 6
 
     def __init__(
         self,
@@ -91,7 +91,7 @@ class Sequence(object):
              features_indices=None,
              transformer_name: str = None,
              report_to_wandb = False,
-             nb_workers=multiprocessing.cpu_count() - 1
+             nb_workers=6
          ):
 
         if model_name is None:
