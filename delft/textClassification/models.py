@@ -1,5 +1,6 @@
 import math
 import os
+import platform
 
 import numpy as np
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
@@ -128,9 +129,14 @@ class BaseModel(object):
         # default worker number for multiprocessing
         nb_workers = 6
         if self.model_config.transformer_name is not None:
-            # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0
+            # worker at 1 means the training will be executed in the main thread
+            nb_workers = 1
             multiprocessing = False
+
+        # multiprocessing does not work on macOS due to pickle issues with TensorFlow
+        if platform.system() == 'Darwin':
+            multiprocessing = False
+            nb_workers = 1
 
         if validation_generator == None:
             # no early stop

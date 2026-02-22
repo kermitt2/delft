@@ -1,4 +1,5 @@
 import os
+import platform
 
 import numpy as np
 import tensorflow as tf
@@ -194,6 +195,11 @@ class Trainer(object):
             )
         nb_workers = 6
         multiprocessing = self.training_config.multiprocessing
+
+        # multiprocessing does not work on macOS due to pickle issues with TensorFlow
+        if platform.system() == 'Darwin':
+            multiprocessing = False
+            nb_workers = 1
 
         # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
         if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
