@@ -133,11 +133,6 @@ class BaseModel(object):
             nb_workers = 1
             multiprocessing = False
 
-        # multiprocessing does not work on macOS due to pickle issues with TensorFlow
-        if platform.system() == 'Darwin':
-            multiprocessing = False
-            nb_workers = 1
-
         if validation_generator == None:
             # no early stop
             best_loss = self.model.fit(
