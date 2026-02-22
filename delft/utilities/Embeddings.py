@@ -4,6 +4,7 @@ import hashlib
 import io
 import logging
 import mmap
+import ntpath
 import os
 import pickle
 import shutil
@@ -11,6 +12,8 @@ import struct
 import sys
 import zipfile
 import json
+from pathlib import Path
+
 import lmdb
 import numpy as np
 import tensorflow as tf
@@ -96,6 +99,20 @@ class Embeddings(object):
 
     def __getattr__(self, name):
         return getattr(self.model, name)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['env'] = None
+        state['env_ELMo'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+        if self.use_ELMo and hasattr(self, 'embedding_ELMo_cache') and self.embedding_ELMo_cache:
+            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
