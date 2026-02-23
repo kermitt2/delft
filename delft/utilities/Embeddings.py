@@ -18,7 +18,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from pathlib import Path
 
-from delft.utilities.simple_elmo import ElmoModel, elmo
+
 
 logging.basicConfig()
 logging.getLogger().setLevel(logging.ERROR)
@@ -32,11 +32,6 @@ except ImportError as e:
 
 from delft.utilities.Utilities import download_file
 
-# for ELMo embeddings
-#from delft.utilities.bilm.data import Batcher
-#from delft.utilities.bilm.model import BidirectionalLanguageModel, dump_token_embeddings
-#from delft.utilities.bilm.elmo import weight_layers
-
 # gensim is used to exploit .bin FastText embeddings, in particular the OOV with the provided ngrams
 #from gensim.models import FastText
 
@@ -45,19 +40,14 @@ from delft.utilities.Utilities import download_file
 # and https://github.com/kermitt2/nerd/blob/0.0.3/src/main/java/com/scienceminer/nerd/kb/db/KBDatabaseFactory.java#L368
 map_size = 100 * 1024 * 1024 * 1024
 
-# dim of ELMo embeddings (2 times the dim of the LSTM for LM)
-ELMo_embed_size = 1024
-
 class Embeddings(object):
 
     def __init__(self, name,
         resource_registry=None,
         lang='en',
         extension='vec',
-        use_ELMo=False,
         use_cache=True,
-        load=True,
-        elmo_model_name=None):
+        load=True):
 
         self.name = name
         self.embed_size = 0
@@ -74,27 +64,8 @@ class Embeddings(object):
         if load:
             self.make_embeddings_simple(name)
         self.static_embed_size = self.embed_size
-        self.elmo_model = None
 
         self.use_cache = use_cache
-
-        # below init for using ELMo embeddings
-        self.use_ELMo = use_ELMo
-        self.elmo_model_name = elmo_model_name
-        if elmo_model_name == None:
-            self.elmo_model_name = 'elmo-'+self.lang
-        if use_ELMo:
-            #tf.compat.v1.disable_eager_execution()
-            self.make_ELMo()
-            self.embed_size = ELMo_embed_size + self.embed_size
-            description = self.get_description(self.elmo_model_name)
-            self.env_ELMo = None
-            if description and description["cache-training"] and self.use_cache:
-                self.embedding_ELMo_cache = os.path.join(description["path-cache"], "cache")
-                # clean possible remaining cache
-                self.clean_ELMo_cache()
-                # create and load a cache in write mode, it will be used only for training
-                self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -310,37 +281,6 @@ class Embeddings(object):
                 self.env = lmdb.open(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name)
 
-    def make_ELMo(self):
-        # Location of pretrained BiLM for the specified language
-        description = self.get_description(self.elmo_model_name)
-        if description is not None:
-            vocab_file = description["path-vocab"]
-            weights_file = None
-            options_file = None
-            try:
-                weights_file, options_file = self.get_elmo_embedding_path(description)
-            except Exception as e: 
-                logging.error(str(e))
-                logging.error("fail to find ELMo model path for " + self.elmo_model_name)
-                return
-
-            graph = tf.Graph()
-            with graph.as_default() as elmo_graph:
-                self.elmo_model = ElmoModel()
-                self.elmo_model.load(vocab_file=vocab_file,
-                                    options_file=options_file,
-                                    weight_file=weights_file,
-                                    max_batch_size=128,
-                                    limit=50,
-                                    full=False)
-
-            # initialize session for reuse
-            with elmo_graph.as_default() as current_graph:
-                self.tf_session_elmo = tf.compat.v1.Session(graph=elmo_graph)
-                with self.tf_session_elmo.as_default() as sess:
-                    self.elmo_model.elmo_sentence_input = elmo.weight_layers("input", self.elmo_model.sentence_embeddings_op)
-                    sess.run(tf.compat.v1.global_variables_initializer())
-
     def get_description(self, name):
         for emb in self.registry["embeddings"]:
             if emb["name"] == name:
@@ -426,247 +366,7 @@ class Embeddings(object):
         return embeddings_path
 
 
-    def get_elmo_embedding_path(self, description):
-        name = self.elmo_model_name
-        weights_file = description["path_weights"]
-        options_file = description["path-config"]
 
-        # check if model weights file is there and okay, otherwise donwload the ELMo weights
-        if weights_file is None or len(weights_file) == 0 or not os.path.isfile(weights_file):
-            print("error: weights file path for", name, "is not valid", weights_file)
-            # check local alternative location in repo
-            alternative_weights_directory = os.path.join("data/models/ELMo", self.elmo_model_name)
-            alternative_weights_file = None
-            if os.path.isdir(alternative_weights_directory):
-                # try to find a .hdf5 file here
-                for file in os.listdir(alternative_weights_directory):
-                    if file.endswith(".hdf5"):
-                        alternative_weights_file = file
-                        weights_file = os.path.join(alternative_weights_directory, alternative_weights_file)
-            
-            if alternative_weights_file == None and "url_weights" in description and len(description["url_weights"])>0:
-                url = description["url_weights"]
-                download_path = self.registry['embedding-download-path']
-                # if the download path does not exist, we create it
-                if not os.path.isdir(download_path):
-                    try:
-                        os.mkdir(download_path)
-                    except OSError:
-                        print ("Creation of the download directory", download_path, "failed")
-                print("Downloading weights file for", name, "...")
-                embeddings_path = download_file(url, download_path)
-                if embeddings_path != None and os.path.isfile(embeddings_path):
-                    print("Download successful:", embeddings_path)
-                    # now move the model weights file where they are supposed to be and remove the tmp download
-                    # try to move in the original path_weights
-                    parent_path = None
-                    if weights_file is not None and len(weights_file)>0:
-                        try:
-                            path = Path(weights_file)
-                            parent_path = path.parent.absolute()
-                        except:
-                            print("invalid specified ELMo weights file path:", weights_file)
-                    if parent_path is not None and os.path.isdir(parent_path):
-                        try:
-                            shutil.move(embeddings_path, weights_file)
-                        except OSError:
-                            print ("Copy of ELMo weights file to ELMo directory path", weights_file, "failed")
-                    else:
-                        # otherwise move to the ELMo model default path and update the description file
-                        basename = ntpath.basename(embeddings_path)
-                        destination_file = os.path.join("data/models/ELMo", self.elmo_model_name, basename)
-                        print("saving downloaded ELMo weights file under", destination_file)
-                        destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
-                        if not os.path.exists(destination_dir):
-                            os.makedirs(destination_dir)
-                        try:                      
-                            shutil.move(embeddings_path, destination_file)
-                            weights_file = destination_file
-                        except OSError:
-                            print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
-            
-            if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
-                print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
-        print("ELMo weights used:", weights_file)
-
-        # now check if model config file is there and okay, otherwise donwload the ELMo config file
-        if options_file is None or not os.path.isfile(options_file):
-            print("error: config file path for", name, "is not valid", options_file)
-            # check local alternative location in repo
-            alternative_options_directory = os.path.join("data/models/ELMo", self.elmo_model_name)
-            alternative_options_file = None
-            if os.path.isdir(alternative_options_directory):
-                # try to find a .json file here
-                for file in os.listdir(alternative_options_directory):
-                    if file.endswith(".json"):
-                        alternative_options_file = file
-                        options_file = os.path.join(alternative_options_directory, alternative_options_file)
-
-            if alternative_options_file == None and "url_config" in description and len(description["url_config"])>0:
-                url = description["url_config"]
-                download_path = self.registry['embedding-download-path']
-                # if the download path does not exist, we create it
-                if not os.path.isdir(download_path):
-                    try:
-                        os.mkdir(download_path)
-                    except OSError:
-                        print ("Creation of the download directory", download_path, "failed")
-
-                print("Downloading weights file for", name, "...")
-                embeddings_path = download_file(url, download_path)
-                if embeddings_path != None and os.path.isfile(embeddings_path):
-                    print("Download sucessful:", embeddings_path)
-                    # now move the model weights file where they are supposed to be and remove the tmp download
-                    # try to move in the original path_options
-                    parent_path = None
-                    if options_file is not None and len(options_file)>0:
-                        try:
-                            path = Path(options_file)
-                            parent_path = path.parent.absolute()
-                        except:
-                            print("invalid specified ELMo options file path:", options_file)
-                    if parent_path is not None and os.path.isdir(parent_path):
-                        try:
-                            shutil.move(embeddings_path, options_file)
-                        except OSError:
-                            print ("Copy of ELMo options file to ELMo directory path", options_file, "failed")
-                    else:
-                        # otherwise move to the ELMo model default path and update the description file
-                        basename = ntpath.basename(embeddings_path)
-                        destination_file = os.path.join("data/models/ELMo", self.elmo_model_name, basename)
-                        print("saving downloaded ELMo weights file under", destination_file)
-                        destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
-                        if not os.path.exists(destination_dir):
-                            os.makedirs(destination_dir)
-                        try:
-                            shutil.move(embeddings_path, destination_file)
-                            options_file = destination_file
-                        except OSError:
-                            print ("Copy of ELMo options file to ELMo directory path", destination_file, "failed")
-                        # update description file
-            if "url_config" not in description or description["url_config"] == None or len(description["url_config"]) == 0:
-                print("no download url available for this ELMo embeddings config resource, please review the embedding registry for", name)
-        print("ELMo config used:", options_file)
-
-        return weights_file, options_file
-
-    def get_sentence_vector_only_ELMo(self, token_list):
-        """
-        Return the ELMo embeddings only for a full sentence
-        """
-        if not self.use_ELMo:
-            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
-            return
-
-        # Create batches of data
-        local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
-        max_size_sentence = local_token_ids[0].shape[0]
-        # check lmdb cache
-        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
-        if elmo_result is not None:
-            return elmo_result
-
-        elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
-
-        # cache computation if cache enabled
-        self.cache_ELMo_lmdb_vector(token_list, elmo_result)
-
-        return elmo_result
-
-    def get_sentence_vector_with_ELMo(self, token_list):
-        """
-        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
-        for a full sentence
-        """
-        if not self.use_ELMo:
-            print("Warning: ELMo embeddings requested but embeddings object wrongly initialised")
-            return
-
-        local_token_ids = self.elmo_model.batcher.batch_sentences(token_list)
-        max_size_sentence = local_token_ids[0].shape[0]
-
-        elmo_result = self.get_ELMo_lmdb_vector(token_list, max_size_sentence)
-        if elmo_result is None:
-            elmo_result = self.elmo_model.get_elmo_vectors(token_list, layers="average", warmup=True, session=self.tf_session_elmo)
-
-            # cache computation if cache enabled
-            self.cache_ELMo_lmdb_vector(token_list, elmo_result)
-
-        concatenated_result = np.zeros((len(token_list), max_size_sentence-2, self.embed_size), dtype=np.float32)
-        for i in range(0, len(token_list)):
-            for j in range(0, len(token_list[i])):
-                concatenated_result[i][j] = np.concatenate((elmo_result[i][j], self.get_word_vector(token_list[i][j]).astype('float32')), )
-        return concatenated_result
-
-    def get_ELMo_lmdb_vector(self, token_list, max_size_sentence):
-        """
-        Try to get the ELMo embeddings for a sequence cached in LMDB
-        """
-        if self.env_ELMo is None:
-            # db cache not available, we don't cache ELMo stuff
-            return None
-        try:
-            ELMo_vector = np.zeros((len(token_list), max_size_sentence-2, ELMo_embed_size), dtype='float32')
-            with self.env_ELMo.begin() as txn:
-                for i in range(0, len(token_list)):
-                    txn = self.env_ELMo.begin()
-                    # get a hash for the token_list
-                    the_hash = list_digest(token_list[i])
-                    vector = txn.get(the_hash.encode(encoding='UTF-8'))
-                    if vector:
-                        # adapt expected shape/padding
-                        local_embeddings = _deserialize_pickle(vector)
-                        if local_embeddings.shape[0] > max_size_sentence-2:
-                            # squeeze the extra padding space
-                            ELMo_vector[i] = local_embeddings[:max_size_sentence-2,]
-                        elif local_embeddings.shape[0] == max_size_sentence-2:
-                            # bingo~!
-                            ELMo_vector[i] = local_embeddings
-                        else:
-                            # fill the missing space with padding
-                            filler = np.zeros((max_size_sentence-(local_embeddings.shape[0]+2), ELMo_embed_size), dtype='float32')
-                            ELMo_vector[i] = np.concatenate((local_embeddings, filler))
-                        vector = None
-                    else:
-                        return None
-        except lmdb.Error:
-            # no idea why, but we need to close and reopen the environment to avoid
-            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-            # when opening new transaction !
-            self.env_ELMo.close()
-            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
-            return self.get_ELMo_lmdb_vector(token_list)
-        return ELMo_vector
-
-    def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
-        """
-        Cache in LMDB the ELMo embeddings for a given sequence 
-        """
-        if self.env_ELMo is None:
-            # db cache not available, we don't cache ELMo stuff
-            return None
-        txn = self.env_ELMo.begin(write=True)
-        for i in range(0, len(token_list)):
-            # get a hash for the token_list
-            the_hash = list_digest(token_list[i])
-            txn.put(the_hash.encode(encoding='UTF-8'), _serialize_pickle(ELMo_vector[i]))
-        txn.commit()
-
-    def clean_ELMo_cache(self):
-        """
-        Delete ELMo embeddings cache, this takes place normally after the completion of a training/eval
-        """
-        if self.env_ELMo is None:
-            # db cache not available, nothing to clean
-            return
-        else:
-            self.env_ELMo.close()
-            self.env_ELMo = None
-            for file in os.listdir(self.embedding_ELMo_cache):
-                file_path = os.path.join(self.embedding_ELMo_cache, file)
-                if os.path.isfile(file_path):
-                    os.remove(file_path)
-            os.rmdir(self.embedding_ELMo_cache)
 
 def _serialize_byteio(array):
     memfile = io.BytesIO()
