@@ -93,11 +93,19 @@ submit_job() {
 
     echo ">>> Submitting experiment $experiment_id: $job_name"
 
-    job_id=$(sbatch $SBATCH_OPTS \
-        --job-name="$job_name" \
-        --output="$log_file" \
-        --error="$log_file" \
-        --wrap="$PYTHON_CMD $model train --architecture $architecture" 2>&1 | grep -oP '\d+')
+    if [[ "$model" == "header" ]]; then
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --num-workers 6" 2>&1 | grep -oP '\d+')
+    else
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train --architecture $architecture" 2>&1 | grep -oP '\d+')
+    fi
 
     if [[ -n "$job_id" ]]; then
         JOB_IDS+=("$job_id")
@@ -117,11 +125,19 @@ submit_job_incremental() {
 
     echo ">>> Submitting incremental experiment $experiment_id: $job_name"
 
-    job_id=$(sbatch $SBATCH_OPTS \
-        --job-name="$job_name" \
-        --output="$log_file" \
-        --error="$log_file" \
-        --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental" 2>&1 | grep -oP '\d+')
+    if [[ "$model" == "header" ]]; then
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental --num-workers 6" 2>&1 | grep -oP '\d+')
+    else
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental" 2>&1 | grep -oP '\d+')
+    fi
 
     if [[ -n "$job_id" ]]; then
         JOB_IDS+=("$job_id")

@@ -93,17 +93,57 @@ submit_job() {
 
     echo ">>> Submitting experiment $experiment_id: $job_name"
 
-    job_id=$(sbatch $SBATCH_OPTS \
-        --job-name="$job_name" \
-        --output="$log_file" \
-        --error="$log_file" \
-        --wrap="$PYTHON_CMD $model train_eval --architecture $architecture --wandb" 2>&1 | grep -oP '\d+')
+    if [[ "$model" == "header" ]]; then
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train_eval --architecture $architecture --num-workers 6" 2>&1 | grep -oP '\d+')
+    else
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train_eval --architecture $architecture" 2>&1 | grep -oP '\d+')
+    fi
 
     if [[ -n "$job_id" ]]; then
         JOB_IDS+=("$job_id")
         echo "    Submitted job ID: $job_id"
     else
         echo "    Warning: Failed to submit job for $job_name"
+    fi
+}
+
+submit_job_incremental() {
+    local model=$1
+    local architecture=$2
+    local experiment_id=$3
+
+    local job_name="train_eval_inc_${model}_${architecture}"
+    local log_file="${LOG_DIR}/${job_name}_%j.log"
+
+    echo ">>> Submitting incremental experiment $experiment_id: $job_name"
+
+    if [[ "$model" == "header" ]]; then
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental --num-workers 6" 2>&1 | grep -oP '\d+')
+    else
+        job_id=$(sbatch $SBATCH_OPTS \
+            --job-name="$job_name" \
+            --output="$log_file" \
+            --error="$log_file" \
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental" 2>&1 | grep -oP '\d+')
+    fi
+
+    if [[ -n "$job_id" ]]; then
+        JOB_IDS+=("$job_id")
+        echo "    Submitted incremental job ID: $job_id"
+    else
+        echo "    Warning: Failed to submit incremental job for $job_name"
     fi
 }
 
@@ -147,4 +187,28 @@ if [[ "${WAIT_FOR_COMPLETION:-false}" == "true" ]]; then
         done
     done
     echo "All jobs completed!"
+
+    echo ""
+    echo "==========================================="
+    echo "Starting incremental training phase"
+    echo "==========================================="
+    echo ""
+
+    experiment_count=0
+
+    for model in "${MODELS[@]}"; do
+        for arch in "${ARCHITECTURES[@]}"; do
+            experiment_count=$((experiment_count + 1))
+            wait_for_capacity
+            submit_job_incremental "$model" "$arch" "$experiment_count"
+        done
+    done
+
+    echo ""
+    echo "==========================================="
+    echo "All $total_experiments incremental experiments submitted!"
+    echo "Job IDs: ${JOB_IDS[*]}"
+    echo "Monitor with: squeue -u \$USER"
+    echo "Logs in: $LOG_DIR"
+    echo "==========================================="
 fi

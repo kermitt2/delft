@@ -55,11 +55,40 @@ train_model() {
     echo "Architecture: $architecture"
     echo "=========================================="
     
-    srun $SRUN_OPTS $PYTHON_CMD $model train_eval \
-        --architecture $architecture \
-        --wandb
+    if [[ "$model" == "header" ]]; then
+        srun $SRUN_OPTS $PYTHON_CMD $model train_eval \
+            --architecture $architecture \
+            --num-workers 6
+    else
+        srun $SRUN_OPTS $PYTHON_CMD $model train_eval \
+            --architecture $architecture
+    fi
     
     echo "Completed: $model with $architecture"
+    echo ""
+}
+
+train_model_incremental() {
+    local model=$1
+    local architecture=$2
+    
+    echo "=========================================="
+    echo "Incremental training: $model"
+    echo "Architecture: $architecture"
+    echo "=========================================="
+    
+    if [[ "$model" == "header" ]]; then
+        srun $SRUN_OPTS $PYTHON_CMD $model train \
+            --architecture $architecture \
+            --incremental \
+            --num-workers 6
+    else
+        srun $SRUN_OPTS $PYTHON_CMD $model train \
+            --architecture $architecture \
+            --incremental
+    fi
+    
+    echo "Completed (incremental): $model with $architecture"
     echo ""
 }
 
@@ -79,3 +108,15 @@ done
 echo "=========================================="
 echo "All training runs completed!"
 echo "=========================================="
+echo ""
+echo "Starting incremental training phase..."
+
+for model in "${MODELS[@]}"; do
+    for arch in "${ARCHITECTURES[@]}"; do
+        train_model_incremental "$model" "$arch"
+    done
+done
+
+echo "==========================================="
+echo "All incremental training runs completed!"
+echo "==========================================="

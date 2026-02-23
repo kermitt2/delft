@@ -55,8 +55,14 @@ train_model() {
     echo "Architecture: $architecture"
     echo "=========================================="
     
-    srun $SRUN_OPTS $PYTHON_CMD $model train \
-        --architecture $architecture
+    if [[ "$model" == "header" ]]; then
+        srun $SRUN_OPTS $PYTHON_CMD $model train \
+            --architecture $architecture \
+            --num-workers 6
+    else
+        srun $SRUN_OPTS $PYTHON_CMD $model train \
+            --architecture $architecture
+    fi
     
     echo "Completed: $model with $architecture"
     echo ""
@@ -71,9 +77,16 @@ train_model_incremental() {
     echo "Architecture: $architecture"
     echo "=========================================="
     
-    srun $SRUN_OPTS $PYTHON_CMD $model train \
-        --architecture $architecture \
-        --incremental
+    if [[ "$model" == "header" ]]; then
+        srun $SRUN_OPTS $PYTHON_CMD $model train \
+            --architecture $architecture \
+            --incremental \
+            --num-workers 6
+    else
+        srun $SRUN_OPTS $PYTHON_CMD $model train \
+            --architecture $architecture \
+            --incremental
+    fi
     
     echo "Completed (incremental): $model with $architecture"
     echo ""
