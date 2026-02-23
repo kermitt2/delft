@@ -46,7 +46,7 @@ Any pre-trained TensorFlow BERT models can be used.
 
 * __BERT_CRF_CHAR_FEATURES__ transformer architecture, for fine-tuning, with a character input channel, a generic feature channel and a CRF as final activation layer. Any pre-trained TensorFlow BERT models can be used. 
 
-All RNN models (LSTM/GRU/CNN) can further uses ELMo contextualized embeddings to improve results:
+All RNN models (LSTM/GRU/CNN) can further uses ELMo contextualized embeddings (up to version 0.3.4) to improve results:
 
 * [__ELMo__](https://allennlp.org/elmo) contextualised embeddings, see:
 
