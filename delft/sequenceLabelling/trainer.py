@@ -14,6 +14,7 @@ from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
+from delft.utilities.multiprocessing import get_multiprocessing_config
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -193,14 +194,9 @@ class Trainer(object):
                 model=local_model,
                 external_callbacks=callbacks
             )
-        nb_workers = 6
-        multiprocessing = self.training_config.multiprocessing
-
-        # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-        if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
-            # worker at 1 means the training will be executed in the main thread
-            nb_workers = 1
-            multiprocessing = False
+        nb_workers, multiprocessing = get_multiprocessing_config(
+            self.training_config, self.model_config, self.embeddings
+        )
 
         local_model.fit(
             training_generator,

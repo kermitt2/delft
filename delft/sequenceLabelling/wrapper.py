@@ -94,6 +94,7 @@ class Sequence(object):
              log_dir=None,
              fold_number=1,
              multiprocessing=True,
+             num_workers=1,
              features_indices=None,
              transformer_name: str = None,
              report_to_wandb = False
@@ -154,7 +155,8 @@ class Sequence(object):
         self.training_config = TrainingConfig(learning_rate, batch_size, optimizer,
                                               lr_decay, clip_gradients, max_epoch,
                                               early_stop, patience,
-                                              max_checkpoints_to_keep, multiprocessing)
+                                              max_checkpoints_to_keep, multiprocessing,
+                                              num_workers)
 
         if report_to_wandb:
             import wandb

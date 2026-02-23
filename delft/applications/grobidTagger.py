@@ -213,6 +213,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
         max_epoch=max_epoch,
         use_ELMo=use_ELMo,
         multiprocessing=multiprocessing,
+        num_workers=num_workers,
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
@@ -445,6 +446,9 @@ if __name__ == "__main__":
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
+    parser.add_argument("--num-workers", type=int, default=1,
+                        help="Number of worker processes for data loading (default: 1, use 0 or 1 for no multiprocessing)")
+
     parser.add_argument(
         "--wandb",
         default=False,
@@ -472,6 +476,7 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))

@@ -91,7 +91,8 @@ class TrainingConfig(object):
                  early_stop=True,
                  patience=5,
                  max_checkpoints_to_keep=0,
-                 multiprocessing=True):
+                 multiprocessing=True,
+                 num_workers=1):
 
         self.batch_size = batch_size # this is the batch size for training
         self.optimizer = optimizer
@@ -103,3 +104,4 @@ class TrainingConfig(object):
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
         self.multiprocessing = multiprocessing
+        self.num_workers = num_workers

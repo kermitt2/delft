@@ -82,6 +82,7 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
+                 num_workers=1,
                  transformer_name: str=None):
 
         if model_name is None:
@@ -142,7 +143,8 @@ class Classifier(object):
                                               use_roc_auc=use_roc_auc, 
                                               early_stop=early_stop,
                                               class_weights=class_weights, 
-                                              multiprocessing=multiprocessing)
+                                              multiprocessing=multiprocessing,
+                                              num_workers=num_workers)
 
     def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
 

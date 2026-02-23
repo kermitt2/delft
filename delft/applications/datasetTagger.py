@@ -77,7 +77,8 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                 patience=-1,
                 learning_rate=None, 
                 early_stop=None, 
-                multi_gpu=False):
+                multi_gpu=False,
+                num_workers=1):
 
     print('Loading data...')
     if input_path is None:
@@ -102,14 +103,14 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
     print(len(x_valid), 'validation sequences')
 
     batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = configure(architecture,
-                                                                            output_path, 
-                                                                            max_sequence_length, 
-                                                                            batch_size, 
-                                                                            embeddings_name,
-                                                                            max_epoch,
-                                                                            use_ELMo,
-                                                                            patience,
-                                                                            early_stop)
+                                                                             output_path, 
+                                                                             max_sequence_length, 
+                                                                             batch_size, 
+                                                                             embeddings_name,
+                                                                             max_epoch,
+                                                                             use_ELMo,
+                                                                             patience,
+                                                                             early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -122,6 +123,7 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                     max_epoch=max_epoch, 
                     use_ELMo=use_ELMo,
                     multiprocessing=multiprocessing,
+                    num_workers=num_workers,
                     early_stop=early_stop,
                     patience=patience,
                     learning_rate=learning_rate)
@@ -147,7 +149,8 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                 patience=-1, 
                 learning_rate=None, 
                 early_stop=None, 
-                multi_gpu=False):
+                multi_gpu=False,
+                num_workers=1):
 
     print('Loading data...')
     if input_path is None:
@@ -194,6 +197,7 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                     max_epoch=max_epoch, 
                     use_ELMo=use_ELMo,
                     multiprocessing=multiprocessing,
+                    num_workers=num_workers,
                     early_stop=early_stop,
                     patience=patience,
                     learning_rate=learning_rate)
@@ -312,6 +316,9 @@ if __name__ == "__main__":
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
+    parser.add_argument("--num-workers", type=int, default=1,
+                        help="Number of worker processes for data loading (default: 1, use 0 or 1 for no multiprocessing)")
+
 
     args = parser.parse_args()
 
@@ -347,7 +354,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
-            multi_gpu=multi_gpu)
+            multi_gpu=multi_gpu,
+            num_workers=args.num_workers)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -373,7 +381,8 @@ if __name__ == "__main__":
                 learning_rate=learning_rate,
                 max_epoch=max_epoch,
                 early_stop=early_stop,
-                multi_gpu=multi_gpu)
+                multi_gpu=multi_gpu,
+                num_workers=args.num_workers)
 
     if action == "tag":
         someTexts = []

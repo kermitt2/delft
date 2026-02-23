@@ -16,6 +16,7 @@ from delft.utilities.Embeddings import load_resource_registry
 
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
+from delft.utilities.multiprocessing import get_multiprocessing_config
 
 architectures = [
     'lstm',
@@ -126,14 +127,11 @@ class BaseModel(object):
         best_loss = -1
         best_roc_auc = -1
 
-        # default worker number for multiprocessing
-        nb_workers = 6
-        if self.model_config.transformer_name is not None:
-            # worker at 1 means the training will be executed in the main thread
-            nb_workers = 1
-            multiprocessing = False
+        nb_workers, multiprocessing = get_multiprocessing_config(
+            self.training_config, self.model_config
+        )
 
-        if validation_generator == None:
+        if validation_generator is None:
             # no early stop
             best_loss = self.model.fit(
                 training_generator,
