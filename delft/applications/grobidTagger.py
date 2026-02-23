@@ -2,7 +2,10 @@
 
 import argparse
 import json
+import os
+import re
 import time
+from datetime import datetime
 
 from sklearn.model_selection import train_test_split
 
@@ -11,6 +14,40 @@ from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.Utilities import longest_row, t_or_f
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter', 'segmentation', 'funding-acknowledgement', 'patent-citation']
+
+
+def find_latest_train_file(model: str) -> str:
+    """
+    Find the latest training file for the given model based on the date in the filename.
+
+    Files are expected to have names like: {model}-YYMMDD.train
+    Returns the path to the latest file, or None if no files found.
+    """
+    data_dir = f"data/sequenceLabelling/grobid/{model}"
+    if not os.path.exists(data_dir):
+        return None
+
+    # Pattern: model-YYMMDD.train
+    pattern = re.compile(rf"^{re.escape(model)}-(\d{{6}})\.train$")
+
+    latest_file = None
+    latest_date = None
+
+    for filename in os.listdir(data_dir):
+        match = pattern.match(filename)
+        if match:
+            date_str = match.group(1)
+            try:
+                # Parse YYMMDD format
+                date = datetime.strptime(date_str, "%y%m%d")
+                if latest_date is None or date > latest_date:
+                    latest_date = date
+                    latest_file = os.path.join(data_dir, filename)
+            except ValueError:
+                continue
+
+    return latest_file
+
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
@@ -171,10 +208,14 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
           report_to_wandb=False):
 
     print('Loading data...')
-    if input_path == None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
-    else:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+    if input_path is None:
+        input_path = find_latest_train_file(model)
+        if input_path is None:
+            raise ValueError(
+                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
+            )
+        print(f"Using latest training file: {input_path}")
+    x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
     print(len(x_all), 'total sequences')
 
@@ -251,9 +292,13 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
-    else:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+        input_path = find_latest_train_file(model)
+        if input_path is None:
+            raise ValueError(
+                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
+            )
+        print(f"Using latest training file: {input_path}")
+    x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
     x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1, shuffle=True)
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
