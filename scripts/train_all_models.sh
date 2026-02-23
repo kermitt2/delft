@@ -62,6 +62,23 @@ train_model() {
     echo ""
 }
 
+train_model_incremental() {
+    local model=$1
+    local architecture=$2
+    
+    echo "=========================================="
+    echo "Incremental training: $model"
+    echo "Architecture: $architecture"
+    echo "=========================================="
+    
+    srun $SRUN_OPTS $PYTHON_CMD $model train \
+        --architecture $architecture \
+        --incremental
+    
+    echo "Completed (incremental): $model with $architecture"
+    echo ""
+}
+
 # Main training loop
 echo "Starting training of all GROBID models..."
 echo "Total models: ${#MODELS[@]}"
@@ -78,3 +95,15 @@ done
 echo "=========================================="
 echo "All training runs completed!"
 echo "=========================================="
+echo ""
+echo "Starting incremental training phase..."
+
+for model in "${MODELS[@]}"; do
+    for arch in "${ARCHITECTURES[@]}"; do
+        train_model_incremental "$model" "$arch"
+    done
+done
+
+echo "==========================================="
+echo "All incremental training runs completed!"
+echo "==========================================="
