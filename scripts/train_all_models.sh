@@ -12,7 +12,7 @@ set -e  # Exit on error
 
 # Common SLURM configuration
 SRUN_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
---container-workdir=/netscratch/lfoppiano/delft/delft_tf2.17.1-updated/ \
+--container-workdir=/netscratch/lfoppiano/delft/delft_tf2.17.1-updated \
 --container-image=/netscratch/lfoppiano/enroot/tensorflow-2.17.2-gpu-delft-updated.sqsh  \
 --mem=100G \
 -p V100-32GB,RTX3090,RTXA6000 \
