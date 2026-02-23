@@ -35,7 +35,7 @@ def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_
     return batch_size, maxlen, patience, o_early_stop, max_epoch, embeddings_name
 
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
-          learning_rate=None,
+          use_ELMo=False, learning_rate=None,
           batch_size=-1, max_epoch=-1, early_stop=None, multi_gpu=False):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(architecture, 
                                                                                     embeddings_name, 
@@ -54,10 +54,12 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
     print(len(x_valid), 'validation sequences')
 
     model_name = 'insult-' + architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
 
     model = Sequence(model_name, max_epoch=max_epoch, batch_size=batch_size, max_sequence_length=maxlen, 
         embeddings_name=embeddings_name, architecture=architecture, patience=patience, early_stop=early_stop,
-        transformer_name=transformer, learning_rate=learning_rate)
+        transformer_name=transformer, use_ELMo=use_ELMo, learning_rate=learning_rate)
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     print('training done')
 
@@ -66,13 +68,15 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
 
 
 # annotate a list of texts, provides results in a list of offset mentions 
-def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None, multi_gpu=False):
+def annotate(texts, output_format, architecture='BidLSTM_CRF', transformer=None, use_ELMo=False, multi_gpu=False):
     annotations = []
 
     model_name = 'insult-' + architecture
+    if use_ELMo:
+        model_name += '-with_ELMo'
 
     # load model
-    model = Sequence(model_name, architecture=architecture, transformer_name=transformer)
+    model = Sequence(model_name, architecture=architecture, transformer_name=transformer, use_ELMo=use_ELMo)
     model.load()
 
     start_time = time.time()
@@ -127,6 +131,7 @@ if __name__ == "__main__":
             "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
             "for model names"
     )
+    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings")
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
     parser.add_argument("--max-epoch", type=int, default=-1,
                         help="Maximum number of epochs.")
@@ -148,6 +153,7 @@ if __name__ == "__main__":
     embeddings_name = args.embedding
     architecture = args.architecture
     transformer = args.transformer
+    use_ELMo = args.use_ELMo
     learning_rate = args.learning_rate
 
     batch_size = args.batch_size
@@ -163,6 +169,7 @@ if __name__ == "__main__":
         train(embeddings_name=embeddings_name,
               architecture=architecture,
               transformer=transformer,
+              use_ELMo=use_ELMo,
               learning_rate=learning_rate,
               batch_size=batch_size,
               max_epoch=max_epoch,
@@ -173,6 +180,6 @@ if __name__ == "__main__":
         someTexts = ['This is a gentle test.', 
                      'you\'re a moronic wimp who is too lazy to do research! die in hell !!', 
                      'This is a fucking test.']
-        result = annotate(someTexts, "json", architecture=architecture, transformer=transformer)
+        result = annotate(someTexts, "json", architecture=architecture, transformer=transformer, use_ELMo=use_ELMo)
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
 

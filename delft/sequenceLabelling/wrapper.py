@@ -84,6 +84,7 @@ class Sequence(object):
              early_stop=True,
              patience=5,
              max_checkpoints_to_keep=0,
+             use_ELMo=False,
              log_dir=None,
              fold_number=1,
              multiprocessing=True,
@@ -117,7 +118,7 @@ class Sequence(object):
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
+            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -142,6 +143,7 @@ class Sequence(object):
             recurrent_dropout=recurrent_dropout,
             fold_number=fold_number,
             batch_size=batch_size,
+            use_ELMo=use_ELMo,
             features_indices=features_indices,
             transformer_name=transformer_name)
 
@@ -272,6 +274,8 @@ class Sequence(object):
             nb_workers=self.nb_workers
         )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
+        if self.embeddings and self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
         if multi_gpu:
@@ -318,6 +322,8 @@ class Sequence(object):
               )
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
+        if self.embeddings and self.embeddings.use_ELMo:
+            self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test, features=None):
         if self.model_config.fold_number > 1:
@@ -705,7 +711,7 @@ class Sequence(object):
         if self.model_config.embeddings_name is not None:
             # load embeddings
             # Do not use cache in 'prediction/production' mode
-            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_cache=False)
+            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_ELMo=self.model_config.use_ELMo, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None
