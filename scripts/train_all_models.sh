@@ -41,7 +41,6 @@ MODELS=(
     "name-citation"
     "name-header"
     "reference-segmenter"
-    "segmentation"
     "table"
 )
 
