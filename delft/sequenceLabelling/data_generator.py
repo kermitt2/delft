@@ -116,6 +116,8 @@ class DataGenerator(BaseGenerator):
                         features=features,
                         output_input_offsets=output_input_offsets,
                         use_chain_crf=use_chain_crf)
+        if self.embeddings is not None:
+            self.embeddings.reopen_lmdb()
         self.on_epoch_end()
 
     def __getitem__(self, index):
@@ -244,6 +246,9 @@ class DataGeneratorTransformers(BaseGenerator):
 
         if self.bert_preprocessor.empty_features_vector is None:
             self.bert_preprocessor.empty_features_vector = self.preprocessor.empty_features_vector()
+
+        if self.embeddings is not None:
+            self.embeddings.reopen_lmdb()
 
         self.on_epoch_end()
 

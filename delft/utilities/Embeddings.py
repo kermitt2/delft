@@ -114,6 +114,42 @@ class Embeddings(object):
         if self.use_ELMo and hasattr(self, 'embedding_ELMo_cache') and self.embedding_ELMo_cache:
             self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
+    def reopen_lmdb(self):
+        """
+        Reopen the LMDB environment. This is required for fork-safe multiprocessing.
+
+        LMDB environments opened before fork() cannot be safely used in child processes.
+        Call this method in each worker process (e.g., via DataLoader's worker_init_fn)
+        to create a fresh LMDB environment handle for the worker.
+
+        This is a no-op if embeddings are not using LMDB (e.g., in-memory or bin format).
+        """
+        if self.env is None and self.embedding_lmdb_path is None:
+            return
+
+        if self.env is not None:
+            try:
+                self.env.close()
+            except Exception:
+                pass
+
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
+
+        if 'env_ELMo' in self.__dict__ and self.env_ELMo is not None and self.use_ELMo and hasattr(self, 'embedding_ELMo_cache') and self.embedding_ELMo_cache:
+            try:
+                self.env_ELMo.close()
+            except Exception:
+                pass
+            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
         print('loading embeddings...')
