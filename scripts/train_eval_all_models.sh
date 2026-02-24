@@ -54,7 +54,7 @@ train_model() {
     echo "Architecture: $architecture"
     echo "=========================================="
     
-    if [[ "$model" == "header" ]]; then
+    if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
         srun $SRUN_OPTS $PYTHON_CMD $model train_eval \
             --architecture $architecture \
             --num-workers 6
@@ -76,7 +76,7 @@ train_model_incremental() {
     echo "Architecture: $architecture"
     echo "=========================================="
     
-    if [[ "$model" == "header" ]]; then
+    if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
         srun $SRUN_OPTS $PYTHON_CMD $model train \
             --architecture $architecture \
             --incremental \

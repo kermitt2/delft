@@ -92,7 +92,7 @@ submit_job() {
 
     echo ">>> Submitting experiment $experiment_id: $job_name"
 
-    if [[ "$model" == "header" ]]; then
+    if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
         job_id=$(sbatch $SBATCH_OPTS \
             --job-name="$job_name" \
             --output="$log_file" \
@@ -124,7 +124,7 @@ submit_job_incremental() {
 
     echo ">>> Submitting incremental experiment $experiment_id: $job_name"
 
-    if [[ "$model" == "header" ]]; then
+    if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
         job_id=$(sbatch $SBATCH_OPTS \
             --job-name="$job_name" \
             --output="$log_file" \
