@@ -2,7 +2,7 @@ import numpy as np
 from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view
 
-import tensorflow.keras as keras
+import tf_keras as keras
 from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, to_vector_simple_with_elmo, \
     Preprocessor, BERTPreprocessor
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple

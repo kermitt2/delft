@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow.keras as keras
+import tf_keras as keras
 
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.textClassification.preprocess import to_vector_single

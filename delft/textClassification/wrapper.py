@@ -52,7 +52,6 @@ from sklearn.model_selection import train_test_split
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
 
-from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
 

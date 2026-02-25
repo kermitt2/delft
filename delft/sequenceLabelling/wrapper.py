@@ -6,7 +6,6 @@ from packaging import version
 # for using legacy Keras 2, and not Keras 3 installed by default from TensorFlow 2.16
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 os.environ["KERAS_BACKEND"] = "tensorflow"
-import tf_keras as keras
 
 from delft import DELFT_PROJECT_DIR
 

@@ -4,11 +4,12 @@ import platform
 
 import numpy as np
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
-from tensorflow.keras.layers import Dense, Input, concatenate
-from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten
-from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import RMSprop
+import tf_keras as keras
+from tf_keras.layers import Dense, Input, concatenate
+from tf_keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten
+from tf_keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
+from tf_keras.models import Model
+from tf_keras.optimizers import RMSprop
 from transformers import create_optimizer
 
 from delft.textClassification.data_generator import DataGenerator
@@ -657,7 +658,7 @@ class gru(BaseModel):
         
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
-                      optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                      optimizer=RMSprop(global_clipnorm=1),
                       metrics=['accuracy'])
 
 
@@ -699,7 +700,7 @@ class gru_simple(BaseModel):
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
-                      optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                      optimizer=RMSprop(global_clipnorm=1),
                       metrics=['accuracy'])
 
 
@@ -744,7 +745,7 @@ class gru_lstm(BaseModel):
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
-                      optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                      optimizer=RMSprop(global_clipnorm=1),
                       metrics=['accuracy'])
 
 
