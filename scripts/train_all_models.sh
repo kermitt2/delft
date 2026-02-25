@@ -57,10 +57,12 @@ train_model() {
     if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
         srun $SRUN_OPTS $PYTHON_CMD $model train \
             --architecture $architecture \
-            --num-workers 6
+            --num-workers 6 \
+            --max-sequence-length 3000
     else
         srun $SRUN_OPTS $PYTHON_CMD $model train \
-            --architecture $architecture
+            --architecture $architecture \
+            --max-sequence-length 3000
     fi
     
     echo "Completed: $model with $architecture"
@@ -70,23 +72,25 @@ train_model() {
 train_model_incremental() {
     local model=$1
     local architecture=$2
-    
+
     echo "=========================================="
     echo "Incremental training: $model"
     echo "Architecture: $architecture"
     echo "=========================================="
-    
+
     if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
         srun $SRUN_OPTS $PYTHON_CMD $model train \
             --architecture $architecture \
             --incremental \
+            --max-sequence-length 3000 \
             --num-workers 6
     else
         srun $SRUN_OPTS $PYTHON_CMD $model train \
             --architecture $architecture \
+            --max-sequence-length 3000 \
             --incremental
     fi
-    
+
     echo "Completed (incremental): $model with $architecture"
     echo ""
 }
