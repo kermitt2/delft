@@ -97,38 +97,6 @@ submit_job() {
             --job-name="$job_name" \
             --output="$log_file" \
             --error="$log_file" \
-            --wrap="$PYTHON_CMD $model train --architecture $architecture --num-workers 6" 2>&1 | grep -oP '\d+')
-    else
-        job_id=$(sbatch $SBATCH_OPTS \
-            --job-name="$job_name" \
-            --output="$log_file" \
-            --error="$log_file" \
-            --wrap="$PYTHON_CMD $model train --architecture $architecture" 2>&1 | grep -oP '\d+')
-    fi
-
-    if [[ -n "$job_id" ]]; then
-        JOB_IDS+=("$job_id")
-        echo "    Submitted job ID: $job_id"
-    else
-        echo "    Warning: Failed to submit job for $job_name"
-    fi
-}
-
-submit_job_incremental() {
-    local model=$1
-    local architecture=$2
-    local experiment_id=$3
-
-    local job_name="train_inc_${model}_${architecture}"
-    local log_file="${LOG_DIR}/${job_name}_%j.log"
-
-    echo ">>> Submitting incremental experiment $experiment_id: $job_name"
-
-    if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
-        job_id=$(sbatch $SBATCH_OPTS \
-            --job-name="$job_name" \
-            --output="$log_file" \
-            --error="$log_file" \
             --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental --num-workers 6" 2>&1 | grep -oP '\d+')
     else
         job_id=$(sbatch $SBATCH_OPTS \
@@ -140,9 +108,9 @@ submit_job_incremental() {
 
     if [[ -n "$job_id" ]]; then
         JOB_IDS+=("$job_id")
-        echo "    Submitted incremental job ID: $job_id"
+        echo "    Submitted job ID: $job_id"
     else
-        echo "    Warning: Failed to submit incremental job for $job_name"
+        echo "    Warning: Failed to submit job for $job_name"
     fi
 }
 
@@ -176,38 +144,3 @@ echo "Monitor with: squeue -u \$USER"
 echo "Logs in: $LOG_DIR"
 echo "==========================================="
 
-# Optional: Wait for all jobs to complete
-if [[ "${WAIT_FOR_COMPLETION:-false}" == "true" ]]; then
-    echo ""
-    echo "Waiting for all jobs to complete..."
-    for job_id in "${JOB_IDS[@]}"; do
-        while squeue -j "$job_id" &>/dev/null 2>&1; do
-            sleep $WAIT_INTERVAL
-        done
-    done
-    echo "All jobs completed!"
-
-    echo ""
-    echo "==========================================="
-    echo "Starting incremental training phase"
-    echo "==========================================="
-    echo ""
-
-    experiment_count=0
-
-    for model in "${MODELS[@]}"; do
-        for arch in "${ARCHITECTURES[@]}"; do
-            experiment_count=$((experiment_count + 1))
-            wait_for_capacity
-            submit_job_incremental "$model" "$arch" "$experiment_count"
-        done
-    done
-
-    echo ""
-    echo "==========================================="
-    echo "All $total_experiments incremental experiments submitted!"
-    echo "Job IDs: ${JOB_IDS[*]}"
-    echo "Monitor with: squeue -u \$USER"
-    echo "Logs in: $LOG_DIR"
-    echo "==========================================="
-fi
