@@ -97,13 +97,13 @@ submit_job() {
             --job-name="$job_name" \
             --output="$log_file" \
             --error="$log_file" \
-            --wrap="$PYTHON_CMD $model train --architecture $architecture --num-workers 6 --max-sequence-length 3000" 2>&1 | grep -oP '\d+')
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --num-workers 6 --max-sequence-length 3000 --incremental" 2>&1 | grep -oP '\d+')
     else
         job_id=$(sbatch $SBATCH_OPTS \
             --job-name="$job_name" \
             --output="$log_file" \
             --error="$log_file" \
-            --wrap="$PYTHON_CMD $model train --architecture $architecture" 2>&1 | grep -oP '\d+')
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental" 2>&1 | grep -oP '\d+')
     fi
 
     if [[ -n "$job_id" ]]; then
