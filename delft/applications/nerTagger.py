@@ -81,7 +81,8 @@ def configure(architecture, dataset_type, lang, embeddings_name,
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
 
           transformer=None, data_path=None, use_ELMo=False, max_sequence_length=-1,
-          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1, early_stop=None, multi_gpu=False):
+          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1, early_stop=None, multi_gpu=False,
+          num_workers=1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo, max_sequence_length, batch_size, patience, max_epoch, early_stop)
@@ -117,6 +118,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -151,6 +153,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
     elif (lang == 'fr'):
         print('Loading data...')
@@ -177,6 +180,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -212,7 +216,8 @@ def train_eval(embeddings_name=None,
                 learning_rate=None,
                 max_epoch=-1,
                 early_stop=None,
-                multi_gpu=False):
+                multi_gpu=False,
+                num_workers=1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, use_ELMo,
@@ -291,6 +296,7 @@ def train_eval(embeddings_name=None,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -367,6 +373,7 @@ def train_eval(embeddings_name=None,
                         max_sequence_length=max_sequence_length,
                         use_ELMo=use_ELMo,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
         print('Loading data for ftb_force_split...')
@@ -642,6 +649,9 @@ if __name__ == "__main__":
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
+    parser.add_argument("--num-workers", type=int, default=1,
+                        help="Number of worker processes for data loading (default: 1)")
+
 
     args = parser.parse_args()
 
@@ -688,7 +698,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
-            multi_gpu=multi_gpu
+            multi_gpu=multi_gpu,
+            num_workers=args.num_workers
         )
 
     if action == 'train_eval':
@@ -710,7 +721,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
-            multi_gpu=multi_gpu
+            multi_gpu=multi_gpu,
+            num_workers=args.num_workers
             )
 
     if action == 'eval':

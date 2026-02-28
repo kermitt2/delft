@@ -15,7 +15,11 @@ jobs:
         python-version: [ '3.10', '3.11' ]
     steps:
       - name: Cleanup more disk space
-        run: sudo rm -rf /usr/share/dotnet && sudo rm -rf /opt/ghc && sudo rm -rf "/usr/local/share/boost" && sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+        run: |
+          sudo rm -rf /usr/share/dotnet 
+          sudo rm -rf /opt/ghc 
+          sudo rm -rf "/usr/local/share/boost" 
+          sudo rm -rf "$AGENT_TOOLSDIRECTORY"
       - uses: actions/checkout@v2
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v5

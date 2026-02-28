@@ -5,15 +5,14 @@ Originally from Philipp Gross, https://github.com/phipleg/keras/blob/crf/keras/l
 Adapted to Keras/tensorflow 2 by your DeLFT servitor.
 
 Note: in this version, zero masking is not working with TF2, so do not use mask_zero=True in
-your archiecture when using this CRF layer
+your architecture when using this CRF layer
 
 Note: relying on tensorflow.compat.v1.keras function usages, it's probably ok.
 """
 
-from tensorflow.keras import initializers, regularizers, constraints
-#from tensorflow.keras import backend as K
-from tensorflow.compat.v1.keras import backend as K
-from tensorflow.keras.layers import Layer, InputSpec
+from tf_keras import initializers, regularizers, constraints
+from tf_keras import backend as K
+from tf_keras.layers import Layer, InputSpec
 import tensorflow as tf
 import sys
 

@@ -132,7 +132,7 @@ class Transformer(object):
                       max_length=max_sequence_length,
                       add_prefix_space=add_prefix_space,
                       do_lower_case=do_lower_case,
-                      use_auth_token=self.auth_token
+                      token=self.auth_token
                     )
                 else:
                     self.tokenizer = AutoTokenizer.from_pretrained(
@@ -148,7 +148,7 @@ class Transformer(object):
                       self.name,
                       max_length=max_sequence_length,
                       add_prefix_space=add_prefix_space, 
-                      use_auth_token=self.auth_token
+                      token=self.auth_token
                     )
                 else:
                     self.tokenizer = AutoTokenizer.from_pretrained(
@@ -181,11 +181,11 @@ class Transformer(object):
                 if self.auth_token != None:
                     try:
                         transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True,
-                                                                    use_auth_token=self.auth_token)
+                                                                    token=self.auth_token)
                     except:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
-                        transformer_model = TFAutoModel.from_pretrained(self.name, use_auth_token=self.auth_token)
+                        transformer_model = TFAutoModel.from_pretrained(self.name, token=self.auth_token)
                 else:
                     try:
                         transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)

@@ -1,22 +1,23 @@
-# Manage pre-trained embeddings 
+# Manage pre-trained embeddings
 import gzip
 import hashlib
 import io
 import logging
 import mmap
+import ntpath
 import os
 import pickle
 import shutil
-import ntpath
 import struct
 import sys
 import zipfile
 import json
+from pathlib import Path
+
 import lmdb
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-from pathlib import Path
 
 from delft.utilities.simple_elmo import ElmoModel, elmo
 
@@ -98,6 +99,56 @@ class Embeddings(object):
 
     def __getattr__(self, name):
         return getattr(self.model, name)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['env'] = None
+        state['env_ELMo'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+        if self.use_ELMo and hasattr(self, 'embedding_ELMo_cache') and self.embedding_ELMo_cache:
+            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
+
+    def reopen_lmdb(self):
+        """
+        Reopen the LMDB environment. This is required for fork-safe multiprocessing.
+
+        LMDB environments opened before fork() cannot be safely used in child processes.
+        Call this method in each worker process (e.g., via DataLoader's worker_init_fn)
+        to create a fresh LMDB environment handle for the worker.
+
+        This is a no-op if embeddings are not using LMDB (e.g., in-memory or bin format).
+        """
+        if self.env is None and self.embedding_lmdb_path is None:
+            return
+
+        if self.env is not None:
+            try:
+                self.env.close()
+            except Exception:
+                pass
+
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
+
+        if 'env_ELMo' in self.__dict__ and self.env_ELMo is not None and self.use_ELMo and hasattr(self, 'embedding_ELMo_cache') and self.embedding_ELMo_cache:
+            try:
+                self.env_ELMo.close()
+            except Exception:
+                pass
+            self.env_ELMo = lmdb.open(self.embedding_ELMo_cache, map_size=map_size)
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
@@ -206,7 +257,7 @@ class Embeddings(object):
                 self.embed_size = len(vector)
 
             if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
+                txn.put(word.encode(encoding='UTF-8'), _serialize_float32(vector))
                 #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
                 i += 1
 
@@ -268,7 +319,7 @@ class Embeddings(object):
             if not os.path.isdir(self.embedding_lmdb_path):
                 # conservative check (likely very useless)
                 if not os.path.exists(self.embedding_lmdb_path):
-                    os.makedirs(self.embedding_lmdb_path)
+                    os.makedirs(self.embedding_lmdb_path, exist_ok=True)
 
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
@@ -290,7 +341,7 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            vector = _deserialize_pickle(value)
+                            vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -319,7 +370,7 @@ class Embeddings(object):
             options_file = None
             try:
                 weights_file, options_file = self.get_elmo_embedding_path(description)
-            except Exception as e: 
+            except Exception as e:
                 logging.error(str(e))
                 logging.error("fail to find ELMo model path for " + self.elmo_model_name)
                 return
@@ -367,7 +418,7 @@ class Embeddings(object):
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
-                    word_vector = _deserialize_pickle(vector)
+                    word_vector = _deserialize_float32(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
@@ -443,7 +494,7 @@ class Embeddings(object):
                     if file.endswith(".hdf5"):
                         alternative_weights_file = file
                         weights_file = os.path.join(alternative_weights_directory, alternative_weights_file)
-            
+
             if alternative_weights_file == None and "url_weights" in description and len(description["url_weights"])>0:
                 url = description["url_weights"]
                 download_path = self.registry['embedding-download-path']
@@ -479,12 +530,12 @@ class Embeddings(object):
                         destination_dir = os.path.join("data/models/ELMo", self.elmo_model_name)
                         if not os.path.exists(destination_dir):
                             os.makedirs(destination_dir)
-                        try:                      
+                        try:
                             shutil.move(embeddings_path, destination_file)
                             weights_file = destination_file
                         except OSError:
                             print ("Copy of ELMo weights file to ELMo directory path", destination_file, "failed")
-            
+
             if "url_weights" not in description or description["url_weights"] == None or len(description["url_weights"]) == 0:
                 print("no download url available for this ELMo model weights embeddings resource, please review the embedding registry for", name)
         print("ELMo weights used:", weights_file)
@@ -575,7 +626,7 @@ class Embeddings(object):
 
     def get_sentence_vector_with_ELMo(self, token_list):
         """
-        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings 
+        Return a concatenation of standard embeddings (e.g. Glove) and ELMo embeddings
         for a full sentence
         """
         if not self.use_ELMo:
@@ -640,7 +691,7 @@ class Embeddings(object):
 
     def cache_ELMo_lmdb_vector(self, token_list, ELMo_vector):
         """
-        Cache in LMDB the ELMo embeddings for a given sequence 
+        Cache in LMDB the ELMo embeddings for a given sequence
         """
         if self.env_ELMo is None:
             # db cache not available, we don't cache ELMo stuff
@@ -683,11 +734,30 @@ def _deserialize_byteio(serialized):
 
 
 def _serialize_pickle(a):
+    """Legacy: pickle serialization (for reading old databases)"""
     return pickle.dumps(a)
 
 
 def _deserialize_pickle(serialized):
+    """Legacy: pickle deserialization (for reading old databases)"""
     return pickle.loads(serialized)
+
+
+def _serialize_float32(array):
+    """
+    Serialize numpy array to raw float32 bytes.
+    This format is readable by both Python and Java.
+    """
+    return array.astype(np.float32).tobytes()
+
+
+def _deserialize_float32(serialized):
+    """
+    Deserialize raw float32 bytes to numpy array.
+    This format is readable by both Python and Java.
+    """
+    return np.frombuffer(serialized, dtype=np.float32)
+
 
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip

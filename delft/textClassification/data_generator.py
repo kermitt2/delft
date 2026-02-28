@@ -1,5 +1,5 @@
 import numpy as np
-import tensorflow.keras as keras
+import tf_keras as keras
 
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.textClassification.preprocess import to_vector_single
@@ -25,6 +25,8 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.bert_data = bert_data
         self.transformer_tokenizer = transformer_tokenizer
+        if self.embeddings is not None:
+            self.embeddings.reopen_lmdb()
         self.on_epoch_end()
 
     def __len__(self):
