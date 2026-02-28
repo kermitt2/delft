@@ -1,3 +1,4 @@
+import multiprocessing
 import os
 
 from packaging import version
@@ -92,14 +93,14 @@ class Sequence(object):
              early_stop=True,
              patience=5,
              max_checkpoints_to_keep=0,
-             use_ELMo=False,
              log_dir=None,
              fold_number=1,
              multiprocessing=True,
              num_workers=1,
              features_indices=None,
              transformer_name: str = None,
-             report_to_wandb = False
+             report_to_wandb = False,
+             nb_workers=6
          ):
 
         if model_name is None:
@@ -117,6 +118,7 @@ class Sequence(object):
         self.embeddings_name = embeddings_name
 
         word_emb_size = 0
+        self.nb_workers = nb_workers
         self.embeddings = None
         self.model_local_path = None
 
@@ -125,11 +127,10 @@ class Sequence(object):
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry, use_ELMo=use_ELMo)
+            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
-            word_emb_size = 0
 
         if learning_rate is None:
             if transformer_name is None:
@@ -137,28 +138,36 @@ class Sequence(object):
             else:
                 learning_rate = 2e-5
 
-        self.model_config = ModelConfig(model_name=model_name,
-                                        architecture=architecture,
-                                        embeddings_name=embeddings_name,
-                                        word_embedding_size=word_emb_size,
-                                        char_emb_size=char_emb_size,
-                                        char_lstm_units=char_lstm_units,
-                                        max_char_length=max_char_length,
-                                        word_lstm_units=word_lstm_units,
-                                        max_sequence_length=max_sequence_length,
-                                        dropout=dropout,
-                                        recurrent_dropout=recurrent_dropout,
-                                        fold_number=fold_number,
-                                        batch_size=batch_size,
-                                        use_ELMo=use_ELMo,
-                                        features_indices=features_indices,
-                                        transformer_name=transformer_name)
+        self.model_config = ModelConfig(
+            model_name=model_name,
+            architecture=architecture,
+            embeddings_name=embeddings_name,
+            word_embedding_size=word_emb_size,
+            char_emb_size=char_emb_size,
+            char_lstm_units=char_lstm_units,
+            max_char_length=max_char_length,
+            word_lstm_units=word_lstm_units,
+            max_sequence_length=max_sequence_length,
+            dropout=dropout,
+            recurrent_dropout=recurrent_dropout,
+            fold_number=fold_number,
+            batch_size=batch_size,
+            features_indices=features_indices,
+            transformer_name=transformer_name)
 
-        self.training_config = TrainingConfig(learning_rate, batch_size, optimizer,
-                                              lr_decay, clip_gradients, max_epoch,
-                                              early_stop, patience,
-                                              max_checkpoints_to_keep, multiprocessing,
-                                              num_workers)
+        self.training_config = TrainingConfig(
+            learning_rate,
+            batch_size,
+            optimizer,
+            lr_decay,
+            clip_gradients,
+            max_epoch,
+            early_stop,
+            patience,
+            max_checkpoints_to_keep,
+            multiprocessing.multiprocessing,
+            num_workers
+        )
 
         if report_to_wandb:
             import wandb
@@ -270,11 +279,10 @@ class Sequence(object):
             checkpoint_path=self.log_dir,
             preprocessor=self.p,
             transformer_preprocessor=self.model.transformer_preprocessor,
-            enable_wandb=self.report_to_wandb
+            enable_wandb=self.report_to_wandb,
+            nb_workers=self.nb_workers
         )
         trainer.train(x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks)
-        if self.embeddings and self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
 
     def train_nfold(self, x_train, y_train, x_valid=None, y_valid=None, f_train=None, f_valid=None, incremental=False, callbacks=None, multi_gpu=False):
         if multi_gpu:
@@ -309,17 +317,18 @@ class Sequence(object):
             self.model_config.case_vocab_size = len(self.p.vocab_case)
             self.models = []
 
-        trainer = Trainer(self.model,
-                          self.models,
-                          self.embeddings,
-                          self.model_config,
-                          self.training_config,
-                          checkpoint_path=self.log_dir,
-                          preprocessor=self.p)
+        trainer = Trainer(
+            self.model,
+              self.models,
+              self.embeddings,
+              self.model_config,
+              self.training_config,
+              checkpoint_path=self.log_dir,
+              preprocessor=self.p,
+              nb_workers=self.nb_workers
+              )
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
-        if self.embeddings and self.embeddings.use_ELMo:
-            self.embeddings.clean_ELMo_cache()
 
     def eval(self, x_test, y_test, features=None):
         if self.model_config.fold_number > 1:
@@ -707,7 +716,7 @@ class Sequence(object):
         if self.model_config.embeddings_name is not None:
             # load embeddings
             # Do not use cache in 'prediction/production' mode
-            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_ELMo=self.model_config.use_ELMo, use_cache=False)
+            self.embeddings = Embeddings(self.model_config.embeddings_name, resource_registry=self.registry, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None

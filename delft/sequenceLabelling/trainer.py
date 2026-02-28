@@ -32,7 +32,8 @@ class Trainer(object):
                  save_path='',
                  preprocessor: Preprocessor=None,
                  transformer_preprocessor=None,
-                 enable_wandb = False
+                 enable_wandb = False,
+                 nb_workers=6
                  ):
 
         # for single model training
@@ -40,6 +41,8 @@ class Trainer(object):
 
         # for n-folds training
         self.models = models
+
+        self.nb_workers = nb_workers
 
         self.embeddings = embeddings
         self.model_config = model_config

@@ -5,7 +5,7 @@
 ## General command line for training GROBID models in DeLFT
 
 ```
-usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE] [--use-ELMo]
+usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
                        [--embedding EMBEDDING] [--transformer TRANSFORMER] [--output OUTPUT]
                        [--input INPUT] [--feature-indices FEATURE_INDICES]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH] [--batch-size BATCH_SIZE]
@@ -28,7 +28,6 @@ optional arguments:
                         'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BidLSTM_CRF_FEATURES',
                         'BidLSTM_ChainCRF_FEATURES', 'BERT', 'BERT_CRF', 'BERT_ChainCRF',
                         'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
-  --use-ELMo            Use ELMo contextual embeddings
   --embedding EMBEDDING
                         The desired pre-trained word embeddings using their descriptions in the
                         file. For local loading, use delft/resources-registry.json. Be sure to

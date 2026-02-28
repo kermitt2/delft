@@ -234,7 +234,6 @@ class BERTPreprocessor(object):
         Return true if the tokenizer is a BPE using encoded leading character space with byte-based tokens as in the
         usual sentencepiece tokenizers 
         """
-        result = False
         # as we rely on the HuggingFace transformer and tokenizer libraries, we list the BPE tokenizer from the model
         # name - this list was created on January 2023
         bpe_sp_tokenizers = ["roberta", "gpt2", "albert", "xlnet", "marian", "t5", "camembert", "bart", "bigbird", 
@@ -242,9 +241,9 @@ class BERTPreprocessor(object):
         tokenizer_name = tokenizer_name.lower() 
         for bpe_tok in bpe_sp_tokenizers:
             if tokenizer_name.find(bpe_tok) != -1:
-                result = True
-                break
-        return result
+                return True
+
+        return type(self.tokenizer.backend_tokenizer.model).__name__ == "BPE"
 
     def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
@@ -327,8 +326,8 @@ class BERTPreprocessor(object):
             is_split_into_words=True,
             max_length=max_seq_length,
             truncation=True,
-            return_offsets_mapping=True
-        )
+            return_offsets_mapping=True,
+            padding="max_length")
 
         input_ids = encoded_result.input_ids
         offsets = encoded_result.offset_mapping
@@ -946,26 +945,6 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
         x[i, :] = embeddings.get_word_vector(word).astype('float32')
 
     return x
-
-def to_vector_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on ELMo contextualized embeddings
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_only_ELMo(subtokens)
-
-
-def to_vector_simple_with_elmo(tokens, embeddings, maxlen, lowercase=False, num_norm=False, extend=False):
-    """
-    Given a list of tokens convert it to a sequence of word embedding 
-    vectors based on the concatenation of the provided static embeddings and 
-    the ELMo contextualized embeddings, introducing <PAD> and <UNK> 
-    padding token vector when appropriate
-    """
-    subtokens = get_subtokens(tokens, maxlen, extend, lowercase)
-    return embeddings.get_sentence_vector_with_ELMo(subtokens)
-
 
 def get_subtokens(tokens, maxlen, extend=False, lowercase=False):
     """

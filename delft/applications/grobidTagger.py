@@ -51,7 +51,7 @@ def find_latest_train_file(model: str) -> str:
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
-              embeddings_name=None, max_epoch=-1, use_ELMo=False, patience=-1, early_stop=None):
+              embeddings_name=None, max_epoch=-1, patience=-1, early_stop=None):
     """
     Set up the default parameters based on the model type.
     """
@@ -130,10 +130,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
         elif model == 'header':
             max_epoch = 80
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 1500
-                else:
-                    max_sequence_length = 2500
+                max_sequence_length = 2500
             if batch_size == -1:
                 batch_size = 9
         elif model == 'date':
@@ -156,31 +153,19 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
             if batch_size == -1:
                 batch_size = 5
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 1500
-                else:
-                    max_sequence_length = 3000
+                max_sequence_length = 3000
         elif model == "funding-acknowledgement":
             if batch_size == -1:
                 batch_size = 30
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 500
-                else:
-                    max_sequence_length = 800
+                max_sequence_length = 800
         elif model == "patent-citation":
             if batch_size == -1:
                 batch_size = 40
             if max_sequence_length == -1:
-                if use_ELMo:
-                    max_sequence_length = 400
-                else:
-                    max_sequence_length = 1000
+                max_sequence_length = 1000
             
     model_name += '-' + architecture
-
-    if use_ELMo:
-        model_name += '-with_ELMo'
     
     if batch_size == -1:
         batch_size = 20
@@ -204,7 +189,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None,
           output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1,
-          use_ELMo=False, incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
+          incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
           report_to_wandb=False):
 
     print('Loading data...')
@@ -237,7 +222,6 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
         batch_size,
         embeddings_name,
         max_epoch,
-        use_ELMo,
         patience,
         early_stop
     )
@@ -252,7 +236,6 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
         max_sequence_length=max_sequence_length,
         features_indices=features_indices,
         max_epoch=max_epoch,
-        use_ELMo=use_ELMo,
         multiprocessing=multiprocessing,
         num_workers=num_workers,
         early_stop=early_stop,
@@ -286,7 +269,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
 def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                input_path=None, output_path=None, fold_count=1,
                features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1,
-               use_ELMo=False, incremental=False, input_model_path=None, patience=-1,
+               incremental=False, input_model_path=None, patience=-1,
                learning_rate=None, early_stop=None, multi_gpu=False,
                report_to_wandb=False):
 
@@ -318,14 +301,13 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
                                                                             batch_size, 
                                                                             embeddings_name,
                                                                             max_epoch,
-                                                                            use_ELMo,
                                                                             patience,
                                                                             early_stop)
 
     model = Sequence(model_name, architecture=architecture, embeddings_name=embeddings_name,
                      max_sequence_length=max_sequence_length, recurrent_dropout=0.50, batch_size=batch_size,
                      learning_rate=learning_rate, max_epoch=max_epoch, early_stop=early_stop, patience=patience,
-                     use_ELMo=use_ELMo, fold_number=fold_count, multiprocessing=multiprocessing,
+                     fold_number=fold_count, multiprocessing=multiprocessing,
                      features_indices=features_indices, transformer_name=transformer, report_to_wandb=report_to_wandb)
 
     if incremental:
@@ -358,7 +340,7 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False, report_to_wandb=False):
+def eval_(model, input_path=None, architecture='BidLSTM_CRF', report_to_wandb=False):
     print('Loading data...')
     if input_path is None:
         # it should never be the case
@@ -373,8 +355,6 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False, re
 
     model_name = 'grobid-' + model
     model_name += '-'+architecture
-    if use_ELMo:
-        model_name += '-with_ELMo'
 
     start_time = time.time()
 
@@ -392,14 +372,12 @@ def eval_(model, input_path=None, architecture='BidLSTM_CRF', use_ELMo=False, re
 
 # annotate a list of texts, this is relevant only of models taking only text as input 
 # (so not text with layout information) 
-def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, use_ELMo=False, multi_gpu=False):
+def annotate_text(texts, model, output_format, architecture='BidLSTM_CRF', features=None, multi_gpu=False):
     annotations = []
 
     # load model
     model_name = 'grobid-'+model
     model_name += '-'+architecture
-    if use_ELMo:
-        model_name += '-with_ELMo'
 
     model = Sequence(model_name)
     model.load()
@@ -448,28 +426,6 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
     parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-
-    # group_embeddings = parser.add_mutually_exclusive_group(required=False)
-    parser.add_argument(
-        "--embedding", 
-        default=None,
-        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
-            "For local loading, use delft/resources-registry.json. " + \
-            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
-            " and that the path in the registry to the embedding file is correct on your system."
-    )
-    parser.add_argument(
-        "--transformer",
-        default=None,
-        help="The desired pre-trained transformer to be used in the selected architecture. " + \
-            "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
-            str(pretrained_transformers_examples) + \
-            " and that the path in the registry to the model path is correct on your system. " + \
-            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
-            "for model names"
-    )
-    parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
@@ -513,7 +469,6 @@ if __name__ == "__main__":
     max_sequence_length = args.max_sequence_length
     batch_size = args.batch_size
     transformer = args.transformer
-    use_ELMo = args.use_ELMo
     incremental = args.incremental
     patience = args.patience
     learning_rate = args.learning_rate
@@ -540,7 +495,6 @@ if __name__ == "__main__":
                 output_path=output,
                 max_sequence_length=max_sequence_length,
                 batch_size=batch_size,
-                use_ELMo=use_ELMo,
                 incremental=incremental,
                 input_model_path=input_model_path,
                 patience=patience,
@@ -557,7 +511,7 @@ if __name__ == "__main__":
                   "it in combination with " + str(Tasks.TRAIN_EVAL))
         if input_path is None:
             raise ValueError("A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input")
-        eval_(model, input_path=input_path, architecture=architecture, use_ELMo=use_ELMo)
+        eval_(model, input_path=input_path, architecture=architecture)
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
@@ -571,7 +525,6 @@ if __name__ == "__main__":
                    fold_count=args.fold_count,
                    max_sequence_length=max_sequence_length,
                    batch_size=batch_size,
-                   use_ELMo=use_ELMo,
                    incremental=incremental,
                    input_model_path=input_model_path,
                    learning_rate=learning_rate,
@@ -590,8 +543,8 @@ if __name__ == "__main__":
             someTexts.append('2018')
             someTexts.append('2023 July the 22nd')
         elif model == 'citation':
-            someTexts.append("N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
-            someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33.")
+            someTexts.append("N. Al-Dhahir and J. Cioffi, \"On the uniform ADC bit precision and clip level computation for a Gaussian signal,\" IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.")
+            someTexts.append("T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1-33.")
         elif model == 'name-citation':
             someTexts.append("L. Romary and L. Foppiano")
             someTexts.append("Maniscalco, S., Francica, F., Zaffino, R.L.")
@@ -600,12 +553,12 @@ if __name__ == "__main__":
             someTexts.append("Irène Charon ⋆ and Olivier Hudry")
         elif model == 'software':
             someTexts.append("The column scores (the fraction of entirely correct columns) were  reported  in  addition  to Q-scores  for  BAliBASE 3.0. Wilcoxon  signed-ranks  tests  were  performed  to  calculate statistical  significance  of  comparisons  between  alignment programs,   which   include   ProbCons   (version   1.10)   (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
-            someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
+            someTexts.append("Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23) MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7).")
             someTexts.append("All statistical analyses were done using computer software Prism 6 for Windows (version 6.02; GraphPad Software, San Diego, CA, USA). One-Way ANOVA was used to detect differences amongst the groups. To account for the non-normal distribution of the data, all data were sorted by rank status prior to ANOVA statistical analysis. ")
             someTexts.append("The statistical analysis was performed using IBM SPSS Statistics v. 20 (SPSS Inc, 2003, Chicago, USA).")
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, use_ELMo=use_ELMo, multi_gpu=multi_gpu)
+            result = annotate_text(someTexts, model, "json", architecture=architecture, multi_gpu=multi_gpu)
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print("The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
