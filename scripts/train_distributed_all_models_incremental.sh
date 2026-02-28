@@ -92,7 +92,7 @@ submit_job() {
 
     echo ">>> Submitting experiment $experiment_id: $job_name"
 
-    if [[ "$model" == "header" ]] || [[ "$model" == "citation" ]]; then
+    if [[ "$model" == "header" ]]; then
         job_id=$(sbatch $SBATCH_OPTS \
             --job-name="$job_name" \
             --output="$log_file" \
