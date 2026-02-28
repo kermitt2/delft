@@ -198,7 +198,7 @@ class Trainer(object):
                 external_callbacks=callbacks
             )
         nb_workers, multiprocessing = get_multiprocessing_config(
-            self.training_config, self.model_config, self.embeddings
+            self.training_config, self.model_config
         )
 
         local_model.fit(

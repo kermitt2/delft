@@ -2,14 +2,13 @@
 Utility functions for multiprocessing configuration in training.
 """
 
-def get_multiprocessing_config(training_config, model_config, embeddings=None):
+def get_multiprocessing_config(training_config, model_config):
     """
     Determine the number of workers and multiprocessing mode for training.
 
     Args:
         training_config: TrainingConfig object with num_workers and multiprocessing settings
         model_config: ModelConfig object with transformer_name
-        embeddings: Optional embeddings object with use_ELMo attribute
 
     Returns:
         tuple: (nb_workers, use_multiprocessing)
@@ -27,7 +26,7 @@ def get_multiprocessing_config(training_config, model_config, embeddings=None):
         nb_workers = 6
         multiprocessing = training_config.multiprocessing
 
-    if model_config.transformer_name is not None or (embeddings and embeddings.use_ELMo):
+    if model_config.transformer_name is not None:
         nb_workers = 1
         multiprocessing = False
 
