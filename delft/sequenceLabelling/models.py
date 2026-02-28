@@ -1,8 +1,8 @@
-from tensorflow.keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
-from tensorflow.keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
-from tensorflow.keras.layers import Concatenate
-from tensorflow.keras.models import Model
-from tensorflow.keras.models import clone_model
+from tf_keras.layers import Dense, LSTM, GRU, Bidirectional, Embedding, Input, Dropout, Reshape
+from tf_keras.layers import GlobalMaxPooling1D, TimeDistributed, Conv1D
+from tf_keras.layers import Concatenate
+from tf_keras.models import Model
+from tf_keras.models import clone_model
 
 from delft.sequenceLabelling.config import ModelConfig
 from delft.sequenceLabelling.preprocess import Preprocessor, BERTPreprocessor

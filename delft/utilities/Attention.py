@@ -1,6 +1,6 @@
-from tensorflow.keras import backend as K
-from tensorflow.keras.engine.topology import Layer
-from tensorflow.keras import initializers, regularizers, constraints
+from tf_keras import backend as K
+from tf_keras.engine.topology import Layer
+from tf_keras import initializers, regularizers, constraints
 
 
 class Attention(Layer):

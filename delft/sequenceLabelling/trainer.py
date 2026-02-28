@@ -2,7 +2,8 @@ import os
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
+import tf_keras
+from tf_keras.callbacks import Callback, EarlyStopping, ModelCheckpoint
 from transformers import create_optimizer
 
 from delft.sequenceLabelling.config import ModelConfig
@@ -13,6 +14,7 @@ from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
+from delft.utilities.multiprocessing import get_multiprocessing_config
 
 DEFAULT_WEIGHT_FILE_NAME = 'model_weights.hdf5'
 CONFIG_FILE_NAME = 'config.json'
@@ -94,11 +96,11 @@ class Trainer(object):
                 )
         else:
             
-            lr_schedule = tf.keras.optimizers.schedules.ExponentialDecay(
+            lr_schedule = tf_keras.optimizers.schedules.ExponentialDecay(
                 initial_learning_rate=self.training_config.learning_rate,
                 decay_steps=nb_train_steps,
                 decay_rate=0.1)
-            optimizer = tf.keras.optimizers.Adam(learning_rate=lr_schedule)
+            optimizer = tf_keras.optimizers.Adam(learning_rate=lr_schedule)
             
             #optimizer = tf.keras.optimizers.Adam(self.training_config.learning_rate)
             if local_model.config.use_chain_crf:
@@ -192,21 +194,16 @@ class Trainer(object):
                 model=local_model,
                 external_callbacks=callbacks
             )
-        nb_workers = 6
-        multiprocessing = self.training_config.multiprocessing
-
-        # multiple workers should work with transformer layers, but not with ELMo due to GPU memory limit (with GTX 1080Ti 11GB)
-        if self.model_config.transformer_name is not None or (self.embeddings and self.embeddings.use_ELMo):
-            # worker at 1 means the training will be executed in the main thread
-            nb_workers = 1
-            multiprocessing = False
+        nb_workers, multiprocessing = get_multiprocessing_config(
+            self.training_config, self.model_config, self.embeddings
+        )
 
         local_model.fit(
             training_generator,
-                                epochs=max_epoch,
-                                use_multiprocessing=multiprocessing,
-                                workers=nb_workers,
-                                callbacks=_callbacks
+            epochs=max_epoch,
+            use_multiprocessing=multiprocessing,
+            workers=nb_workers,
+            callbacks=_callbacks
         )
 
         return local_model
@@ -303,7 +300,7 @@ class LogLearningRateCallback(Callback):
 
     def __init__(self, model=None):
         super().__init__()
-        self.model = model
+        self.set_model(model)
 
     def on_epoch_end(self, epoch, logs):
         if self.model is not None:
@@ -484,5 +481,5 @@ def sparse_crossentropy_masked(y_true, y_pred):
     mask_value = 0
     y_true_masked = tf.boolean_mask(y_true, tf.not_equal(y_true, mask_value))
     y_pred_masked = tf.boolean_mask(y_pred, tf.not_equal(y_true, mask_value))
-    return tf.reduce_mean(tf.keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
+    return tf.reduce_mean(tf_keras.losses.sparse_categorical_crossentropy(y_true_masked, y_pred_masked))
 
