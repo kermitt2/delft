@@ -320,8 +320,14 @@ class BERTPreprocessor(object):
                 chars_tokens.append(self.empty_char_vector)
 
         # sub-tokenization
-        encoded_result = self.tokenizer(text_tokens, add_special_tokens=True, is_split_into_words=True,
-            max_length=max_seq_length, truncation=True, return_offsets_mapping=True, padding="max_length")
+        encoded_result = self.tokenizer(
+            text_tokens,
+            add_special_tokens=True,
+            is_split_into_words=True,
+            max_length=max_seq_length,
+            truncation=True,
+            return_offsets_mapping=True,
+            padding="max_length")
 
         input_ids = encoded_result.input_ids
         offsets = encoded_result.offset_mapping

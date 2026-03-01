@@ -75,7 +75,8 @@ def configure(architecture, dataset_type, lang, embeddings_name,
 def train(dataset_type='conll2003', lang='en', embeddings_name=None, architecture='BidLSTM_CRF',
 
           transformer=None, data_path=None, max_sequence_length=-1,
-          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1, early_stop=None, multi_gpu=False):
+          batch_size=-1, patience=-1, learning_rate=None, max_epoch=-1, early_stop=None, multi_gpu=False,
+          num_workers=1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name, max_sequence_length, batch_size, patience, max_epoch, early_stop)
@@ -108,6 +109,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -139,6 +141,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
     elif (lang == 'fr'):
         print('Loading data...')
@@ -162,6 +165,7 @@ def train(dataset_type='conll2003', lang='en', embeddings_name=None, architectur
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -189,14 +193,15 @@ def train_eval(embeddings_name=None,
                 transformer=None, 
                 fold_count=1, 
                 train_with_validation_set=False,
-                data_path=None, 
+                data_path=None,
                 patience=-1,
                 batch_size=-1,
                 max_sequence_length=-1,
                 learning_rate=None,
                 max_epoch=-1,
                 early_stop=None,
-                multi_gpu=False):
+                multi_gpu=False,
+                num_workers=1):
 
     batch_size, max_sequence_length, patience, recurrent_dropout, early_stop, max_epoch, embeddings_name, word_lstm_units, multiprocessing = \
         configure(architecture, dataset_type, lang, embeddings_name,
@@ -268,6 +273,7 @@ def train_eval(embeddings_name=None,
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
 
     elif (dataset_type == 'conll2012') and (lang == 'en'):
@@ -337,6 +343,7 @@ def train_eval(embeddings_name=None,
                         patience=patience,
                         max_sequence_length=max_sequence_length,
                         multiprocessing=multiprocessing,
+                        num_workers=num_workers,
                         learning_rate=learning_rate)
     elif (lang == 'fr') and (dataset_type == 'ftb_force_split'):
         print('Loading data for ftb_force_split...')
@@ -449,7 +456,7 @@ def train_eval(embeddings_name=None,
 def eval(dataset_type='conll2003', 
          lang='en', 
          architecture='BidLSTM_CRF', 
-         data_path=None): 
+         data_path=None):
 
     if (dataset_type == 'conll2003') and (lang == 'en'):
         print('Loading CoNLL-2003 NER data...')
@@ -556,7 +563,7 @@ if __name__ == "__main__":
     parser.add_argument("--data-path", default=None, help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)") 
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate") 
     parser.add_argument("--file-out", default=None, help="path for outputting the resulting JSON NER annotations")
- 
+
     parser.add_argument(
         "--embedding", 
         default=None,
@@ -591,6 +598,9 @@ if __name__ == "__main__":
     parser.add_argument("--multi-gpu", default=False,
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
+
+    parser.add_argument("--num-workers", type=int, default=1,
+                        help="Number of worker processes for data loading (default: 1)")
 
 
     args = parser.parse_args()
@@ -636,7 +646,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
-            multi_gpu=multi_gpu
+            multi_gpu=multi_gpu,
+            num_workers=args.num_workers
         )
 
     if action == 'train_eval':
@@ -657,7 +668,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
-            multi_gpu=multi_gpu
+            multi_gpu=multi_gpu,
+            num_workers=args.num_workers
             )
 
     if action == 'eval':

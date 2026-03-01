@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tf_keras
 
 from tensorflow_addons.text import crf_log_norm
 from tensorflow_addons.utils import types
@@ -16,7 +17,7 @@ we don't get probabilities and crf_log_norm normalization is far too low
 
 '''
 
-@tf.keras.utils.register_keras_serializable(package="Addons")
+@tf_keras.utils.register_keras_serializable(package="Addons")
 class CRFModelWrapperDefault(CRFModelWrapper):
 
     def call(self, inputs, training=None, mask=None, return_crf_internal=False):        
@@ -72,7 +73,7 @@ class CRFModelWrapperDefault(CRFModelWrapper):
             else:
                 return output_without_crf_internal
 
-class InnerLossPusher(tf.keras.losses.Loss):
+class InnerLossPusher(tf_keras.losses.Loss):
     '''
     Experimental... 
     When earger mode is disabled, Keras model.compile() requires a loss function.

@@ -46,7 +46,7 @@ def configure(architecture, output_path=None, max_sequence_length=-1,
         multiprocessing = False
 
     model_name += '-' + architecture
-    
+
     if batch_size == -1:
         batch_size = 20
 
@@ -69,12 +69,13 @@ def configure(architecture, output_path=None, max_sequence_length=-1,
 def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                 input_path=None, output_path=None, fold_count=1,
                 features_indices=None, max_sequence_length=-1,
-                batch_size=-1, 
+                batch_size=-1,
                 max_epoch=-1, 
                 patience=-1,
                 learning_rate=None, 
                 early_stop=None, 
-                multi_gpu=False):
+                multi_gpu=False,
+                num_workers=1):
 
     print('Loading data...')
     if input_path is None:
@@ -99,13 +100,13 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
     print(len(x_valid), 'validation sequences')
 
     batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = configure(architecture,
-                                                                            output_path, 
-                                                                            max_sequence_length, 
-                                                                            batch_size, 
-                                                                            embeddings_name,
-                                                                            max_epoch,
-                                                                            patience,
-                                                                            early_stop)
+                                                                             output_path,
+                                                                             max_sequence_length,
+                                                                             batch_size,
+                                                                             embeddings_name,
+                                                                             max_epoch,
+                                                                             patience,
+                                                                             early_stop)
     model = Sequence(model_name,
                     recurrent_dropout=0.50,
                     embeddings_name=embeddings_name,
@@ -115,8 +116,9 @@ def train(embeddings_name=None, architecture='BidLSTM_CRF', transformer=None,
                     batch_size=batch_size,
                     fold_number=fold_count,
                     features_indices=features_indices,
-                    max_epoch=max_epoch, 
+                    max_epoch=max_epoch,
                     multiprocessing=multiprocessing,
+                    num_workers=num_workers,
                     early_stop=early_stop,
                     patience=patience,
                     learning_rate=learning_rate)
@@ -142,7 +144,8 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                 patience=-1, 
                 learning_rate=None, 
                 early_stop=None, 
-                multi_gpu=False):
+                multi_gpu=False,
+                num_workers=1):
 
     print('Loading data...')
     if input_path is None:
@@ -185,8 +188,9 @@ def train_eval(embeddings_name=None, architecture='BidLSTM_CRF', transformer=Non
                     batch_size=batch_size,
                     fold_number=fold_count,
                     features_indices=features_indices,
-                    max_epoch=max_epoch, 
+                    max_epoch=max_epoch,
                     multiprocessing=multiprocessing,
+                    num_workers=num_workers,
                     early_stop=early_stop,
                     patience=patience,
                     learning_rate=learning_rate)
@@ -264,8 +268,6 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
     parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
-    parser.add_argument("--use-ELMo", action="store_true", help="Use ELMo contextual embeddings") 
-
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument(
         "--embedding", 
@@ -303,6 +305,9 @@ if __name__ == "__main__":
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
 
+    parser.add_argument("--num-workers", type=int, default=1,
+                        help="Number of worker processes for data loading (default: 1, use 0 or 1 for no multiprocessing)")
+
 
     args = parser.parse_args()
 
@@ -336,7 +341,8 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
-            multi_gpu=multi_gpu)
+            multi_gpu=multi_gpu,
+            num_workers=args.num_workers)
 
     if action == "eval":
         if args.fold_count is not None and args.fold_count > 1:
@@ -361,7 +367,8 @@ if __name__ == "__main__":
                 learning_rate=learning_rate,
                 max_epoch=max_epoch,
                 early_stop=early_stop,
-                multi_gpu=multi_gpu)
+                multi_gpu=multi_gpu,
+                num_workers=args.num_workers)
 
     if action == "tag":
         someTexts = []

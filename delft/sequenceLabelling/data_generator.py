@@ -2,7 +2,7 @@ import numpy as np
 from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view
 
-import tensorflow.keras as keras
+import tf_keras as keras
 from delft.sequenceLabelling.preprocess import to_vector_single, to_casing_single, \
     Preprocessor, BERTPreprocessor
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
@@ -116,6 +116,8 @@ class DataGenerator(BaseGenerator):
                         features=features,
                         output_input_offsets=output_input_offsets,
                         use_chain_crf=use_chain_crf)
+        if self.embeddings is not None:
+            self.embeddings.reopen_lmdb()
         self.on_epoch_end()
 
     def __getitem__(self, index):
@@ -241,6 +243,9 @@ class DataGeneratorTransformers(BaseGenerator):
 
         if self.bert_preprocessor.empty_features_vector is None:
             self.bert_preprocessor.empty_features_vector = self.preprocessor.empty_features_vector()
+
+        if self.embeddings is not None:
+            self.embeddings.reopen_lmdb()
 
         self.on_epoch_end()
 

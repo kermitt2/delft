@@ -1,6 +1,8 @@
 import os
 from typing import Union
 
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
 from transformers import AutoTokenizer, TFAutoModel, AutoConfig, BertTokenizer, TFBertModel
 
 TRANSFORMER_CONFIG_FILE_NAME = 'transformer-config.json'
@@ -125,26 +127,35 @@ class Transformer(object):
 
             if do_lower_case is not None:
                 if self.auth_token is not None:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                   max_length=max_sequence_length,
-                                                                   add_prefix_space=add_prefix_space,
-                                                                   do_lower_case=do_lower_case,
-                                                                   use_auth_token=self.auth_token)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                      self.name,
+                      max_length=max_sequence_length,
+                      add_prefix_space=add_prefix_space,
+                      do_lower_case=do_lower_case,
+                      token=self.auth_token
+                    )
                 else:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                   max_length=max_sequence_length,
-                                                                   add_prefix_space=add_prefix_space,
-                                                                   do_lower_case=do_lower_case)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                      self.name, 
+                      max_length=max_sequence_length,
+                      add_prefix_space=add_prefix_space, 
+                      do_lower_case=do_lower_case
+                    )
+
             else:
                 if self.auth_token is not None:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                   max_length=max_sequence_length,
-                                                                   add_prefix_space=add_prefix_space,
-                                                                   use_auth_token=self.auth_token)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                      self.name,
+                      max_length=max_sequence_length,
+                      add_prefix_space=add_prefix_space, 
+                      token=self.auth_token
+                    )
                 else:
-                    self.tokenizer = AutoTokenizer.from_pretrained(self.name,
-                                                                max_length=max_sequence_length,
-                                                                add_prefix_space=add_prefix_space)
+                    self.tokenizer = AutoTokenizer.from_pretrained(
+                      self.name,
+                      max_length=max_sequence_length,
+                      add_prefix_space=add_prefix_space
+                    )
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             self.tokenizer = AutoTokenizer.from_pretrained(self.local_dir_path,
@@ -170,11 +181,11 @@ class Transformer(object):
                 if self.auth_token != None:
                     try:
                         transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True,
-                                                                    use_auth_token=self.auth_token)
+                                                                    token=self.auth_token)
                     except:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
-                        transformer_model = TFAutoModel.from_pretrained(self.name, use_auth_token=self.auth_token)
+                        transformer_model = TFAutoModel.from_pretrained(self.name, token=self.auth_token)
                 else:
                     try:
                         transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)

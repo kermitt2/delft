@@ -1,22 +1,23 @@
-# Manage pre-trained embeddings 
+# Manage pre-trained embeddings
 import gzip
 import hashlib
 import io
 import logging
 import mmap
+import ntpath
 import os
 import pickle
 import shutil
-import ntpath
 import struct
 import sys
 import zipfile
 import json
+from pathlib import Path
+
 import lmdb
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-from pathlib import Path
 
 
 
@@ -69,6 +70,46 @@ class Embeddings(object):
 
     def __getattr__(self, name):
         return getattr(self.model, name)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['env'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+
+    def reopen_lmdb(self):
+        """
+        Reopen the LMDB environment. This is required for fork-safe multiprocessing.
+
+        LMDB environments opened before fork() cannot be safely used in child processes.
+        Call this method in each worker process (e.g., via DataLoader's worker_init_fn)
+        to create a fresh LMDB environment handle for the worker.
+
+        This is a no-op if embeddings are not using LMDB (e.g., in-memory or bin format).
+        """
+        if self.env is None and self.embedding_lmdb_path is None:
+            return
+
+        if self.env is not None:
+            try:
+                self.env.close()
+            except Exception:
+                pass
+
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
@@ -177,7 +218,7 @@ class Embeddings(object):
                 self.embed_size = len(vector)
 
             if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
+                txn.put(word.encode(encoding='UTF-8'), _serialize_float32(vector))
                 #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
                 i += 1
 
@@ -239,7 +280,7 @@ class Embeddings(object):
             if not os.path.isdir(self.embedding_lmdb_path):
                 # conservative check (likely very useless)
                 if not os.path.exists(self.embedding_lmdb_path):
-                    os.makedirs(self.embedding_lmdb_path)
+                    os.makedirs(self.embedding_lmdb_path, exist_ok=True)
 
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
@@ -261,7 +302,7 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            vector = _deserialize_pickle(value)
+                            vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -307,7 +348,7 @@ class Embeddings(object):
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
-                    word_vector = _deserialize_pickle(vector)
+                    word_vector = _deserialize_float32(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
@@ -383,11 +424,30 @@ def _deserialize_byteio(serialized):
 
 
 def _serialize_pickle(a):
+    """Legacy: pickle serialization (for reading old databases)"""
     return pickle.dumps(a)
 
 
 def _deserialize_pickle(serialized):
+    """Legacy: pickle deserialization (for reading old databases)"""
     return pickle.loads(serialized)
+
+
+def _serialize_float32(array):
+    """
+    Serialize numpy array to raw float32 bytes.
+    This format is readable by both Python and Java.
+    """
+    return array.astype(np.float32).tobytes()
+
+
+def _deserialize_float32(serialized):
+    """
+    Deserialize raw float32 bytes to numpy array.
+    This format is readable by both Python and Java.
+    """
+    return np.frombuffer(serialized, dtype=np.float32)
+
 
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip

@@ -49,7 +49,7 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 PyPI packages are available for stable versions. Latest stable version is `0.3.4`:
 
 ```
-python3 -m pip install delft==0.3.4
+pip install delft==0.3.4
 ```
 
 ## DeLFT Installation
@@ -64,20 +64,21 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-virtualenv --system-site-packages -p python3.8 env
-source env/bin/activate
+uv venv --python 3.10
+source .venv/bin/activate
+uv pip install pip
 ```
 
 Install the dependencies:
 
 ```sh
-python3 -m pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 Finally install the project, preferably in editable state
 
 ```sh
-python3 -m pip install -e .
+uv pip install -e .
 ```
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
@@ -113,7 +114,7 @@ If you want to this work, please refer to the present GitHub project, together w
     title = {DeLFT},
     howpublished = {\url{https://github.com/kermitt2/delft}},
     publisher = {GitHub},
-    year = {2018--2024},
+    year = {2018--2025},
     archivePrefix = {swh},
     eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
 }

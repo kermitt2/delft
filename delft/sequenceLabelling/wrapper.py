@@ -3,7 +3,16 @@ import os
 
 from packaging import version
 
+
+# for using legacy Keras 2, and not Keras 3 installed by default from TensorFlow 2.16
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+os.environ["KERAS_BACKEND"] = "tensorflow"
+# LF: do not remove this import. This ensures that CUDA 12 from tensorflow
+#    get initialised before CUDA 11 from pytorch.
+import tf_keras as keras
+
 from delft import DELFT_PROJECT_DIR
+
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.Transformer import TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
@@ -87,6 +96,7 @@ class Sequence(object):
              log_dir=None,
              fold_number=1,
              multiprocessing=True,
+             num_workers=1,
              features_indices=None,
              transformer_name: str = None,
              report_to_wandb = False,
@@ -155,7 +165,8 @@ class Sequence(object):
             early_stop,
             patience,
             max_checkpoints_to_keep,
-            multiprocessing
+            multiprocessing.multiprocessing,
+            num_workers
         )
 
         if report_to_wandb:

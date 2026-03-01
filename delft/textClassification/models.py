@@ -1,13 +1,15 @@
 import math
 import os
+import platform
 
 import numpy as np
 from sklearn.metrics import log_loss, roc_auc_score, r2_score
-from tensorflow.keras.layers import Dense, Input, concatenate
-from tensorflow.keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten
-from tensorflow.keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import RMSprop
+import tf_keras as keras
+from tf_keras.layers import Dense, Input, concatenate
+from tf_keras.layers import GRU, MaxPooling1D, Conv1D, GlobalMaxPool1D, Activation, Add, Flatten
+from tf_keras.layers import LSTM, Bidirectional, Dropout, GlobalAveragePooling1D
+from tf_keras.models import Model
+from tf_keras.optimizers import RMSprop
 from transformers import create_optimizer
 
 from delft.textClassification.data_generator import DataGenerator
@@ -15,6 +17,7 @@ from delft.utilities.Embeddings import load_resource_registry
 
 from delft.utilities.Transformer import Transformer, TRANSFORMER_CONFIG_FILE_NAME, DEFAULT_TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.misc import print_parameters
+from delft.utilities.multiprocessing import get_multiprocessing_config
 
 architectures = [
     'lstm',
@@ -125,14 +128,11 @@ class BaseModel(object):
         best_loss = -1
         best_roc_auc = -1
 
-        # default worker number for multiprocessing
-        nb_workers = 6
-        if self.model_config.transformer_name is not None:
-            # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0
-            multiprocessing = False
+        nb_workers, multiprocessing = get_multiprocessing_config(
+            self.training_config, self.model_config
+        )
 
-        if validation_generator == None:
+        if validation_generator is None:
             # no early stop
             best_loss = self.model.fit(
                 training_generator,
@@ -658,7 +658,7 @@ class gru(BaseModel):
         
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
-                      optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                      optimizer=RMSprop(global_clipnorm=1),
                       metrics=['accuracy'])
 
 
@@ -700,7 +700,7 @@ class gru_simple(BaseModel):
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
-                      optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                      optimizer=RMSprop(global_clipnorm=1),
                       metrics=['accuracy'])
 
 
@@ -745,7 +745,7 @@ class gru_lstm(BaseModel):
 
     def compile(self, train_size):
         self.model.compile(loss='binary_crossentropy',
-                      optimizer=RMSprop(clipvalue=1, clipnorm=1),
+                      optimizer=RMSprop(global_clipnorm=1),
                       metrics=['accuracy'])
 
 

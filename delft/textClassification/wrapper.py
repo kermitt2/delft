@@ -1,5 +1,15 @@
 import os
 
+from packaging import version
+
+# for using legacy Keras 2, and not Keras 3 installed by default from TensorFlow 2.16
+os.environ["TF_USE_LEGACY_KERAS"] = "1"
+os.environ["KERAS_BACKEND"] = "tensorflow"
+
+# LF: do not remove this import. This ensures that CUDA 12 from tensorflow
+#    get initialised before CUDA 11 from pytorch.
+import tf_keras as keras
+
 from delft.sequenceLabelling.trainer import LogLearningRateCallback
 # ask tensorflow to be quiet and not print hundred lines of logs
 from delft.utilities.misc import print_parameters
@@ -45,7 +55,6 @@ from sklearn.model_selection import train_test_split
 import transformers
 transformers.logging.set_verbosity(transformers.logging.ERROR) 
 
-from tensorflow.keras.utils import plot_model
 
 class Classifier(object):
 
@@ -75,6 +84,7 @@ class Classifier(object):
                  early_stop=True,
                  class_weights=None,
                  multiprocessing=True,
+                 num_workers=1,
                  transformer_name: str=None):
 
         if model_name is None:
@@ -135,7 +145,8 @@ class Classifier(object):
                                               use_roc_auc=use_roc_auc, 
                                               early_stop=early_stop,
                                               class_weights=class_weights, 
-                                              multiprocessing=multiprocessing)
+                                              multiprocessing=multiprocessing,
+                                              num_workers=num_workers)
 
     def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
 
