@@ -426,6 +426,8 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
     parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--output", help="Directory where to save a trained model.")
+
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
