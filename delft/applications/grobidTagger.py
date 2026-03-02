@@ -190,7 +190,7 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None,
           output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1,
           incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
-          report_to_wandb=False):
+          report_to_wandb=False, num_workers=1):
 
     print('Loading data...')
     if input_path is None:
@@ -523,7 +523,8 @@ if __name__ == "__main__":
                 max_epoch=max_epoch,
                 early_stop=early_stop,
                 multi_gpu=multi_gpu,
-                report_to_wandb=wandb
+                report_to_wandb=wandb,
+                num_workers=num_workers
             )
 
     if action == Tasks.EVAL:

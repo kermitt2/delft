@@ -165,7 +165,7 @@ class Sequence(object):
             early_stop,
             patience,
             max_checkpoints_to_keep,
-            multiprocessing.multiprocessing,
+            multiprocessing,
             num_workers
         )
 
