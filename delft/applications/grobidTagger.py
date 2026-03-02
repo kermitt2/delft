@@ -428,6 +428,25 @@ if __name__ == "__main__":
     parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
     parser.add_argument("--output", help="Directory where to save a trained model.")
 
+    parser.add_argument(
+        "--embedding",
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use delft/resources-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
+            " and that the path in the registry to the embedding file is correct on your system."
+    )
+    parser.add_argument(
+        "--transformer",
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
+    )
+
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
