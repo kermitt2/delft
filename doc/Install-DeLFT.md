@@ -9,21 +9,21 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-uv venv --python 3.10
+uv venv --python 3.11
 source .venv/bin/activate
 uv pip install pip 
 ```
 
-Install the dependencies:
-
-```sh
-uv pip install -r requirements.txt
-```
-
-Finally install the project in editable state
+Install the project in editable state:
 
 ```sh
 uv pip install -e .
+```
+
+For Linux with CUDA 12.1, install with the CUDA-specific torch build:
+
+```sh
+uv pip install -e . -r requirements-cuda.txt
 ```
 
 Current DeLFT version is __0.3.4__, which has been tested successfully with Python 3.8 and tensorflow 2.9.3. It will exploit your available GPU with the condition that CUDA (>=12) is properly installed. 

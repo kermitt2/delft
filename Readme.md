@@ -69,16 +69,16 @@ source .venv/bin/activate
 uv pip install pip
 ```
 
-Install the dependencies:
-
-```sh
-uv pip install -r requirements.txt
-```
-
-Finally install the project, preferably in editable state
+Install the project in editable state:
 
 ```sh
 uv pip install -e .
+```
+
+For Linux with CUDA 12.1, install with the CUDA-specific torch build:
+
+```sh
+uv pip install -e . -r requirements-cuda.txt
 ```
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 

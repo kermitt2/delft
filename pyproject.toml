@@ -8,8 +8,14 @@ commit = "true"
 tag = "true"
 tag_name = "v{new_version}"
 
+[[tool.bumpversion.files]]
+filename = "pyproject.toml"
+search = 'version = "{current_version}"'
+replace = 'version = "{new_version}"'
+
 [project]
 name = "delft"
+version = "0.3.4"
 description = "a Deep Learning Framework for Text"
 readme = "Readme.md"
 authors = [
@@ -20,12 +26,40 @@ maintainers = [
     { name = "Luca Foppiano", email = "lucanoro@duck.com" }
 ]
 requires-python = ">=3.10"
+classifiers = [
+    "Programming Language :: Python :: 3.10",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "numpy==1.26.4",
+    "regex",
+    "scikit-learn==1.6.1",
+    "tqdm==4.66.3",
+    "tensorflow==2.17.1",
+    "tf_keras==2.17.0",
+    "h5py==3.11.0",
+    "unidecode==1.3.2",
+    "pydot==1.4.0",
+    "lmdb",
+    "truecase",
+    "requests>=2.20",
+    "pandas==2.2.3",
+    "transformers==4.48.0",
+    "torch==2.5.1",
+    "tfa-nightly==0.23.0.dev20240415222534",
+    "blingfire2==0.2.1",
+    "accelerate>=0.20.3",
+    "Pillow",
+    "python-dotenv",
+]
 
-dynamic = ['version', "dependencies"]
-
-[tool.setuptools.dynamic]
-dependencies = {file = ["requirements.txt"]}
-classifiers = {file = ["classifiers.txt"]}
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "bump-my-version",
+    "wandb",
+]
 
 [project.urls]
 Homepage = "https://github.com/kermitt2/delft"
