@@ -160,11 +160,12 @@ class Embeddings(object):
         description = self.get_description(name)
 
         if description is None:
-            print('\nNo description found in embeddings registry for embeddings', name)
-            return
+            print("Error: embedding name '{}' not found in the resource registry.".format(name))
+            raise RuntimeError("Embedding '{}' not found in resources-registry.json. "
+                               "Check the name or add it to the registry.".format(name))
 
         if description is not None:
-            # the following method will possibly download the mebedding file if not available locally
+            # the following method will possibly download the embedding file if not available locally
             embeddings_path = self.get_embedding_path(description)
             if embeddings_path is None:
                 print('\nCould not locate a usable resource for embeddings', name)
@@ -257,6 +258,17 @@ class Embeddings(object):
 
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
+        if description is None:
+            available = []
+            if self.registry is not None:
+                for section in ["embeddings", "embeddings-contextualized", "transformers"]:
+                    if section in self.registry:
+                        available.extend([emb["name"] for emb in self.registry[section]])
+            print("Error: embedding name '{}' not found in the resource registry.".format(name))
+            if available:
+                print("Available embeddings: {}".format(", ".join(available)))
+            raise RuntimeError("Embedding '{}' not found in resources-registry.json. "
+                               "Check the name or add it to the registry.".format(name))
         if description is not None:
             self.extension = description["format"]
 
