@@ -1,34 +1,49 @@
 # DeLFT Installation
 
-Get the Github repo:
+Get the GitHub repo:
 
 ```sh
 git clone https://github.com/kermitt2/delft
 cd delft
 ```
-It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
+It is advised to first set up a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-uv venv --python 3.10
+uv venv --python 3.11
 source .venv/bin/activate
 uv pip install pip 
 ```
 
-Install the dependencies:
+Install the project in editable state:
 
 ```sh
-uv pip install -r requirements.txt
-```
-
-Finally install the project in editable state
-
-```sh
+# macOS (torch is included automatically)
 uv pip install -e .
+
+# Linux with CUDA 12.1 (recommended for GPU)
+uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
+
+# Linux with CUDA 12.1 (alternative using requirements file)
+uv pip install -e . -r requirements-cuda.txt
 ```
 
-Current DeLFT version is __0.3.4__, which has been tested successfully with Python 3.8 and tensorflow 2.9.3. It will exploit your available GPU with the condition that CUDA (>=12) is properly installed. 
+Current DeLFT version is __0.4.0__, which has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. It will exploit your available GPU with the condition that CUDA 12.1 is properly installed.
 
-To ensure the availability of GPU devices for the right version of tensorflow, CUDA, CuDNN and python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
+To ensure the availability of GPU devices for the right version of TensorFlow, CUDA, cuDNN and Python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
+
+### Upgrading from 0.3.4
+
+When upgrading from DeLFT 0.3.4, be aware of the following breaking changes:
+
+- **Python 3.10 or 3.11 required** (3.8 and 3.9 are no longer supported)
+- **TensorFlow 2.17 / tf_keras 2.17**: Pre-trained model weights from 0.3.4 are not compatible and must be retrained
+- **CUDA 12.1 required** for GPU support (previously CUDA 11.x)
+- **LMDB embedding caches must be converted** from the old pickle format to the new float32 format:
+  ```sh
+  python -m delft.utilities.convert_lmdb_embeddings --input <old-lmdb-path> --output <new-lmdb-path>
+  ```
+- **ELMo support has been removed** — use transformer models or static embeddings instead
+- **torch is no longer installed by default on Linux** to avoid CUDA conflicts — use the `[gpu]` extra (see install commands above)
 
 ## Loading resources locally
 

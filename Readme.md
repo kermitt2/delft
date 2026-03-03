@@ -38,7 +38,33 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The latest DeLFT release __0.3.4__ has been tested successfully with python 3.8 and Tensorflow 2.9.3. As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+The latest DeLFT release __0.4.0__ has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+
+## Changes in 0.4.0
+
+### Breaking changes
+
+- **TensorFlow 2.17 / tf_keras 2.17**: DeLFT now requires TensorFlow 2.17.1 and the standalone `tf_keras` 2.17.0 package. All Keras imports have been updated from `tensorflow.keras` to `tf_keras`. Pre-trained model weights from 0.3.4 are **not compatible** and must be retrained.
+
+- **Python 3.10+ required**: Python 3.8 and 3.9 are no longer supported.
+
+- **CUDA 12.1 required for GPU**: TensorFlow 2.17 requires CUDA 12.1. On Linux, torch is no longer included in the base `pip install delft` to avoid CUDA version conflicts between torch (CUDA 12.4) and TensorFlow (CUDA 12.1). Use `pip install "delft[gpu]"` with the PyTorch cu121 index instead (see installation instructions below).
+
+- **LMDB embedding format changed**: Embeddings are now stored as raw float32 bytes instead of pickle-serialized objects. This enables Java interoperability (used by [GROBID](https://github.com/kermitt2/grobid)) and improves performance. Existing LMDB caches must be converted using the provided utility:
+
+  ```sh
+  python -m delft.utilities.convert_lmdb_embeddings --input <old-lmdb-path> --output <new-lmdb-path>
+  ```
+
+- **ELMo support removed**: ELMo embeddings are no longer supported. The `use_ELMo` parameter has been removed from all application scripts and configurations. Use transformer-based models (BERT, SciBERT, etc.) or static embeddings (GloVe, fastText) instead.
+
+### Other changes
+
+- Weights & Biases integration for experiment tracking (`--wandb` flag)
+- Distributed training support via SLURM scripts
+- Additional checks for avoiding empty embeddings
+- Updated default word2vec embedding URL
+- Updated dependency versions (transformers 4.48, torch 2.5.1, numpy 1.26.4, scikit-learn 1.6.1, pandas 2.2.3)
 
 ## DeLFT Documentation
 
@@ -46,10 +72,14 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 
 ## Using DeLFT 
 
-PyPI packages are available for stable versions. Latest stable version is `0.3.4`:
+PyPI packages are available for stable versions. Latest stable version is `0.4.0`:
 
-```
-pip install delft==0.3.4
+```sh
+# macOS
+pip install delft==0.4.0
+
+# Linux with CUDA 12.1 (GPU)
+pip install "delft[gpu]==0.4.0" --extra-index-url https://download.pytorch.org/whl/cu121
 ```
 
 ## DeLFT Installation
@@ -64,21 +94,22 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-uv venv --python 3.10
+uv venv --python 3.11
 source .venv/bin/activate
 uv pip install pip
 ```
 
-Install the dependencies:
+Install the project in editable state:
 
 ```sh
-uv pip install -r requirements.txt
-```
-
-Finally install the project, preferably in editable state
-
-```sh
+# macOS (torch is included automatically)
 uv pip install -e .
+
+# Linux with CUDA 12.1 (recommended for GPU)
+uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
+
+# Linux with CUDA 12.1 (alternative using requirements file)
+uv pip install -e . -r requirements-cuda.txt
 ```
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
@@ -114,7 +145,7 @@ If you want to this work, please refer to the present GitHub project, together w
     title = {DeLFT},
     howpublished = {\url{https://github.com/kermitt2/delft}},
     publisher = {GitHub},
-    year = {2018--2025},
+    year = {2018--2026},
     archivePrefix = {swh},
     eprint = {1:dir:54eb292e1c0af764e27dd179596f64679e44d06e}
 }
