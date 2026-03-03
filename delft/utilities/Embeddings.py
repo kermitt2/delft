@@ -81,6 +81,12 @@ class Embeddings(object):
         if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
             envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
             self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            with self.env.begin() as txn:
+                cursor = txn.cursor()
+                for key, value in cursor:
+                    _check_lmdb_format(value)
+                    break
+                cursor.close()
 
     def reopen_lmdb(self):
         """
@@ -302,6 +308,7 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
+                            _check_lmdb_format(value)
                             vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
@@ -447,6 +454,34 @@ def _deserialize_float32(serialized):
     This format is readable by both Python and Java.
     """
     return np.frombuffer(serialized, dtype=np.float32)
+
+
+def _check_lmdb_format(value):
+    """
+    Check that an LMDB value contains raw float32 bytes, not legacy pickle format.
+
+    Pickle-serialized numpy arrays start with pickle protocol bytes (\\x80 + protocol 2-5)
+    and contain b'numpy' in the first 50 bytes. Both signals must be present to avoid
+    false positives on raw float32 data that happens to start with \\x80.
+
+    Raises ValueError with conversion instructions if pickle format is detected.
+    """
+    if len(value) < 2:
+        return
+
+    # Signal 1: pickle magic byte (\x80) followed by protocol version 2-5
+    if value[0] == 0x80 and value[1] in (2, 3, 4, 5):
+        # Signal 2: b'numpy' substring in first 50 bytes (always present in pickled numpy arrays)
+        if b'numpy' in value[:50]:
+            raise ValueError(
+                "LMDB embedding database is in legacy pickle format, which is incompatible "
+                "with the current raw float32 format and will produce garbage vectors. "
+                "Please convert it using:\n\n"
+                "  python -m delft.utilities.convert_lmdb_embeddings "
+                "--input <path-to-old-lmdb> --output <path-to-new-lmdb>\n\n"
+                "Then update your embedding-lmdb-path in the resource registry to point "
+                "to the converted database."
+            )
 
 
 def open_embedding_file(embeddings_path):
