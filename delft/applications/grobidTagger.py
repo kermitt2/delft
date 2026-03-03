@@ -2,7 +2,10 @@
 
 import argparse
 import json
+import os
+import re
 import time
+from datetime import datetime
 
 from sklearn.model_selection import train_test_split
 
@@ -11,6 +14,40 @@ from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.Utilities import longest_row, t_or_f
 
 MODEL_LIST = ['affiliation-address', 'citation', 'date', 'header', 'name-citation', 'name-header', 'software', 'figure', 'table', 'reference-segmenter', 'segmentation', 'funding-acknowledgement', 'patent-citation']
+
+
+def find_latest_train_file(model: str) -> str:
+    """
+    Find the latest training file for the given model based on the date in the filename.
+
+    Files are expected to have names like: {model}-YYMMDD.train
+    Returns the path to the latest file, or None if no files found.
+    """
+    data_dir = f"data/sequenceLabelling/grobid/{model}"
+    if not os.path.exists(data_dir):
+        return None
+
+    # Pattern: model-YYMMDD.train
+    pattern = re.compile(rf"^{re.escape(model)}-(\d{{6}})\.train$")
+
+    latest_file = None
+    latest_date = None
+
+    for filename in os.listdir(data_dir):
+        match = pattern.match(filename)
+        if match:
+            date_str = match.group(1)
+            try:
+                # Parse YYMMDD format
+                date = datetime.strptime(date_str, "%y%m%d")
+                if latest_date is None or date > latest_date:
+                    latest_date = date
+                    latest_file = os.path.join(data_dir, filename)
+            except ValueError:
+                continue
+
+    return latest_file
+
 
 
 def configure(model, architecture, output_path=None, max_sequence_length=-1, batch_size=-1,
@@ -153,13 +190,17 @@ def configure(model, architecture, output_path=None, max_sequence_length=-1, bat
 def train(model, embeddings_name=None, architecture=None, transformer=None, input_path=None,
           output_path=None, features_indices=None, max_sequence_length=-1, batch_size=-1, max_epoch=-1,
           incremental=False, input_model_path=None, patience=-1, learning_rate=None, early_stop=None, multi_gpu=False,
-          report_to_wandb=False):
+          report_to_wandb=False, num_workers=1):
 
     print('Loading data...')
-    if input_path == None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
-    else:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+    if input_path is None:
+        input_path = find_latest_train_file(model)
+        if input_path is None:
+            raise ValueError(
+                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
+            )
+        print(f"Using latest training file: {input_path}")
+    x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
     print(len(x_all), 'total sequences')
 
@@ -196,6 +237,7 @@ def train(model, embeddings_name=None, architecture=None, transformer=None, inpu
         features_indices=features_indices,
         max_epoch=max_epoch,
         multiprocessing=multiprocessing,
+        num_workers=num_workers,
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
@@ -233,9 +275,13 @@ def train_eval(model, embeddings_name=None, architecture='BidLSTM_CRF', transfor
 
     print('Loading data...')
     if input_path is None:
-        x_all, y_all, f_all = load_data_and_labels_crf_file('data/sequenceLabelling/grobid/'+model+'/'+model+'-060518.train')
-    else:
-        x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
+        input_path = find_latest_train_file(model)
+        if input_path is None:
+            raise ValueError(
+                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
+            )
+        print(f"Using latest training file: {input_path}")
+    x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
     x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(x_all, y_all, f_all, test_size=0.1, shuffle=True)
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(x_train_all, y_train_all, f_train_all, test_size=0.1)
@@ -380,6 +426,27 @@ if __name__ == "__main__":
     parser.add_argument("--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold "
                                                                   "cross validation.")
     parser.add_argument("--architecture", help="Type of model architecture to be used, one of "+str(architectures))
+    parser.add_argument("--output", help="Directory where to save a trained model.")
+
+    parser.add_argument(
+        "--embedding",
+        default=None,
+        help="The desired pre-trained word embeddings using their descriptions in the file. " + \
+            "For local loading, use delft/resources-registry.json. " + \
+            "Be sure to use here the same name as in the registry, e.g. " + str(word_embeddings_examples) + \
+            " and that the path in the registry to the embedding file is correct on your system."
+    )
+    parser.add_argument(
+        "--transformer",
+        default=None,
+        help="The desired pre-trained transformer to be used in the selected architecture. " + \
+            "For local loading use, delft/resources-registry.json, and be sure to use here the same name as in the registry, e.g. " + \
+            str(pretrained_transformers_examples) + \
+            " and that the path in the registry to the model path is correct on your system. " + \
+            "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models " + \
+            "for model names"
+    )
+
     parser.add_argument("--input", help="Grobid data file to be used for training (train action), for training and " +
                                         "evaluation (train_eval action) or just for evaluation (eval action).")
     parser.add_argument("--incremental", action="store_true", help="training is incremental, starting from existing model if present") 
@@ -400,6 +467,9 @@ if __name__ == "__main__":
     parser.add_argument("--multi-gpu", default=False,
                         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
                         action="store_true")
+
+    parser.add_argument("--num-workers", type=int, default=1,
+                        help="Number of worker processes for data loading (default: 1, use 0 or 1 for no multiprocessing)")
 
     parser.add_argument(
         "--wandb",
@@ -427,6 +497,7 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    num_workers = args.num_workers
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -452,7 +523,8 @@ if __name__ == "__main__":
                 max_epoch=max_epoch,
                 early_stop=early_stop,
                 multi_gpu=multi_gpu,
-                report_to_wandb=wandb
+                report_to_wandb=wandb,
+                num_workers=num_workers
             )
 
     if action == Tasks.EVAL:

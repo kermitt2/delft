@@ -1,4 +1,5 @@
 import tensorflow as tf
+import tf_keras
 
 from tensorflow_addons.text import crf_log_likelihood
 from tensorflow_addons.utils import types
@@ -15,7 +16,7 @@ The goal is to have similar effect as in pytorch when using the -100 to ignore s
 the loss, but less hacky.
 '''
 
-@tf.keras.utils.register_keras_serializable(package="Addons")
+@tf_keras.utils.register_keras_serializable(package="Addons")
 class CRFModelWrapperForBERT(CRFModelWrapperDefault):
 
     def train_step(self, data):

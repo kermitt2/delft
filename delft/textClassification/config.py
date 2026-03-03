@@ -69,7 +69,8 @@ class TrainingConfig(object):
                  early_stop=True,
                  use_roc_auc=True,
                  class_weights=None,
-                 multiprocessing=True):
+                 multiprocessing=True,
+                 num_workers=1):
 
         self.batch_size = batch_size # this is the batch size for training
         self.optimizer = optimizer
@@ -81,5 +82,6 @@ class TrainingConfig(object):
         self.use_roc_auc = use_roc_auc
         self.class_weights = class_weights
         self.multiprocessing = multiprocessing
+        self.num_workers = num_workers
         self.early_stop = early_stop
         

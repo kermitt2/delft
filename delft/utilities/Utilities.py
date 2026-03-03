@@ -10,7 +10,7 @@ import shutil
 import requests
 from urllib.parse import urlparse
 
-from tensorflow.keras.preprocessing import text
+from tf_keras.preprocessing import text
 
 from tqdm import tqdm 
 

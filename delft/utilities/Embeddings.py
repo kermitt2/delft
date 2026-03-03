@@ -1,22 +1,23 @@
-# Manage pre-trained embeddings 
+# Manage pre-trained embeddings
 import gzip
 import hashlib
 import io
 import logging
 import mmap
+import ntpath
 import os
 import pickle
 import shutil
-import ntpath
 import struct
 import sys
 import zipfile
 import json
+from pathlib import Path
+
 import lmdb
 import numpy as np
 import tensorflow as tf
 from tqdm import tqdm
-from pathlib import Path
 
 
 
@@ -70,6 +71,52 @@ class Embeddings(object):
     def __getattr__(self, name):
         return getattr(self.model, name)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state['env'] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2, lock=False)
+            with self.env.begin() as txn:
+                cursor = txn.cursor()
+                for key, value in cursor:
+                    _check_lmdb_format(value)
+                    break
+                cursor.close()
+
+    def reopen_lmdb(self):
+        """
+        Reopen the LMDB environment. This is required for fork-safe multiprocessing.
+
+        LMDB environments opened before fork() cannot be safely used in child processes.
+        Call this method in each worker process (e.g., via DataLoader's worker_init_fn)
+        to create a fresh LMDB environment handle for the worker.
+
+        This is a no-op if embeddings are not using LMDB (e.g., in-memory or bin format).
+        """
+        if self.env is None and self.embedding_lmdb_path is None:
+            return
+
+        if self.env is not None:
+            try:
+                self.env.close()
+            except Exception:
+                pass
+
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
+
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
         print('loading embeddings...')
@@ -113,11 +160,12 @@ class Embeddings(object):
         description = self.get_description(name)
 
         if description is None:
-            print('\nNo description found in embeddings registry for embeddings', name)
-            return
+            print("Error: embedding name '{}' not found in the resource registry.".format(name))
+            raise RuntimeError("Embedding '{}' not found in resources-registry.json. "
+                               "Check the name or add it to the registry.".format(name))
 
         if description is not None:
-            # the following method will possibly download the mebedding file if not available locally
+            # the following method will possibly download the embedding file if not available locally
             embeddings_path = self.get_embedding_path(description)
             if embeddings_path is None:
                 print('\nCould not locate a usable resource for embeddings', name)
@@ -177,7 +225,7 @@ class Embeddings(object):
                 self.embed_size = len(vector)
 
             if len(word.encode(encoding='UTF-8')) < self.env.max_key_size():
-                txn.put(word.encode(encoding='UTF-8'), _serialize_pickle(vector))
+                txn.put(word.encode(encoding='UTF-8'), _serialize_float32(vector))
                 #txn.put(word.encode(encoding='UTF-8'), _serialize_byteio(vector))
                 i += 1
 
@@ -210,6 +258,17 @@ class Embeddings(object):
 
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
+        if description is None:
+            available = []
+            if self.registry is not None:
+                for section in ["embeddings", "embeddings-contextualized", "transformers"]:
+                    if section in self.registry:
+                        available.extend([emb["name"] for emb in self.registry[section]])
+            print("Error: embedding name '{}' not found in the resource registry.".format(name))
+            if available:
+                print("Available embeddings: {}".format(", ".join(available)))
+            raise RuntimeError("Embedding '{}' not found in resources-registry.json. "
+                               "Check the name or add it to the registry.".format(name))
         if description is not None:
             self.extension = description["format"]
 
@@ -239,7 +298,7 @@ class Embeddings(object):
             if not os.path.isdir(self.embedding_lmdb_path):
                 # conservative check (likely very useless)
                 if not os.path.exists(self.embedding_lmdb_path):
-                    os.makedirs(self.embedding_lmdb_path)
+                    os.makedirs(self.embedding_lmdb_path, exist_ok=True)
 
             # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
@@ -261,7 +320,8 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            vector = _deserialize_pickle(value)
+                            _check_lmdb_format(value)
+                            vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -307,7 +367,7 @@ class Embeddings(object):
             with self.env.begin() as txn:
                 vector = txn.get(word.encode(encoding='UTF-8'))
                 if vector:
-                    word_vector = _deserialize_pickle(vector)
+                    word_vector = _deserialize_float32(vector)
                     vector = None
                 else:
                     word_vector = np.zeros((self.static_embed_size,), dtype=np.float32)
@@ -383,11 +443,58 @@ def _deserialize_byteio(serialized):
 
 
 def _serialize_pickle(a):
+    """Legacy: pickle serialization (for reading old databases)"""
     return pickle.dumps(a)
 
 
 def _deserialize_pickle(serialized):
+    """Legacy: pickle deserialization (for reading old databases)"""
     return pickle.loads(serialized)
+
+
+def _serialize_float32(array):
+    """
+    Serialize numpy array to raw float32 bytes.
+    This format is readable by both Python and Java.
+    """
+    return array.astype(np.float32).tobytes()
+
+
+def _deserialize_float32(serialized):
+    """
+    Deserialize raw float32 bytes to numpy array.
+    This format is readable by both Python and Java.
+    """
+    return np.frombuffer(serialized, dtype=np.float32)
+
+
+def _check_lmdb_format(value):
+    """
+    Check that an LMDB value contains raw float32 bytes, not legacy pickle format.
+
+    Pickle-serialized numpy arrays start with pickle protocol bytes (\\x80 + protocol 2-5)
+    and contain b'numpy' in the first 50 bytes. Both signals must be present to avoid
+    false positives on raw float32 data that happens to start with \\x80.
+
+    Raises ValueError with conversion instructions if pickle format is detected.
+    """
+    if len(value) < 2:
+        return
+
+    # Signal 1: pickle magic byte (\x80) followed by protocol version 2-5
+    if value[0] == 0x80 and value[1] in (2, 3, 4, 5):
+        # Signal 2: b'numpy' substring in first 50 bytes (always present in pickled numpy arrays)
+        if b'numpy' in value[:50]:
+            raise ValueError(
+                "LMDB embedding database is in legacy pickle format, which is incompatible "
+                "with the current raw float32 format and will produce garbage vectors. "
+                "Please convert it using:\n\n"
+                "  python -m delft.utilities.convert_lmdb_embeddings "
+                "--input <path-to-old-lmdb> --output <path-to-new-lmdb>\n\n"
+                "Then update your embedding-lmdb-path in the resource registry to point "
+                "to the converted database."
+            )
+
 
 def open_embedding_file(embeddings_path):
     # embeddings can be uncompressed or compressed with gzip or zip

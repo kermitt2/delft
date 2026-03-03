@@ -45,7 +45,7 @@
             "format": "vec", 
             "lang": "en",
             "item": "word",
-            "url": "https://science-miner.s3-us-west-2.amazonaws.com/embeddings/GoogleNews-vectors-negative300.vec.gz"
+            "url": "https://huggingface.co/datasets/sciencialab/word2vec-google-news-negative-300/resolve/main/GoogleNews-vectors-negative300.vec.gz?download=true"
         },
         {
             "name": "word2vec-pmc",

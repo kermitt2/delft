@@ -9,20 +9,21 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-virtualenv --system-site-packages -p python3.8 env
-source env/bin/activate
+uv venv --python 3.10
+source .venv/bin/activate
+uv pip install pip 
 ```
 
 Install the dependencies:
 
 ```sh
-python3 -m pip install -r requirements.txt
+uv pip install -r requirements.txt
 ```
 
 Finally install the project in editable state
 
 ```sh
-python3 -m pip install -e .
+uv pip install -e .
 ```
 
 Current DeLFT version is __0.3.4__, which has been tested successfully with Python 3.8 and tensorflow 2.9.3. It will exploit your available GPU with the condition that CUDA (>=12) is properly installed. 
