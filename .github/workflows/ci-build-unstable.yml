@@ -32,7 +32,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install flake8
-          pip install -e ".[dev]" -r requirements-cuda.txt
+          pip install -e ".[dev,gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
       - name: Install dependencies (macOS)
         if: runner.os == 'macOS'
         run: |

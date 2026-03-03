@@ -1,12 +1,12 @@
 # DeLFT Installation
 
-Get the Github repo:
+Get the GitHub repo:
 
 ```sh
 git clone https://github.com/kermitt2/delft
 cd delft
 ```
-It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
+It is advised to first set up a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
 uv venv --python 3.11
@@ -17,16 +17,17 @@ uv pip install pip
 Install the project in editable state:
 
 ```sh
+# macOS (torch is included automatically)
 uv pip install -e .
-```
 
-For Linux with CUDA 12.1, install with the CUDA-specific torch build:
+# Linux with CUDA 12.1 (recommended for GPU)
+uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
 
-```sh
+# Linux with CUDA 12.1 (alternative using requirements file)
 uv pip install -e . -r requirements-cuda.txt
 ```
 
-Current DeLFT version is __0.3.4__, which has been tested successfully with Python 3.8 and tensorflow 2.9.3. It will exploit your available GPU with the condition that CUDA (>=12) is properly installed. 
+Current DeLFT version is __0.4.0__, which has been tested successfully with Python 3.11 and tensorflow 2.17. It will exploit your available GPU with the condition that CUDA (>=12) is properly installed. 
 
 To ensure the availability of GPU devices for the right version of tensorflow, CUDA, CuDNN and python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
 

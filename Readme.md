@@ -48,8 +48,12 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 
 PyPI packages are available for stable versions. Latest stable version is `0.3.4`:
 
-```
+```sh
+# macOS
 pip install delft==0.3.4
+
+# Linux with CUDA 12.1 (GPU)
+pip install "delft[gpu]==0.3.4" --extra-index-url https://download.pytorch.org/whl/cu121
 ```
 
 ## DeLFT Installation
@@ -64,7 +68,7 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-uv venv --python 3.10
+uv venv --python 3.11
 source .venv/bin/activate
 uv pip install pip
 ```
@@ -72,12 +76,13 @@ uv pip install pip
 Install the project in editable state:
 
 ```sh
+# macOS (torch is included automatically)
 uv pip install -e .
-```
 
-For Linux with CUDA 12.1, install with the CUDA-specific torch build:
+# Linux with CUDA 12.1 (recommended for GPU)
+uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
 
-```sh
+# Linux with CUDA 12.1 (alternative using requirements file)
 uv pip install -e . -r requirements-cuda.txt
 ```
 
