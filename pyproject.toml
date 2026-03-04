@@ -13,6 +13,16 @@ filename = "pyproject.toml"
 search = 'version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
+[[tool.bumpversion.files]]
+filename = "Readme.md"
+search = "The latest DeLFT release __{current_version}__"
+replace = "The latest DeLFT release __{new_version}__"
+
+[[tool.bumpversion.files]]
+filename = "doc/Install-DeLFT.md"
+search = "Current DeLFT version is __{current_version}__"
+replace = "Current DeLFT version is __{new_version}__"
+
 [project]
 name = "delft"
 version = "0.4.1"
