@@ -95,5 +95,8 @@ ignore = ["E501", "E741"]
 [tool.ruff.format]
 quote-style = "double"
 
+[tool.setuptools.package-data]
+delft = ["resources-registry.json"]
+
 [tool.setuptools.packages.find]
 exclude = ["test", "*.test", "*.test.*"]
