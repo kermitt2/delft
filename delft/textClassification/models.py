@@ -52,27 +52,27 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
     # awww Python has no case/switch statement :D
     if architecture == "bidLstm_simple":
-        model = bidLstm_simple(model_config, training_config, registry=registry)
+        model = bidLstm_simple(model_config, training_config)
     elif architecture == "lstm":
-        model = lstm(model_config, training_config, registry=registry)
+        model = lstm(model_config, training_config)
     elif architecture == "cnn":
-        model = cnn(model_config, training_config, registry=registry)
+        model = cnn(model_config, training_config)
     elif architecture == "cnn2":
-        model = cnn2(model_config, training_config, registry=registry)
+        model = cnn2(model_config, training_config)
     elif architecture == "cnn3":
-        model = cnn3(model_config, training_config, registry=registry)
+        model = cnn3(model_config, training_config)
     elif architecture == "lstm_cnn":
-        model = lstm_cnn(model_config, training_config, registry=registry)
+        model = lstm_cnn(model_config, training_config)
     elif architecture == "conv":
-        model = dpcnn(model_config, training_config, registry=registry)
+        model = dpcnn(model_config, training_config)
     elif architecture == "dpcnn":
-        model = dpcnn(model_config, training_config, registry=registry)
+        model = dpcnn(model_config, training_config)
     elif architecture == "gru":
-        model = gru(model_config, training_config, registry=registry)
+        model = gru(model_config, training_config)
     elif architecture == "gru_lstm":
-        model = gru_lstm(model_config, training_config, registry=registry)
+        model = gru_lstm(model_config, training_config)
     elif architecture == "gru_simple":
-        model = gru_simple(model_config, training_config, registry=registry)
+        model = gru_simple(model_config, training_config)
     elif architecture == "bert":
         model = bert(
             model_config,
@@ -107,10 +107,9 @@ class BaseModel(object):
     transformer_config = None
     transformer_tokenizer = None
 
-    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
+    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
         self.model_config = model_config
         self.training_config = training_config
-        self.registry = registry if registry is not None else load_resource_registry()
 
     def update_parameters(self, model_config, training_config):
         for key in self.parameters:
@@ -263,12 +262,13 @@ class BaseModel(object):
         # train_size gives the number of steps for the traning, to be used for learning rate scheduler/decay
         self.model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
 
-    def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
+    def init_transformer(self, config, load_pretrained_weights=True, local_path=None, registry=None):
         if config.transformer_name is None:
             # missing transformer name, no transformer layer to be initialized
             return None
 
-        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        registry = registry if registry is not None else load_resource_registry()
+        transformer = Transformer(config.transformer_name, resource_registry=registry, delft_local_path=local_path)
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.transformer_config = transformer.transformer_config
@@ -445,8 +445,8 @@ class lstm(BaseModel):
         "dense_size": 32,
     }
 
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -491,8 +491,8 @@ class bidLstm_simple(BaseModel):
     }
 
     # bidirectional LSTM
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -538,8 +538,8 @@ class cnn(BaseModel):
     }
 
     # conv+GRU with embeddings
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -580,8 +580,8 @@ class cnn2(BaseModel):
         "dense_size": 32,
     }
 
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -623,8 +623,8 @@ class cnn3(BaseModel):
         "dense_size": 32,
     }
 
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -672,8 +672,8 @@ class lstm_cnn(BaseModel):
     }
 
     # LSTM + conv
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -720,8 +720,8 @@ class gru(BaseModel):
     }
 
     # 2 bid. GRU
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -777,8 +777,8 @@ class gru_simple(BaseModel):
     }
 
     # 1 layer bid GRU
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -825,8 +825,8 @@ class gru_lstm(BaseModel):
     }
 
     # bid GRU + bid LSTM
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -882,8 +882,8 @@ class dpcnn(BaseModel):
     }
 
     # DPCNN
-    def __init__(self, model_config, training_config, registry=None):
-        super().__init__(model_config, training_config, registry=registry)
+    def __init__(self, model_config, training_config):
+        super().__init__(model_config, training_config)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -935,12 +935,12 @@ class bert(BaseModel):
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
     def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
-        super().__init__(model_config, training_config, load_pretrained_weights, local_path, registry=registry)
+        super().__init__(model_config, training_config, load_pretrained_weights, local_path)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
         transformer_model = self.init_transformer(
-            model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path
+            model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path, registry=registry
         )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
