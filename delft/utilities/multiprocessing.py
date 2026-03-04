@@ -2,6 +2,7 @@
 Utility functions for multiprocessing configuration in training.
 """
 
+
 def get_multiprocessing_config(training_config, model_config):
     """
     Determine the number of workers and multiprocessing mode for training.
@@ -15,7 +16,7 @@ def get_multiprocessing_config(training_config, model_config):
     """
     multiprocessing = True
 
-    if hasattr(training_config, 'num_workers') and training_config.num_workers is not None:
+    if hasattr(training_config, "num_workers") and training_config.num_workers is not None:
         nb_workers = training_config.num_workers
         if nb_workers == 0:
             nb_workers = 1

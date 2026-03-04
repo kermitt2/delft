@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.bumpversion]
-current_version = "0.3.4"
+current_version = "0.3.5"
 commit = "true"
 tag = "true"
 tag_name = "v{new_version}"
@@ -15,7 +15,7 @@ replace = 'version = "{new_version}"'
 
 [project]
 name = "delft"
-version = "0.3.4"
+version = "0.3.5"
 description = "a Deep Learning Framework for Text"
 readme = "Readme.md"
 authors = [
@@ -35,7 +35,7 @@ dependencies = [
     "numpy==1.26.4",
     "regex",
     "scikit-learn==1.6.1",
-    "tqdm==4.66.3",
+    "tqdm>=4.66",
     "tensorflow==2.17.1",
     "tf_keras==2.17.0",
     "h5py==3.11.0",
@@ -62,12 +62,38 @@ dev = [
     "pytest",
     "bump-my-version",
     "wandb",
+    "ruff",
 ]
 
 [project.urls]
 Homepage = "https://github.com/kermitt2/delft"
 Repository = "https://github.com/kermitt2/delft"
 Changelog = "https://github.com/kermitt2/delft"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E501", "E741"]
+
+[tool.ruff.lint.per-file-ignores]
+# Side-effect imports for CUDA init ordering and module-level setup
+"delft/sequenceLabelling/wrapper.py" = ["E402", "F401"]
+"delft/textClassification/wrapper.py" = ["E402", "F401"]
+# Module-level imports after os.environ / seed() calls
+"delft/sequenceLabelling/preprocess.py" = ["E402"]
+"delft/utilities/Utilities.py" = ["E402"]
+"delft/utilities/crf_layer.py" = ["E402"]
+# Import after try/except block for optional dependency
+"delft/utilities/Embeddings.py" = ["E402"]
+# Re-exports in __init__.py
+"delft/sequenceLabelling/__init__.py" = ["F401"]
+"delft/textClassification/__init__.py" = ["F401"]
+
+[tool.ruff.format]
+quote-style = "double"
 
 [tool.setuptools.packages.find]
 exclude = ["test", "*.test", "*.test.*"]

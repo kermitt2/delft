@@ -13,11 +13,13 @@ def log_on_exception(f: callable) -> callable:
     and pytest displaying the test failure at the top of the method.
     (there doesn't seem to be an option to change that)
     """
+
     @wraps(f)
     def wrapper(*args, **kwargs):
         try:
             f(*args, **kwargs)
         except Exception as e:  # pylint: disable=broad-except
-            LOGGER.exception('failed due to %s', repr(e))
+            LOGGER.exception("failed due to %s", repr(e))
             raise
+
     return wrapper
