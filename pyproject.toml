@@ -3,7 +3,7 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.bumpversion]
-current_version = "0.4.0"
+current_version = "0.4.1"
 commit = "true"
 tag = "true"
 tag_name = "v{new_version}"
@@ -15,7 +15,7 @@ replace = 'version = "{new_version}"'
 
 [project]
 name = "delft"
-version = "0.4.0"
+version = "0.4.1"
 description = "a Deep Learning Framework for Text"
 readme = "Readme.md"
 authors = [
