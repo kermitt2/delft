@@ -44,7 +44,7 @@ architectures = [
 ]
 
 
-def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
+def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
     """
     Return a model instance by its name. This is a facilitator function.
     """
@@ -52,30 +52,34 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
     # awww Python has no case/switch statement :D
     if architecture == "bidLstm_simple":
-        model = bidLstm_simple(model_config, training_config)
+        model = bidLstm_simple(model_config, training_config, registry=registry)
     elif architecture == "lstm":
-        model = lstm(model_config, training_config)
+        model = lstm(model_config, training_config, registry=registry)
     elif architecture == "cnn":
-        model = cnn(model_config, training_config)
+        model = cnn(model_config, training_config, registry=registry)
     elif architecture == "cnn2":
-        model = cnn2(model_config, training_config)
+        model = cnn2(model_config, training_config, registry=registry)
     elif architecture == "cnn3":
-        model = cnn3(model_config, training_config)
+        model = cnn3(model_config, training_config, registry=registry)
     elif architecture == "lstm_cnn":
-        model = lstm_cnn(model_config, training_config)
+        model = lstm_cnn(model_config, training_config, registry=registry)
     elif architecture == "conv":
-        model = dpcnn(model_config, training_config)
+        model = dpcnn(model_config, training_config, registry=registry)
     elif architecture == "dpcnn":
-        model = dpcnn(model_config, training_config)
+        model = dpcnn(model_config, training_config, registry=registry)
     elif architecture == "gru":
-        model = gru(model_config, training_config)
+        model = gru(model_config, training_config, registry=registry)
     elif architecture == "gru_lstm":
-        model = gru_lstm(model_config, training_config)
+        model = gru_lstm(model_config, training_config, registry=registry)
     elif architecture == "gru_simple":
-        model = gru_simple(model_config, training_config)
+        model = gru_simple(model_config, training_config, registry=registry)
     elif architecture == "bert":
         model = bert(
-            model_config, training_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path
+            model_config,
+            training_config,
+            load_pretrained_weights=load_pretrained_weights,
+            local_path=local_path,
+            registry=registry,
         )
     else:
         raise (OSError("The model type " + architecture + " is unknown"))
@@ -100,13 +104,13 @@ class BaseModel(object):
 
     model = None
     parameters = {}
-    registry = load_resource_registry("delft/resources-registry.json")
     transformer_config = None
     transformer_tokenizer = None
 
-    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
+    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
         self.model_config = model_config
         self.training_config = training_config
+        self.registry = registry if registry is not None else load_resource_registry()
 
     def update_parameters(self, model_config, training_config):
         for key in self.parameters:
@@ -281,7 +285,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, models=None, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, models=None, callbacks=None, registry=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     use_roc_auc = training_config.use_roc_auc
@@ -315,7 +319,7 @@ def train_folds(X, y, model_config, training_config, embeddings, models=None, ca
         if incremental:
             foldModel = models[fold_id]
         else:
-            foldModel = getModel(model_config, training_config)
+            foldModel = getModel(model_config, training_config, registry=registry)
 
         if fold_id == 0:
             print_parameters(model_config, training_config)
@@ -441,8 +445,8 @@ class lstm(BaseModel):
         "dense_size": 32,
     }
 
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -487,8 +491,8 @@ class bidLstm_simple(BaseModel):
     }
 
     # bidirectional LSTM
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -534,8 +538,8 @@ class cnn(BaseModel):
     }
 
     # conv+GRU with embeddings
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -576,8 +580,8 @@ class cnn2(BaseModel):
         "dense_size": 32,
     }
 
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -619,8 +623,8 @@ class cnn3(BaseModel):
         "dense_size": 32,
     }
 
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -668,8 +672,8 @@ class lstm_cnn(BaseModel):
     }
 
     # LSTM + conv
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -716,8 +720,8 @@ class gru(BaseModel):
     }
 
     # 2 bid. GRU
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -773,8 +777,8 @@ class gru_simple(BaseModel):
     }
 
     # 1 layer bid GRU
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -821,8 +825,8 @@ class gru_lstm(BaseModel):
     }
 
     # bid GRU + bid LSTM
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -878,8 +882,8 @@ class dpcnn(BaseModel):
     }
 
     # DPCNN
-    def __init__(self, model_config, training_config):
-        super().__init__(model_config, training_config)
+    def __init__(self, model_config, training_config, registry=None):
+        super().__init__(model_config, training_config, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
@@ -930,8 +934,8 @@ class bert(BaseModel):
     parameters = {"dense_size": 512, "max_seq_len": 512, "dropout_rate": 0.1, "batch_size": 10}
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
-    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
-        super().__init__(model_config, training_config, load_pretrained_weights, local_path)
+    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
+        super().__init__(model_config, training_config, load_pretrained_weights, local_path, registry=registry)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 

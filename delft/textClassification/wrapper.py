@@ -45,6 +45,7 @@ import transformers
 from sklearn.metrics import accuracy_score, f1_score, log_loss, precision_recall_fscore_support, r2_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
+from delft import get_registry_path
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.data_generator import DataGenerator
 from delft.textClassification.models import getModel, predict_folds, train_folds
@@ -84,6 +85,7 @@ class Classifier(object):
         multiprocessing=True,
         num_workers=1,
         transformer_name: str = None,
+        resource_registry_path=None,
     ):
 
         if model_name is None:
@@ -109,7 +111,7 @@ class Classifier(object):
         # if transformer_name is None, no bert layer is present in the model
         self.transformer_name = None
 
-        self.registry = load_resource_registry("delft/resources-registry.json")
+        self.registry = load_resource_registry(resource_registry_path or get_registry_path())
 
         word_emb_size = 0
         if transformer_name is not None:
@@ -117,7 +119,7 @@ class Classifier(object):
             self.embeddings_name = None
             self.embeddings = None
         elif self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
+            self.embeddings = self.get_embedding(self.embeddings_name)
             word_emb_size = self.embeddings.embed_size
 
         self.model_config = ModelConfig(
@@ -151,6 +153,10 @@ class Classifier(object):
             num_workers=num_workers,
         )
 
+    def get_embedding(self, embedding_name, use_cache=True):
+        """Return an Embeddings instance for the given name. Override to customize embedding loading."""
+        return Embeddings(embedding_name, resource_registry=self.registry, use_cache=use_cache)
+
     def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
 
         if incremental:
@@ -159,7 +165,7 @@ class Classifier(object):
                 return
             print("Incremental training from loaded model", self.model_config.model_name)
         else:
-            self.model = getModel(self.model_config, self.training_config)
+            self.model = getModel(self.model_config, self.training_config, registry=self.registry)
 
         print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
@@ -244,10 +250,18 @@ class Classifier(object):
                 self.embeddings,
                 self.models,
                 callbacks=callbacks,
+                registry=self.registry,
             )
         else:
             self.models = train_folds(
-                x_train, y_train, self.model_config, self.training_config, self.embeddings, None, callbacks=callbacks
+                x_train,
+                y_train,
+                self.model_config,
+                self.training_config,
+                self.embeddings,
+                None,
+                callbacks=callbacks,
+                registry=self.registry,
             )
 
     def predict(self, texts, output_format="json", use_main_thread_only=False, batch_size=None):
@@ -552,16 +566,18 @@ class Classifier(object):
         if self.model_config.transformer_name is None:
             # load embeddings
             # Do not use cache in 'production' mode
-            self.embeddings = Embeddings(
-                self.model_config.embeddings_name, resource_registry=self.registry, use_cache=False
-            )
+            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer_name = self.model_config.transformer_name
             self.embeddings = None
 
         self.model = getModel(
-            self.model_config, self.training_config, load_pretrained_weights=False, local_path=model_path
+            self.model_config,
+            self.training_config,
+            load_pretrained_weights=False,
+            local_path=model_path,
+            registry=self.registry,
         )
         print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
@@ -574,13 +590,21 @@ class Classifier(object):
             if self.model_config.transformer_name is None:
                 for i in range(0, self.model_config.fold_number):
                     local_model = getModel(
-                        self.model_config, self.training_config, load_pretrained_weights=False, local_path=model_path
+                        self.model_config,
+                        self.training_config,
+                        load_pretrained_weights=False,
+                        local_path=model_path,
+                        registry=self.registry,
                     )
                     local_model.load(os.path.join(model_path, "model{0}_weights.hdf5".format(i)))
                     self.models.append(local_model)
             else:
                 # only init first fold one, the other will be init at prediction time, all weights will be loaded at prediction time
                 local_model = getModel(
-                    self.model_config, self.training_config, load_pretrained_weights=False, local_path=model_path
+                    self.model_config,
+                    self.training_config,
+                    load_pretrained_weights=False,
+                    local_path=model_path,
+                    registry=self.registry,
                 )
                 self.models.append(local_model)

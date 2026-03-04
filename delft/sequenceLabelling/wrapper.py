@@ -9,7 +9,7 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 #    get initialised before CUDA 11 from pytorch.
 import tf_keras as keras  # noqa: F401
 
-from delft import DELFT_PROJECT_DIR
+from delft import get_registry_path
 from delft.utilities.misc import print_parameters
 
 # ask tensorflow to be quiet and not print hundred lines of logs
@@ -100,6 +100,7 @@ class Sequence(object):
         transformer_name: str = None,
         report_to_wandb=False,
         nb_workers=6,
+        resource_registry_path=None,
     ):
 
         if model_name is None:
@@ -123,10 +124,10 @@ class Sequence(object):
 
         self.report_to_wandb = report_to_wandb
 
-        self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
+        self.registry = load_resource_registry(resource_registry_path or get_registry_path())
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
+            self.embeddings = self.get_embedding(self.embeddings_name)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -203,6 +204,10 @@ class Sequence(object):
             )
 
             wandb.define_metric("f1", summary="max")
+
+    def get_embedding(self, embedding_name, use_cache=True):
+        """Return an Embeddings instance for the given name. Override to customize embedding loading."""
+        return Embeddings(embedding_name, resource_registry=self.registry, use_cache=use_cache)
 
     def train(
         self,
@@ -288,7 +293,9 @@ class Sequence(object):
             self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
 
-            self.model = get_model(self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True)
+            self.model = get_model(
+                self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True, registry=self.registry
+            )
 
         print_parameters(self.model_config, self.training_config)
         self.model.print_summary()
@@ -494,6 +501,7 @@ class Sequence(object):
                         ntags=len(self.p.vocab_tag),
                         load_pretrained_weights=False,
                         local_path=os.path.join(dir_path, self.model_config.model_name),
+                        registry=self.registry,
                     )
                     self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
                     the_model = self.model
@@ -800,9 +808,7 @@ class Sequence(object):
         if self.model_config.embeddings_name is not None:
             # load embeddings
             # Do not use cache in 'prediction/production' mode
-            self.embeddings = Embeddings(
-                self.model_config.embeddings_name, resource_registry=self.registry, use_cache=False
-            )
+            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=False)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -815,6 +821,7 @@ class Sequence(object):
             ntags=len(self.p.vocab_tag),
             load_pretrained_weights=False,
             local_path=os.path.join(dir_path, self.model_config.model_name),
+            registry=self.registry,
         )
         print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
         self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))

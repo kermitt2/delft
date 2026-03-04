@@ -571,11 +571,15 @@ def _fetch_header_if_available(line):
     return nb_words, embed_size
 
 
-def load_resource_registry(path="delft/resources-registry.json"):
+def load_resource_registry(path=None):
     """
     Load the resource registry file in memory. Each description provides a name,
     a file path (used only if necessary) and an embeddings type (to take into account
     small variation of format)
     """
+    if path is None:
+        from delft import get_registry_path
+
+        path = get_registry_path()
     registry_json = open(path).read()
     return json.loads(registry_json)
