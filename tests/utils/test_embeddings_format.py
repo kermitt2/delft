@@ -33,7 +33,7 @@ class TestCheckLmdbFormat:
         assert raw_bytes[0] == 0x00  # -0.0 little-endian is 00 00 00 80
 
         # Directly craft bytes starting with 0x80 to be sure
-        crafted = bytes([0x80, 0x03]) + b'\x00' * 1198  # 0x80 + protocol 3, but no 'numpy'
+        crafted = bytes([0x80, 0x03]) + b"\x00" * 1198  # 0x80 + protocol 3, but no 'numpy'
         _check_lmdb_format(crafted)  # should not raise (no b'numpy' in first 50 bytes)
 
     def test_rejects_all_pickle_protocols(self):
