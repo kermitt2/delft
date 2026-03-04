@@ -33,7 +33,7 @@ authors = [
 ]
 maintainers = [
     { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" },
-    { name = "Luca Foppiano", email = "lucanoro@duck.com" }
+    { name = "Luca Foppiano", email = "luca@sciencialab.com" }
 ]
 requires-python = ">=3.10"
 classifiers = [
