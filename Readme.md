@@ -128,6 +128,10 @@ See the [DELFT documentation](https://delft.readthedocs.io) for usage.
     python -m applications.delft.grobidTagger date train --architecture BidLSTM --wandb
     ```
 
+## Contributing
+
+We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started, code style, running tests, and the pull request process.
+
 ## License and contact
 
 Distributed under [Apache 2.0 license](http://www.apache.org/licenses/LICENSE-2.0). The dependencies used in the project are either themselves also distributed under Apache 2.0 license or distributed under a compatible license.
