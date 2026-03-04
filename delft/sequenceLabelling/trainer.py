@@ -364,7 +364,10 @@ class LogLearningRateCallback(Callback):
             lr = opt.learning_rate
             # If lr is a schedule, call it with the current step
             if callable(lr):
-                lr = lr(opt.iterations)
+                step = opt.iterations
+                if hasattr(step, "numpy"):
+                    step = int(step.numpy())
+                lr = lr(step)
             # If it's a tf.Variable, get its value
             elif hasattr(lr, "numpy"):
                 lr = lr.numpy()
