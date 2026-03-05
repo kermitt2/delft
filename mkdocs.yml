@@ -1,7 +1,6 @@
 site_name: DeLFT Documentation
 repo_url: https://github.com/kermitt2/delft/
 repo_name: GitHub
-theme: readthedocs
 site_description: Documentation for DeLFT
 docs_dir: doc
 plugins:
