@@ -415,11 +415,7 @@ class Embeddings(object):
                 url = description["url"]
                 download_path = self.registry["embedding-download-path"]
                 # if the download path does not exist, we create it
-                if not os.path.isdir(download_path):
-                    try:
-                        os.mkdir(download_path)
-                    except OSError:
-                        print("Creation of the download directory", download_path, "failed")
+                os.makedirs(download_path, exist_ok=True)
 
                 print("Downloading resource file for", description["name"], "...")
                 embeddings_path = download_file(url, download_path)
