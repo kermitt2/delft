@@ -563,6 +563,7 @@ def download_file(url, path, filename=None):
     # check path
     if path is None or not os.path.isdir(path):
         print("Invalid destination directory:", path)
+        return None
     HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"""}
     result = "fail"
     print("downloading", url)

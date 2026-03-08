@@ -502,6 +502,8 @@ def _check_lmdb_format(value):
 
 
 def open_embedding_file(embeddings_path):
+    if embeddings_path is None:
+        return None
     # embeddings can be uncompressed or compressed with gzip or zip
     if embeddings_path.endswith(".gz"):
         embedding_file = gzip.open(embeddings_path, mode="rb")
