@@ -415,11 +415,7 @@ class Embeddings(object):
                 url = description["url"]
                 download_path = self.registry["embedding-download-path"]
                 # if the download path does not exist, we create it
-                if not os.path.isdir(download_path):
-                    try:
-                        os.mkdir(download_path)
-                    except OSError:
-                        print("Creation of the download directory", download_path, "failed")
+                os.makedirs(download_path, exist_ok=True)
 
                 print("Downloading resource file for", description["name"], "...")
                 embeddings_path = download_file(url, download_path)
@@ -502,6 +498,8 @@ def _check_lmdb_format(value):
 
 
 def open_embedding_file(embeddings_path):
+    if embeddings_path is None:
+        return None
     # embeddings can be uncompressed or compressed with gzip or zip
     if embeddings_path.endswith(".gz"):
         embedding_file = gzip.open(embeddings_path, mode="rb")
