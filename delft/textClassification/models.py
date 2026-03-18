@@ -44,7 +44,7 @@ architectures = [
 ]
 
 
-def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
+def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
     """
     Return a model instance by its name. This is a facilitator function.
     """
@@ -75,7 +75,11 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model = gru_simple(model_config, training_config)
     elif architecture == "bert":
         model = bert(
-            model_config, training_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path
+            model_config,
+            training_config,
+            load_pretrained_weights=load_pretrained_weights,
+            local_path=local_path,
+            registry=registry,
         )
     else:
         raise (OSError("The model type " + architecture + " is unknown"))
@@ -100,7 +104,6 @@ class BaseModel(object):
 
     model = None
     parameters = {}
-    registry = load_resource_registry("delft/resources-registry.json")
     transformer_config = None
     transformer_tokenizer = None
 
@@ -259,12 +262,13 @@ class BaseModel(object):
         # train_size gives the number of steps for the traning, to be used for learning rate scheduler/decay
         self.model.compile(loss="binary_crossentropy", optimizer="adam", metrics=["accuracy"])
 
-    def init_transformer(self, config, load_pretrained_weights=True, local_path=None):
+    def init_transformer(self, config, load_pretrained_weights=True, local_path=None, registry=None):
         if config.transformer_name is None:
             # missing transformer name, no transformer layer to be initialized
             return None
 
-        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        registry = registry if registry is not None else load_resource_registry()
+        transformer = Transformer(config.transformer_name, resource_registry=registry, delft_local_path=local_path)
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.transformer_config = transformer.transformer_config
@@ -281,7 +285,7 @@ class BaseModel(object):
         self.model.load_weights(filepath=filepath)
 
 
-def train_folds(X, y, model_config, training_config, embeddings, models=None, callbacks=None):
+def train_folds(X, y, model_config, training_config, embeddings, models=None, callbacks=None, registry=None):
     fold_count = model_config.fold_number
     max_epoch = training_config.max_epoch
     use_roc_auc = training_config.use_roc_auc
@@ -315,7 +319,7 @@ def train_folds(X, y, model_config, training_config, embeddings, models=None, ca
         if incremental:
             foldModel = models[fold_id]
         else:
-            foldModel = getModel(model_config, training_config)
+            foldModel = getModel(model_config, training_config, registry=registry)
 
         if fold_id == 0:
             print_parameters(model_config, training_config)
@@ -930,13 +934,13 @@ class bert(BaseModel):
     parameters = {"dense_size": 512, "max_seq_len": 512, "dropout_rate": 0.1, "batch_size": 10}
 
     # simple BERT classifier with TF transformers, architecture equivalent to the original BERT implementation
-    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None):
+    def __init__(self, model_config, training_config, load_pretrained_weights=True, local_path=None, registry=None):
         super().__init__(model_config, training_config, load_pretrained_weights, local_path)
         self.update_parameters(model_config, training_config)
         nb_classes = len(model_config.list_classes)
 
         transformer_model = self.init_transformer(
-            model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path
+            model_config, load_pretrained_weights=load_pretrained_weights, local_path=local_path, registry=registry
         )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")

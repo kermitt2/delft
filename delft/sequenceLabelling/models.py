@@ -31,7 +31,9 @@ the metrics and the optimizer.
 """
 
 
-def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None):
+def get_model(
+    config: ModelConfig, preprocessor, ntags=None, load_pretrained_weights=True, local_path=None, registry=None
+):
     """
     Return a model instance by its name. This is a facilitator function.
     """
@@ -114,6 +116,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_FEATURES.name:
@@ -126,6 +129,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_CRF.name:
@@ -138,6 +142,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_ChainCRF.name:
@@ -151,6 +156,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_CRF_FEATURES.name:
@@ -164,6 +170,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_ChainCRF_FEATURES.name:
@@ -178,6 +185,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_CRF_CHAR.name:
@@ -191,6 +199,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
 
     elif config.architecture == BERT_CRF_CHAR_FEATURES.name:
@@ -205,6 +214,7 @@ def get_model(config: ModelConfig, preprocessor, ntags=None, load_pretrained_wei
             load_pretrained_weights=load_pretrained_weights,
             local_path=local_path,
             preprocessor=preprocessor,
+            registry=registry,
         )
     else:
         raise (OSError("Model name does exist: " + config.architecture))
@@ -230,15 +240,18 @@ class BaseModel(object):
     transformer_preprocessor = None
 
     def __init__(
-        self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None
+        self,
+        config,
+        ntags=None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+        preprocessor=None,
     ):
         self.config = config
         self.ntags = ntags
         self.model = None
         self.local_path = local_path
         self.load_pretrained_weights = load_pretrained_weights
-
-        self.registry = load_resource_registry("delft/resources-registry.json")
 
     def predict(self, X, *args, **kwargs):
         y_pred = self.model.predict(X, batch_size=1)
@@ -273,9 +286,15 @@ class BaseModel(object):
         self.model.summary()
 
     def init_transformer(
-        self, config: ModelConfig, load_pretrained_weights: bool, local_path: str, preprocessor: Preprocessor
+        self,
+        config: ModelConfig,
+        load_pretrained_weights: bool,
+        local_path: str,
+        preprocessor: Preprocessor,
+        registry=None,
     ):
-        transformer = Transformer(config.transformer_name, resource_registry=self.registry, delft_local_path=local_path)
+        registry = registry if registry is not None else load_resource_registry()
+        transformer = Transformer(config.transformer_name, resource_registry=registry, delft_local_path=local_path)
         print(config.transformer_name, "will be used, loaded via", transformer.loading_method)
         transformer_model = transformer.instantiate_layer(load_pretrained_weights=load_pretrained_weights)
         self.transformer_config = transformer.transformer_config
@@ -907,11 +926,19 @@ class BERT(BaseModel):
     name = "BERT"
 
     def __init__(
-        self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None
+        self,
+        config,
+        ntags=None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+        preprocessor=None,
+        registry=None,
     ):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -950,11 +977,19 @@ class BERT_FEATURES(BaseModel):
     name = "BERT_FEATURES"
 
     def __init__(
-        self, config, ntags=None, load_pretrained_weights: bool = True, local_path: str = None, preprocessor=None
+        self,
+        config,
+        ntags=None,
+        load_pretrained_weights: bool = True,
+        local_path: str = None,
+        preprocessor=None,
+        registry=None,
     ):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -1021,10 +1056,13 @@ class BERT_CRF(BaseModel):
         load_pretrained_weights: bool = True,
         local_path: str = None,
         preprocessor=None,
+        registry=None,
     ):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -1078,10 +1116,13 @@ class BERT_ChainCRF(BaseModel):
         load_pretrained_weights: bool = True,
         local_path: str = None,
         preprocessor=None,
+        registry=None,
     ):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -1112,10 +1153,14 @@ class BERT_CRF_FEATURES(BaseModel):
 
     name = "BERT_CRF_FEATURES"
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None):
+    def __init__(
+        self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None, registry=None
+    ):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -1196,10 +1241,14 @@ class BERT_ChainCRF_FEATURES(BaseModel):
 
     name = "BERT_ChainCRF_FEATURES"
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None):
+    def __init__(
+        self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None, registry=None
+    ):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -1263,10 +1312,14 @@ class BERT_CRF_CHAR(BaseModel):
 
     name = "BERT_CRF_CHAR"
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None):
+    def __init__(
+        self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None, registry=None
+    ):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
@@ -1340,10 +1393,14 @@ class BERT_CRF_CHAR_FEATURES(BaseModel):
 
     name = "BERT_CRF_CHAR_FEATURES"
 
-    def __init__(self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None):
+    def __init__(
+        self, config, ntags=None, load_pretrained_weights=True, local_path: str = None, preprocessor=None, registry=None
+    ):
         super().__init__(config, ntags, load_pretrained_weights, local_path=local_path)
 
-        transformer_layers = self.init_transformer(config, load_pretrained_weights, local_path, preprocessor)
+        transformer_layers = self.init_transformer(
+            config, load_pretrained_weights, local_path, preprocessor, registry=registry
+        )
 
         input_ids_in = Input(shape=(None,), name="input_token", dtype="int32")
         token_type_ids = Input(shape=(None,), name="input_token_type", dtype="int32")
