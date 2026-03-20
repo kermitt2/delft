@@ -27,7 +27,7 @@ uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu
 uv pip install -e . -r requirements-cuda.txt
 ```
 
-Current DeLFT version is __0.4.3__, which has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. It will exploit your available GPU with the condition that CUDA 12.1 is properly installed.
+Current DeLFT version is __0.4.4__, which has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. It will exploit your available GPU with the condition that CUDA 12.1 is properly installed.
 
 To ensure the availability of GPU devices for the right version of TensorFlow, CUDA, cuDNN and Python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
 
