@@ -106,7 +106,7 @@ ignore = ["E501", "E741"]
 quote-style = "double"
 
 [tool.setuptools.package-data]
-delft = ["resources-registry.json"]
+delft = ["resources-registry.json", "py.typed"]
 
 [tool.setuptools.packages.find]
 exclude = ["test", "*.test", "*.test.*"]
