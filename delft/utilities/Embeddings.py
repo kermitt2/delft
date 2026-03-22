@@ -38,6 +38,22 @@ map_size = 100 * 1024 * 1024 * 1024
 
 
 class Embeddings(object):
+    _cache = {}  # class-level cache: (name, lmdb_path) -> Embeddings instance
+
+    @classmethod
+    def get_or_create(cls, name, resource_registry=None, lang="en", extension="vec", use_cache=True, load=True):
+        if use_cache:
+            lmdb_path = resource_registry.get("embedding-lmdb-path") if resource_registry else None
+            cache_key = (name, lmdb_path)
+            if cache_key in cls._cache:
+                return cls._cache[cache_key]
+            instance = cls(name, resource_registry=resource_registry, lang=lang, extension=extension,
+                           use_cache=use_cache, load=load)
+            cls._cache[cache_key] = instance
+            return instance
+        return cls(name, resource_registry=resource_registry, lang=lang, extension=extension,
+                   use_cache=use_cache, load=load)
+
     def __init__(self, name, resource_registry=None, lang="en", extension="vec", use_cache=True, load=True):
 
         self.name = name
