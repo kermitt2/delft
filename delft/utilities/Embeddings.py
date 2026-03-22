@@ -47,12 +47,19 @@ class Embeddings(object):
             cache_key = (name, lmdb_path)
             if cache_key in cls._cache:
                 return cls._cache[cache_key]
-            instance = cls(name, resource_registry=resource_registry, lang=lang, extension=extension,
-                           use_cache=use_cache, load=load)
+            instance = cls(
+                name,
+                resource_registry=resource_registry,
+                lang=lang,
+                extension=extension,
+                use_cache=use_cache,
+                load=load,
+            )
             cls._cache[cache_key] = instance
             return instance
-        return cls(name, resource_registry=resource_registry, lang=lang, extension=extension,
-                   use_cache=use_cache, load=load)
+        return cls(
+            name, resource_registry=resource_registry, lang=lang, extension=extension, use_cache=use_cache, load=load
+        )
 
     def __init__(self, name, resource_registry=None, lang="en", extension="vec", use_cache=True, load=True):
 
