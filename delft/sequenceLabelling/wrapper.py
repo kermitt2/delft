@@ -207,7 +207,7 @@ class Sequence(object):
 
     def get_embedding(self, embedding_name, use_cache=True):
         """Return an Embeddings instance for the given name. Override to customize embedding loading."""
-        return Embeddings(embedding_name, resource_registry=self.registry, use_cache=use_cache)
+        return Embeddings.get_or_create(embedding_name, resource_registry=self.registry, use_cache=use_cache)
 
     def train(
         self,
@@ -807,8 +807,7 @@ class Sequence(object):
 
         if self.model_config.embeddings_name is not None:
             # load embeddings
-            # Do not use cache in 'prediction/production' mode
-            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=False)
+            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=True)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None

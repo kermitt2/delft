@@ -155,7 +155,7 @@ class Classifier(object):
 
     def get_embedding(self, embedding_name, use_cache=True):
         """Return an Embeddings instance for the given name. Override to customize embedding loading."""
-        return Embeddings(embedding_name, resource_registry=self.registry, use_cache=use_cache)
+        return Embeddings.get_or_create(embedding_name, resource_registry=self.registry, use_cache=use_cache)
 
     def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
 
@@ -565,8 +565,7 @@ class Classifier(object):
 
         if self.model_config.transformer_name is None:
             # load embeddings
-            # Do not use cache in 'production' mode
-            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=False)
+            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=True)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.transformer_name = self.model_config.transformer_name
