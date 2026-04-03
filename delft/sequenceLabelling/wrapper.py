@@ -1,7 +1,5 @@
 import os
 
-from packaging import version
-
 # for using legacy Keras 2, and not Keras 3 installed by default from TensorFlow 2.16
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 os.environ["KERAS_BACKEND"] = "tensorflow"
@@ -242,12 +240,6 @@ class Sequence(object):
             strategy = tf.distribute.MirroredStrategy()
             print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
 
-            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
-            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            import atexit
-
-            atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
-
             with strategy.scope():
                 self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
         else:
@@ -336,12 +328,6 @@ class Sequence(object):
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
             print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
-
-            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
-            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            import atexit
-
-            atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
 
             with strategy.scope():
                 self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
@@ -627,13 +613,6 @@ class Sequence(object):
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
             print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
-
-            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
-            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            if version.parse(tf.__version__) < version.parse("2.10.0"):
-                import atexit
-
-                atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
 
             with strategy.scope():
                 return self.tag_(texts, output_format, features, batch_size)
