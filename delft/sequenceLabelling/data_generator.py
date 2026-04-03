@@ -32,6 +32,7 @@ class BaseGenerator(keras.utils.Sequence):
         features=None,
         output_input_offsets: bool = False,
         use_chain_crf: bool = False,
+        drop_last: bool = False,
     ):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
@@ -50,6 +51,7 @@ class BaseGenerator(keras.utils.Sequence):
         self.max_sequence_length = max_sequence_length
         self.output_input_offsets = output_input_offsets
         self.use_chain_crf = use_chain_crf
+        self.drop_last = drop_last
 
     def __len__(self):
         """
@@ -58,10 +60,20 @@ class BaseGenerator(keras.utils.Sequence):
         # The number of batches is set so that each training sample is seen at most once per epoch
         if self.original_x is None:
             return 0
-        elif (len(self.original_x) % self.batch_size) == 0:
-            return int(np.floor(len(self.original_x) / self.batch_size))
+        n = len(self.original_x)
+        if self.drop_last:
+            remainder = n % self.batch_size
+            if remainder > 0:
+                print(
+                    "Dropping last incomplete batch ({} of {} samples) to ensure uniform batch sizes".format(
+                        remainder, n
+                    )
+                )
+            return n // self.batch_size
+        elif (n % self.batch_size) == 0:
+            return n // self.batch_size
         else:
-            return int(np.floor(len(self.original_x) / self.batch_size) + 1)
+            return n // self.batch_size + 1
 
     @property
     def __getitem__(self, index):
@@ -113,6 +125,7 @@ class DataGenerator(BaseGenerator):
         features=None,
         output_input_offsets=False,
         use_chain_crf=False,
+        drop_last=False,
     ):
 
         super().__init__(
@@ -129,6 +142,7 @@ class DataGenerator(BaseGenerator):
             features=features,
             output_input_offsets=output_input_offsets,
             use_chain_crf=use_chain_crf,
+            drop_last=drop_last,
         )
         if self.embeddings is not None:
             self.embeddings.reopen_lmdb()
@@ -242,6 +256,7 @@ class DataGeneratorTransformers(BaseGenerator):
         features=None,
         output_input_offsets=False,
         use_chain_crf=False,
+        drop_last=False,
     ):
 
         super().__init__(
@@ -258,6 +273,7 @@ class DataGeneratorTransformers(BaseGenerator):
             features=features,
             output_input_offsets=output_input_offsets,
             use_chain_crf=use_chain_crf,
+            drop_last=drop_last,
         )
 
         if self.bert_preprocessor.empty_features_vector is None:

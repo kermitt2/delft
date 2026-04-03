@@ -189,6 +189,7 @@ class Trainer(object):
                 shuffle=True,
                 features=f_train,
                 use_chain_crf=self.model_config.use_chain_crf,
+                drop_last=True,
             )
 
             validation_generator = generator(
@@ -204,6 +205,7 @@ class Trainer(object):
                 features=f_valid,
                 output_input_offsets=True,
                 use_chain_crf=self.model_config.use_chain_crf,
+                drop_last=True,
             )
 
             _callbacks = get_callbacks(
@@ -235,6 +237,7 @@ class Trainer(object):
                 shuffle=True,
                 features=feature_all,
                 use_chain_crf=self.model_config.use_chain_crf,
+                drop_last=True,
             )
 
             _callbacks = get_callbacks(

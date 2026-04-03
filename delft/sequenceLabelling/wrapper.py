@@ -238,10 +238,24 @@ class Sequence(object):
         # TBD if valid is None, segment train to get one if early_stop is True
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
+            num_replicas = strategy.num_replicas_in_sync
+            print("Running with multi-gpu. Number of devices: {}".format(num_replicas))
 
-            with strategy.scope():
-                self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+            original_batch_size = self.training_config.batch_size
+            if original_batch_size % num_replicas != 0:
+                adjusted = ((original_batch_size // num_replicas) + 1) * num_replicas
+                print(
+                    "Adjusting training batch_size from {} to {} (must be a multiple of {} GPUs)".format(
+                        original_batch_size, adjusted, num_replicas
+                    )
+                )
+                self.training_config.batch_size = adjusted
+
+            try:
+                with strategy.scope():
+                    self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+            finally:
+                self.training_config.batch_size = original_batch_size
         else:
             self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
 
@@ -327,10 +341,24 @@ class Sequence(object):
     ):
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
+            num_replicas = strategy.num_replicas_in_sync
+            print("Running with multi-gpu. Number of devices: {}".format(num_replicas))
 
-            with strategy.scope():
-                self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
+            original_batch_size = self.training_config.batch_size
+            if original_batch_size % num_replicas != 0:
+                adjusted = ((original_batch_size // num_replicas) + 1) * num_replicas
+                print(
+                    "Adjusting training batch_size from {} to {} (must be a multiple of {} GPUs)".format(
+                        original_batch_size, adjusted, num_replicas
+                    )
+                )
+                self.training_config.batch_size = adjusted
+
+            try:
+                with strategy.scope():
+                    self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
+            finally:
+                self.training_config.batch_size = original_batch_size
         else:
             self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
 
