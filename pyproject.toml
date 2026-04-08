@@ -55,7 +55,7 @@ dependencies = [
     "truecase",
     "requests>=2.20",
     "pandas==2.2.3",
-    "transformers==4.48.0",
+    "transformers==5.0.0rc3",
     "torch==2.5.1 ; sys_platform == 'darwin'",
     "tfa-nightly==0.23.0.dev20240415222534",
     "blingfire2==0.2.1",

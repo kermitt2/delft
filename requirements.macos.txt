@@ -11,7 +11,7 @@ lmdb==2.1.1
 truecase
 requests>=2.20
 pandas==2.2.3
-transformers==4.48.0
+transformers==5.0.0rc3
 torch==2.5.1
 pytest
 #tensorflow-addons==0.19.0
