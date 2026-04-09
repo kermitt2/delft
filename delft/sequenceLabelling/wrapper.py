@@ -253,7 +253,17 @@ class Sequence(object):
 
             try:
                 with strategy.scope():
-                    self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+                    self.train_(
+                        x_train,
+                        y_train,
+                        f_train,
+                        x_valid,
+                        y_valid,
+                        f_valid,
+                        incremental,
+                        callbacks,
+                        multi_gpu=True,
+                    )
             finally:
                 self.training_config.batch_size = original_batch_size
         else:
@@ -269,6 +279,7 @@ class Sequence(object):
         f_valid=None,
         incremental=False,
         callbacks=None,
+        multi_gpu=False,
     ):
         # TBD if valid is None, segment train to get one if early_stop is True
 
@@ -322,6 +333,7 @@ class Sequence(object):
             transformer_preprocessor=self.model.transformer_preprocessor,
             enable_wandb=self.report_to_wandb,
             nb_workers=self.nb_workers,
+            multi_gpu=multi_gpu,
         )
         trainer.train(
             x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks
@@ -356,7 +368,17 @@ class Sequence(object):
 
             try:
                 with strategy.scope():
-                    self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
+                    self.train_nfold_(
+                        x_train,
+                        y_train,
+                        x_valid,
+                        y_valid,
+                        f_train,
+                        f_valid,
+                        incremental,
+                        callbacks,
+                        multi_gpu=True,
+                    )
             finally:
                 self.training_config.batch_size = original_batch_size
         else:
@@ -372,6 +394,7 @@ class Sequence(object):
         f_valid=None,
         incremental=False,
         callbacks=None,
+        multi_gpu=False,
     ):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
@@ -399,6 +422,7 @@ class Sequence(object):
             checkpoint_path=self.log_dir,
             preprocessor=self.p,
             nb_workers=self.nb_workers,
+            multi_gpu=multi_gpu,
         )
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
