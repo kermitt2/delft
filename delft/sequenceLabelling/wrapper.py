@@ -1,7 +1,5 @@
 import os
 
-from packaging import version
-
 # for using legacy Keras 2, and not Keras 3 installed by default from TensorFlow 2.16
 os.environ["TF_USE_LEGACY_KERAS"] = "1"
 os.environ["KERAS_BACKEND"] = "tensorflow"
@@ -240,16 +238,34 @@ class Sequence(object):
         # TBD if valid is None, segment train to get one if early_stop is True
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
+            num_replicas = strategy.num_replicas_in_sync
+            print("Running with multi-gpu. Number of devices: {}".format(num_replicas))
 
-            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
-            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            import atexit
+            original_batch_size = self.training_config.batch_size
+            if original_batch_size % num_replicas != 0:
+                adjusted = ((original_batch_size // num_replicas) + 1) * num_replicas
+                print(
+                    "Adjusting training batch_size from {} to {} (must be a multiple of {} GPUs)".format(
+                        original_batch_size, adjusted, num_replicas
+                    )
+                )
+                self.training_config.batch_size = adjusted
 
-            atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
-
-            with strategy.scope():
-                self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
+            try:
+                with strategy.scope():
+                    self.train_(
+                        x_train,
+                        y_train,
+                        f_train,
+                        x_valid,
+                        y_valid,
+                        f_valid,
+                        incremental,
+                        callbacks,
+                        multi_gpu=True,
+                    )
+            finally:
+                self.training_config.batch_size = original_batch_size
         else:
             self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
 
@@ -263,6 +279,7 @@ class Sequence(object):
         f_valid=None,
         incremental=False,
         callbacks=None,
+        multi_gpu=False,
     ):
         # TBD if valid is None, segment train to get one if early_stop is True
 
@@ -316,6 +333,7 @@ class Sequence(object):
             transformer_preprocessor=self.model.transformer_preprocessor,
             enable_wandb=self.report_to_wandb,
             nb_workers=self.nb_workers,
+            multi_gpu=multi_gpu,
         )
         trainer.train(
             x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks
@@ -335,16 +353,34 @@ class Sequence(object):
     ):
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
-            print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
+            num_replicas = strategy.num_replicas_in_sync
+            print("Running with multi-gpu. Number of devices: {}".format(num_replicas))
 
-            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
-            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            import atexit
+            original_batch_size = self.training_config.batch_size
+            if original_batch_size % num_replicas != 0:
+                adjusted = ((original_batch_size // num_replicas) + 1) * num_replicas
+                print(
+                    "Adjusting training batch_size from {} to {} (must be a multiple of {} GPUs)".format(
+                        original_batch_size, adjusted, num_replicas
+                    )
+                )
+                self.training_config.batch_size = adjusted
 
-            atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
-
-            with strategy.scope():
-                self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
+            try:
+                with strategy.scope():
+                    self.train_nfold_(
+                        x_train,
+                        y_train,
+                        x_valid,
+                        y_valid,
+                        f_train,
+                        f_valid,
+                        incremental,
+                        callbacks,
+                        multi_gpu=True,
+                    )
+            finally:
+                self.training_config.batch_size = original_batch_size
         else:
             self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
 
@@ -358,6 +394,7 @@ class Sequence(object):
         f_valid=None,
         incremental=False,
         callbacks=None,
+        multi_gpu=False,
     ):
         x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
         y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
@@ -385,6 +422,7 @@ class Sequence(object):
             checkpoint_path=self.log_dir,
             preprocessor=self.p,
             nb_workers=self.nb_workers,
+            multi_gpu=multi_gpu,
         )
 
         trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
@@ -627,13 +665,6 @@ class Sequence(object):
         if multi_gpu:
             strategy = tf.distribute.MirroredStrategy()
             print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
-
-            # This trick avoid an exception being through when the --multi-gpu approach is used on a single GPU system.
-            # It might be removed with TF 2.10 https://github.com/tensorflow/tensorflow/issues/50487
-            if version.parse(tf.__version__) < version.parse("2.10.0"):
-                import atexit
-
-                atexit.register(strategy._extended._collective_ops._pool.close)  # type: ignore
 
             with strategy.scope():
                 return self.tag_(texts, output_format, features, batch_size)

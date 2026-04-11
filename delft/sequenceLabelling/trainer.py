@@ -41,6 +41,7 @@ class Trainer(object):
         transformer_preprocessor=None,
         enable_wandb=False,
         nb_workers=6,
+        multi_gpu: bool = False,
     ):
 
         # for single model training
@@ -59,6 +60,7 @@ class Trainer(object):
         self.preprocessor = preprocessor
         self.transformer_preprocessor = transformer_preprocessor
         self.enable_wandb = enable_wandb
+        self.multi_gpu = multi_gpu
 
     def train(
         self,
@@ -189,6 +191,7 @@ class Trainer(object):
                 shuffle=True,
                 features=f_train,
                 use_chain_crf=self.model_config.use_chain_crf,
+                drop_last=self.multi_gpu,
             )
 
             validation_generator = generator(
@@ -204,6 +207,7 @@ class Trainer(object):
                 features=f_valid,
                 output_input_offsets=True,
                 use_chain_crf=self.model_config.use_chain_crf,
+                drop_last=self.multi_gpu,
             )
 
             _callbacks = get_callbacks(
@@ -235,6 +239,7 @@ class Trainer(object):
                 shuffle=True,
                 features=feature_all,
                 use_chain_crf=self.model_config.use_chain_crf,
+                drop_last=self.multi_gpu,
             )
 
             _callbacks = get_callbacks(
