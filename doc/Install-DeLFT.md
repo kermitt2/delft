@@ -36,7 +36,11 @@ To ensure the availability of GPU devices for the right version of TensorFlow, C
 When upgrading from DeLFT 0.3.4, be aware of the following breaking changes:
 
 - **Python 3.10 or 3.11 required** (3.8 and 3.9 are no longer supported)
-- **TensorFlow 2.17 / tf_keras 2.17**: Pre-trained model weights from 0.3.4 are not compatible and must be retrained
+- **TensorFlow 2.17 / tf_keras 2.17**: Pre-trained model weights from 0.3.4 are not directly compatible. Use the model conversion utility to migrate existing models without retraining:
+  ```sh
+  python -m delft.utilities.convert_model --input <old-model-dir> --output <new-model-dir> --verify
+  ```
+  For models saved with an older `transformers` library (tokenizer errors), add `--redownload-tokenizer`. Use `--force-partial` if the old architecture added layers not present in the current code. Run with `--dry-run` to inspect without writing
 - **CUDA 12.1 required** for GPU support (previously CUDA 11.x)
 - **LMDB embedding caches must be converted** from the old pickle format to the new float32 format:
   ```sh

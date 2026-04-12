@@ -44,7 +44,13 @@ The latest DeLFT release __0.4.5__ has been tested successfully with Python 3.10
 
 ### Breaking changes
 
-- **TensorFlow 2.17 / tf_keras 2.17**: DeLFT now requires TensorFlow 2.17.1 and the standalone `tf_keras` 2.17.0 package. All Keras imports have been updated from `tensorflow.keras` to `tf_keras`. Pre-trained model weights from 0.3.4 are **not compatible** and must be retrained.
+- **TensorFlow 2.17 / tf_keras 2.17**: DeLFT now requires TensorFlow 2.17.1 and the standalone `tf_keras` 2.17.0 package. All Keras imports have been updated from `tensorflow.keras` to `tf_keras`. Pre-trained model weights from 0.3.4 are **not directly compatible**, but can be converted without retraining:
+
+  ```sh
+  python -m delft.utilities.convert_model --input <old-model-dir> --output <new-model-dir> --verify
+  ```
+
+  The converter rebuilds the model architecture from the saved `config.json`, remaps weights from the old HDF5 file into the fresh model, and saves a new weights file. Additional flags: `--redownload-tokenizer` (when the saved tokenizer is incompatible with the current `transformers` version), `--force-partial` (allow partial conversion when some weights cannot be matched), `--dry-run` (inspect without writing). Use `--help` for full options.
 
 - **Python 3.10+ required**: Python 3.8 and 3.9 are no longer supported.
 
