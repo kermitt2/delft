@@ -250,8 +250,9 @@ class BaseModel(object):
         multiprocessing = True
 
         if use_main_thread_only:
-            # worker at 0 means the training will be executed in the main thread
-            nb_workers = 0
+            # tf_keras 2.17 requires workers >= 1; workers=1 with
+            # use_multiprocessing=False runs in the main thread.
+            nb_workers = 1
             multiprocessing = False
 
         y = self.model.predict(predict_generator, use_multiprocessing=multiprocessing, workers=nb_workers)
