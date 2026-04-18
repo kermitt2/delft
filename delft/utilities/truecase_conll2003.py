@@ -11,7 +11,11 @@ def convert(input_file, output_file):
             words, tags = [], []
             for original_line in infile:
                 line = original_line.rstrip()
-                if len(line) == 0 or line.startswith("-DOCSTART-") or line.startswith("#begin document"):
+                if (
+                    len(line) == 0
+                    or line.startswith("-DOCSTART-")
+                    or line.startswith("#begin document")
+                ):
                     if len(words) != 0:
                         words = truecase_sentence(words)
                         for i in range(len(words)):
@@ -31,6 +35,15 @@ def convert(input_file, output_file):
 
 
 if __name__ == "__main__":
-    convert("../../data/sequenceLabelling/CoNLL-2003/eng.testa", "../../data/sequenceLabelling/CoNLL-2003-TC/eng.testa")
-    convert("../../data/sequenceLabelling/CoNLL-2003/eng.testb", "../../data/sequenceLabelling/CoNLL-2003-TC/eng.testb")
-    convert("../../data/sequenceLabelling/CoNLL-2003/eng.train", "../../data/sequenceLabelling/CoNLL-2003-TC/eng.train")
+    convert(
+        "../../data/sequenceLabelling/CoNLL-2003/eng.testa",
+        "../../data/sequenceLabelling/CoNLL-2003-TC/eng.testa",
+    )
+    convert(
+        "../../data/sequenceLabelling/CoNLL-2003/eng.testb",
+        "../../data/sequenceLabelling/CoNLL-2003-TC/eng.testb",
+    )
+    convert(
+        "../../data/sequenceLabelling/CoNLL-2003/eng.train",
+        "../../data/sequenceLabelling/CoNLL-2003-TC/eng.train",
+    )

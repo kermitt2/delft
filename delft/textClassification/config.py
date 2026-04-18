@@ -20,7 +20,6 @@ class ModelConfig(object):
         dense_size=32,
         transformer_name=None,
     ):
-
         self.model_name = model_name
         self.architecture = architecture
         self.embeddings_name = embeddings_name
@@ -71,9 +70,7 @@ class TrainingConfig(object):
         use_roc_auc=True,
         class_weights=None,
         multiprocessing=True,
-        num_workers=1,
     ):
-
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
         self.learning_rate = learning_rate
@@ -84,5 +81,4 @@ class TrainingConfig(object):
         self.use_roc_auc = use_roc_auc
         self.class_weights = class_weights
         self.multiprocessing = multiprocessing
-        self.num_workers = num_workers
         self.early_stop = early_stop

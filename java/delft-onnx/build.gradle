@@ -1,0 +1,69 @@
+plugins {
+    id 'java'
+    id 'application'
+}
+
+group = 'org.grobid'
+version = '0.1.0-SNAPSHOT'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+repositories {
+    mavenCentral()
+    mavenLocal()
+}
+
+dependencies {
+    // ONNX Runtime for model inference
+    implementation 'com.microsoft.onnxruntime:onnxruntime:1.16.3'
+
+    // LMDB for word embeddings lookup
+    implementation 'org.lmdbjava:lmdbjava:0.8.3'
+
+    // JSON parsing
+    implementation 'com.google.code.gson:gson:2.10.1'
+
+    // GROBID Core for GrobidAnalyzer tokenization
+    implementation 'org.grobid:grobid-core:0.8.3-SNAPSHOT'
+
+    // Logging
+    implementation 'org.slf4j:slf4j-api:2.0.9'
+
+    // Testing
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.1'
+}
+
+application {
+    mainClass = 'org.grobid.delft.DeLFTDemo'
+    // Add native library path for LMDB on macOS (Homebrew location)
+    applicationDefaultJvmArgs = [
+        '-Djava.library.path=/opt/homebrew/lib:/usr/local/lib',
+        '-Djnr.ffi.library.path=/opt/homebrew/lib:/usr/local/lib'
+    ]
+}
+
+test {
+    useJUnitPlatform()
+}
+
+jar {
+    manifest {
+        attributes 'Main-Class': 'org.grobid.delft.DeLFTDemo'
+    }
+}
+
+// Create fat JAR with all dependencies
+tasks.register('fatJar', Jar) {
+    archiveClassifier = 'all'
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    manifest {
+        attributes 'Main-Class': 'org.grobid.delft.DeLFTDemo'
+    }
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    with jar
+}

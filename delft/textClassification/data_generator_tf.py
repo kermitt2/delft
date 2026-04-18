@@ -1,8 +1,11 @@
 import numpy as np
-import tf_keras as keras
+import tensorflow.keras as keras
 
-from delft.textClassification.preprocess import create_batch_input_bert, to_vector_single
 from delft.utilities.numpy import shuffle_triple_with_view
+from delft.textClassification.preprocess import to_vector_single
+from delft.textClassification.preprocess import (
+    create_batch_input_bert,
+)
 
 
 class DataGenerator(keras.utils.Sequence):
@@ -36,8 +39,6 @@ class DataGenerator(keras.utils.Sequence):
         self.shuffle = shuffle
         self.bert_data = bert_data
         self.transformer_tokenizer = transformer_tokenizer
-        if self.embeddings is not None:
-            self.embeddings.reopen_lmdb()
         self.on_epoch_end()
 
     def __len__(self):
@@ -78,7 +79,9 @@ class DataGenerator(keras.utils.Sequence):
         max_iter = min(self.batch_size, len(self.x) - self.batch_size * index)
 
         if not self.bert_data:
-            batch_x = np.zeros((max_iter, self.maxlen, self.embeddings.embed_size), dtype="float32")
+            batch_x = np.zeros(
+                (max_iter, self.maxlen, self.embeddings.embed_size), dtype="float32"
+            )
         batch_y = None
         if self.y is not None:
             batch_y = np.zeros((max_iter, len(self.list_classes)), dtype="float32")
@@ -87,11 +90,15 @@ class DataGenerator(keras.utils.Sequence):
         if not self.bert_data:
             for i in range(0, max_iter):
                 # for input as word embeddings:
-                batch_x[i] = to_vector_single(self.x[(index * self.batch_size) + i], self.embeddings, self.maxlen)
+                batch_x[i] = to_vector_single(
+                    self.x[(index * self.batch_size) + i], self.embeddings, self.maxlen
+                )
         else:
             # for input as sentence piece token index for BERT layer
             input_ids, input_masks, input_segments = create_batch_input_bert(
-                self.x[(index * self.batch_size) : (index * self.batch_size) + max_iter],
+                self.x[
+                    (index * self.batch_size) : (index * self.batch_size) + max_iter
+                ],
                 maxlen=self.maxlen,
                 transformer_tokenizer=self.transformer_tokenizer,
             )

@@ -136,9 +136,37 @@ See the [DELFT documentation](https://delft.readthedocs.io) for usage.
     python -m delft.applications.grobidTagger date train --architecture BidLSTM --wandb
     ```
 
-## Contributing
+### ONNX Export
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines on how to get started, code style, running tests, and the pull request process.
+DeLFT supports exporting trained sequence labeling models (`BidLSTM_CRF` and `BidLSTM_CRF_FEATURES`) to ONNX format for inference in Java or other runtimes.
+
+**Export a model:**
+
+```sh
+python -m delft.sequenceLabelling.onnx_export \
+    --model grobid-date-BidLSTM_CRF_FEATURES \
+    --output exported_models/date-features
+```
+
+This creates:
+- `encoder.onnx` - BiLSTM encoder model
+- `crf_params.json` - CRF transition matrices
+- `vocab.json` - Character and label vocabularies
+- `config.json` - Model configuration
+
+**Java inference:**
+
+A Java inference library is available in `java/delft-onnx/`. Build and run:
+
+```sh
+cd java/delft-onnx
+./gradlew build
+./gradlew run --args="--model ../../exported_models/date-features \
+    --embeddings ../../data/db/glove-840B-raw \
+    --input 'December 25, 2024'"
+```
+
+Note: For feature models, sample features are auto-generated for demo purposes.
 
 ## License and contact
 

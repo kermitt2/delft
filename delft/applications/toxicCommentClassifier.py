@@ -1,13 +1,12 @@
-import argparse
 import json
-import sys
-import time
-
-import pandas as pd
-
+from delft.textClassification.reader import load_texts_and_classes_pandas
+from delft.textClassification.reader import load_texts_pandas
 from delft.textClassification import Classifier
+import argparse
+import pandas as pd
+import time
+import sys
 from delft.textClassification.models import architectures
-from delft.textClassification.reader import load_texts_and_classes_pandas, load_texts_pandas
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 class_weights = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0}
@@ -30,7 +29,14 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=None):
+def train(
+    embeddings_name=None,
+    fold_count=1,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    num_workers=None,
+):
     batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
     model = Classifier(
@@ -46,6 +52,8 @@ def train(embeddings_name=None, fold_count=1, architecture="gru", transformer=No
         patience=patience,
         early_stop=early_stop,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     print("loading train dataset...")
@@ -89,12 +97,18 @@ if __name__ == "__main__":
     )
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
 
     parser.add_argument("action", help="one of [train, test, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
-        "--architecture", default="gru", help="type of model architecture to be used, one of " + str(architectures)
+        "--architecture",
+        default="gru",
+        help="type of model architecture to be used, one of " + str(architectures),
     )
     parser.add_argument(
         "--embedding",
@@ -115,6 +129,19 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
 
     args = parser.parse_args()
 
@@ -129,9 +156,12 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
+    if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
+
+    wandb = args.wandb
+    num_workers = args.num_workers
 
     if architecture.find("bert") != -1:
         print(
@@ -147,15 +177,21 @@ if __name__ == "__main__":
             fold_count=args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "test":
         y_test = test()
 
         # write test predictions as a submission file
-        sample_submission = pd.read_csv("data/textClassification/toxic/sample_submission.csv")
+        sample_submission = pd.read_csv(
+            "data/textClassification/toxic/sample_submission.csv"
+        )
         sample_submission[list_classes] = y_test
-        sample_submission.to_csv("data/textClassification/toxic/result.csv", index=False)
+        sample_submission.to_csv(
+            "data/textClassification/toxic/result.csv", index=False
+        )
 
     if action == "classify":
         someTexts = [
