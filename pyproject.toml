@@ -66,13 +66,6 @@ dependencies = [
 gpu = [
     "torch==2.5.1+cu121",
 ]
-tf = [
-    "tensorflow==2.17.1",
-    "tf_keras==2.17.0",
-    "h5py==3.11.0",
-    "pydot==1.4.0",
-    "tfa-nightly==0.23.0.dev20240415222534",
-]
 dev = [
     "pytest",
     "bump-my-version",
@@ -100,7 +93,6 @@ ignore = ["E501", "E741"]
 # Module-level imports after os.environ / seed() calls
 "delft/sequenceLabelling/preprocess.py" = ["E402"]
 "delft/utilities/Utilities.py" = ["E402"]
-"delft/utilities/crf_layer.py" = ["E402"]
 # Import after try/except block for optional dependency
 "delft/utilities/Embeddings.py" = ["E402"]
 # Re-exports in __init__.py
