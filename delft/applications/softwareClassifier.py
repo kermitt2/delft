@@ -1,22 +1,21 @@
-import argparse
 import json
-import time
-
-from delft.textClassification import Classifier
-from delft.textClassification.models import architectures
-from delft.textClassification.reader import load_software_use_corpus_json
 from delft.utilities.Utilities import split_data_and_labels
+from delft.textClassification.reader import load_software_use_corpus_json
+from delft.textClassification import Classifier
+import argparse
+import time
+from delft.textClassification.models import architectures
 
 """
     This binary classifier is used in combination with a software mention recognition model, for characterizing
-    the nature of the citation of software in scientific and technical literature.
+    the nature of the citation of software in scientific and technical literature. 
     This classifier predicts if the software introduced by a software mention in a sentence is used
-    or not by the described work.
+    or not by the described work. 
 
     For the software mention recognizer, see https://github.com/ourresearch/software-mentions
     and grobidTagger.py in the present project DeLFT.
 
-    Best architecture/model is fine-tuned SciBERT.
+    Best architecture/model is fine-tuned SciBERT. 
 """
 
 list_classes = ["not_used", "used"]
@@ -41,9 +40,18 @@ def configure(architecture):
     return batch_size, maxlen, patience, early_stop, max_epoch
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    num_workers=None,
+):
     print("loading binary software use dataset...")
-    xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
+    xtr, y = load_software_use_corpus_json(
+        "data/textClassification/software/software-use.json.gz"
+    )
 
     model_name = "software_use_" + architecture
     class_weights = None
@@ -64,6 +72,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
         early_stop=early_stop,
         class_weights=class_weights,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -74,9 +84,18 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    num_workers=None,
+):
     print("loading binary software use dataset...")
-    xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
+    xtr, y = load_software_use_corpus_json(
+        "data/textClassification/software/software-use.json.gz"
+    )
 
     nb_used = 0
     for the_class in y:
@@ -111,6 +130,8 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
         early_stop=early_stop,
         class_weights=class_weights,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -124,7 +145,9 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
 
 # classify a list of texts
-def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
+def classify(
+    texts, output_format, embeddings_name=None, architecture="gru", transformer=None
+):
     # load model
     model = Classifier(
         "software_use_" + architecture,
@@ -150,12 +173,18 @@ if __name__ == "__main__":
     )
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
-        "--architecture", default="gru", help="type of model architecture to be used, one of " + str(architectures)
+        "--architecture",
+        default="gru",
+        help="type of model architecture to be used, one of " + str(architectures),
     )
     parser.add_argument(
         "--embedding",
@@ -176,6 +205,19 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
 
     args = parser.parse_args()
 
@@ -189,21 +231,38 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
+    if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
+
+    wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        train(
+            embeddings_name,
+            args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
+            report_to_wandb=wandb,
+            num_workers=num_workers,
+        )
 
     if args.action == "train_eval":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        y_test = train_and_eval(
+            embeddings_name,
+            args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
+            report_to_wandb=wandb,
+            num_workers=num_workers,
+        )
 
     if args.action == "classify":
         someTexts = [
@@ -212,6 +271,10 @@ if __name__ == "__main__":
             "The authors of the GeneWiki project have developed the WikiTrust resource (3), which works via a Firefox plug-in, to mark up Wikipedia articles according to the Wikipedian's reputation.",
         ]
         result = classify(
-            someTexts, "json", architecture=architecture, embeddings_name=embeddings_name, transformer=transformer
+            someTexts,
+            "json",
+            architecture=architecture,
+            embeddings_name=embeddings_name,
+            transformer=transformer,
         )
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

@@ -1,4 +1,4 @@
-from delft.utilities.misc import parse_dict, parse_number_ranges
+from delft.utilities.misc import parse_number_ranges, parse_dict
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
 
@@ -34,7 +34,13 @@ class TestParseDict:
         assert parse_dict("key1=value=1") == {"key1": "value=1"}
 
     def test_should_parse_multiple_key_value_pair(self):
-        assert parse_dict("key1=value1|key2=value2", delimiter="|") == {"key1": "value1", "key2": "value2"}
+        assert parse_dict("key1=value1|key2=value2", delimiter="|") == {
+            "key1": "value1",
+            "key2": "value2",
+        }
 
     def test_should_ignore_spaces(self):
-        assert parse_dict(" key1 = value1 | key2 = value2 ", delimiter="|") == {"key1": "value1", "key2": "value2"}
+        assert parse_dict(" key1 = value1 | key2 = value2 ", delimiter="|") == {
+            "key1": "value1",
+            "key2": "value2",
+        }

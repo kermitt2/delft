@@ -3,29 +3,13 @@ requires = ["setuptools>=42", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [tool.bumpversion]
-current_version = "0.4.6"
+current_version = "0.3.4"
 commit = "true"
 tag = "true"
 tag_name = "v{new_version}"
 
-[[tool.bumpversion.files]]
-filename = "pyproject.toml"
-search = 'version = "{current_version}"'
-replace = 'version = "{new_version}"'
-
-[[tool.bumpversion.files]]
-filename = "Readme.md"
-search = "The latest DeLFT release __{current_version}__"
-replace = "The latest DeLFT release __{new_version}__"
-
-[[tool.bumpversion.files]]
-filename = "doc/Install-DeLFT.md"
-search = "Current DeLFT version is __{current_version}__"
-replace = "Current DeLFT version is __{new_version}__"
-
 [project]
 name = "delft"
-version = "0.4.6"
 description = "a Deep Learning Framework for Text"
 readme = "Readme.md"
 authors = [
@@ -33,80 +17,20 @@ authors = [
 ]
 maintainers = [
     { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" },
-    { name = "Luca Foppiano", email = "luca@sciencialab.com" }
+    { name = "Luca Foppiano", email = "lucanoro@duck.com" }
 ]
-requires-python = ">=3.10"
-classifiers = [
-    "Programming Language :: Python :: 3.10",
-    "License :: OSI Approved :: Apache Software License",
-    "Operating System :: OS Independent",
-]
-dependencies = [
-    "numpy==1.26.4",
-    "regex",
-    "scikit-learn==1.6.1",
-    "tqdm>=4.66",
-    "tensorflow==2.17.1",
-    "tf_keras==2.17.0",
-    "h5py==3.11.0",
-    "unidecode==1.3.2",
-    "pydot==1.4.0",
-    "lmdb==2.1.1",
-    "truecase",
-    "requests>=2.20",
-    "pandas==2.2.3",
-    "transformers==4.48.0",
-    "torch==2.5.1 ; sys_platform == 'darwin'",
-    "tfa-nightly==0.23.0.dev20240415222534",
-    "blingfire2==0.2.1",
-    "accelerate>=0.20.3",
-    "Pillow",
-    "python-dotenv",
-]
+requires-python = ">=3.7"
 
-[project.optional-dependencies]
-gpu = [
-    "torch==2.5.1+cu121",
-]
-dev = [
-    "pytest",
-    "bump-my-version",
-    "wandb",
-    "ruff",
-]
+dynamic = ['version', "dependencies"]
+
+[tool.setuptools.dynamic]
+dependencies = {file = ["requirements.txt"]}
+classifiers = {file = ["classifiers.txt"]}
 
 [project.urls]
 Homepage = "https://github.com/kermitt2/delft"
 Repository = "https://github.com/kermitt2/delft"
 Changelog = "https://github.com/kermitt2/delft"
-
-[tool.ruff]
-line-length = 120
-target-version = "py310"
-
-[tool.ruff.lint]
-select = ["E", "F", "I", "W"]
-ignore = ["E501", "E741"]
-
-[tool.ruff.lint.per-file-ignores]
-# Side-effect imports for CUDA init ordering and module-level setup
-"delft/sequenceLabelling/wrapper.py" = ["E402", "F401"]
-"delft/textClassification/wrapper.py" = ["E402", "F401"]
-# Module-level imports after os.environ / seed() calls
-"delft/sequenceLabelling/preprocess.py" = ["E402"]
-"delft/utilities/Utilities.py" = ["E402"]
-"delft/utilities/crf_layer.py" = ["E402"]
-# Import after try/except block for optional dependency
-"delft/utilities/Embeddings.py" = ["E402"]
-# Re-exports in __init__.py
-"delft/sequenceLabelling/__init__.py" = ["F401"]
-"delft/textClassification/__init__.py" = ["F401"]
-
-[tool.ruff.format]
-quote-style = "double"
-
-[tool.setuptools.package-data]
-delft = ["resources-registry.json", "py.typed"]
 
 [tool.setuptools.packages.find]
 exclude = ["test", "*.test", "*.test.*"]

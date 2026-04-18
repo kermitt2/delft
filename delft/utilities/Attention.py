@@ -1,6 +1,6 @@
-from tf_keras import backend as K
-from tf_keras import constraints, initializers, regularizers
-from tf_keras.engine.topology import Layer
+from tensorflow.keras import backend as K
+from tensorflow.keras.engine.topology import Layer
+from tensorflow.keras import initializers, regularizers, constraints
 
 
 class Attention(Layer):
@@ -60,7 +60,12 @@ class Attention(Layer):
         features_dim = self.features_dim
         step_dim = self.step_dim
 
-        eij = K.reshape(K.dot(K.reshape(x, (-1, features_dim)), K.reshape(self.W, (features_dim, 1))), (-1, step_dim))
+        eij = K.reshape(
+            K.dot(
+                K.reshape(x, (-1, features_dim)), K.reshape(self.W, (features_dim, 1))
+            ),
+            (-1, step_dim),
+        )
 
         if self.bias:
             eij += self.b

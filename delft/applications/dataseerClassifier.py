@@ -1,49 +1,87 @@
-import argparse
 import json
-import time
-
-import numpy as np
-
-from delft.textClassification import Classifier
-from delft.textClassification.models import architectures
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-from delft.utilities.Utilities import split_data_and_labels
+from delft.textClassification import Classifier
+import argparse
+import time
+from delft.textClassification.models import architectures
+import numpy as np
 
 """
-    Classifier for deciding if a sentence introduce a dataset or not, and prediction of the
-    dataset type.
+    Classifier for deciding if a sentence introduce a dataset or not, and prediction of the 
+    dataset type. 
 """
 
 
-def configure(architecture):
-    # default RNN model parameters
-    batch_size = 200
-    maxlen = 300
-    patience = 5
-    early_stop = True
-    max_epoch = 50
-    learning_rate = 0.001
+def configure(
+    architecture,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+):
+    # Default RNN model parameters
+    o_batch_size = 200
+    o_maxlen = 300
+    o_patience = 5
+    o_early_stop = True
+    o_max_epoch = 50
+    o_learning_rate = 0.001
 
-    # default transformer model parameters
+    # Architecture-specific defaults
     if architecture == "bert":
-        batch_size = 16
-        early_stop = False
-        max_epoch = 5
-        maxlen = 300
-        learning_rate = 2e-5
+        o_batch_size = 16
+        o_early_stop = False
+        o_max_epoch = 5
+        o_maxlen = 300
+        o_learning_rate = 2e-5
 
-    return batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    # Override with user-provided values
+    if batch_size != -1:
+        o_batch_size = batch_size
+    if maxlen != -1:
+        o_maxlen = maxlen
+    if patience != -1:
+        o_patience = patience
+    if early_stop is not None:
+        o_early_stop = early_stop
+    if max_epoch != -1:
+        o_max_epoch = max_epoch
+    if learning_rate is not None:
+        o_learning_rate = learning_rate
+
+    return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None, cascaded=False):
+def train(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    cascaded=False,
+    report_to_wandb=False,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+    num_workers=None,
+):
     print("loading binary dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/all-binary.csv"
+    )
 
     model_name = "dataseer-binary_" + architecture
     class_weights = None
 
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
 
     model = Classifier(
         model_name,
@@ -60,6 +98,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         class_weights=class_weights,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -70,7 +110,9 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     model.save()
 
     print("loading reuse dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/all-reuse.csv"
+    )
 
     model_name = "dataseer-reuse_" + architecture
     class_weights = {0: 1.5, 1: 1.0}
@@ -90,6 +132,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         class_weights=class_weights,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -100,7 +143,9 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     model.save()
 
     print("loading first-level dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/all-multilevel.csv"
+    )
 
     model_name = "dataseer-first_" + architecture
 
@@ -121,6 +166,7 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
         class_weights=class_weights,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -158,8 +204,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
 
         model_name = 'dataseer-' + the_class + "_" + architecture
 
-        model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch,
-            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name,
+        model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
+            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name, 
             batch_size=batch_size, class_weights=class_weights, early_stop=early_stop, transformer_name=transformer)
 
         if fold_count == 1:
@@ -171,12 +217,25 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None, cas
     """
 
 
-def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", transformer=None, cascaded=False):
+def train_and_eval(
+    embeddings_name=None,
+    fold_count=1,
+    architecture="gru",
+    transformer=None,
+    cascaded=False,
+):
     if cascaded:
-        return train_eval_cascaded(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+        return train_eval_cascaded(
+            embeddings_name,
+            fold_count,
+            architecture=architecture,
+            transformer=transformer,
+        )
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_binary(
+        embeddings_name, fold_count, architecture=architecture, transformer=transformer
+    )
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
     # train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
@@ -188,10 +247,14 @@ def train_and_eval(embeddings_name=None, fold_count=1, architecture="gru", trans
     # train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_binary(
+    embeddings_name, fold_count, architecture="gru", transformer=None
+):
     print("loading dataset type corpus...")
     # xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase1-2-binary.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/phase1-2-binary.csv"
+    )
     # xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase3-binary.csv")
 
     # distinct values of classes
@@ -203,7 +266,9 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
 
     class_weights = None
 
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture
+    )
 
     model = Classifier(
         "dataseer-binary_" + architecture,
@@ -256,9 +321,13 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     model.save()
 
 
-def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_reuse(
+    embeddings_name, fold_count, architecture="gru", transformer=None
+):
     print("loading dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/all-reuse.csv"
+    )
 
     # distinct values of classes
     print(list_classes)
@@ -267,7 +336,9 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
     print(len(xtr), "texts")
     print(len(y), "classes")
 
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture
+    )
 
     class_weights = {0: 1.5, 1: 1.0}
 
@@ -307,9 +378,13 @@ def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transf
     model.save()
 
 
-def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_primary(
+    embeddings_name, fold_count, architecture="gru", transformer=None
+):
     print("loading dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/all-multilevel.csv"
+    )
 
     # distinct values of classes
     print(list_classes)
@@ -319,7 +394,9 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     print(len(y), "classes")
 
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture
+    )
 
     model = Classifier(
         "dataseer-first_" + architecture,
@@ -357,7 +434,9 @@ def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", tran
     model.save()
 
 
-def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_secondary(
+    embeddings_name, fold_count, architecture="gru", transformer=None
+):
     print("training second-level dataset subtype corpus...")
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv(
         "data/textClassification/dataseer/all-multilevel.csv"
@@ -370,7 +449,9 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
     print(len(list_subclasses), "sub-classes")
 
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture
+    )
 
     datatypes_y = {}
     datatypes_xtr = {}
@@ -408,7 +489,10 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
             print("only one subclass for", the_class)
             continue
 
-        if len(datatypes_list_subclasses[the_class]) == 2 and "nan" in datatypes_list_subclasses[the_class]:
+        if (
+            len(datatypes_list_subclasses[the_class]) == 2
+            and "nan" in datatypes_list_subclasses[the_class]
+        ):
             continue
 
         if the_class == "Protein Data":
@@ -439,7 +523,9 @@ def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", tr
         local_y = []
         for the_y in datatypes_y[the_class]:
             the_ind = datatypes_list_subclasses[the_class].index(the_y)
-            local_y.append(vectorizer(the_ind, len(datatypes_list_subclasses[the_class])))
+            local_y.append(
+                vectorizer(the_ind, len(datatypes_list_subclasses[the_class]))
+            )
 
         # segment train and eval sets
         x_train, y_train, x_test, y_test = split_data_and_labels(
@@ -472,13 +558,19 @@ def classify(texts, output_format, architecture="gru"):
     return result
 
 
-def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_eval_cascaded(
+    embeddings_name, fold_count, architecture="gru", transformer=None
+):
     # general setting of parameters
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture
+    )
 
     # first binary classifier: dataset or no_dataset
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
+        "data/textClassification/dataseer/all-binary.csv"
+    )
 
     print(list_classes)
 
@@ -509,11 +601,18 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
     model_binary.eval(x_test, y_test)
 
     x_test_binary = x_test
+    y_test_binary = y_test
 
     # second, the first level datatype taxonomy for sentences classified as dataset
-    xtr, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = (
-        load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
-    )
+    (
+        xtr,
+        y_classes,
+        y_subclasses,
+        y_leafclasses,
+        list_classes,
+        list_subclasses,
+        list_leaf_classes,
+    ) = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
     # ignore the no_dataset, ignore the first eval set, build first level classifier
 
     ind = list_classes.index("no_dataset")
@@ -552,7 +651,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
 
     # eval by cascading
     result_binary = model_binary.predict(x_test_binary, output_format="default")
-    model_first.predict(x_test, output_format="default")
+    result_first = model_first.predict(x_test, output_format="default")
 
     # select sequences classified as dataset
     result_intermediate = np.asarray([np.argmax(line) for line in result_binary])
@@ -563,7 +662,9 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
             result[index] = 1
         return result
 
-    result_binary = np.array([vectorize(xi, len(list_classes)) for xi in result_intermediate])
+    result_binary = np.array(
+        [vectorize(xi, len(list_classes)) for xi in result_intermediate]
+    )
 
 
 def filter_exclude_class(xtr, y_classes, the_class):
@@ -582,9 +683,15 @@ def build_prior_class_distribution():
     """
     Inject count from the training data to the classification taxonomy of data types
     """
-    _, y_classes, y_subclasses, y_leafclasses, list_classes, list_subclasses, list_leaf_classes = (
-        load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
-    )
+    (
+        _,
+        y_classes,
+        y_subclasses,
+        y_leafclasses,
+        list_classes,
+        list_subclasses,
+        list_leaf_classes,
+    ) = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     with open("data/textClassification/dataseer/DataTypes.json") as json_file:
         distribution = json.load(json_file)
@@ -609,7 +716,9 @@ def build_prior_class_distribution():
         pos_subclass = np.where(y_subclasses[i] == 1)
         pos_leafclass = np.where(y_leafclasses[i] == 1)
         print(
-            list_classes[pos_class[0][0]], list_subclasses[pos_subclass[0][0]], list_leaf_classes[pos_leafclass[0][0]]
+            list_classes[pos_class[0][0]],
+            list_subclasses[pos_subclass[0][0]],
+            list_leaf_classes[pos_leafclass[0][0]],
         )
         if list_classes[pos_class[0][0]] != "no_dataset":
             the_class = list_classes[pos_class[0][0]]
@@ -619,8 +728,13 @@ def build_prior_class_distribution():
                     the_leafclass = list_leaf_classes[pos_leafclass[0][0]]
                     print(distribution[the_class][the_subclass][the_leafclass])
                     if "count" in distribution[the_class][the_subclass][the_leafclass]:
-                        distribution[the_class][the_subclass][the_leafclass]["count"] = (
-                            distribution[the_class][the_subclass][the_leafclass]["count"] + 1
+                        distribution[the_class][the_subclass][the_leafclass][
+                            "count"
+                        ] = (
+                            distribution[the_class][the_subclass][the_leafclass][
+                                "count"
+                            ]
+                            + 1
                         )
                 else:
                     if "count" in distribution[the_class][the_subclass]:
@@ -629,10 +743,14 @@ def build_prior_class_distribution():
                         )
             else:
                 if "count" in distribution[the_class]:
-                    distribution[the_class]["count"] = distribution[the_class]["count"] + 1
+                    distribution[the_class]["count"] = (
+                        distribution[the_class]["count"] + 1
+                    )
 
     # save the extended json
-    with open("data/textClassification/dataseer/DataTypesWithCounts.json", "w") as outfile:
+    with open(
+        "data/textClassification/dataseer/DataTypesWithCounts.json", "w"
+    ) as outfile:
         json.dump(distribution, outfile, sort_keys=False, indent=4)
 
 
@@ -644,14 +762,24 @@ if __name__ == "__main__":
     )
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
 
     parser.add_argument("action", help="one of [train, train_eval, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
-        "--architecture", default="gru", help="type of model architecture to be used, one of " + str(architectures)
+        "--architecture",
+        default="gru",
+        help="type of model architecture to be used, one of " + str(architectures),
     )
-    parser.add_argument("--cascaded", action="store_true", help="Use models in cascade (train, eval, predict)")
+    parser.add_argument(
+        "--cascaded",
+        action="store_true",
+        help="Use models in cascade (train, eval, predict)",
+    )
     parser.add_argument(
         "--embedding",
         default=None,
@@ -671,6 +799,55 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--max-epoch",
+        type=int,
+        default=-1,
+        help="Maximum number of epochs for training.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=-1,
+        help="Batch size for training.",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+        help="Initial learning rate.",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=-1,
+        help="Patience for early stopping (number of epochs without improvement).",
+    )
+    parser.add_argument(
+        "--early-stop",
+        type=t_or_f,
+        default=None,
+        help="Enable early stopping (true/false).",
+    )
+    parser.add_argument(
+        "--maxlen",
+        type=int,
+        default=-1,
+        help="Maximum sequence length.",
+    )
+
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
 
     args = parser.parse_args()
 
@@ -685,9 +862,12 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
+    if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
+
+    wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
@@ -699,6 +879,14 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             cascaded=cascaded,
+            report_to_wandb=wandb,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
+            num_workers=num_workers,
         )
 
     if args.action == "train_eval":

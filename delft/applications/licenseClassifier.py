@@ -1,23 +1,23 @@
-import argparse
 import json
-import time
-
-import numpy as np
-
-from delft.textClassification import Classifier
-from delft.textClassification.models import architectures
-from delft.textClassification.reader import load_texts_and_classes_pandas_no_id
-from delft.textClassification.reader import vectorize as vectorizer
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
 from delft.utilities.numpy import shuffle_triple_with_view
-from delft.utilities.Utilities import split_data_and_labels
+from delft.textClassification.reader import vectorize as vectorizer
+from delft.textClassification.reader import (
+    load_texts_and_classes_pandas_no_id,
+)
+from delft.textClassification import Classifier
+import argparse
+import time
+from delft.textClassification.models import architectures
+import numpy as np
 
 """
     Two multiclass classifiers to be used in combination with Grobid to classify a license/copyrights section
-    extracted from a scientific article into two dimensions:
+    extracted from a scientific article into two dimensions:  
     - copyright owner: publisher, authors or undecidable (changed from NA to avoid issues with pandas)
-    - license associated to the article file: explicit copyrights (no restriction), creative commons licenses
+    - license associated to the article file: explicit copyrights (no restriction), creative commons licenses 
       (CC-0, CC-BY, CC-BY-NC, etc.), other, or undecidable (changed from NA to avoid issues with pandas)
-
+    
     Note: when the license is undecidable, this means normal copyrights when a copyright owner exists.
 """
 
@@ -35,37 +35,89 @@ list_classes_licenses = [
     "other",
     "undecided",
 ]
-class_weights_licenses = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0, 6: 1.0, 7: 1.0, 8: 1.0, 9: 1.0}
+class_weights_licenses = {
+    0: 1.0,
+    1: 1.0,
+    2: 1.0,
+    3: 1.0,
+    4: 1.0,
+    5: 1.0,
+    6: 1.0,
+    7: 1.0,
+    8: 1.0,
+    9: 1.0,
+}
 
 
-def configure(architecture):
-    batch_size = 256
-    maxlen = 300
-    patience = 5
-    early_stop = True
-    max_epoch = 60
+def configure(
+    architecture,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+):
+    # Default values
+    o_batch_size = 256
+    o_maxlen = 300
+    o_patience = 5
+    o_early_stop = True
+    o_max_epoch = 60
+    o_learning_rate = 0.001
 
-    # default bert model parameters
+    # Architecture-specific defaults
     if architecture == "bert":
-        batch_size = 16
-        early_stop = False
-        max_epoch = 6
-        maxlen = 200
+        o_batch_size = 16
+        o_early_stop = False
+        o_max_epoch = 6
+        o_maxlen = 200
+        o_learning_rate = 2e-5
 
-    return batch_size, maxlen, patience, early_stop, max_epoch
+    # Override with user-provided values
+    if batch_size != -1:
+        o_batch_size = batch_size
+    if maxlen != -1:
+        o_maxlen = maxlen
+    if patience != -1:
+        o_patience = patience
+    if early_stop is not None:
+        o_early_stop = early_stop
+    if max_epoch != -1:
+        o_max_epoch = max_epoch
+    if learning_rate is not None:
+        o_learning_rate = learning_rate
+
+    return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
 
 
-def train(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+    num_workers=None,
+):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="copyrights"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="copyrights",
     )
 
     report_training_copyrights(y_copyrights)
 
     # copyright ownwer classifier
     model_name = "copyright_" + architecture
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
 
     model = Classifier(
         model_name,
@@ -81,6 +133,10 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
         early_stop=early_stop,
         class_weights=class_weights_copyright,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        short_model_name="copyright",
+        learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -92,7 +148,8 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
 
     # license classifier
     xtr, y_licenses = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="licenses"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="licenses",
     )
     model_name = "license_" + architecture
     class_weights_licenses = None
@@ -112,6 +169,10 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
         early_stop=early_stop,
         class_weights=class_weights_licenses,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        short_model_name="license",
+        learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -122,10 +183,24 @@ def train(embeddings_name, fold_count, architecture="gru", transformer=None):
     model.save()
 
 
-def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+    num_workers=None,
+):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="copyrights"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="copyrights",
     )
 
     report_training_copyrights(y_copyrights)
@@ -135,7 +210,9 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_copyrights, 0.9)
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
 
     print(list_classes_copyright)
 
@@ -153,6 +230,10 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
         early_stop=early_stop,
         class_weights=class_weights_copyright,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        short_model_name="copyright",
+        learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -166,14 +247,14 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 
     # license classifier
     xtr, y_licenses = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="licenses"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="licenses",
     )
 
     model_name = "license_" + architecture
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_licenses, 0.9)
-    # batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
     class_weights_licenses = None
 
     model = Classifier(
@@ -190,6 +271,10 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
         early_stop=early_stop,
         class_weights=class_weights_licenses,
         transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        short_model_name="license",
+        learning_rate=learning_rate,
+        nb_workers=num_workers,
     )
 
     if fold_count == 1:
@@ -205,23 +290,31 @@ def train_and_eval(embeddings_name, fold_count, architecture="gru", transformer=
 def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="copyrights"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="copyrights",
     )
 
     report_training_copyrights(y_copyrights)
 
     for class_rank in range(len(list_classes_copyright)):
-        model_name = "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
+        model_name = (
+            "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
+        )
 
         # we could experiment with binary weighting the class maybe
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_copyrights]
+        y_train_class_rank = [
+            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_copyrights
+        ]
         y_train_class_rank = np.array(y_train_class_rank)
 
-        list_classes_rank = [list_classes_copyright[class_rank], "not_" + list_classes_copyright[class_rank]]
+        list_classes_rank = [
+            list_classes_copyright[class_rank],
+            "not_" + list_classes_copyright[class_rank],
+        ]
 
         model = Classifier(
             model_name,
@@ -247,20 +340,28 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
     xtr, y_licenses = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="licenses"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="licenses",
     )
     for class_rank in range(len(list_classes_licenses)):
-        model_name = "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
+        model_name = (
+            "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
+        )
 
         # we could experiment with binary weighting the class maybe
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_licenses]
+        y_train_class_rank = [
+            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_licenses
+        ]
         y_train_class_rank = np.array(y_train_class_rank)
 
-        list_classes_rank = [list_classes_licenses[class_rank], "not_" + list_classes_licenses[class_rank]]
+        list_classes_rank = [
+            list_classes_licenses[class_rank],
+            "not_" + list_classes_licenses[class_rank],
+        ]
 
         model = Classifier(
             model_name,
@@ -286,10 +387,13 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_binary(
+    embeddings_name, fold_count, architecture="gru", transformer=None
+):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="copyrights"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="copyrights",
     )
 
     report_training_copyrights(y_copyrights)
@@ -298,18 +402,25 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_copyrights, 0.9)
 
     for class_rank in range(len(list_classes_copyright)):
-        model_name = "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
+        model_name = (
+            "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
+        )
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
+        y_train_class_rank = [
+            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
+        ]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
 
         y_train_class_rank = np.array(y_train_class_rank)
         y_test_class_rank = np.array(y_test_class_rank)
 
-        list_classes_rank = [list_classes_copyright[class_rank], "not_" + list_classes_copyright[class_rank]]
+        list_classes_rank = [
+            list_classes_copyright[class_rank],
+            "not_" + list_classes_copyright[class_rank],
+        ]
 
         model = Classifier(
             model_name,
@@ -337,25 +448,33 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
         # model.save()
 
     xtr, y_licenses = _read_data(
-        "data/textClassification/licenses/copyrights-licenses-data-validated.csv", data_type="licenses"
+        "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
+        data_type="licenses",
     )
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_licenses, 0.9)
 
     for class_rank in range(len(list_classes_licenses)):
-        model_name = "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
+        model_name = (
+            "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
+        )
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
+        y_train_class_rank = [
+            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
+        ]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
 
         y_train_class_rank = np.array(y_train_class_rank)
         y_test_class_rank = np.array(y_test_class_rank)
 
-        list_classes_rank = [list_classes_licenses[class_rank], "not_" + list_classes_licenses[class_rank]]
+        list_classes_rank = [
+            list_classes_licenses[class_rank],
+            "not_" + list_classes_licenses[class_rank],
+        ]
 
         model = Classifier(
             model_name,
@@ -384,7 +503,9 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
 
 
 # classify a list of texts
-def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
+def classify(
+    texts, output_format, embeddings_name=None, architecture="gru", transformer=None
+):
     # load model
     model = Classifier("copyright_" + architecture)
     model.load()
@@ -486,15 +607,23 @@ def report_training_copyrights(y):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Classify a copyright/license section using the DeLFT library")
+    parser = argparse.ArgumentParser(
+        description="Classify a copyright/license section using the DeLFT library"
+    )
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
-        "--architecture", default="gru", help="type of model architecture to be used, one of " + str(architectures)
+        "--architecture",
+        default="gru",
+        help="type of model architecture to be used, one of " + str(architectures),
     )
     parser.add_argument(
         "--embedding",
@@ -515,11 +644,68 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+    parser.add_argument(
+        "--max-epoch",
+        type=int,
+        default=-1,
+        help="Maximum number of epochs for training.",
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=-1,
+        help="Batch size for training.",
+    )
+    parser.add_argument(
+        "--learning-rate",
+        type=float,
+        default=None,
+        help="Initial learning rate.",
+    )
+    parser.add_argument(
+        "--patience",
+        type=int,
+        default=-1,
+        help="Patience for early stopping (number of epochs without improvement).",
+    )
+    parser.add_argument(
+        "--early-stop",
+        type=t_or_f,
+        default=None,
+        help="Enable early stopping (true/false).",
+    )
+    parser.add_argument(
+        "--maxlen",
+        type=int,
+        default=-1,
+        help="Maximum sequence length.",
+    )
+
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1.",
+    )
 
     args = parser.parse_args()
 
-    if args.action not in ("train", "train_eval", "classify", "train_binary", "train_eval_binary"):
-        print("action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]")
+    if args.action not in (
+        "train",
+        "train_eval",
+        "classify",
+        "train_binary",
+        "train_eval_binary",
+    ):
+        print(
+            "action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]"
+        )
 
     embeddings_name = args.embedding
     transformer = args.transformer
@@ -528,34 +714,71 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
+    if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
+
+    wandb = args.wandb
+    num_workers = args.num_workers
 
     if args.action == "train":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        train(
+            embeddings_name,
+            args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
+            report_to_wandb=wandb,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
+            num_workers=num_workers,
+        )
 
     if args.action == "train_binary":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        train_binary(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        train_binary(
+            embeddings_name,
+            args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
+        )
 
     if args.action == "train_eval":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
-        y_test = train_and_eval(embeddings_name, args.fold_count, architecture=architecture, transformer=transformer)
+        y_test = train_and_eval(
+            embeddings_name,
+            args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
+            report_to_wandb=wandb,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
+            num_workers=num_workers,
+        )
 
     if args.action == "train_eval_binary":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
 
         y_test = train_and_eval_binary(
-            embeddings_name, args.fold_count, architecture=architecture, transformer=transformer
+            embeddings_name,
+            args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
         )
 
     if args.action == "classify":
@@ -565,7 +788,11 @@ if __name__ == "__main__":
             "© The Author(s) 2023.",
         ]
         result1, result2 = classify(
-            someTexts, "json", architecture=architecture, embeddings_name=embeddings_name, transformer=transformer
+            someTexts,
+            "json",
+            architecture=architecture,
+            embeddings_name=embeddings_name,
+            transformer=transformer,
         )
         print(json.dumps(result1, sort_keys=False, indent=4, ensure_ascii=False))
         print(json.dumps(result2, sort_keys=False, indent=4, ensure_ascii=False))
