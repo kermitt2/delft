@@ -78,15 +78,17 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 
 ## Using DeLFT 
 
-PyPI packages are available for stable versions. Latest stable version is `0.4.1`:
+PyPI packages are available for stable versions:
 
 ```sh
 # macOS
-pip install delft==0.4.1
+pip install delft
 
-# Linux with CUDA 12.1 (GPU)
-pip install "delft[gpu]==0.4.1" --extra-index-url https://download.pytorch.org/whl/cu121
+# Linux with CUDA 12.1 (adds PyTorch GPU support)
+pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
 ```
+
+> **Note:** On Linux, the base `pip install delft` already includes TensorFlow with NVIDIA CUDA libraries as transitive dependencies (~2 GB). The `[gpu]` extra additionally installs PyTorch with CUDA 12.1 support. For a CPU-only setup, you can replace `tensorflow` with `tensorflow-cpu` after installation.
 
 ## DeLFT Installation
 
