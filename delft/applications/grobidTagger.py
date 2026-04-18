@@ -150,9 +150,10 @@ def configure(
             if batch_size == -1:
                 batch_size = 30
         elif model == "header":
-            max_epoch = 80
+            if max_epoch == -1:
+                max_epoch = 80
             if max_sequence_length == -1:
-                max_sequence_length = 2500
+                max_sequence_length = 3500
             if batch_size == -1:
                 batch_size = 9
         elif model == "date":
@@ -186,6 +187,14 @@ def configure(
                 batch_size = 40
             if max_sequence_length == -1:
                 max_sequence_length = 1000
+        elif model == "figure":
+            if batch_size == -1:
+                batch_size = 3
+            if max_sequence_length == -1:
+                max_sequence_length = 1000
+        elif model == "table":
+            if batch_size == -1:
+                batch_size = 3
 
     model_name += "-" + architecture
 
@@ -237,14 +246,15 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
-    num_workers=1,
+    num_workers=None,
 ):
-
     print("Loading data...")
     if input_path is None:
         input_path = find_latest_train_file(model)
         if input_path is None:
-            raise ValueError(f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/")
+            raise ValueError(
+                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
+            )
         print(f"Using latest training file: {input_path}")
     x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -260,18 +270,25 @@ def train(
     print("\nmax train sequence length:", str(longest_row(x_train)))
     print("max validation sequence length:", str(longest_row(x_valid)))
 
-    (batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience) = (
-        configure(
-            model,
-            architecture,
-            output_path,
-            max_sequence_length,
-            batch_size,
-            embeddings_name,
-            max_epoch,
-            patience,
-            early_stop,
-        )
+    (
+        batch_size,
+        max_sequence_length,
+        model_name,
+        embeddings_name,
+        max_epoch,
+        multiprocessing,
+        early_stop,
+        patience,
+    ) = configure(
+        model,
+        architecture,
+        output_path,
+        max_sequence_length,
+        batch_size,
+        embeddings_name,
+        max_epoch,
+        patience,
+        early_stop,
     )
 
     model = Sequence(
@@ -285,23 +302,32 @@ def train(
         features_indices=features_indices,
         max_epoch=max_epoch,
         multiprocessing=multiprocessing,
-        num_workers=num_workers,
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if incremental:
-        if input_model_path is not None:
+        if input_model_path != None:
             model.load(input_model_path)
-        elif output_path is not None:
+        elif output_path != None:
             model.load(output_path)
         else:
             model.load()
 
     start_time = time.time()
-    model.train(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental=incremental, multi_gpu=multi_gpu)
+    model.train(
+        x_train,
+        y_train,
+        f_train,
+        x_valid,
+        y_valid,
+        f_valid,
+        incremental=incremental,
+        multi_gpu=multi_gpu,
+    )
 
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
@@ -333,13 +359,15 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    num_workers=None,
 ):
-
     print("Loading data...")
     if input_path is None:
         input_path = find_latest_train_file(model)
         if input_path is None:
-            raise ValueError(f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/")
+            raise ValueError(
+                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
+            )
         print(f"Using latest training file: {input_path}")
     x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -358,18 +386,25 @@ def train_eval(
     print("max validation sequence length:", str(longest_row(x_valid)))
     print("max evaluation sequence length:", str(longest_row(x_eval)))
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = (
-        configure(
-            model,
-            architecture,
-            output_path,
-            max_sequence_length,
-            batch_size,
-            embeddings_name,
-            max_epoch,
-            patience,
-            early_stop,
-        )
+    (
+        batch_size,
+        max_sequence_length,
+        model_name,
+        embeddings_name,
+        max_epoch,
+        multiprocessing,
+        early_stop,
+        patience,
+    ) = configure(
+        model,
+        architecture,
+        output_path,
+        max_sequence_length,
+        batch_size,
+        embeddings_name,
+        max_epoch,
+        patience,
+        early_stop,
     )
 
     model = Sequence(
@@ -388,12 +423,13 @@ def train_eval(
         features_indices=features_indices,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     if incremental:
-        if input_model_path is not None:
+        if input_model_path != None:
             model.load(input_model_path)
-        elif output_path is not None:
+        elif output_path != None:
             model.load(output_path)
         else:
             model.load()
@@ -438,7 +474,13 @@ def train_eval(
 
 
 # split data, train a GROBID model and evaluate it
-def eval_(model, input_path=None, architecture="BidLSTM_CRF", report_to_wandb=False):
+def eval_(
+    model,
+    input_path=None,
+    architecture="BidLSTM_CRF",
+    report_to_wandb=False,
+    wandb_run_id=None,
+):
     print("Loading data...")
     if input_path is None:
         # it should never be the case
@@ -459,8 +501,12 @@ def eval_(model, input_path=None, architecture="BidLSTM_CRF", report_to_wandb=Fa
     start_time = time.time()
 
     # load the model
-    model = Sequence(model_name, report_to_wandb=report_to_wandb)
+    model = Sequence(model_name)
     model.load()
+
+    # Initialize wandb for eval if requested
+    if report_to_wandb:
+        model.init_wandb_for_eval(run_id=wandb_run_id)
 
     # evaluation
     print("\nEvaluation:")
@@ -472,7 +518,14 @@ def eval_(model, input_path=None, architecture="BidLSTM_CRF", report_to_wandb=Fa
 
 # annotate a list of texts, this is relevant only of models taking only text as input
 # (so not text with layout information)
-def annotate_text(texts, model, output_format, architecture="BidLSTM_CRF", features=None, multi_gpu=False):
+def annotate_text(
+    texts,
+    model,
+    output_format,
+    architecture="BidLSTM_CRF",
+    features=None,
+    multi_gpu=False,
+):
     annotations = []
 
     # load model
@@ -484,7 +537,9 @@ def annotate_text(texts, model, output_format, architecture="BidLSTM_CRF", featu
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
+    annotations = model.tag(
+        texts, output_format, features=features, multi_gpu=multi_gpu
+    )
     runtime = round(time.time() - start_time, 3)
 
     if output_format == "json":
@@ -503,7 +558,9 @@ class Tasks:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Trainer for GROBID models using the DeLFT library")
+    parser = argparse.ArgumentParser(
+        description="Trainer for GROBID models using the DeLFT library"
+    )
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
 
@@ -535,16 +592,26 @@ if __name__ == "__main__":
 
     architectures = architectures_word_embeddings + architectures_transformers_based
 
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
 
     parser.add_argument("model", help="Name of the model.")
     parser.add_argument("action", choices=actions)
     parser.add_argument(
-        "--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation."
+        "--fold-count",
+        type=int,
+        default=1,
+        help="Number of fold to use when evaluating with n-fold cross validation.",
     )
-    parser.add_argument("--architecture", help="Type of model architecture to be used, one of " + str(architectures))
-    parser.add_argument("--output", help="Directory where to save a trained model.")
+    parser.add_argument(
+        "--architecture",
+        help="Type of model architecture to be used, one of " + str(architectures),
+    )
 
+    # group_embeddings = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument(
         "--embedding",
         default=None,
@@ -564,31 +631,48 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
-
+    parser.add_argument("--output", help="Directory where to save a trained model.")
     parser.add_argument(
         "--input",
         help="Grobid data file to be used for training (train action), for training and "
         + "evaluation (train_eval action) or just for evaluation (eval action).",
     )
     parser.add_argument(
-        "--incremental", action="store_true", help="training is incremental, starting from existing model if present"
+        "--incremental",
+        action="store_true",
+        help="training is incremental, starting from existing model if present",
     )
     parser.add_argument(
         "--input-model",
         help="In case of incremental training, path to an existing model to be used "
         + "to start the training, instead of the default one.",
     )
-    parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
-    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument(
+        "--max-sequence-length",
+        type=int,
+        default=-1,
+        help="max-sequence-length parameter to be used.",
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
+    )
     parser.add_argument(
         "--patience",
         type=int,
         default=-1,
-        help="patience, number of extra epochs to perform after the best epoch before stopping a training.",
+        help="patience, number of extra epochs to perform after "
+        "the best epoch before stopping a training.",
     )
-    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument(
+        "--learning-rate", type=float, default=None, help="Initial learning rate"
+    )
 
-    parser.add_argument("--max-epoch", type=int, default=-1, help="Maximum number of epochs for training.")
+    parser.add_argument(
+        "--max-epoch",
+        type=int,
+        default=-1,
+        help="Maximum number of epochs for training.",
+    )
     parser.add_argument(
         "--early-stop",
         type=t_or_f,
@@ -605,17 +689,23 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--num-workers",
-        type=int,
-        default=1,
-        help="Number of worker processes for data loading (default: 1, use 0 or 1 for no multiprocessing)",
-    )
-
-    parser.add_argument(
         "--wandb",
         default=False,
         help="Enable the logging of the training using Weights and Biases",
         action="store_true",
+    )
+
+    parser.add_argument(
+        "--wandb-run-id",
+        default=None,
+        help="Wandb run ID to resume for eval (only valid with eval action)",
+    )
+
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval, 4 for tagging.",
     )
 
     args = parser.parse_args()
@@ -637,10 +727,13 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    wandb_run_id = args.wandb_run_id
     num_workers = args.num_workers
 
     if architecture is None:
-        raise ValueError("A model architecture has to be specified: " + str(architectures))
+        raise ValueError(
+            "A model architecture has to be specified: " + str(architectures)
+        )
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -677,7 +770,13 @@ if __name__ == "__main__":
             raise ValueError(
                 "A Grobid evaluation data file must be specified to evaluate a grobid model with the parameter --input"
             )
-        eval_(model, input_path=input_path, architecture=architecture)
+        eval_(
+            model,
+            input_path=input_path,
+            architecture=architecture,
+            report_to_wandb=wandb,
+            wandb_run_id=wandb_run_id,
+        )
 
     if action == Tasks.TRAIN_EVAL:
         if args.fold_count < 1:
@@ -694,11 +793,13 @@ if __name__ == "__main__":
             batch_size=batch_size,
             incremental=incremental,
             input_model_path=input_model_path,
+            patience=patience,
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == Tasks.TAG:
@@ -712,10 +813,10 @@ if __name__ == "__main__":
             someTexts.append("2023 July the 22nd")
         elif model == "citation":
             someTexts.append(
-                'N. Al-Dhahir and J. Cioffi, "On the uniform ADC bit precision and clip level computation for a Gaussian signal," IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996.'
+                "N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996."
             )
             someTexts.append(
-                "T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1-33."
+                "T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33."
             )
         elif model == "name-citation":
             someTexts.append("L. Romary and L. Foppiano")
@@ -728,7 +829,7 @@ if __name__ == "__main__":
                 "The column scores (the fraction of entirely correct columns) were  reported  in  addition  to Q-scores  for  BAliBASE 3.0. Wilcoxon  signed-ranks  tests  were  performed  to  calculate statistical  significance  of  comparisons  between  alignment programs,   which   include   ProbCons   (version   1.10)   (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7)."
             )
             someTexts.append(
-                "Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23) MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7)."
+                "Wilcoxon signed-ranks tests were performed to calculate statistical significance of comparisons between  alignment programs, which include ProbCons (version 1.10) (23), MAFFT (version 5.667) (11) with several options, MUSCLE (version 3.52) (10) and ClustalW (version 1.83) (7)."
             )
             someTexts.append(
                 "All statistical analyses were done using computer software Prism 6 for Windows (version 6.02; GraphPad Software, San Diego, CA, USA). One-Way ANOVA was used to detect differences amongst the groups. To account for the non-normal distribution of the data, all data were sorted by rank status prior to ANOVA statistical analysis. "
@@ -738,10 +839,18 @@ if __name__ == "__main__":
             )
 
         if architecture.find("FEATURE") == -1:
-            result = annotate_text(someTexts, model, "json", architecture=architecture, multi_gpu=multi_gpu)
+            result = annotate_text(
+                someTexts,
+                model,
+                "json",
+                architecture=architecture,
+                multi_gpu=multi_gpu,
+            )
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print(
-                "The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
+                "The model "
+                + architecture
+                + " cannot be used without supplying features as input and it's disabled. "
                 "Please supply an architecture without features. "
             )

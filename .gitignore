@@ -14,6 +14,8 @@ target
 *.gz
 !data/textClassification/software/*.gz
 !data/sequenceLabelling/grobid/fulltext/fulltext-110322.train.gz
+!data/sequenceLabelling/grobid/fulltext/fulltext-251225.train.gz
+!data/sequenceLabelling/grobid/segmentation/segmentation-251225.train.gz
 data/db/*
 !data/db/.gitkeep
 data/download/*
@@ -88,3 +90,20 @@ data/sequenceLabelling/BEL/all_bel_relations.csv
 
 .env
 wandb
+java/delft-onnx/.gradle/file-system.probe
+java/delft-onnx/.gradle/8.5/gc.properties
+java/delft-onnx/.gradle/8.5/checksums/checksums.lock
+java/delft-onnx/.gradle/8.5/checksums/md5-checksums.bin
+java/delft-onnx/.gradle/8.5/checksums/sha1-checksums.bin
+java/delft-onnx/.gradle/8.5/dependencies-accessors/dependencies-accessors.lock
+java/delft-onnx/.gradle/8.5/dependencies-accessors/gc.properties
+java/delft-onnx/.gradle/8.5/executionHistory/executionHistory.bin
+java/delft-onnx/.gradle/8.5/executionHistory/executionHistory.lock
+java/delft-onnx/.gradle/8.5/fileChanges/last-build.bin
+java/delft-onnx/.gradle/8.5/fileHashes/fileHashes.bin
+java/delft-onnx/.gradle/8.5/fileHashes/fileHashes.lock
+java/delft-onnx/.gradle/8.5/fileHashes/resourceHashesCache.bin
+java/delft-onnx/.gradle/buildOutputCleanup/buildOutputCleanup.lock
+java/delft-onnx/.gradle/buildOutputCleanup/cache.properties
+java/delft-onnx/.gradle/buildOutputCleanup/outputFiles.bin
+java/delft-onnx/.gradle/vcs-1/gc.properties

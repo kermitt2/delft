@@ -111,16 +111,22 @@ def convert_lmdb(input_path: str, output_path: str, batch_size: int = 10000):
             value = txn.get(word)
             if value:
                 arr = np.frombuffer(value, dtype=np.float32)
-                print(f"  '{word.decode()}': shape={arr.shape}, first 3=[{arr[0]:.4f}, {arr[1]:.4f}, {arr[2]:.4f}]")
+                print(
+                    f"  '{word.decode()}': shape={arr.shape}, first 3=[{arr[0]:.4f}, {arr[1]:.4f}, {arr[2]:.4f}]"
+                )
     verify_env.close()
 
     print("\nDone! Java can now read this database as raw float32 bytes.")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert LMDB embeddings from pickled numpy to raw float32")
+    parser = argparse.ArgumentParser(
+        description="Convert LMDB embeddings from pickled numpy to raw float32"
+    )
     parser.add_argument("--input", required=True, help="Path to source LMDB database")
-    parser.add_argument("--output", required=True, help="Path to destination LMDB database")
+    parser.add_argument(
+        "--output", required=True, help="Path to destination LMDB database"
+    )
     parser.add_argument(
         "--batch-size",
         type=int,

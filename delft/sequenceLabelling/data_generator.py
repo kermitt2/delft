@@ -1,10 +1,15 @@
 import numpy as np
-import tf_keras as keras
-
-from delft.sequenceLabelling.preprocess import BERTPreprocessor, Preprocessor, to_casing_single, to_vector_single
+from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
 from delft.utilities.numpy import shuffle_triple_with_view
+
+import tensorflow.keras as keras
+from delft.sequenceLabelling.preprocess import (
+    to_vector_single,
+    to_casing_single,
+    Preprocessor,
+    BERTPreprocessor,
+)
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
 
 
 class BaseGenerator(keras.utils.Sequence):
@@ -32,7 +37,6 @@ class BaseGenerator(keras.utils.Sequence):
         features=None,
         output_input_offsets: bool = False,
         use_chain_crf: bool = False,
-        drop_last: bool = False,
     ):
         # self.x and self.y are shuffled view of self.original_x and self.original_y
         self.original_x = self.x = x
@@ -51,7 +55,6 @@ class BaseGenerator(keras.utils.Sequence):
         self.max_sequence_length = max_sequence_length
         self.output_input_offsets = output_input_offsets
         self.use_chain_crf = use_chain_crf
-        self.drop_last = drop_last
 
     def __len__(self):
         """
@@ -60,20 +63,10 @@ class BaseGenerator(keras.utils.Sequence):
         # The number of batches is set so that each training sample is seen at most once per epoch
         if self.original_x is None:
             return 0
-        n = len(self.original_x)
-        if self.drop_last:
-            remainder = n % self.batch_size
-            if remainder > 0:
-                print(
-                    "Dropping last incomplete batch ({} of {} samples) to ensure uniform batch sizes".format(
-                        remainder, n
-                    )
-                )
-            return n // self.batch_size
-        elif (n % self.batch_size) == 0:
-            return n // self.batch_size
+        elif (len(self.original_x) % self.batch_size) == 0:
+            return int(np.floor(len(self.original_x) / self.batch_size))
         else:
-            return n // self.batch_size + 1
+            return int(np.floor(len(self.original_x) / self.batch_size) + 1)
 
     @property
     def __getitem__(self, index):
@@ -125,9 +118,7 @@ class DataGenerator(BaseGenerator):
         features=None,
         output_input_offsets=False,
         use_chain_crf=False,
-        drop_last=False,
     ):
-
         super().__init__(
             x,
             y,
@@ -142,17 +133,16 @@ class DataGenerator(BaseGenerator):
             features=features,
             output_input_offsets=output_input_offsets,
             use_chain_crf=use_chain_crf,
-            drop_last=drop_last,
         )
-        if self.embeddings is not None:
-            self.embeddings.reopen_lmdb()
         self.on_epoch_end()
 
     def __getitem__(self, index):
         """
         Generate one batch of data, batch_l always last input, so that it can be used easily by the training scorer
         """
-        batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(index)
+        batch_x, batch_c, batch_f, batch_a, batch_l, batch_y = self.__data_generation(
+            index
+        )
         if self.preprocessor.return_casing:
             return [batch_x, batch_c, batch_a, batch_l], batch_y
         elif self.preprocessor.return_features:
@@ -180,7 +170,10 @@ class DataGenerator(BaseGenerator):
         if self.max_sequence_length and max_length_x > self.max_sequence_length:
             max_length_x = self.max_sequence_length
             # truncation of sequence at max_sequence_length
-            x_tokenized = np.asarray(truncate_batch_values(x_tokenized, self.max_sequence_length), dtype=object)
+            x_tokenized = np.asarray(
+                truncate_batch_values(x_tokenized, self.max_sequence_length),
+                dtype=object,
+            )
 
         # prevent sequence of length 1 alone in a batch (this causes an error in the Chain CRF layer)
         extend = False
@@ -189,7 +182,9 @@ class DataGenerator(BaseGenerator):
             extend = True
 
         # generate data
-        batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype="float32")
+        batch_x = np.zeros(
+            (max_iter, max_length_x, self.embeddings.embed_size), dtype="float32"
+        )
         for i in range(0, max_iter):
             batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
@@ -197,16 +192,23 @@ class DataGenerator(BaseGenerator):
         batch_y = None
         if self.y is not None:
             # note: tags are always already "tokenized" by input token
-            batch_y = self.y[(index * self.batch_size) : (index * self.batch_size) + max_iter]
+            batch_y = self.y[
+                (index * self.batch_size) : (index * self.batch_size) + max_iter
+            ]
             max_length_y = max((len(y_row) for y_row in batch_y))
 
             if self.max_sequence_length and max_length_y > self.max_sequence_length:
                 # truncation of sequence at max_sequence_length
-                batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=object)
+                batch_y = np.asarray(
+                    truncate_batch_values(batch_y, self.max_sequence_length),
+                    dtype=object,
+                )
 
         batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)
         if self.preprocessor.return_features:
-            sub_f = self.features[(index * self.batch_size) : (index * self.batch_size) + max_iter]
+            sub_f = self.features[
+                (index * self.batch_size) : (index * self.batch_size) + max_iter
+            ]
             if self.max_sequence_length and max_length_f > self.max_sequence_length:
                 max_length_f = self.max_sequence_length
                 # truncation of sequence at max_sequence_length
@@ -220,10 +222,16 @@ class DataGenerator(BaseGenerator):
 
         if self.y is not None:
             if self.use_chain_crf:
-                batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=False)
+                batches, batch_y = self.preprocessor.transform(
+                    x_tokenized, batch_y, extend=extend, label_indices=False
+                )
             else:
-                batches, batch_y = self.preprocessor.transform(x_tokenized, batch_y, extend=extend, label_indices=True)
-            batch_y = np.asarray(truncate_batch_values(batch_y, max_length_x), dtype=np.int32)
+                batches, batch_y = self.preprocessor.transform(
+                    x_tokenized, batch_y, extend=extend, label_indices=True
+                )
+            batch_y = np.asarray(
+                truncate_batch_values(batch_y, max_length_x), dtype=np.int32
+            )
         else:
             batches = self.preprocessor.transform(x_tokenized, extend=extend)
 
@@ -256,9 +264,7 @@ class DataGeneratorTransformers(BaseGenerator):
         features=None,
         output_input_offsets=False,
         use_chain_crf=False,
-        drop_last=False,
     ):
-
         super().__init__(
             x,
             y,
@@ -273,14 +279,12 @@ class DataGeneratorTransformers(BaseGenerator):
             features=features,
             output_input_offsets=output_input_offsets,
             use_chain_crf=use_chain_crf,
-            drop_last=drop_last,
         )
 
         if self.bert_preprocessor.empty_features_vector is None:
-            self.bert_preprocessor.empty_features_vector = self.preprocessor.empty_features_vector()
-
-        if self.embeddings is not None:
-            self.embeddings.reopen_lmdb()
+            self.bert_preprocessor.empty_features_vector = (
+                self.preprocessor.empty_features_vector()
+            )
 
         self.on_epoch_end()
 
@@ -288,9 +292,16 @@ class DataGeneratorTransformers(BaseGenerator):
         """
         Generate one batch of data. These data are the input of the models but can also be used by the training scorer
         """
-        batch_x, batch_x_types, batch_x_masks, batch_c, batch_f, batch_l, batch_input_offsets, batch_y = (
-            self.__data_generation(index)
-        )
+        (
+            batch_x,
+            batch_x_types,
+            batch_x_masks,
+            batch_c,
+            batch_f,
+            batch_l,
+            batch_input_offsets,
+            batch_y,
+        ) = self.__data_generation(index)
 
         # careful with the order of data arrays, double-check the models input as defined in models.py before
         # modifying this
@@ -342,16 +353,23 @@ class DataGeneratorTransformers(BaseGenerator):
         # tag embeddings
         if self.y is not None:
             # note: tags are always already "tokenized" by input token
-            batch_y = self.y[(index * self.batch_size) : (index * self.batch_size) + max_iter]
+            batch_y = self.y[
+                (index * self.batch_size) : (index * self.batch_size) + max_iter
+            ]
             max_length_y = max((len(y_row) for y_row in batch_y))
 
             if self.max_sequence_length and max_length_y > self.max_sequence_length:
                 # truncation of sequence at max_sequence_length
-                batch_y = np.asarray(truncate_batch_values(batch_y, self.max_sequence_length), dtype=object)
+                batch_y = np.asarray(
+                    truncate_batch_values(batch_y, self.max_sequence_length),
+                    dtype=object,
+                )
 
         # features
         if self.preprocessor.return_features:
-            sub_f = self.features[(index * self.batch_size) : (index * self.batch_size) + max_iter]
+            sub_f = self.features[
+                (index * self.batch_size) : (index * self.batch_size) + max_iter
+            ]
             if self.max_sequence_length and max_length_f > self.max_sequence_length:
                 max_length_f = self.max_sequence_length
                 # truncation of sequence at max_sequence_length
@@ -366,28 +384,59 @@ class DataGeneratorTransformers(BaseGenerator):
         batch_l = batches[1]
 
         # to have input as sentence piece token index for transformer layer
-        input_ids, token_type_ids, attention_mask, input_chars, input_features, input_labels, input_offsets = (
-            self.bert_preprocessor.tokenize_and_align_features_and_labels(
-                x_tokenized, batch_c, sub_f, batch_y, maxlen=self.max_sequence_length
-            )
+        (
+            input_ids,
+            token_type_ids,
+            attention_mask,
+            input_chars,
+            input_features,
+            input_labels,
+            input_offsets,
+        ) = self.bert_preprocessor.tokenize_and_align_features_and_labels(
+            x_tokenized, batch_c, sub_f, batch_y, maxlen=self.max_sequence_length
         )
 
         # truncate the batch input vectors for the max length in batch after sub-tokenization
         max_length_x = max((len_until_first_pad(tokens, 0) for tokens in input_ids))
 
-        batch_x = np.asarray(truncate_batch_values(input_ids, max_length_x), dtype=np.int32)
-        batch_x_types = np.asarray(truncate_batch_values(token_type_ids, max_length_x), dtype=np.int32)
-        batch_x_masks = np.asarray(truncate_batch_values(attention_mask, max_length_x), dtype=np.int32)
-        batch_c = np.asarray(truncate_batch_values(input_chars, max_length_x), dtype=np.int32)
-        batch_input_offsets = np.asarray(truncate_batch_values(input_offsets, max_length_x), dtype=object)
+        batch_x = np.asarray(
+            truncate_batch_values(input_ids, max_length_x), dtype=np.int32
+        )
+        batch_x_types = np.asarray(
+            truncate_batch_values(token_type_ids, max_length_x), dtype=np.int32
+        )
+        batch_x_masks = np.asarray(
+            truncate_batch_values(attention_mask, max_length_x), dtype=np.int32
+        )
+        batch_c = np.asarray(
+            truncate_batch_values(input_chars, max_length_x), dtype=np.int32
+        )
+        batch_input_offsets = np.asarray(
+            truncate_batch_values(input_offsets, max_length_x), dtype=object
+        )
 
         if self.y is not None:
-            __, batch_y = self.preprocessor.transform(x_tokenized, input_labels, label_indices=True)
-            batch_y = np.asarray(truncate_batch_values(batch_y, max_length_x), dtype=np.int32)
+            __, batch_y = self.preprocessor.transform(
+                x_tokenized, input_labels, label_indices=True
+            )
+            batch_y = np.asarray(
+                truncate_batch_values(batch_y, max_length_x), dtype=np.int32
+            )
 
         if self.preprocessor.return_features:
-            batch_f = np.asarray(truncate_batch_values(input_features, max_length_x), dtype=np.int32)
+            batch_f = np.asarray(
+                truncate_batch_values(input_features, max_length_x), dtype=np.int32
+            )
         else:
             batch_f = np.zeros((batch_x.shape[0:2]), dtype=np.int32)
 
-        return batch_x, batch_x_types, batch_x_masks, batch_c, batch_f, batch_l, batch_input_offsets, batch_y
+        return (
+            batch_x,
+            batch_x_types,
+            batch_x_masks,
+            batch_c,
+            batch_f,
+            batch_l,
+            batch_input_offsets,
+            batch_y,
+        )

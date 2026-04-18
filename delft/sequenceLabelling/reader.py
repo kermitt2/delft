@@ -1,14 +1,15 @@
-import gzip
-import json
-import os
-import re
+import numpy as np
 import xml
 from xml.sax import make_parser
-
-import numpy as np
+from delft.utilities.Tokenizer import (
+    tokenizeAndFilterSimple,
+    tokenizeAndFilter,
+)
+import re
+import os
+import gzip
 from tqdm import tqdm
-
-from delft.utilities.Tokenizer import tokenizeAndFilter, tokenizeAndFilterSimple
+import json
 
 
 class TEIContentHandler(xml.sax.ContentHandler):
@@ -51,7 +52,10 @@ class TEIContentHandler(xml.sax.ContentHandler):
         if name == "rs":
             # beginning of entity
             if attrs.getLength() != 0:
-                if attrs.getValue("type") != "insult" and attrs.getValue("type") != "threat":
+                if (
+                    attrs.getValue("type") != "insult"
+                    and attrs.getValue("type") != "threat"
+                ):
                     print("Invalid entity type:", attrs.getValue("type"))
                 self.currentLabel = "<" + attrs.getValue("type") + ">"
         self.accumulated = ""
@@ -74,7 +78,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = "O"
             for token in localTokens:
                 self.tokens.append(token)
@@ -124,6 +128,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
     def translate_fr_labels(self, mainType, subType):
         # default
         labelOutput = "O"
+        senseOutput = ""
 
         if mainType.lower() == "company":
             labelOutput = "business"
@@ -169,13 +174,13 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             if attrs.getLength() != 0:
                 # if attrs.getValue("type") != 'insult' and attrs.getValue("type") != 'threat':
                 #    print("Invalid entity type:", attrs.getValue("type"))
-                attrs.getNames()
+                attribute_names = attrs.getNames()
                 mainType = None
                 if "type" in attrs:
                     mainType = attrs.getValue("type")
                 if "TYPE" in attrs:
                     mainType = attrs.getValue("TYPE")
-                if mainType is None:
+                if mainType == None:
                     print("ENAMEX element without type attribute!")
 
                 if "sub_type" in attrs:
@@ -183,7 +188,9 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                 else:
                     subType = ""
                 if self.corpus_type == "lemonde":
-                    self.currentLabel = "<" + self.translate_fr_labels(mainType, subType) + ">"
+                    self.currentLabel = (
+                        "<" + self.translate_fr_labels(mainType, subType) + ">"
+                    )
                 else:
                     self.currentLabel = "<" + mainType + ">"
         self.accumulated = ""
@@ -206,7 +213,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel is None:
+            if self.currentLabel == None:
                 self.currentLabel = "O"
             for token in localTokens:
                 self.tokens.append(token)
@@ -337,7 +344,11 @@ def load_data_and_labels_crf_file(filepath):
         with open(filepath) as f:
             sents, labels, featureSets = load_data_and_labels_crf_content(f)
 
-    return np.asarray(sents, dtype=object), np.asarray(labels, dtype=object), np.asarray(featureSets, dtype=object)
+    return (
+        np.asarray(sents, dtype=object),
+        np.asarray(labels, dtype=object),
+        np.asarray(featureSets, dtype=object),
+    )
 
 
 def load_data_and_labels_crf_content(the_file):
@@ -384,7 +395,9 @@ def load_data_and_labels_crf_content(the_file):
         featureSets.append(features)
         print("Adding the final items from the input file. ")
 
-    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(tags) == len(features)
+    assert "Tokens, tags and features haven't got the same size", (
+        len(tokens) == len(tags) == len(features)
+    )
 
     return sents, labels, featureSets
 
@@ -414,7 +427,9 @@ def load_data_crf_content(the_file):
         featureSets.append(features)
         print("Adding the final items from the input file. ")
 
-    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(features)
+    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(
+        features
+    )
 
     return sents, featureSets
 
@@ -563,7 +578,11 @@ def load_data_and_labels_conll(filename):
         words, tags = [], []
         for line in f:
             line = line.rstrip()
-            if len(line) == 0 or line.startswith("-DOCSTART-") or line.startswith("#begin document"):
+            if (
+                len(line) == 0
+                or line.startswith("-DOCSTART-")
+                or line.startswith("#begin document")
+            ):
                 if len(words) != 0:
                     sents.append(words)
                     labels.append(tags)
@@ -684,10 +703,11 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang="en"):
     # and process all .name files
     nb_files = 0
     # map lang and subdir names
+    lang_name = "english"
     if lang == "zh":
-        pass
+        lang_name = "/chinese/"
     elif lang == "ar":
-        pass
+        lang_name = "/arabic/"
 
     tokens = []
     labels = []
@@ -810,7 +830,14 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                                     local_type = local_type.replace(" ", "_")
                                 if "text" in annotation_span:
                                     localText = annotation_span["text"]
-                                    if text[annotation_span["start"] : annotation_span["end"]] != localText:
+                                    if (
+                                        text[
+                                            annotation_span["start"] : annotation_span[
+                                                "end"
+                                            ]
+                                        ]
+                                        != localText
+                                    ):
                                         print(
                                             "warning - offsets and chunk mismatch: "
                                             + localText
@@ -820,7 +847,7 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                                             + str(annotation_span["end"])
                                         )
 
-                                if local_type is None:
+                                if local_type == None:
                                     print(
                                         "warning - empty label: "
                                         + localText
@@ -829,14 +856,22 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                                         + ":"
                                         + str(annotation_span["end"])
                                     )
-                                spans.append([annotation_span["start"], annotation_span["end"], local_type])
+                                spans.append(
+                                    [
+                                        annotation_span["start"],
+                                        annotation_span["end"],
+                                        local_type,
+                                    ]
+                                )
                         i = 0
                         for local_token in local_tokens:
                             tokens.append(local_token)
                             offset = local_offsets[i]
                             found = False
                             for span in spans:
-                                if span[0] <= offset[0] and (offset[1] <= span[1] or offset[0] < span[1]):
+                                if span[0] <= offset[0] and (
+                                    offset[1] <= span[1] or offset[0] < span[1]
+                                ):
                                     if span[0] == offset[0]:
                                         labels.append("B-" + span[2])
                                     else:

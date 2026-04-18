@@ -1,73 +1,56 @@
+"""
+PyTorch-based Sequence Labeling Wrapper for DeLFT.
+
+This module replaces the TensorFlow-based wrapper with PyTorch implementations.
+"""
+
 import os
-
-# for using legacy Keras 2, and not Keras 3 installed by default from TensorFlow 2.16
-os.environ["TF_USE_LEGACY_KERAS"] = "1"
-os.environ["KERAS_BACKEND"] = "tensorflow"
-# LF: do not remove this import. This ensures that CUDA 12 from tensorflow
-#    get initialised before CUDA 11 from pytorch.
-import tf_keras as keras  # noqa: F401
-
-from delft import get_registry_path
-from delft.utilities.misc import print_parameters
-
-# ask tensorflow to be quiet and not print hundred lines of logs
-from delft.utilities.Transformer import DEFAULT_TRANSFORMER_TOKENIZER_DIR, TRANSFORMER_CONFIG_FILE_NAME
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["TOKENIZERS_PARALLELISM"] = "false"
-
-import json
-import math
-import re
 import time
-import warnings
 from itertools import islice
 
 import numpy as np
+
+import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
-import tensorflow as tf
+import torch
 
-tf.compat.v1.logging.set_verbosity(tf.compat.v1.logging.ERROR)
-tf.get_logger().setLevel("ERROR")
+from delft import DELFT_PROJECT_DIR
+from delft.utilities.misc import print_parameters
 
-from tensorflow.python.util import deprecation
-
-deprecation._PRINT_DEPRECATION_WARNINGS = False
-
-# unfortunately when running in graph mode, we cannot use BERT pre-trained,
-# see https://github.com/huggingface/transformers/issues/3086
-# but this is apparently not useful anyway to disable eager mode here, because
-# the Keras API compiles models before running them
-# from tensorflow.python.framework.ops import disable_eager_execution
-# disable_eager_execution()
-
-import transformers
+from delft.sequenceLabelling.trainer import Trainer, Scorer
+from delft.sequenceLabelling.trainer import (
+    DEFAULT_WEIGHT_FILE_NAME,
+    CONFIG_FILE_NAME,
+    PROCESSOR_FILE_NAME,
+)
+from delft.utilities.misc import to_wandb_table
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
-from delft.sequenceLabelling.evaluation import classification_report, get_report
 from delft.sequenceLabelling.models import get_model
-from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
-from delft.sequenceLabelling.tagger import Tagger
-from delft.sequenceLabelling.trainer import (
-    CONFIG_FILE_NAME,
-    DEFAULT_WEIGHT_FILE_NAME,
-    PROCESSOR_FILE_NAME,
-    Scorer,
-    Trainer,
-)
+from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor
+from delft.sequenceLabelling.data_loader import create_dataloader
+
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.numpy import concatenate_or_none
+
+from delft.sequenceLabelling.evaluation import classification_report
+
+import transformers
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 
 class Sequence(object):
-    # number of parallel worker for the data generator
-    nb_workers = 6
+    """
+    PyTorch-based sequence labeling wrapper.
+
+    Provides high-level API for training, evaluation, and tagging with
+    sequence labeling models.
+    """
 
     def __init__(
         self,
@@ -93,16 +76,13 @@ class Sequence(object):
         log_dir=None,
         fold_number=1,
         multiprocessing=True,
-        num_workers=1,
         features_indices=None,
         transformer_name: str = None,
         report_to_wandb=False,
-        nb_workers=6,
-        resource_registry_path=None,
+        device=None,
+        nb_workers: int = None,
     ):
-
         if model_name is None:
-            # add a dummy name based on the architecture
             model_name = architecture
             if embeddings_name is not None:
                 model_name += "_" + embeddings_name
@@ -114,21 +94,36 @@ class Sequence(object):
         self.p: Preprocessor = None
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
+        self.report_to_wandb = report_to_wandb
+
+        # Set number of workers: default to cpu_count - 1, minimum 1
+        if nb_workers is None:
+            self.nb_workers = max(1, os.cpu_count() - 1)
+        else:
+            self.nb_workers = nb_workers
+
+        # Set device
+        if device is None:
+            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        else:
+            self.device = torch.device(device)
 
         word_emb_size = 0
-        self.nb_workers = nb_workers
         self.embeddings = None
         self.model_local_path = None
 
-        self.report_to_wandb = report_to_wandb
-
-        self.registry = load_resource_registry(resource_registry_path or get_registry_path())
+        self.registry = load_resource_registry(
+            os.path.join(DELFT_PROJECT_DIR, "resources-registry.json")
+        )
 
         if self.embeddings_name is not None:
-            self.embeddings = self.get_embedding(self.embeddings_name)
+            self.embeddings = Embeddings(
+                self.embeddings_name, resource_registry=self.registry
+            )
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
+            word_emb_size = 0
 
         if learning_rate is None:
             if transformer_name is None:
@@ -165,10 +160,19 @@ class Sequence(object):
             patience,
             max_checkpoints_to_keep,
             multiprocessing,
-            num_workers,
         )
 
         if report_to_wandb:
+            self._init_wandb(model_name)
+
+    def _init_wandb(self, model_name, run_id=None):
+        """Initialize Weights & Biases logging.
+
+        Args:
+            model_name: Name for the wandb run
+            run_id: Optional run ID to resume an existing run
+        """
+        try:
             import wandb
             from dotenv import load_dotenv
 
@@ -177,35 +181,46 @@ class Sequence(object):
                 print("Warning: WANDB_API_KEY not set, wandb disabled")
                 self.report_to_wandb = False
                 return
-            wandb.init(
-                name=model_name,
-                config={
-                    "model_name": self.model_config.model_name,
-                    "architecture": self.model_config.architecture,
-                    "transformer_name": self.model_config.transformer_name,
-                    "embeddings_name": self.model_config.embeddings_name,
-                    "embedding_size": self.model_config.word_embedding_size,
-                    "batch_size": self.training_config.batch_size,
-                    "learning_rate": self.training_config.learning_rate,
-                    "lr_decay": self.training_config.lr_decay,
-                    "max_epoch": self.training_config.max_epoch,
-                    "early_stop": self.training_config.early_stop,
-                    "patience": self.training_config.patience,
-                    "char_emb_size": self.model_config.char_embedding_size,
-                    "max_char_length": self.model_config.max_char_length,
-                    "max_sequence_length": self.model_config.max_sequence_length,
-                    "dropout": self.model_config.dropout,
-                    "recurrent_dropout": self.model_config.recurrent_dropout,
-                    "optimizer": self.training_config.optimizer,
-                    "clip_gradients": self.training_config.clip_gradients,
-                },
-            )
 
+            # Resume existing run or start new one
+            if run_id:
+                wandb.init(id=run_id, resume="must")
+                print(f"Resumed wandb run: {run_id}")
+            else:
+                wandb.init(
+                    name=model_name,
+                    config={
+                        "model_name": self.model_config.model_name,
+                        "architecture": self.model_config.architecture,
+                        "transformer_name": self.model_config.transformer_name,
+                        "embeddings_name": self.model_config.embeddings_name,
+                        "embedding_size": self.model_config.word_embedding_size,
+                        "batch_size": self.training_config.batch_size,
+                        "learning_rate": self.training_config.learning_rate,
+                        "max_epoch": self.training_config.max_epoch,
+                        "patience": self.training_config.patience,
+                        "early_stop": self.training_config.early_stop,
+                        "max_sequence_length": self.model_config.max_sequence_length,
+                    },
+                )
+            self.wandb = wandb
             wandb.define_metric("f1", summary="max")
+            wandb.define_metric("eval_f1", summary="max")
+        except ImportError:
+            print("Warning: wandb not available")
+            self.report_to_wandb = False
 
-    def get_embedding(self, embedding_name, use_cache=True):
-        """Return an Embeddings instance for the given name. Override to customize embedding loading."""
-        return Embeddings.get_or_create(embedding_name, resource_registry=self.registry, use_cache=use_cache)
+    def init_wandb_for_eval(self, run_id=None):
+        """Initialize wandb for evaluation logging.
+
+        Call this after model.load() to enable logging eval results to wandb.
+
+        Args:
+            run_id: Optional wandb run ID to resume an existing run.
+                   If None, starts a new run.
+        """
+        self.report_to_wandb = True
+        self._init_wandb(self.model_config.model_name, run_id=run_id)
 
     def train(
         self,
@@ -219,57 +234,56 @@ class Sequence(object):
         callbacks=None,
         multi_gpu=False,
     ):
-        if self.report_to_wandb:
-            from wandb.integration.keras import WandbMetricsLogger
+        """Train the model."""
+        distributed = False
+        local_rank = 0
 
-            callbacks = (
-                callbacks
-                + [
-                    WandbMetricsLogger(),
-                    # WandbModelCheckpoint("models", monitor='f1', mode='max')
-                ]
-                if callbacks is not None
-                else [
-                    WandbMetricsLogger(),
-                    # WandbModelCheckpoint("models", monitor='f1', mode='max')
-                ]
+        # Multi-GPU support with PyTorch DistributedDataParallel
+        if multi_gpu:
+            from delft.utilities.distributed import (
+                setup_distributed,
+                get_world_size,
+                is_main_process,
             )
 
-        # TBD if valid is None, segment train to get one if early_stop is True
-        if multi_gpu:
-            strategy = tf.distribute.MirroredStrategy()
-            num_replicas = strategy.num_replicas_in_sync
-            print("Running with multi-gpu. Number of devices: {}".format(num_replicas))
+            local_rank = setup_distributed()
 
-            original_batch_size = self.training_config.batch_size
-            if original_batch_size % num_replicas != 0:
-                adjusted = ((original_batch_size // num_replicas) + 1) * num_replicas
-                print(
-                    "Adjusting training batch_size from {} to {} (must be a multiple of {} GPUs)".format(
-                        original_batch_size, adjusted, num_replicas
+            if get_world_size() > 1:
+                distributed = True
+                self.device = torch.device(f"cuda:{local_rank}")
+                torch.cuda.set_device(self.device)
+
+                if is_main_process():
+                    print(f"Running distributed training with {get_world_size()} GPUs")
+            else:
+                if torch.cuda.device_count() > 1:
+                    print(
+                        f"Warning: {torch.cuda.device_count()} GPUs available but running single-process."
                     )
-                )
-                self.training_config.batch_size = adjusted
-
-            try:
-                with strategy.scope():
-                    self.train_(
-                        x_train,
-                        y_train,
-                        f_train,
-                        x_valid,
-                        y_valid,
-                        f_valid,
-                        incremental,
-                        callbacks,
-                        multi_gpu=True,
+                    print(
+                        "For multi-GPU training, launch with: torchrun --nproc_per_node=N"
                     )
-            finally:
-                self.training_config.batch_size = original_batch_size
-        else:
-            self.train_(x_train, y_train, f_train, x_valid, y_valid, f_valid, incremental, callbacks)
 
-    def train_(
+        self._train(
+            x_train,
+            y_train,
+            f_train,
+            x_valid,
+            y_valid,
+            f_valid,
+            incremental,
+            callbacks,
+            distributed,
+            local_rank,
+        )
+
+        # Cleanup distributed training
+        if distributed:
+            from delft.utilities.distributed import cleanup_distributed
+
+            cleanup_distributed()
+
+    def _train(
         self,
         x_train,
         y_train,
@@ -279,11 +293,15 @@ class Sequence(object):
         f_valid=None,
         incremental=False,
         callbacks=None,
-        multi_gpu=False,
+        distributed=False,
+        local_rank=0,
     ):
-        # TBD if valid is None, segment train to get one if early_stop is True
+        """Internal training implementation."""
+        # Import distributed utilities if needed
+        if distributed:
+            from delft.utilities.distributed import is_main_process
 
-        # we concatenate all the training+validation data to create the model vocabulary
+        # Concatenate all data for vocabulary building
         if x_valid is not None:
             x_all = np.concatenate((x_train, x_valid), axis=0)
         else:
@@ -298,46 +316,87 @@ class Sequence(object):
 
         if incremental:
             if self.model is None and self.models is None:
-                print("error: you must load a model first for an incremental training")
+                print("Error: you must load a model first for incremental training")
                 return
-            print("Incremental training from loaded model", self.model_config.model_name)
-            # update the preprocessor for the new chars and labels
+            print(
+                "Incremental training from loaded model", self.model_config.model_name
+            )
             self.p.extend(x_all, y_all)
         else:
-            # init a new "fresh" model
-            self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-
+            # Initialize preprocessor
+            self.p = prepare_preprocessor(
+                x_all, y_all, features=features_all, model_config=self.model_config
+            )
             self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
 
+            # Create model
             self.model = get_model(
-                self.model_config, self.p, len(self.p.vocab_tag), load_pretrained_weights=True, registry=self.registry
+                self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True
+            )
+            self.model.to(self.device)
+
+        # Only print on main process for distributed training
+        if not distributed or is_main_process():
+            print_parameters(self.model_config, self.training_config)
+            print(f"\nModel: {self.model_config.architecture}")
+            print(f"Parameters: {sum(p.numel() for p in self.model.parameters()):,}")
+
+        # Create data loaders with distributed sampler if needed
+        train_loader = create_dataloader(
+            x_train,
+            y_train,
+            preprocessor=self.p,
+            embeddings=self.embeddings,
+            batch_size=self.training_config.batch_size,
+            features=f_train,
+            shuffle=True,
+            model_config=self.model_config,
+            num_workers=self.nb_workers,
+            distributed=distributed,
+        )
+
+        valid_loader = None
+        if x_valid is not None:
+            valid_loader = create_dataloader(
+                x_valid,
+                y_valid,
+                preprocessor=self.p,
+                embeddings=self.embeddings,
+                batch_size=self.training_config.batch_size,
+                features=f_valid,
+                shuffle=False,
+                model_config=self.model_config,
+                num_workers=self.nb_workers,
+                distributed=distributed,
             )
 
-        print_parameters(self.model_config, self.training_config)
-        self.model.print_summary()
+        # Use model output directory for checkpoints to keep files organized
+        model_output_dir = os.path.join(
+            "data/models/sequenceLabelling/", self.model_config.model_name
+        )
+        if not distributed or is_main_process():
+            os.makedirs(model_output_dir, exist_ok=True)
 
-        # uncomment to plot graph
-        # from tensorflow.keras.utils import plot_model
-        # plot_model(self.model,
-        #    to_file='data/models/textClassification/'+self.model_config.model_name+'_'+self.model_config.architecture+'.png')
-
+        # Create trainer with distributed support
         trainer = Trainer(
             self.model,
-            self.models,
-            self.embeddings,
             self.model_config,
             self.training_config,
-            checkpoint_path=self.log_dir,
             preprocessor=self.p,
-            transformer_preprocessor=self.model.transformer_preprocessor,
+            device=str(self.device),
+            checkpoint_path=self.log_dir or model_output_dir,
             enable_wandb=self.report_to_wandb,
-            nb_workers=self.nb_workers,
-            multi_gpu=multi_gpu,
+            distributed=distributed,
+            local_rank=local_rank,
         )
-        trainer.train(
-            x_train, y_train, x_valid, y_valid, features_train=f_train, features_valid=f_valid, callbacks=callbacks
-        )
+
+        # Train
+        trainer.train(train_loader, valid_loader, callbacks=callbacks)
+
+        # Get the unwrapped model back from trainer for saving
+        if distributed:
+            self.model = trainer._unwrapped_model
 
     def train_nfold(
         self,
@@ -351,512 +410,330 @@ class Sequence(object):
         callbacks=None,
         multi_gpu=False,
     ):
-        if multi_gpu:
-            strategy = tf.distribute.MirroredStrategy()
-            num_replicas = strategy.num_replicas_in_sync
-            print("Running with multi-gpu. Number of devices: {}".format(num_replicas))
-
-            original_batch_size = self.training_config.batch_size
-            if original_batch_size % num_replicas != 0:
-                adjusted = ((original_batch_size // num_replicas) + 1) * num_replicas
-                print(
-                    "Adjusting training batch_size from {} to {} (must be a multiple of {} GPUs)".format(
-                        original_batch_size, adjusted, num_replicas
-                    )
-                )
-                self.training_config.batch_size = adjusted
-
-            try:
-                with strategy.scope():
-                    self.train_nfold_(
-                        x_train,
-                        y_train,
-                        x_valid,
-                        y_valid,
-                        f_train,
-                        f_valid,
-                        incremental,
-                        callbacks,
-                        multi_gpu=True,
-                    )
-            finally:
-                self.training_config.batch_size = original_batch_size
-        else:
-            self.train_nfold_(x_train, y_train, x_valid, y_valid, f_train, f_valid, incremental, callbacks)
-
-    def train_nfold_(
-        self,
-        x_train,
-        y_train,
-        x_valid=None,
-        y_valid=None,
-        f_train=None,
-        f_valid=None,
-        incremental=False,
-        callbacks=None,
-        multi_gpu=False,
-    ):
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
+        """Train with n-fold cross validation."""
+        x_all = (
+            np.concatenate((x_train, x_valid), axis=0)
+            if x_valid is not None
+            else x_train
+        )
+        y_all = (
+            np.concatenate((y_train, y_valid), axis=0)
+            if y_valid is not None
+            else y_train
+        )
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
-        if incremental:
-            if self.model is None and self.models is None:
-                print("error: you must load a model first for an incremental training")
-                return
+        # Use model output directory for checkpoints
+        model_output_dir = os.path.join(
+            "data/models/sequenceLabelling/", self.model_config.model_name
+        )
+        os.makedirs(model_output_dir, exist_ok=True)
 
-            print("Incremental training from loaded model", self.model_config.model_name)
-            self.model.print_summary()
-        else:
-            self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
+        if not incremental:
+            self.p = prepare_preprocessor(
+                x_all, y_all, features=features_all, model_config=self.model_config
+            )
             self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
             self.models = []
 
-        trainer = Trainer(
-            self.model,
-            self.models,
-            self.embeddings,
-            self.model_config,
-            self.training_config,
-            checkpoint_path=self.log_dir,
-            preprocessor=self.p,
-            nb_workers=self.nb_workers,
-            multi_gpu=multi_gpu,
-        )
+        fold_count = self.model_config.fold_number
+        fold_size = len(x_train) // fold_count
 
-        trainer.train_nfold(x_train, y_train, x_valid, y_valid, f_train=f_train, f_valid=f_valid, callbacks=callbacks)
+        for fold_id in range(fold_count):
+            print(
+                f"\n------------------------ fold {fold_id} --------------------------------------"
+            )
+
+            # Split data for this fold
+            fold_start = fold_size * fold_id
+            fold_end = (
+                fold_start + fold_size if fold_id < fold_count - 1 else len(x_train)
+            )
+
+            fold_x_train = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
+            fold_y_train = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
+            fold_x_valid = x_train[fold_start:fold_end]
+            fold_y_valid = y_train[fold_start:fold_end]
+
+            # Create model for this fold
+            fold_model = get_model(
+                self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True
+            )
+            fold_model.to(self.device)
+
+            if fold_id == 0:
+                print_parameters(self.model_config, self.training_config)
+
+            # Create data loaders
+            train_loader = create_dataloader(
+                fold_x_train,
+                fold_y_train,
+                preprocessor=self.p,
+                embeddings=self.embeddings,
+                batch_size=self.training_config.batch_size,
+                shuffle=True,
+                model_config=self.model_config,
+                num_workers=self.nb_workers,
+            )
+            valid_loader = create_dataloader(
+                fold_x_valid,
+                fold_y_valid,
+                preprocessor=self.p,
+                embeddings=self.embeddings,
+                batch_size=self.training_config.batch_size,
+                shuffle=False,
+                model_config=self.model_config,
+                num_workers=self.nb_workers,
+            )
+
+            trainer = Trainer(
+                fold_model,
+                self.model_config,
+                self.training_config,
+                preprocessor=self.p,
+                device=str(self.device),
+                checkpoint_path=model_output_dir,
+            )
+            trainer.train(train_loader, valid_loader)
+
+            self.models.append(fold_model)
 
     def eval(self, x_test, y_test, features=None):
+        """Evaluate the model."""
         if self.model_config.fold_number > 1:
             self.eval_nfold(x_test, y_test, features=features)
         else:
             self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
+        """Evaluate single model."""
         if self.model is None:
-            raise (OSError("Could not find a model."))
+            raise OSError("Could not find a model.")
+
         print_parameters(self.model_config, self.training_config)
-        self.model.print_summary()
 
-        if self.model_config.transformer_name is None:
-            # we can use a data generator for evaluation
+        # Create test data loader
+        test_loader = create_dataloader(
+            x_test,
+            y_test,
+            preprocessor=self.p,
+            embeddings=self.embeddings,
+            batch_size=self.model_config.batch_size,
+            features=features,
+            shuffle=False,
+            model_config=self.model_config,
+            num_workers=self.nb_workers,
+        )
 
-            # Prepare test data(steps, generator)
-            generator = self.model.get_generator()
-            test_generator = generator(
-                x_test,
-                y_test,
-                batch_size=self.model_config.batch_size,
-                preprocessor=self.p,
-                char_embed_size=self.model_config.char_embedding_size,
-                max_sequence_length=self.model_config.max_sequence_length,
-                embeddings=self.embeddings,
-                shuffle=False,
-                features=features,
-                output_input_offsets=True,
-                use_chain_crf=self.model_config.use_chain_crf,
+        # Evaluate
+        self.model.eval()
+        all_predictions = []
+        all_labels = []
+
+        with torch.no_grad():
+            for batch in test_loader:
+                inputs, labels = batch
+                inputs = {
+                    k: v.to(self.device) if isinstance(v, torch.Tensor) else v
+                    for k, v in inputs.items()
+                }
+
+                if hasattr(self.model, "decode"):
+                    predictions = self.model.decode(inputs)
+                else:
+                    outputs = self.model(inputs)
+                    predictions = outputs["logits"].argmax(dim=-1).tolist()
+
+                if isinstance(predictions, torch.Tensor):
+                    predictions = predictions.tolist()
+
+                labels_list = labels.tolist()
+                for pred, label in zip(predictions, labels_list):
+                    valid_pred = []
+                    valid_label = []
+                    for p, l in zip(pred, label):
+                        if l != 0:
+                            valid_pred.append(p)
+                            valid_label.append(l)
+                    all_predictions.append(valid_pred)
+                    all_labels.append(valid_label)
+
+        # Convert to labels
+        idx_to_label = {idx: label for label, idx in self.p.vocab_tag.items()}
+        pred_labels = [
+            [idx_to_label.get(p, "O") for p in pred] for pred in all_predictions
+        ]
+        true_labels = [
+            [idx_to_label.get(l, "O") for l in label] for label in all_labels
+        ]
+
+        report, evaluation = classification_report(true_labels, pred_labels, digits=4)
+        print(report)
+
+        # Extract metrics for return and wandb logging
+        metrics = {}
+        if "micro" in evaluation:
+            metrics = {
+                "eval_f1": evaluation["micro"]["f1"],
+                "eval_precision": evaluation["micro"]["precision"],
+                "eval_recall": evaluation["micro"]["recall"],
+            }
+
+        # Log to wandb if enabled
+        if self.report_to_wandb and hasattr(self, "wandb"):
+            # Log metrics
+            self.wandb.log(metrics)
+            # Log evaluation table
+            columns, data = to_wandb_table(evaluation)
+            table = self.wandb.Table(columns=columns, data=data)
+            self.wandb.log({"Evaluation scores": table})
+            print(
+                f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}"
             )
 
-            # Build the evaluator and evaluate the model
-            scorer = Scorer(
-                test_generator,
-                self.p,
-                evaluation=True,
-                use_crf=self.model_config.use_crf,
-                use_chain_crf=self.model_config.use_chain_crf,
-            )
-            scorer.model = self.model
-            scorer.on_epoch_end(epoch=-1)
-        else:
-            # the architecture model uses a transformer layer
-            # note that we could also use the above test_generator, but as an alternative here we check the
-            # test/prediction alignment of tokens and the validity of the maximum sequence input length
-            # wrt the length of the test sequences
-
-            tagger = Tagger(
-                self.model,
-                self.model_config,
-                self.embeddings,
-                preprocessor=self.p,
-                transformer_preprocessor=self.model.transformer_preprocessor,
-            )
-            y_pred_pairs = tagger.tag(x_test, output_format=None, features=features)
-
-            # keep only labels
-            y_pred = []
-            for result in y_pred_pairs:
-                result_labels = []
-                for pair in result:
-                    result_labels.append(pair[1])
-                y_pred.append(result_labels)
-
-            nb_alignment_issues = 0
-            for i in range(len(y_test)):
-                if len(y_test[i]) != len(y_pred[i]):
-                    # print("y_test:", y_test[i])
-                    # print("y_pred:", y_pred[i])
-
-                    nb_alignment_issues += 1
-                    # BERT tokenizer appears to introduce some additional tokens without ## prefix,
-                    # but we normally handled that well when predicting.
-                    # To be very conservative, the following ensure the number of tokens always
-                    # match, but it should never be used in practice.
-                    if len(y_test[i]) < len(y_pred[i]):
-                        y_test[i] = y_test[i] + ["O"] * (len(y_pred[i]) - len(y_test[i]))
-                    if len(y_test[i]) > len(y_pred[i]):
-                        y_pred[i] = y_pred[i] + ["O"] * (len(y_test[i]) - len(y_pred[i]))
-
-            if nb_alignment_issues > 0:
-                print("number of alignment issues with test set:", nb_alignment_issues)
-                print("to solve them consider increasing the maximum sequence input length of the model and retrain")
-
-            report, report_as_map = classification_report(y_test, y_pred, digits=4)
-            print(report)
+        return metrics
 
     def eval_nfold(self, x_test, y_test, features=None):
-        if self.models is not None:
-            total_f1 = 0
-            best_f1 = 0
-            best_index = 0
-            worst_f1 = 1
-            worst_index = 0
-            reports = []
-            reports_as_map = []
-            total_precision = 0
-            total_recall = 0
-            for i in range(self.model_config.fold_number):
-                if self.model_config.transformer_name is None:
-                    the_model = self.models[i]
-                    bert_preprocessor = None
-                else:
-                    # the architecture model uses a transformer layer, it is large and needs to be loaded from disk
-                    dir_path = "data/models/sequenceLabelling/"
-                    weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(i) + ".hdf5")
-                    self.model = get_model(
-                        self.model_config,
-                        self.p,
-                        ntags=len(self.p.vocab_tag),
-                        load_pretrained_weights=False,
-                        local_path=os.path.join(dir_path, self.model_config.model_name),
-                        registry=self.registry,
-                    )
-                    self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
-                    the_model = self.model
-                    bert_preprocessor = self.model.transformer_preprocessor
+        """Evaluate n-fold models."""
+        if self.models is None:
+            raise OSError("No fold models found.")
 
-                if i == 0:
-                    the_model.print_summary()
-                    print_parameters(self.model_config, self.training_config)
+        reports = []
+        total_f1 = 0
+        best_f1 = 0
+        best_index = 0
 
-                print("\n------------------------ fold " + str(i) + " --------------------------------------")
+        for i, model in enumerate(self.models):
+            print(
+                f"\n------------------------ fold {i} --------------------------------------"
+            )
 
-                # we can use a data generator for evaluation
-                # Prepare test data(steps, generator)
-                generator = the_model.get_generator()
-                test_generator = generator(
-                    x_test,
-                    y_test,
-                    batch_size=self.model_config.batch_size,
-                    preprocessor=self.p,
-                    bert_preprocessor=bert_preprocessor,
-                    char_embed_size=self.model_config.char_embedding_size,
-                    max_sequence_length=self.model_config.max_sequence_length,
-                    embeddings=self.embeddings,
-                    shuffle=False,
-                    features=features,
-                    output_input_offsets=True,
-                    use_chain_crf=self.model_config.use_chain_crf,
-                )
+            test_loader = create_dataloader(
+                x_test,
+                y_test,
+                preprocessor=self.p,
+                embeddings=self.embeddings,
+                batch_size=self.model_config.batch_size,
+                features=features,
+                shuffle=False,
+                model_config=self.model_config,
+                num_workers=self.nb_workers,
+            )
 
-                # Build the evaluator and evaluate the model
-                scorer = Scorer(
-                    test_generator,
-                    self.p,
-                    evaluation=True,
-                    use_crf=self.model_config.use_crf,
-                    use_chain_crf=self.model_config.use_chain_crf,
-                )
-                scorer.model = the_model
-                scorer.on_epoch_end(epoch=-1)
-                f1 = scorer.f1
-                precision = scorer.precision
-                recall = scorer.recall
-                reports.append(scorer.report)
-                reports_as_map.append(scorer.report_as_map)
+            scorer = Scorer(test_loader, self.p, evaluation=True)
+            metrics = scorer.on_epoch_end(model, self.device)
 
-                if best_f1 < f1:
-                    best_f1 = f1
-                    best_index = i
-                if worst_f1 > f1:
-                    worst_f1 = f1
-                    worst_index = i
-                total_f1 += f1
-                total_precision += precision
-                total_recall += recall
+            f1 = metrics["f1"]
+            total_f1 += f1
+            if f1 > best_f1:
+                best_f1 = f1
+                best_index = i
+            reports.append(scorer.report)
 
-            fold_average_evaluation = {"labels": {}, "micro": {}, "macro": {}}
+        print(
+            "\n----------------------------------------------------------------------"
+        )
+        print(f"\nBest model: fold {best_index} with F1={best_f1:.4f}")
+        print(f"Average F1: {total_f1 / len(self.models):.4f}")
 
-            micro_f1 = total_f1 / self.model_config.fold_number
-            micro_precision = total_precision / self.model_config.fold_number
-            micro_recall = total_recall / self.model_config.fold_number
+        # Set best model as main model
+        self.model = self.models[best_index]
 
-            micro_eval_block = {"f1": micro_f1, "precision": micro_precision, "recall": micro_recall}
-            fold_average_evaluation["micro"] = micro_eval_block
-
-            # field-level average over the n folds
-            labels = []
-            for label in sorted(self.p.vocab_tag):
-                if label == "O" or label == "<PAD>":
-                    continue
-                if label.startswith("B-") or label.startswith("S-") or label.startswith("I-") or label.startswith("E-"):
-                    label = label[2:]
-
-                if label in labels:
-                    continue
-                labels.append(label)
-
-                sum_p = 0
-                sum_r = 0
-                sum_f1 = 0
-                sum_support = 0
-                for j in range(0, self.model_config.fold_number):
-                    if label not in reports_as_map[j]["labels"]:
-                        continue
-                    report_as_map = reports_as_map[j]["labels"][label]
-                    sum_p += report_as_map["precision"]
-                    sum_r += report_as_map["recall"]
-                    sum_f1 += report_as_map["f1"]
-                    sum_support += report_as_map["support"]
-
-                avg_p = sum_p / self.model_config.fold_number
-                avg_r = sum_r / self.model_config.fold_number
-                avg_f1 = sum_f1 / self.model_config.fold_number
-                avg_support = sum_support / self.model_config.fold_number
-                avg_support_dec = str(avg_support - int(avg_support))[1:]
-                if avg_support_dec != "0":
-                    avg_support = math.floor(avg_support)
-
-                block_label = {"precision": avg_p, "recall": avg_r, "support": avg_support, "f1": avg_f1}
-                fold_average_evaluation["labels"][label] = block_label
-
-            print("----------------------------------------------------------------------")
-            print("\n** Worst ** model scores - run", str(worst_index))
-            print(reports[worst_index])
-
-            print("\n** Best ** model scores - run", str(best_index))
-            print(reports[best_index])
-
-            fold_nb = self.model_config.fold_number
-            self.model_config.fold_number = 1
-            if self.model_config.transformer_name is None:
-                self.model = self.models[best_index]
-            else:
-                dir_path = "data/models/sequenceLabelling/"
-                weight_file = DEFAULT_WEIGHT_FILE_NAME.replace(".hdf5", str(best_index) + ".hdf5")
-                # saved config file must be updated to single fold
-                self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
-
-            print("----------------------------------------------------------------------")
-            print("\nAverage over", str(int(fold_nb)), "folds")
-            print(get_report(fold_average_evaluation, digits=4, include_avgs=["micro"]))
-
-    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False):
-        if multi_gpu:
-            strategy = tf.distribute.MirroredStrategy()
-            print("Running with multi-gpu. Number of devices: {}".format(strategy.num_replicas_in_sync))
-
-            with strategy.scope():
-                return self.tag_(texts, output_format, features, batch_size)
-        else:
-            return self.tag_(texts, output_format, features, batch_size)
-
-    def tag_(self, texts, output_format, features=None, batch_size=None):
-        # annotate a list of sentences, return the list of annotations in the
-        # specified output_format
-
+    def tag(
+        self, texts, output_format, features=None, batch_size=None, multi_gpu=False
+    ):
+        """Tag texts with the model."""
         if batch_size is not None:
             self.model_config.batch_size = batch_size
-            print("---")
-            print("batch_size (prediction):", self.model_config.batch_size)
-            print("---")
 
-        if self.model:
-            tagger = Tagger(
-                self.model,
-                self.model_config,
-                self.embeddings,
-                preprocessor=self.p,
-                transformer_preprocessor=self.model.transformer_preprocessor,
-            )
-            start_time = time.time()
-            annotations = tagger.tag(texts, output_format, features=features)
-            runtime = round(time.time() - start_time, 3)
-            if output_format == "json":
-                annotations["runtime"] = runtime
-            # else:
-            #    print("runtime: %s seconds " % (runtime))
-            return annotations
-        else:
-            raise (OSError("Could not find a model." + str(self.model)))
+        if self.model is None:
+            raise OSError("Could not find a model.")
 
-    def tag_file(self, file_in, output_format, file_out, batch_size=None, multi_gpu=False):
-        # Annotate a text file containing one sentence per line, the annotations are
-        # written in the output file if not None, in the standard output otherwise.
-        # Processing is streamed by batches so that we can process huge files without
-        # memory issues
+        self.model.eval()
+        start_time = time.time()
 
-        if batch_size is not None:
-            self.model_config.batch_size = batch_size
-            print("---")
-            print("batch_size (prediction):", self.model_config.batch_size)
-            print("---")
+        # Preprocess texts
+        from delft.sequenceLabelling.tagger import Tagger
 
-        if self.model:
-            tagger = Tagger(
-                self.model,
-                self.model_config,
-                self.embeddings,
-                preprocessor=self.p,
-                transformer_preprocessor=self.model.transformer_preprocessor,
-            )
-            start_time = time.time()
-            if file_out is not None:
-                out = open(file_out, "w")
-            first = True
-            with open(file_in, "r") as f:
-                texts = None
-                while texts is None or len(texts) == self.model_config.batch_size * self.nb_workers:
-                    texts = next_n_lines(f, self.model_config.batch_size * self.nb_workers)
-                    annotations = tagger.tag(texts, output_format, multi_gpu=multi_gpu)
-                    # if the following is true, we just output the JSON returned by the tagger without any modification
-                    directDump = False
-                    if first:
-                        first = False
-                        if len(texts) < self.model_config.batch_size * self.nb_workers:
-                            runtime = round(time.time() - start_time, 3)
-                            annotations["runtime"] = runtime
-                            jsonString = json.dumps(annotations, sort_keys=False, indent=4, ensure_ascii=False)
-                            if file_out is None:
-                                print(jsonString)
-                            else:
-                                out.write(jsonString)
-                            directDump = True
-                        else:
-                            # we need to modify a bit the JSON outputted by the tagger to glue the different batches
-                            # output the general information attributes
-                            jsonString = (
-                                '{\n    "software": ' + json.dumps(annotations["software"], ensure_ascii=False) + ",\n"
-                            )
-                            jsonString += '    "date": ' + json.dumps(annotations["date"], ensure_ascii=False) + ",\n"
-                            jsonString += '    "model": ' + json.dumps(annotations["model"], ensure_ascii=False) + ",\n"
-                            jsonString += '    "texts": ['
-                            if file_out is None:
-                                print(jsonString, end="", flush=True)
-                            else:
-                                out.write(jsonString)
-                            first = True
-                            for jsonStr in annotations["texts"]:
-                                jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
-                                # jsonString = jsonString.replace('\n', '\n\t\t')
-                                jsonString = re.sub("\n", "\n        ", jsonString)
-                                if file_out is None:
-                                    if not first:
-                                        print(",\n        " + jsonString, end="", flush=True)
-                                    else:
-                                        first = False
-                                        print("\n        " + jsonString, end="", flush=True)
-                                else:
-                                    if not first:
-                                        out.write(",\n        ")
-                                        out.write(jsonString)
-                                    else:
-                                        first = False
-                                        out.write("\n        ")
-                                        out.write(jsonString)
-                    else:
-                        for jsonStr in annotations["texts"]:
-                            jsonString = json.dumps(jsonStr, sort_keys=False, indent=4, ensure_ascii=False)
-                            jsonString = re.sub("\n", "\n        ", jsonString)
-                            if file_out is None:
-                                print(",\n        " + jsonString, end="", flush=True)
-                            else:
-                                out.write(",\n        ")
-                                out.write(jsonString)
+        tagger = Tagger(
+            self.model,
+            self.model_config,
+            self.embeddings,
+            preprocessor=self.p,
+            device=self.device,
+        )
 
-            runtime = round(time.time() - start_time, 3)
-            if not directDump:
-                jsonString = "\n    ],\n"
-                jsonString += '    "runtime": ' + str(runtime)
-                jsonString += "\n}\n"
-                if file_out is None:
-                    print(jsonString)
-                else:
-                    out.write(jsonString)
+        annotations = tagger.tag(texts, output_format, features=features)
 
-            if file_out is not None:
-                out.close()
-            # print("runtime: %s seconds " % (runtime))
-        else:
-            raise (OSError("Could not find a model."))
+        runtime = round(time.time() - start_time, 3)
+        if output_format == "json":
+            annotations["runtime"] = runtime
 
-    def save(self, dir_path="data/models/sequenceLabelling/", weight_file=DEFAULT_WEIGHT_FILE_NAME):
-        # create subfolder for the model if not already exists
+        return annotations
+
+    def save(
+        self,
+        dir_path="data/models/sequenceLabelling/",
+        weight_file=DEFAULT_WEIGHT_FILE_NAME,
+    ):
+        """Save model to disk."""
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
 
         self.model_config.save(os.path.join(directory, CONFIG_FILE_NAME))
-        print("model config file saved")
+        print("Model config saved")
 
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
-        print("preprocessor saved")
+        print("Preprocessor saved")
 
         if self.model is None and self.model_config.fold_number > 1:
-            print(
-                "Error: model not saved. Evaluation need to be called first to select the best fold model to be saved"
-            )
+            print("Error: model not saved. Run eval first to select best fold model.")
         else:
-            self.model.save(os.path.join(directory, weight_file))
+            # Save PyTorch model
+            weight_path = os.path.join(directory, weight_file)
+            torch.save(self.model.state_dict(), weight_path)
+            print(f"Model weights saved to {weight_path}")
 
-            # save pretrained transformer config if used in the model
-            if self.model.transformer_config is not None:
-                self.model.transformer_config.to_json_file(os.path.join(directory, TRANSFORMER_CONFIG_FILE_NAME))
-                print("transformer config saved")
-
-            if self.model.transformer_preprocessor is not None:
-                self.model.transformer_preprocessor.tokenizer.save_pretrained(
-                    os.path.join(directory, DEFAULT_TRANSFORMER_TOKENIZER_DIR)
-                )
-                print("transformer tokenizer saved")
-
-        print("model saved")
-
-    def load(self, dir_path="data/models/sequenceLabelling/", weight_file=DEFAULT_WEIGHT_FILE_NAME):
+    def load(
+        self,
+        dir_path="data/models/sequenceLabelling/",
+        weight_file=DEFAULT_WEIGHT_FILE_NAME,
+    ):
+        """Load model from disk."""
         model_path = os.path.join(dir_path, self.model_config.model_name)
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
         if self.model_config.embeddings_name is not None:
-            # load embeddings
-            self.embeddings = self.get_embedding(self.model_config.embeddings_name, use_cache=True)
+            self.embeddings = Embeddings(
+                self.model_config.embeddings_name,
+                resource_registry=self.registry,
+                use_cache=False,
+            )
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.embeddings = None
             self.model_config.word_embedding_size = 0
 
-        self.p = Preprocessor.load(os.path.join(dir_path, self.model_config.model_name, PROCESSOR_FILE_NAME))
+        self.p = Preprocessor.load(os.path.join(model_path, PROCESSOR_FILE_NAME))
+
         self.model = get_model(
             self.model_config,
-            self.p,
-            ntags=len(self.p.vocab_tag),
+            len(self.p.vocab_tag),
             load_pretrained_weights=False,
-            local_path=os.path.join(dir_path, self.model_config.model_name),
-            registry=self.registry,
+            local_path=model_path,
         )
-        print("load weights from", os.path.join(dir_path, self.model_config.model_name, weight_file))
-        self.model.load(filepath=os.path.join(dir_path, self.model_config.model_name, weight_file))
-        self.model.print_summary()
+
+        weight_path = os.path.join(model_path, weight_file)
+        print(f"Loading weights from {weight_path}")
+        self.model.load_state_dict(torch.load(weight_path, map_location=self.device))
+        self.model.to(self.device)
+
+        print(f"Model loaded: {self.model_config.architecture}")
+        print(f"Parameters: {sum(p.numel() for p in self.model.parameters()):,}")
 
 
 def next_n_lines(file_opened, N):
+    """Read next N lines from file."""
     return [x.strip() for x in islice(file_opened, N)]

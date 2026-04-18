@@ -1,4 +1,4 @@
-from delft.utilities.Tokenizer import tokenizeAndFilter, tokenizeAndFilterSimple
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple, tokenizeAndFilter
 
 
 class TestTokenizer:
@@ -8,7 +8,19 @@ class TestTokenizer:
         output = tokenizeAndFilterSimple(input)
 
         assert len(output) == 11
-        assert output == ["this", "is", "a", "test", ",", "but", "a", "stupid", "test", "!", "!"]
+        assert output == [
+            "this",
+            "is",
+            "a",
+            "test",
+            ",",
+            "but",
+            "a",
+            "stupid",
+            "test",
+            "!",
+            "!",
+        ]
 
     def test_tokenizer_filter(self):
         input = "this is a test, but a stupid test!!"
@@ -16,7 +28,19 @@ class TestTokenizer:
         output = tokenizeAndFilter(input)
 
         assert len(output) == 2
-        assert output[0] == ["this", "is", "a", "test", ",", "but", "a", "stupid", "test", "!", "!"]
+        assert output[0] == [
+            "this",
+            "is",
+            "a",
+            "test",
+            ",",
+            "but",
+            "a",
+            "stupid",
+            "test",
+            "!",
+            "!",
+        ]
         assert output[1] == [
             (0, 4),
             (5, 7),

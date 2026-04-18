@@ -8,7 +8,25 @@ LOGGER = logging.getLogger(__name__)
 
 def test_get_entities_with_offsets():
     original_string = "(Mo -x 1 T x ) 3 Sb 7 with \uf084 x 0.1"
-    tokens = ["(", "Mo", "-", "x", "1", "T", "x", ")", "3", "Sb", "7", "with", "\uf084", "x", "0", ".", "1"]
+    tokens = [
+        "(",
+        "Mo",
+        "-",
+        "x",
+        "1",
+        "T",
+        "x",
+        ")",
+        "3",
+        "Sb",
+        "7",
+        "with",
+        "\uf084",
+        "x",
+        "0",
+        ".",
+        "1",
+    ]
     tags = [
         "B-<formula>",
         "I-<formula>",
@@ -28,7 +46,7 @@ def test_get_entities_with_offsets():
         "I-<value>",
         "I-<value>",
     ]
-    [tag.split("-")[-1] for tag in tags]
+    types = [tag.split("-")[-1] for tag in tags]
 
     offsets = [
         (0, 1),
@@ -50,7 +68,10 @@ def test_get_entities_with_offsets():
         (33, 34),
     ]
 
-    [offsets[offsetIndex][1] != offsets[offsetIndex + 1][0] for offsetIndex in range(0, len(offsets) - 1)]
+    spaces = [
+        offsets[offsetIndex][1] != offsets[offsetIndex + 1][0]
+        for offsetIndex in range(0, len(offsets) - 1)
+    ]
 
     for index in range(0, len(offsets)):
         chunk = original_string[offsets[index][0] : offsets[index][1]]

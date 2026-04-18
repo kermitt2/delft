@@ -6,16 +6,17 @@ Originally from Philipp Gross, https://github.com/phipleg/keras/blob/crf/keras/l
 Adapted to Keras/tensorflow 2 by your DeLFT servitor.
 
 Note: in this version, zero masking is not working with TF2, so do not use mask_zero=True in
-your architecture when using this CRF layer
+your archiecture when using this CRF layer
 
 Note: relying on tensorflow.compat.v1.keras function usages, it's probably ok.
 """
 
+from tensorflow.keras import initializers, regularizers, constraints
 
+# from tensorflow.keras import backend as K
+from tensorflow.compat.v1.keras import backend as K
+from tensorflow.keras.layers import Layer, InputSpec
 import tensorflow as tf
-from tf_keras import backend as K
-from tf_keras import constraints, initializers, regularizers
-from tf_keras.layers import InputSpec, Layer
 
 
 def path_energy(y, x, U, b_start=None, b_end=None, mask=None):
@@ -108,7 +109,11 @@ def viterbi_decode(x, U, b_start=None, b_end=None, mask=None):
     gamma_0 = K.zeros_like(alpha_0)
     initial_states = [gamma_0, alpha_0]
     _, gamma = _forward(
-        x, lambda B: [K.cast(K.argmax(B, axis=1), K.floatx()), K.max(B, axis=1)], initial_states, U, mask
+        x,
+        lambda B: [K.cast(K.argmax(B, axis=1), K.floatx()), K.max(B, axis=1)],
+        initial_states,
+        U,
+        mask,
     )
     y = _backward(gamma, mask)
     return y
@@ -124,7 +129,9 @@ def free_energy(x, U, b_start=None, b_end=None, mask=None):
 def free_energy0(x, U, mask=None):
     """Free energy without boundary potential handling."""
     initial_states = [x[:, 0, :]]
-    last_alpha, _ = _forward(x, lambda B: [tf.reduce_logsumexp(B, axis=1)], initial_states, U, mask)
+    last_alpha, _ = _forward(
+        x, lambda B: [tf.reduce_logsumexp(B, axis=1)], initial_states, U, mask
+    )
     return last_alpha[:, 0]
 
 
@@ -287,7 +294,9 @@ class ChainCRF(Layer):
         n_classes = input_shape[2]
         n_steps = input_shape[1]
         assert n_steps is None or n_steps >= 2
-        self.input_spec = [InputSpec(dtype=K.floatx(), shape=(None, n_steps, n_classes))]
+        self.input_spec = [
+            InputSpec(dtype=K.floatx(), shape=(None, n_steps, n_classes))
+        ]
 
         self.U = self.add_weight(
             shape=(n_classes, n_classes),
@@ -332,8 +341,12 @@ class ChainCRF(Layer):
 
     def sparse_crf_loss_masked(self, y_true, y_pred):
         mask_value = 0
-        y_true_masked = tf.ragged.boolean_mask(y_true, tf.not_equal(y_true, mask_value)).to_tensor()
-        y_pred_masked = tf.ragged.boolean_mask(y_pred, tf.not_equal(y_true, mask_value)).to_tensor()
+        y_true_masked = tf.ragged.boolean_mask(
+            y_true, tf.not_equal(y_true, mask_value)
+        ).to_tensor()
+        y_pred_masked = tf.ragged.boolean_mask(
+            y_pred, tf.not_equal(y_true, mask_value)
+        ).to_tensor()
         return self.sparse_loss(y_true_masked, y_pred_masked)
 
     def sparse_crf_loss_bert_masked(self, y_true, y_pred):
@@ -359,7 +372,9 @@ class ChainCRF(Layer):
         # note: nothing to squeeze here with sparse labels which are 2D
         # y_true = tf.squeeze(y_true, [2])
         mask = self._fetch_mask()
-        return sparse_chain_crf_loss(y_true, y_pred, self.U, self.b_start, self.b_end, mask)
+        return sparse_chain_crf_loss(
+            y_true, y_pred, self.U, self.b_start, self.b_end, mask
+        )
 
     def get_config(self):
         config = {

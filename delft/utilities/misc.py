@@ -1,9 +1,9 @@
-from typing import Dict, List, Tuple
+from typing import List, Dict, Tuple
 
 __author__ = "@de-code"
 
 """
-Utility class from:
+Utility class from: 
 https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/sciencebeam_trainer_delft/utils/misc.py
 """
 
@@ -65,19 +65,70 @@ def print_parameters(model_config, training_config):
     print("model_name:", model_config.model_name)
     print("learning_rate: ", training_config.learning_rate)
 
-    if hasattr(training_config, "num_workers"):
-        print("num_workers: ", training_config.num_workers)
-
     if (
         hasattr(training_config, "class_weights")
-        and training_config.class_weights is not None
+        and training_config.class_weights != None
         and hasattr(model_config, "list_classes")
     ):
+        list_classes = model_config.list_classes
         weight_summary = ""
         for indx, class_name in enumerate(model_config.list_classes):
             if indx != 0:
                 weight_summary += ", "
-            weight_summary += class_name + ": " + str(training_config.class_weights[indx])
+            weight_summary += (
+                class_name + ": " + str(training_config.class_weights[indx])
+            )
         print("class_weights:", weight_summary)
 
     print("---")
+
+
+def to_wandb_table(report_as_map):
+    """Convert evaluation report to wandb Table format.
+
+    Args:
+        report_as_map: Dictionary containing evaluation metrics from classification_report
+
+    Returns:
+        Tuple of (columns, data) for creating wandb.Table
+    """
+    columns = ["", "precision", "recall", "f1-score", "support"]
+    data = []
+
+    # Add each label's metrics
+    if "labels" in report_as_map:
+        for label, metrics in report_as_map["labels"].items():
+            row = [
+                label,
+                round(metrics["precision"], 4),
+                round(metrics["recall"], 4),
+                round(metrics["f1"], 4),
+                int(metrics["support"]),
+            ]
+            data.append(row)
+
+    # Add micro average
+    if "micro" in report_as_map:
+        micro = report_as_map["micro"]
+        micro_row = [
+            "all (micro avg.)",
+            round(micro["precision"], 4),
+            round(micro["recall"], 4),
+            round(micro["f1"], 4),
+            int(micro["support"]),
+        ]
+        data.append(micro_row)
+
+    # Add macro average
+    if "macro" in report_as_map:
+        macro = report_as_map["macro"]
+        macro_row = [
+            "all (macro avg.)",
+            round(macro["precision"], 4),
+            round(macro["recall"], 4),
+            round(macro["f1"], 4),
+            int(macro["support"]),
+        ]
+        data.append(macro_row)
+
+    return columns, data

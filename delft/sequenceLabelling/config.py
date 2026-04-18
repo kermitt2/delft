@@ -1,5 +1,6 @@
 import json
 
+
 # Model parameters
 
 
@@ -30,7 +31,6 @@ class ModelConfig(object):
         features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
         transformer_name=None,
     ):
-
         self.model_name = model_name
         self.architecture = architecture
         self.embeddings_name = embeddings_name
@@ -43,7 +43,9 @@ class ModelConfig(object):
         self.max_char_length = max_char_length
 
         # Features
-        self.features_vocabulary_size = features_vocabulary_size  # maximum number of unique values per feature
+        self.features_vocabulary_size = (
+            features_vocabulary_size  # maximum number of unique values per feature
+        )
         self.features_indices = features_indices
         self.features_embedding_size = features_embedding_size
         self.features_lstm_units = features_lstm_units
@@ -91,9 +93,7 @@ class TrainingConfig(object):
         patience=5,
         max_checkpoints_to_keep=0,
         multiprocessing=True,
-        num_workers=1,
     ):
-
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
         self.learning_rate = learning_rate
@@ -104,4 +104,3 @@ class TrainingConfig(object):
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
         self.multiprocessing = multiprocessing
-        self.num_workers = num_workers

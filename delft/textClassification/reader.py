@@ -1,9 +1,7 @@
+import numpy as np
 import gzip
 import json
-
-import numpy as np
 import pandas as pd
-
 from delft.utilities.numpy import shuffle_triple_with_view
 
 
@@ -32,7 +30,9 @@ def load_texts_and_classes(filepath):
                 continue
             pieces = line.split("\t")
             if len(pieces) < 3:
-                print("Warning: number of fields in the data file too low for line:", line)
+                print(
+                    "Warning: number of fields in the data file too low for line:", line
+                )
             texts.append(pieces[1])
             classes.append(pieces[2:])
 
@@ -152,7 +152,10 @@ def load_citation_sentiment_corpus(filepath):
 
             pieces = line.split("\t")
             if len(pieces) != 4:
-                print("Warning: incorrect number of fields in the data file for line:", line)
+                print(
+                    "Warning: incorrect number of fields in the data file for line:",
+                    line,
+                )
                 continue
             text = pieces[3]
             # remove start/end quotes
@@ -203,7 +206,10 @@ def load_citation_intent_corpus(filepath):
 
             pieces = line.split("\t")
             if len(pieces) != 4:
-                print("Warning: incorrect number of fields in the data file for line:", line)
+                print(
+                    "Warning: incorrect number of fields in the data file for line:",
+                    line,
+                )
                 continue
             text = pieces[3]
             # remove start/end quotes
@@ -270,7 +276,15 @@ def load_dataseer_corpus_csv(filepath):
 
         reuse_list = np.array(list(map(map_boolean, reuse_list)))
         print(reuse_list)
-        return np.asarray(texts_list), reuse_list, None, None, ["no_reuse", "reuse"], None, None
+        return (
+            np.asarray(texts_list),
+            reuse_list,
+            None,
+            None,
+            ["no_reuse", "reuse"],
+            None,
+            None,
+        )
 
     # otherwise we have the list of datatypes, and optionally subtypes and leaf datatypes
     datatypes = df.iloc[:, 2]
@@ -290,7 +304,9 @@ def load_dataseer_corpus_csv(filepath):
         datasubtypes_list = np.asarray(datasubtypes_list)
         datasubtypes_list_lower = np.char.lower(datasubtypes_list)
         list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
-        datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
+        datasubtypes_final = normalize_classes(
+            datasubtypes_list_lower, list_classes_datasubtypes
+        )
 
     """
     if df.shape[1] > 4:
@@ -299,13 +315,21 @@ def load_dataseer_corpus_csv(filepath):
         leafdatatypes_list = np.asarray(leafdatatypes_list)
         #leafdatatypes_list_lower = np.char.lower(leafdatatypes_list)
         leafdatatypes_list_lower = leafdatatypes_list
-        list_classes_leafdatatypes = np.unique(leafdatatypes_list_lower)
+        list_classes_leafdatatypes = np.unique(leafdatatypes_list_lower)  
         print(list_classes_leafdatatypes)
         leafdatatypes_final = normalize_classes(leafdatatypes_list_lower, list_classes_leafdatatypes)
     """
 
     if df.shape[1] == 3:
-        return np.asarray(texts_list), datatypes_final, None, None, list_classes_datatypes.tolist(), None, None
+        return (
+            np.asarray(texts_list),
+            datatypes_final,
+            None,
+            None,
+            list_classes_datatypes.tolist(),
+            None,
+            None,
+        )
     # elif df.shape[1] == 4:
     else:
         return (
@@ -341,7 +365,10 @@ def load_software_use_corpus_json(json_gz_file_path):
     with gzip.GzipFile(json_gz_file_path, "r") as fin:
         data = json.loads(fin.read().decode("utf-8"))
         if "documents" not in data:
-            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            print(
+                "There is no usable classified text in the corpus file",
+                json_gz_file_path,
+            )
             return None, None
         for document in data["documents"]:
             for segment in document["texts"]:
@@ -361,7 +388,9 @@ def load_software_use_corpus_json(json_gz_file_path):
 
     texts_list_final = np.asarray(texts_list)
 
-    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(
+        texts_list_final, classes_list_final
+    )
 
     return texts_list_final, classes_list_final
 
@@ -384,7 +413,10 @@ def load_software_context_corpus_json(json_gz_file_path):
     with gzip.GzipFile(json_gz_file_path, "r") as fin:
         data = json.loads(fin.read().decode("utf-8"))
         if "documents" not in data:
-            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            print(
+                "There is no usable classified text in the corpus file",
+                json_gz_file_path,
+            )
             return None, None
         for document in data["documents"]:
             for segment in document["texts"]:
@@ -419,7 +451,9 @@ def load_software_context_corpus_json(json_gz_file_path):
     texts_list_final = np.asarray(texts_list)
     classes_list_final = np.asarray(classes_list)
 
-    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(
+        texts_list_final, classes_list_final
+    )
 
     return texts_list_final, classes_list_final
 
@@ -441,7 +475,10 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
     with gzip.GzipFile(json_gz_file_path, "r") as fin:
         data = json.loads(fin.read().decode("utf-8"))
         if "documents" not in data:
-            print("There is no usable classified text in the corpus file", json_gz_file_path)
+            print(
+                "There is no usable classified text in the corpus file",
+                json_gz_file_path,
+            )
             return None, None
         for document in data["documents"]:
             for segment in document["texts"]:
@@ -473,7 +510,9 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
     texts_list_final = np.asarray(texts_list)
     classes_list_final = np.asarray(classes_list)
 
-    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(
+        texts_list_final, classes_list_final
+    )
 
     return texts_list_final, classes_list_final
 

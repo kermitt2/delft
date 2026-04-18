@@ -1,0 +1,3 @@
+Programming Language :: Python :: 3.8
+License :: OSI Approved :: Apache Software License
+Operating System :: OS Independent

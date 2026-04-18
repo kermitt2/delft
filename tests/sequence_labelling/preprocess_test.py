@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
-from delft.sequenceLabelling.preprocess import FeaturesPreprocessor, Preprocessor
+from delft.sequenceLabelling.preprocess import Preprocessor, FeaturesPreprocessor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -123,7 +123,11 @@ class TestFeaturesPreprocessor:
     def test_should_select_features(self):
         preprocessor = FeaturesPreprocessor(features_indices=[1])
         features_batch = [
-            [[FEATURE_VALUE_1, FEATURE_VALUE_2], [FEATURE_VALUE_1, FEATURE_VALUE_3], [FEATURE_VALUE_1, FEATURE_VALUE_4]]
+            [
+                [FEATURE_VALUE_1, FEATURE_VALUE_2],
+                [FEATURE_VALUE_1, FEATURE_VALUE_3],
+                [FEATURE_VALUE_1, FEATURE_VALUE_4],
+            ]
         ]
         features_transformed = preprocessor.fit_transform(features_batch)
         features_length = len(preprocessor.features_indices)
@@ -133,7 +137,11 @@ class TestFeaturesPreprocessor:
     def test_serialize_to_json(self, tmp_path):
         preprocessor = FeaturesPreprocessor(features_indices=[1])
         features_batch = [
-            [[FEATURE_VALUE_1, FEATURE_VALUE_2], [FEATURE_VALUE_1, FEATURE_VALUE_3], [FEATURE_VALUE_1, FEATURE_VALUE_4]]
+            [
+                [FEATURE_VALUE_1, FEATURE_VALUE_2],
+                [FEATURE_VALUE_1, FEATURE_VALUE_3],
+                [FEATURE_VALUE_1, FEATURE_VALUE_4],
+            ]
         ]
         X_train = [["Word1"]]
         y_train = [["label1"]]
@@ -153,6 +161,9 @@ class TestFeaturesPreprocessor:
         for key in back_as_dict.keys():
             if key == "feature_preprocessor":
                 for sub_key in back_as_dict[key].__dict__.keys():
-                    assert back_as_dict[key].__dict__[sub_key] == original_as_dict[key].__dict__[sub_key]
+                    assert (
+                        back_as_dict[key].__dict__[sub_key]
+                        == original_as_dict[key].__dict__[sub_key]
+                    )
             else:
                 assert back_as_dict[key] == original_as_dict[key]

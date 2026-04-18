@@ -1,15 +1,16 @@
-import argparse
-import json
 import os
-import time
-
+import json
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
+import argparse
+import time
+
 from delft.utilities.Utilities import t_or_f
 
 
-def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None):
-
+def configure(
+    architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None
+):
     maxlen = 300
     patience = 5
     o_early_stop = True
@@ -44,6 +45,8 @@ def train(
     max_epoch=-1,
     early_stop=None,
     multi_gpu=False,
+    report_to_wandb=False,
+    num_workers=None,
 ):
     batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(
         architecture, embeddings_name, batch_size, max_epoch, early_stop
@@ -72,6 +75,8 @@ def train(
         early_stop=early_stop,
         transformer_name=transformer,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     print("training done")
@@ -81,13 +86,23 @@ def train(
 
 
 # annotate a list of texts, provides results in a list of offset mentions
-def annotate(texts, output_format, architecture="BidLSTM_CRF", transformer=None, multi_gpu=False):
+def annotate(
+    texts,
+    output_format,
+    architecture="BidLSTM_CRF",
+    transformer=None,
+    multi_gpu=False,
+):
     annotations = []
 
     model_name = "insult-" + architecture
 
     # load model
-    model = Sequence(model_name, architecture=architecture, transformer_name=transformer)
+    model = Sequence(
+        model_name,
+        architecture=architecture,
+        transformer_name=transformer,
+    )
     model.load()
 
     start_time = time.time()
@@ -127,7 +142,11 @@ if __name__ == "__main__":
 
     architectures = architectures_word_embeddings + architectures_transformers_based
 
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
     parser = argparse.ArgumentParser(
         description="Experimental insult recognizer for the Wikipedia toxic comments dataset"
     )
@@ -158,9 +177,15 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
-    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
-    parser.add_argument("--max-epoch", type=int, default=-1, help="Maximum number of epochs.")
-    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument(
+        "--learning-rate", type=float, default=None, help="Initial learning rate"
+    )
+    parser.add_argument(
+        "--max-epoch", type=int, default=-1, help="Maximum number of epochs."
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
+    )
     parser.add_argument(
         "--early-stop",
         type=t_or_f,
@@ -174,6 +199,20 @@ if __name__ == "__main__":
         default=False,
         help="Enable the support for distributed computing (the batch size needs to be set accordingly using --batch-size)",
         action="store_true",
+    )
+
+    parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
+    parser.add_argument(
+        "--num-workers",
+        type=int,
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train.",
     )
 
     args = parser.parse_args()
@@ -190,8 +229,10 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
+    wandb = args.wandb
+    num_workers = args.num_workers
 
-    if transformer is None and embeddings_name is None:
+    if transformer == None and embeddings_name == None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
@@ -205,6 +246,8 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if args.action == "tag":
@@ -213,5 +256,10 @@ if __name__ == "__main__":
             "you're a moronic wimp who is too lazy to do research! die in hell !!",
             "This is a fucking test.",
         ]
-        result = annotate(someTexts, "json", architecture=architecture, transformer=transformer)
+        result = annotate(
+            someTexts,
+            "json",
+            architecture=architecture,
+            transformer=transformer,
+        )
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

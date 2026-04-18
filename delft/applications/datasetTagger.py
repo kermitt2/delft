@@ -1,9 +1,9 @@
+import os
 import argparse
 import json
-import os
 import time
-
 import numpy as np
+
 from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
@@ -97,21 +97,27 @@ def train(
     learning_rate=None,
     early_stop=None,
     multi_gpu=False,
-    num_workers=1,
+    report_to_wandb=False,
+    num_workers=None,
 ):
-
     print("Loading data...")
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
-        dataseer_sentences_path = "data/sequenceLabelling/datasets/dataseer_sentences.json"
+        dataseer_sentences_path = (
+            "data/sequenceLabelling/datasets/dataseer_sentences.json"
+        )
         if os.path.exists(dataseer_sentences_path):
             x_all1, y_all1 = load_data_and_labels_json_offsets(dataseer_sentences_path)
         ner_dataset_recognition_sentences_path = (
             "data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json"
         )
         if os.path.exists(ner_dataset_recognition_sentences_path):
-            x_all2, y_all2 = load_data_and_labels_json_offsets(ner_dataset_recognition_sentences_path)
-        coleridge_sentences_path = "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
+            x_all2, y_all2 = load_data_and_labels_json_offsets(
+                ner_dataset_recognition_sentences_path
+            )
+        coleridge_sentences_path = (
+            "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
+        )
         if os.path.exists(coleridge_sentences_path):
             x_all3, y_all3 = load_data_and_labels_json_offsets(coleridge_sentences_path)
         x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
@@ -119,15 +125,31 @@ def train(
     else:
         x_all, y_all = load_data_and_labels_json_offsets(input_path)
 
-    x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1, shuffle=True)
+    x_train, x_valid, y_train, y_valid = train_test_split(
+        x_all, y_all, test_size=0.1, shuffle=True
+    )
 
     print(len(x_train), "train sequences")
     print(len(x_valid), "validation sequences")
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop, patience = (
-        configure(
-            architecture, output_path, max_sequence_length, batch_size, embeddings_name, max_epoch, patience, early_stop
-        )
+    (
+        batch_size,
+        max_sequence_length,
+        model_name,
+        embeddings_name,
+        max_epoch,
+        multiprocessing,
+        early_stop,
+        patience,
+    ) = configure(
+        architecture,
+        output_path,
+        max_sequence_length,
+        batch_size,
+        embeddings_name,
+        max_epoch,
+        patience,
+        early_stop,
     )
     model = Sequence(
         model_name,
@@ -141,10 +163,11 @@ def train(
         features_indices=features_indices,
         max_epoch=max_epoch,
         multiprocessing=multiprocessing,
-        num_workers=num_workers,
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     start_time = time.time()
@@ -176,21 +199,27 @@ def train_eval(
     learning_rate=None,
     early_stop=None,
     multi_gpu=False,
-    num_workers=1,
+    report_to_wandb=False,
+    num_workers=None,
 ):
-
     print("Loading data...")
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
-        dataseer_sentences_path = "data/sequenceLabelling/datasets/dataseer_sentences.json"
+        dataseer_sentences_path = (
+            "data/sequenceLabelling/datasets/dataseer_sentences.json"
+        )
         if os.path.exists(dataseer_sentences_path):
             x_all1, y_all1 = load_data_and_labels_json_offsets(dataseer_sentences_path)
         ner_dataset_recognition_sentences_path = (
             "data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json"
         )
         if os.path.exists(ner_dataset_recognition_sentences_path):
-            x_all2, y_all2 = load_data_and_labels_json_offsets(ner_dataset_recognition_sentences_path)
-        coleridge_sentences_path = "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
+            x_all2, y_all2 = load_data_and_labels_json_offsets(
+                ner_dataset_recognition_sentences_path
+            )
+        coleridge_sentences_path = (
+            "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
+        )
         if os.path.exists(coleridge_sentences_path):
             x_all3, y_all3 = load_data_and_labels_json_offsets(coleridge_sentences_path)
         x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
@@ -198,14 +227,26 @@ def train_eval(
     else:
         x_all, y_all = load_data_and_labels_json_offsets(input_path)
 
-    x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1, shuffle=True)
-    x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
+    x_train_all, x_eval, y_train_all, y_eval = train_test_split(
+        x_all, y_all, test_size=0.1, shuffle=True
+    )
+    x_train, x_valid, y_train, y_valid = train_test_split(
+        x_train_all, y_train_all, test_size=0.1
+    )
 
     print(len(x_train), "train sequences")
     print(len(x_valid), "validation sequences")
     print(len(x_eval), "evaluation sequences")
 
-    batch_size, max_sequence_length, model_name, embeddings_name, max_epoch, multiprocessing, early_stop = configure(
+    (
+        batch_size,
+        max_sequence_length,
+        model_name,
+        embeddings_name,
+        max_epoch,
+        multiprocessing,
+        early_stop,
+    ) = configure(
         architecture,
         output_path,
         max_sequence_length,
@@ -227,10 +268,11 @@ def train_eval(
         features_indices=features_indices,
         max_epoch=max_epoch,
         multiprocessing=multiprocessing,
-        num_workers=num_workers,
         early_stop=early_stop,
         patience=patience,
         learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
+        nb_workers=num_workers,
     )
 
     start_time = time.time()
@@ -264,7 +306,13 @@ def eval_(input_path=None, architecture=None):
 
 
 # annotate a list of texts
-def annotate_text(texts, output_format, architecture="BidLSTM_CRF", features=None, multi_gpu=False):
+def annotate_text(
+    texts,
+    output_format,
+    architecture="BidLSTM_CRF",
+    features=None,
+    multi_gpu=False,
+):
     annotations = []
 
     # load model
@@ -276,7 +324,9 @@ def annotate_text(texts, output_format, architecture="BidLSTM_CRF", features=Non
 
     start_time = time.time()
 
-    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
+    annotations = model.tag(
+        texts, output_format, features=features, multi_gpu=multi_gpu
+    )
     runtime = round(time.time() - start_time, 3)
 
     if output_format == "json":
@@ -288,7 +338,9 @@ def annotate_text(texts, output_format, architecture="BidLSTM_CRF", features=Non
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Trainer for dataset recognition models using the DeLFT library")
+    parser = argparse.ArgumentParser(
+        description="Trainer for dataset recognition models using the DeLFT library"
+    )
 
     actions = ["train", "train_eval", "eval", "tag"]
 
@@ -318,13 +370,24 @@ if __name__ == "__main__":
 
     architectures = architectures_word_embeddings + architectures_transformers_based
 
-    pretrained_transformers_examples = ["bert-base-cased", "bert-large-cased", "allenai/scibert_scivocab_cased"]
+    pretrained_transformers_examples = [
+        "bert-base-cased",
+        "bert-large-cased",
+        "allenai/scibert_scivocab_cased",
+    ]
 
     parser.add_argument("action", choices=actions)
     parser.add_argument(
-        "--fold-count", type=int, default=1, help="Number of fold to use when evaluating with n-fold cross validation."
+        "--fold-count",
+        type=int,
+        default=1,
+        help="Number of fold to use when evaluating with n-fold cross validation.",
     )
-    parser.add_argument("--architecture", help="Type of model architecture to be used, one of " + str(architectures))
+    parser.add_argument(
+        "--architecture",
+        help="Type of model architecture to be used, one of " + str(architectures),
+    )
+
     # group_embeddings = parser.add_mutually_exclusive_group(required=False)
     parser.add_argument(
         "--embedding",
@@ -351,17 +414,29 @@ if __name__ == "__main__":
         help="Grobid data file to be used for training (train action), for training and "
         + "evaluation (train_eval action) or just for evaluation (eval action).",
     )
-    parser.add_argument("--max-sequence-length", type=int, default=-1, help="max-sequence-length parameter to be used.")
-    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
+    parser.add_argument(
+        "--max-sequence-length",
+        type=int,
+        default=-1,
+        help="max-sequence-length parameter to be used.",
+    )
+    parser.add_argument(
+        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
+    )
     parser.add_argument(
         "--patience",
         type=int,
         default=-1,
-        help="patience, number of extra epochs to perform after the best epoch before stopping a training.",
+        help="patience, number of extra epochs to perform after "
+        "the best epoch before stopping a training.",
     )
-    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument(
+        "--learning-rate", type=float, default=None, help="Initial learning rate"
+    )
 
-    parser.add_argument("--max-epoch", type=int, default=-1, help="Maximum number of epochs.")
+    parser.add_argument(
+        "--max-epoch", type=int, default=-1, help="Maximum number of epochs."
+    )
     parser.add_argument(
         "--early-stop",
         type=t_or_f,
@@ -377,10 +452,17 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--wandb",
+        default=False,
+        help="Enable logging to Weights and Biases",
+        action="store_true",
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
-        default=1,
-        help="Number of worker processes for data loading (default: 1, use 0 or 1 for no multiprocessing)",
+        default=None,
+        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval.",
     )
 
     args = parser.parse_args()
@@ -398,6 +480,8 @@ if __name__ == "__main__":
     max_epoch = args.max_epoch
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
+    wandb = args.wandb
+    num_workers = args.num_workers
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -417,7 +501,8 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
-            num_workers=args.num_workers,
+            report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "eval":
@@ -449,7 +534,8 @@ if __name__ == "__main__":
             max_epoch=max_epoch,
             early_stop=early_stop,
             multi_gpu=multi_gpu,
-            num_workers=args.num_workers,
+            report_to_wandb=wandb,
+            num_workers=num_workers,
         )
 
     if action == "tag":
@@ -466,7 +552,14 @@ if __name__ == "__main__":
         someTexts.append(
             "We also compare ShanghaiTechRGBD with other RGB-D crowd counting datasets in , and we can see that ShanghaiTechRGBD is the most challenging RGB-D crowd counting dataset in terms of the number of images and heads."
         )
-        someTexts.append("Insulin levels of all samples were measured by ELISA kit (Mercodia)")
+        someTexts.append(
+            "Insulin levels of all samples were measured by ELISA kit (Mercodia)"
+        )
 
-        result = annotate_text(someTexts, "json", architecture=architecture, multi_gpu=multi_gpu)
+        result = annotate_text(
+            someTexts,
+            "json",
+            architecture=architecture,
+            multi_gpu=multi_gpu,
+        )
         print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))

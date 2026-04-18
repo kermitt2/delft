@@ -5,7 +5,7 @@ import numpy as np
 __author__ = "@de-code"
 
 """
-Utility class, from:
+Utility class, from: 
 https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/sciencebeam_trainer_delft/utils/numpy.py
 """
 
@@ -41,11 +41,17 @@ def shuffle_triple_with_view(a, b=None, c=None):
     """
     if b is not None and c is not None:
         assert (
-            "Cannot shuffle with view if the arrays have different dimensions: " + str(len(a)) + " vs " + str(len(b))
+            "Cannot shuffle with view if the arrays have different dimensions: "
+            + str(len(a))
+            + " vs "
+            + str(len(b))
         ), len(a) == len(b) == len(c)
     elif b is not None and c is None:
         assert (
-            "Cannot shuffle with view if the arrays have different dimensions: " + str(len(a)) + " vs " + str(len(b))
+            "Cannot shuffle with view if the arrays have different dimensions: "
+            + str(len(a))
+            + " vs "
+            + str(len(b))
         ), len(a) == len(b)
     elif c is not None and b is None:
         raise Exception("b is None but c is not.")
