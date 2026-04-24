@@ -130,6 +130,7 @@ def create_dataloader(
     num_batches = max(1, len(dataset) // batch_size)
     if num_workers > num_batches:
         import logging
+
         logging.getLogger(__name__).warning(
             f"Reducing num_workers from {num_workers} to {num_batches} "
             f"(dataset has {len(dataset)} samples, {num_batches} batches)"
@@ -141,13 +142,15 @@ def create_dataloader(
     # Each worker must reopen the LMDB environment to get its own handle.
     worker_init = None
     if embeddings is not None and num_workers > 0:
+
         def lmdb_worker_init_fn(worker_id):
             """Reopen LMDB environment in each worker process for fork safety."""
             worker_info = torch.utils.data.get_worker_info()
             if worker_info is not None:
                 dataset = worker_info.dataset
-                if hasattr(dataset, 'embeddings') and dataset.embeddings is not None:
+                if hasattr(dataset, "embeddings") and dataset.embeddings is not None:
                     dataset.embeddings.reopen_lmdb()
+
         worker_init = lmdb_worker_init_fn
 
     loader = DataLoader(

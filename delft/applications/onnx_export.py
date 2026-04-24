@@ -91,7 +91,7 @@ class TransformerEncoderWrapper(torch.nn.Module):
     def __init__(self, model):
         super().__init__()
         self.model = model
-        self.accepts_token_type_ids = getattr(model, 'accepts_token_type_ids', True)
+        self.accepts_token_type_ids = getattr(model, "accepts_token_type_ids", True)
 
     def forward(self, input_ids, attention_mask, token_type_ids=None):
         """Run transformer encoder to get emissions.
@@ -130,7 +130,7 @@ def export_crf_params(model, output_path: str):
     # Handle different CRF implementations
     # Standard Contract: crf_params.json MUST contain "transitions" in [from_tag][to_tag] orientation.
     # Java Code (CRFDecoder.java) iterates as transitions[prevTag][currentTag].
-    
+
     if hasattr(crf, "crf"):
         # Using pytorch-crf wrapper (standard CRF class)
         # pytorch-crf stores transitions as [from_tag, to_tag]
@@ -254,15 +254,18 @@ def export_classification_config(model_config, output_path: str):
     print(f"Exported classification config to {output_path}")
 
 
-
 def export_class_labels(model_config, output_path: str):
     """
     Export class labels for text classification model.
     """
     labels = {
         "labels": model_config.list_classes,
-        "labelToIndex": {label: idx for idx, label in enumerate(model_config.list_classes)},
-        "indexToLabel": {idx: label for idx, label in enumerate(model_config.list_classes)},
+        "labelToIndex": {
+            label: idx for idx, label in enumerate(model_config.list_classes)
+        },
+        "indexToLabel": {
+            idx: label for idx, label in enumerate(model_config.list_classes)
+        },
     }
 
     with open(output_path, "w") as f:
@@ -288,13 +291,15 @@ def export_tokenizer(tokenizer, output_dir: str):
     os.makedirs(output_dir, exist_ok=True)
     tokenizer.save_pretrained(output_dir)
     print(f"Exported tokenizer to {output_dir}")
-    
+
     # List exported files
     for f in os.listdir(output_dir):
         print(f"  - {f}")
 
 
-def export_transformer_config(model_config, preprocessor, accepts_token_type_ids: bool, output_path: str):
+def export_transformer_config(
+    model_config, preprocessor, accepts_token_type_ids: bool, output_path: str
+):
     """
     Export transformer model configuration for Java runtime.
 
@@ -309,7 +314,8 @@ def export_transformer_config(model_config, preprocessor, accepts_token_type_ids
         "architecture": model_config.architecture,
         "transformerName": model_config.transformer_name,
         "maxSequenceLength": model_config.max_sequence_length,
-        "useCRF": "CRF" in model_config.architecture or "ChainCRF" in model_config.architecture,
+        "useCRF": "CRF" in model_config.architecture
+        or "ChainCRF" in model_config.architecture,
         "useChainCRF": "ChainCRF" in model_config.architecture,
         "useFeatures": "FEATURES" in model_config.architecture,
         "useChar": "CHAR" in model_config.architecture,
@@ -317,7 +323,7 @@ def export_transformer_config(model_config, preprocessor, accepts_token_type_ids
     }
 
     # Add label mappings
-    if hasattr(preprocessor, 'vocab_tag'):
+    if hasattr(preprocessor, "vocab_tag"):
         config["labelVocab"] = preprocessor.vocab_tag
         config["labelIndex"] = {str(k): v for k, v in preprocessor.indice_tag.items()}
         config["numLabels"] = len(preprocessor.vocab_tag)
@@ -723,7 +729,7 @@ def export_transformer_to_onnx(
     seq_len = max_seq_length
     dummy_input_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
     dummy_attention_mask = torch.ones(batch_size, seq_len, dtype=torch.long)
-    
+
     # Prepare inputs and names based on model requirements
     if accepts_token_type_ids:
         dummy_token_type_ids = torch.zeros(batch_size, seq_len, dtype=torch.long)
@@ -768,7 +774,7 @@ def export_transformer_to_onnx(
     print("ONNX transformer model exported successfully")
 
     # Export CRF params if applicable
-    if hasattr(model, 'crf'):
+    if hasattr(model, "crf"):
         crf_path = os.path.join(output_dir, "crf_params.json")
         export_crf_params(model, crf_path)
     else:
@@ -776,15 +782,19 @@ def export_transformer_to_onnx(
 
     # Export tokenizer
     tokenizer_dir = os.path.join(output_dir, "tokenizer")
-    if hasattr(preprocessor, 'tokenizer') and preprocessor.tokenizer is not None:
+    if hasattr(preprocessor, "tokenizer") and preprocessor.tokenizer is not None:
         export_tokenizer(preprocessor.tokenizer, tokenizer_dir)
     else:
         print("Warning: No tokenizer found in preprocessor, skipping tokenizer export")
-        print("  You may need to load the tokenizer separately using the transformer name")
+        print(
+            "  You may need to load the tokenizer separately using the transformer name"
+        )
 
     # Export config
     config_path = os.path.join(output_dir, "config.json")
-    export_transformer_config(model_config, preprocessor, accepts_token_type_ids, config_path)
+    export_transformer_config(
+        model_config, preprocessor, accepts_token_type_ids, config_path
+    )
 
     # Verify ONNX model
     try:
@@ -807,7 +817,7 @@ def export_transformer_to_onnx(
                 print(f"      - {sub_item}")
         else:
             # Show file size for ONNX file
-            if item.endswith('.onnx'):
+            if item.endswith(".onnx"):
                 size_mb = os.path.getsize(item_path) / (1024 * 1024)
                 print(f"  - {item} ({size_mb:.1f} MB)")
             else:
@@ -887,7 +897,9 @@ ARCHITECTURES = ARCHITECTURES_WORD_EMBEDDINGS + ARCHITECTURES_TRANSFORMERS
 
 def main():
     parser = argparse.ArgumentParser(description="Export DeLFT model to ONNX format")
-    parser.add_argument("model", help="Name of the model (e.g., header, date, dataseer-binary)")
+    parser.add_argument(
+        "model", help="Name of the model (e.g., header, date, dataseer-binary)"
+    )
     parser.add_argument(
         "--architecture",
         required=True,

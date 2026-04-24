@@ -137,7 +137,7 @@ class Trainer(object):
         # Calculate ROC-AUC per class with fallback for classes with single label value
         total_roc_auc = 0.0
         num_classes = y_true.shape[1]
-        
+
         for j in range(num_classes):
             if len(np.unique(y_true[:, j])) == 1:
                 # roc_auc_score sklearn implementation doesn't work when a class has only one label value
@@ -151,8 +151,7 @@ class Trainer(object):
                 except ValueError:
                     class_roc_auc = 0.0
             total_roc_auc += class_roc_auc
-        
+
         roc_auc = total_roc_auc / num_classes
 
         return {"loss": avg_val_loss, "roc_auc": roc_auc}
-

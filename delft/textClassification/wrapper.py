@@ -177,7 +177,7 @@ class Classifier(object):
             indices = np.random.permutation(len(x_train))
             x_train = x_train[indices]
             y_train = y_train[indices]
-            
+
             split_idx = int(len(x_train) * 0.9)
             x_valid = x_train[split_idx:]
             y_valid = y_train[split_idx:]
@@ -481,12 +481,14 @@ class Classifier(object):
 
         # Save PyTorch model
         torch.save(self.model.state_dict(), os.path.join(directory, self.weight_file))
-        
+
         # Remove the best model checkpoint if it exists
-        best_model_checkpoint = os.path.join(directory, f"{self.model_config.model_name}_best_model.pth")
+        best_model_checkpoint = os.path.join(
+            directory, f"{self.model_config.model_name}_best_model.pth"
+        )
         if os.path.exists(best_model_checkpoint):
             os.remove(best_model_checkpoint)
-        
+
         print(f"Model saved to {directory}")
 
     def load(self, dir_path="data/models/textClassification/"):

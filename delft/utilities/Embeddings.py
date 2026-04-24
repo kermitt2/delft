@@ -369,22 +369,22 @@ class Embeddings(object):
     def reopen_lmdb(self):
         """
         Reopen the LMDB environment. This is required for fork-safe multiprocessing.
-        
+
         LMDB environments opened before fork() cannot be safely used in child processes.
         Call this method in each worker process (e.g., via DataLoader's worker_init_fn)
         to create a fresh LMDB environment handle for the worker.
-        
+
         This is a no-op if embeddings are not using LMDB (e.g., in-memory or bin format).
         """
         if self.env is None or self.embedding_lmdb_path is None:
             # Not using LMDB, nothing to do
             return
-        
+
         try:
             self.env.close()
         except:
             pass  # May already be closed or invalid after fork
-        
+
         envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
         self.env = lmdb.open(
             envFilePath,
