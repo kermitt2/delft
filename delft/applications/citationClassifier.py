@@ -56,9 +56,7 @@ def train(
     )
 
     print("loading citation sentiment corpus...")
-    xtr, y = load_citation_sentiment_corpus(
-        "data/textClassification/citations/citation_sentiment_corpus.txt"
-    )
+    xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -97,9 +95,7 @@ def train_and_eval(
     )
 
     print("loading citation sentiment corpus...")
-    xtr, y = load_citation_sentiment_corpus(
-        "data/textClassification/citations/citation_sentiment_corpus.txt"
-    )
+    xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -116,9 +112,7 @@ def train_and_eval(
 
 
 # classify a list of texts
-def classify(
-    texts, output_format, architecture="gru", embeddings_name=None, transformer=None
-):
+def classify(texts, output_format, architecture="gru", embeddings_name=None, transformer=None):
     # load model
     model = Classifier(
         "citations_" + architecture,
@@ -139,9 +133,7 @@ def classify(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Sentiment classification of citation contexts based on DeLFT"
-    )
+    parser = argparse.ArgumentParser(description="Sentiment classification of citation contexts based on DeLFT")
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
     pretrained_transformers_examples = [

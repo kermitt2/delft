@@ -93,14 +93,10 @@ class Classifier(object):
         else:
             self.device = torch.device(device)
 
-        self.registry = load_resource_registry(
-            os.path.join(DELFT_PROJECT_DIR, "resources-registry.json")
-        )
+        self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if embeddings_name is not None:
-            self.embeddings = Embeddings(
-                embeddings_name, resource_registry=self.registry
-            )
+            self.embeddings = Embeddings(embeddings_name, resource_registry=self.registry)
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.model_config.word_embedding_size = 0
@@ -150,17 +146,13 @@ class Classifier(object):
             print("Warning: wandb not available")
             self.report_to_wandb = False
 
-    def train(
-        self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
-    ):
+    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
         if self.model_config.fold_number == 1:
             self.train_single(x_train, y_train, vocab_init, incremental, callbacks)
         else:
             self.train_nfold(x_train, y_train, vocab_init, incremental, callbacks)
 
-    def train_single(
-        self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
-    ):
+    def train_single(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
         # Create Data Loaders
         # Note: We need to handle validation split here if not n-fold
         # For simplicity, let's take last 10% as validation if early_stop is True and no folds
@@ -189,9 +181,7 @@ class Classifier(object):
             # We need generic way to get tokenizer.
             from transformers import AutoTokenizer
 
-            transformer_tokenizer = AutoTokenizer.from_pretrained(
-                self.model_config.transformer_name
-            )
+            transformer_tokenizer = AutoTokenizer.from_pretrained(self.model_config.transformer_name)
 
         train_loader = create_dataloader(
             x_train,
@@ -231,9 +221,7 @@ class Classifier(object):
 
         trainer.train(train_loader, valid_loader)
 
-    def train_nfold(
-        self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None
-    ):
+    def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
         pass  # To implement if needed, following logic in wrapper.py
 
     def eval(self, x_test, y_test):
@@ -256,9 +244,7 @@ class Classifier(object):
         if self.model_config.transformer_name is not None:
             from transformers import AutoTokenizer
 
-            transformer_tokenizer = AutoTokenizer.from_pretrained(
-                self.model_config.transformer_name
-            )
+            transformer_tokenizer = AutoTokenizer.from_pretrained(self.model_config.transformer_name)
 
         # Create dataloader
         test_loader = create_dataloader(
@@ -306,16 +292,12 @@ class Classifier(object):
         y_pred_binary = (y_pred_probs > 0.5).astype(int)
 
         # Calculate per-class metrics
-        precision, recall, fscore, support = precision_recall_fscore_support(
-            y_true, y_pred_binary, average=None
-        )
+        precision, recall, fscore, support = precision_recall_fscore_support(y_true, y_pred_binary, average=None)
 
         # Print results
         print("\n-----------------------------------------------")
         print(f"Evaluation on {len(x_test)} instances:")
-        print(
-            f"{'':>14}  {'precision':>12}  {'recall':>12}  {'f-score':>12}  {'support':>12}"
-        )
+        print(f"{'':>14}  {'precision':>12}  {'recall':>12}  {'f-score':>12}  {'support':>12}")
 
         evaluation = {"labels": {}, "micro": {}, "macro": {}}
         total_support = 0
@@ -342,9 +324,7 @@ class Classifier(object):
         y_true_flat = y_true.flatten()
         y_pred_flat = y_pred_binary.flatten()
         micro_f1 = f1_score(y_true_flat, y_pred_flat, average="micro")
-        micro_precision, micro_recall, _, _ = precision_recall_fscore_support(
-            y_true_flat, y_pred_flat, average="micro"
-        )
+        micro_precision, micro_recall, _, _ = precision_recall_fscore_support(y_true_flat, y_pred_flat, average="micro")
 
         print(
             f"{'macro avg':>14}  {macro_precision:>12.4f}  {macro_recall:>12.4f}  {macro_f1:>12.4f}  {total_support:>12}"
@@ -383,9 +363,7 @@ class Classifier(object):
 
         return evaluation
 
-    def predict(
-        self, texts, output_format="json", use_main_thread_only=False, batch_size=None
-    ):
+    def predict(self, texts, output_format="json", use_main_thread_only=False, batch_size=None):
         if batch_size is not None:
             self.model_config.batch_size = batch_size
 
@@ -399,9 +377,7 @@ class Classifier(object):
         if self.model_config.transformer_name is not None:
             from transformers import AutoTokenizer
 
-            transformer_tokenizer = AutoTokenizer.from_pretrained(
-                self.model_config.transformer_name
-            )
+            transformer_tokenizer = AutoTokenizer.from_pretrained(self.model_config.transformer_name)
 
         # Preprocess texts if they are raw strings
         if len(texts) > 0 and isinstance(texts[0], str):
@@ -503,6 +479,4 @@ class Classifier(object):
         print(f"Model loaded from {weight_path}")
 
     def _get_model_dir(self):
-        return os.path.join(
-            "data/models/textClassification/", self.model_config.model_name
-        )
+        return os.path.join("data/models/textClassification/", self.model_config.model_name)

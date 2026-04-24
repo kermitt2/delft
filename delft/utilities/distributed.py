@@ -60,10 +60,7 @@ def setup_distributed(backend: str = "nccl") -> int:
             rank=rank,
         )
 
-        logger.info(
-            f"Initialized distributed training: "
-            f"rank={rank}, local_rank={local_rank}, world_size={world_size}"
-        )
+        logger.info(f"Initialized distributed training: rank={rank}, local_rank={local_rank}, world_size={world_size}")
 
     return local_rank
 
@@ -162,9 +159,7 @@ def reduce_metric(value: float, average: bool = True) -> float:
     if not dist.is_initialized() or get_world_size() == 1:
         return value
 
-    tensor = torch.tensor(
-        value, dtype=torch.float32, device=torch.cuda.current_device()
-    )
+    tensor = torch.tensor(value, dtype=torch.float32, device=torch.cuda.current_device())
     dist.all_reduce(tensor, op=dist.ReduceOp.SUM)
 
     if average:

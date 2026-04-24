@@ -55,9 +55,7 @@ def train(
     num_workers=None,
 ):
     print("loading multiclass software context dataset...")
-    xtr, y = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -109,9 +107,7 @@ def train_and_eval(
     num_workers=None,
 ):
     print("loading multiclass software context dataset...")
-    xtr, y = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -163,9 +159,7 @@ def train_and_eval(
 
 def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading multiclass software context dataset...")
-    x_train, y_train = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    x_train, y_train = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -183,9 +177,7 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_train_class_rank = np.array(y_train_class_rank)
 
         list_classes_rank = [
@@ -217,13 +209,9 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
 
-def train_and_eval_binary(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading multiclass software context dataset...")
-    xtr, y = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -243,9 +231,7 @@ def train_and_eval_binary(
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
 
         y_train_class_rank = np.array(y_train_class_rank)
@@ -283,9 +269,7 @@ def train_and_eval_binary(
 
 
 # classify a list of texts
-def classify(
-    texts, output_format, embeddings_name=None, architecture="gru", transformer=None
-):
+def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
     model = Classifier("software_context_" + architecture)
     model.load()
@@ -324,9 +308,7 @@ def report_training_contexts(y):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Classify the context of a mentioned software using the DeLFT library"
-    )
+    parser = argparse.ArgumentParser(description="Classify the context of a mentioned software using the DeLFT library")
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
     pretrained_transformers_examples = [
@@ -384,9 +366,7 @@ if __name__ == "__main__":
         "train_binary",
         "train_eval_binary",
     ):
-        print(
-            "action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]"
-        )
+        print("action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer

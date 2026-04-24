@@ -75,9 +75,7 @@ def print_parameters(model_config, training_config):
         for indx, class_name in enumerate(model_config.list_classes):
             if indx != 0:
                 weight_summary += ", "
-            weight_summary += (
-                class_name + ": " + str(training_config.class_weights[indx])
-            )
+            weight_summary += class_name + ": " + str(training_config.class_weights[indx])
         print("class_weights:", weight_summary)
 
     print("---")

@@ -86,9 +86,7 @@ url_regex = re.compile(
 
 
 # produce some statistics
-def stats(
-    x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None
-):
+def stats(x_train=None, y_train=None, x_valid=None, y_valid=None, x_eval=None, y_eval=None):
     charset = []
     nb_total_sequences = 0
     nb_total_tokens = 0
@@ -188,9 +186,7 @@ def convert_conll2012_to_iob2(pathin, pathout):
         return
 
     names_doc_ids = []
-    with open(
-        os.path.join("data", "sequenceLabelling", "CoNLL-2012-NER", "names.list"), "r"
-    ) as f:
+    with open(os.path.join("data", "sequenceLabelling", "CoNLL-2012-NER", "names.list"), "r") as f:
         for line in f:
             line = line.rstrip()
             if len(line) == 0:
@@ -452,9 +448,7 @@ def download_file(url, path, filename=None):
     # check path
     if path is None or not os.path.isdir(path):
         print("Invalid destination directory:", path)
-    HEADERS = {
-        """User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"""
-    }
+    HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"""}
     result = "fail"
     print("downloading", url)
 
@@ -473,13 +467,16 @@ def download_file(url, path, filename=None):
                 f_out.write(resp.content)
         elif resp.status_code == 200:
             total = int(total_length)
-            with open(destination, "wb") as f_out, tqdm(
-                desc=destination,
-                total=total,
-                unit="iB",
-                unit_scale=True,
-                unit_divisor=1024,
-            ) as bar:
+            with (
+                open(destination, "wb") as f_out,
+                tqdm(
+                    desc=destination,
+                    total=total,
+                    unit="iB",
+                    unit_scale=True,
+                    unit_divisor=1024,
+                ) as bar,
+            ):
                 for data in resp.iter_content(chunk_size=1024):
                     size = f_out.write(data)
                     bar.update(size)
@@ -520,9 +517,7 @@ if __name__ == "__main__":
     # > python3 utilities/Utilities.py --dataset-type conll2012 --data-path /home/lopez/resources/ontonotes/conll-2012/ --output-path /home/lopez/resources/ontonotes/conll-2012/iob2/
 
     # get the argument
-    parser = argparse.ArgumentParser(
-        description="Named Entity Recognizer dataset converter to OIB2 tagging scheme"
-    )
+    parser = argparse.ArgumentParser(description="Named Entity Recognizer dataset converter to OIB2 tagging scheme")
 
     # parser.add_argument("action")
     parser.add_argument(
@@ -530,12 +525,8 @@ if __name__ == "__main__":
         default="conll2003",
         help="dataset to be used for training the model, one of ['conll2003','conll2012']",
     )
-    parser.add_argument(
-        "--data-path", default=None, help="path to the corpus of documents to process"
-    )
-    parser.add_argument(
-        "--output-path", default=None, help="path to write the converted dataset"
-    )
+    parser.add_argument("--data-path", default=None, help="path to the corpus of documents to process")
+    parser.add_argument("--output-path", default=None, help="path to write the converted dataset")
 
     args = parser.parse_args()
 
@@ -559,6 +550,4 @@ def t_or_f(arg):
     elif "FALSE".startswith(ua):
         return False
     else:
-        raise argparse.ArgumentTypeError(
-            "Boolean value expected. Omit this option to use default values."
-        )
+        raise argparse.ArgumentTypeError("Boolean value expected. Omit this option to use default values.")

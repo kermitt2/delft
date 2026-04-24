@@ -112,14 +112,10 @@ class Sequence(object):
         self.embeddings = None
         self.model_local_path = None
 
-        self.registry = load_resource_registry(
-            os.path.join(DELFT_PROJECT_DIR, "resources-registry.json")
-        )
+        self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(
-                self.embeddings_name, resource_registry=self.registry
-            )
+            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
             word_emb_size = self.embeddings.embed_size
         else:
             self.embeddings = None
@@ -257,12 +253,8 @@ class Sequence(object):
                     print(f"Running distributed training with {get_world_size()} GPUs")
             else:
                 if torch.cuda.device_count() > 1:
-                    print(
-                        f"Warning: {torch.cuda.device_count()} GPUs available but running single-process."
-                    )
-                    print(
-                        "For multi-GPU training, launch with: torchrun --nproc_per_node=N"
-                    )
+                    print(f"Warning: {torch.cuda.device_count()} GPUs available but running single-process.")
+                    print("For multi-GPU training, launch with: torchrun --nproc_per_node=N")
 
         self._train(
             x_train,
@@ -318,22 +310,16 @@ class Sequence(object):
             if self.model is None and self.models is None:
                 print("Error: you must load a model first for incremental training")
                 return
-            print(
-                "Incremental training from loaded model", self.model_config.model_name
-            )
+            print("Incremental training from loaded model", self.model_config.model_name)
             self.p.extend(x_all, y_all)
         else:
             # Initialize preprocessor
-            self.p = prepare_preprocessor(
-                x_all, y_all, features=features_all, model_config=self.model_config
-            )
+            self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
             self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
 
             # Create model
-            self.model = get_model(
-                self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True
-            )
+            self.model = get_model(self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True)
             self.model.to(self.device)
 
         # Only print on main process for distributed training
@@ -372,9 +358,7 @@ class Sequence(object):
             )
 
         # Use model output directory for checkpoints to keep files organized
-        model_output_dir = os.path.join(
-            "data/models/sequenceLabelling/", self.model_config.model_name
-        )
+        model_output_dir = os.path.join("data/models/sequenceLabelling/", self.model_config.model_name)
         if not distributed or is_main_process():
             os.makedirs(model_output_dir, exist_ok=True)
 
@@ -411,28 +395,16 @@ class Sequence(object):
         multi_gpu=False,
     ):
         """Train with n-fold cross validation."""
-        x_all = (
-            np.concatenate((x_train, x_valid), axis=0)
-            if x_valid is not None
-            else x_train
-        )
-        y_all = (
-            np.concatenate((y_train, y_valid), axis=0)
-            if y_valid is not None
-            else y_train
-        )
+        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
+        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
         features_all = concatenate_or_none((f_train, f_valid), axis=0)
 
         # Use model output directory for checkpoints
-        model_output_dir = os.path.join(
-            "data/models/sequenceLabelling/", self.model_config.model_name
-        )
+        model_output_dir = os.path.join("data/models/sequenceLabelling/", self.model_config.model_name)
         os.makedirs(model_output_dir, exist_ok=True)
 
         if not incremental:
-            self.p = prepare_preprocessor(
-                x_all, y_all, features=features_all, model_config=self.model_config
-            )
+            self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
             self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
             self.models = []
@@ -441,15 +413,11 @@ class Sequence(object):
         fold_size = len(x_train) // fold_count
 
         for fold_id in range(fold_count):
-            print(
-                f"\n------------------------ fold {fold_id} --------------------------------------"
-            )
+            print(f"\n------------------------ fold {fold_id} --------------------------------------")
 
             # Split data for this fold
             fold_start = fold_size * fold_id
-            fold_end = (
-                fold_start + fold_size if fold_id < fold_count - 1 else len(x_train)
-            )
+            fold_end = fold_start + fold_size if fold_id < fold_count - 1 else len(x_train)
 
             fold_x_train = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
             fold_y_train = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
@@ -457,9 +425,7 @@ class Sequence(object):
             fold_y_valid = y_train[fold_start:fold_end]
 
             # Create model for this fold
-            fold_model = get_model(
-                self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True
-            )
+            fold_model = get_model(self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True)
             fold_model.to(self.device)
 
             if fold_id == 0:
@@ -534,10 +500,7 @@ class Sequence(object):
         with torch.no_grad():
             for batch in test_loader:
                 inputs, labels = batch
-                inputs = {
-                    k: v.to(self.device) if isinstance(v, torch.Tensor) else v
-                    for k, v in inputs.items()
-                }
+                inputs = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
                 if hasattr(self.model, "decode"):
                     predictions = self.model.decode(inputs)
@@ -561,12 +524,8 @@ class Sequence(object):
 
         # Convert to labels
         idx_to_label = {idx: label for label, idx in self.p.vocab_tag.items()}
-        pred_labels = [
-            [idx_to_label.get(p, "O") for p in pred] for pred in all_predictions
-        ]
-        true_labels = [
-            [idx_to_label.get(l, "O") for l in label] for label in all_labels
-        ]
+        pred_labels = [[idx_to_label.get(p, "O") for p in pred] for pred in all_predictions]
+        true_labels = [[idx_to_label.get(l, "O") for l in label] for label in all_labels]
 
         report, evaluation = classification_report(true_labels, pred_labels, digits=4)
         print(report)
@@ -588,9 +547,7 @@ class Sequence(object):
             columns, data = to_wandb_table(evaluation)
             table = self.wandb.Table(columns=columns, data=data)
             self.wandb.log({"Evaluation scores": table})
-            print(
-                f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}"
-            )
+            print(f"Logged evaluation metrics to wandb: f1={metrics.get('eval_f1', 0):.4f}")
 
         return metrics
 
@@ -605,9 +562,7 @@ class Sequence(object):
         best_index = 0
 
         for i, model in enumerate(self.models):
-            print(
-                f"\n------------------------ fold {i} --------------------------------------"
-            )
+            print(f"\n------------------------ fold {i} --------------------------------------")
 
             test_loader = create_dataloader(
                 x_test,
@@ -631,18 +586,14 @@ class Sequence(object):
                 best_index = i
             reports.append(scorer.report)
 
-        print(
-            "\n----------------------------------------------------------------------"
-        )
+        print("\n----------------------------------------------------------------------")
         print(f"\nBest model: fold {best_index} with F1={best_f1:.4f}")
         print(f"Average F1: {total_f1 / len(self.models):.4f}")
 
         # Set best model as main model
         self.model = self.models[best_index]
 
-    def tag(
-        self, texts, output_format, features=None, batch_size=None, multi_gpu=False
-    ):
+    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False):
         """Tag texts with the model."""
         if batch_size is not None:
             self.model_config.batch_size = batch_size

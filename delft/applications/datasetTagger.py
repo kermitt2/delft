@@ -103,21 +103,15 @@ def train(
     print("Loading data...")
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
-        dataseer_sentences_path = (
-            "data/sequenceLabelling/datasets/dataseer_sentences.json"
-        )
+        dataseer_sentences_path = "data/sequenceLabelling/datasets/dataseer_sentences.json"
         if os.path.exists(dataseer_sentences_path):
             x_all1, y_all1 = load_data_and_labels_json_offsets(dataseer_sentences_path)
         ner_dataset_recognition_sentences_path = (
             "data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json"
         )
         if os.path.exists(ner_dataset_recognition_sentences_path):
-            x_all2, y_all2 = load_data_and_labels_json_offsets(
-                ner_dataset_recognition_sentences_path
-            )
-        coleridge_sentences_path = (
-            "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
-        )
+            x_all2, y_all2 = load_data_and_labels_json_offsets(ner_dataset_recognition_sentences_path)
+        coleridge_sentences_path = "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
         if os.path.exists(coleridge_sentences_path):
             x_all3, y_all3 = load_data_and_labels_json_offsets(coleridge_sentences_path)
         x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
@@ -125,9 +119,7 @@ def train(
     else:
         x_all, y_all = load_data_and_labels_json_offsets(input_path)
 
-    x_train, x_valid, y_train, y_valid = train_test_split(
-        x_all, y_all, test_size=0.1, shuffle=True
-    )
+    x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1, shuffle=True)
 
     print(len(x_train), "train sequences")
     print(len(x_valid), "validation sequences")
@@ -205,21 +197,15 @@ def train_eval(
     print("Loading data...")
     if input_path is None:
         x_all1 = y_all1 = x_all2 = y_all2 = x_all3 = y_all3 = []
-        dataseer_sentences_path = (
-            "data/sequenceLabelling/datasets/dataseer_sentences.json"
-        )
+        dataseer_sentences_path = "data/sequenceLabelling/datasets/dataseer_sentences.json"
         if os.path.exists(dataseer_sentences_path):
             x_all1, y_all1 = load_data_and_labels_json_offsets(dataseer_sentences_path)
         ner_dataset_recognition_sentences_path = (
             "data/sequenceLabelling/datasets/ner_dataset_recognition_sentences.json"
         )
         if os.path.exists(ner_dataset_recognition_sentences_path):
-            x_all2, y_all2 = load_data_and_labels_json_offsets(
-                ner_dataset_recognition_sentences_path
-            )
-        coleridge_sentences_path = (
-            "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
-        )
+            x_all2, y_all2 = load_data_and_labels_json_offsets(ner_dataset_recognition_sentences_path)
+        coleridge_sentences_path = "data/sequenceLabelling/datasets/coleridge_sentences.json.gz"
         if os.path.exists(coleridge_sentences_path):
             x_all3, y_all3 = load_data_and_labels_json_offsets(coleridge_sentences_path)
         x_all = np.concatenate((x_all1, x_all2, x_all3[:1000]), axis=0)
@@ -227,12 +213,8 @@ def train_eval(
     else:
         x_all, y_all = load_data_and_labels_json_offsets(input_path)
 
-    x_train_all, x_eval, y_train_all, y_eval = train_test_split(
-        x_all, y_all, test_size=0.1, shuffle=True
-    )
-    x_train, x_valid, y_train, y_valid = train_test_split(
-        x_train_all, y_train_all, test_size=0.1
-    )
+    x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1, shuffle=True)
+    x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
 
     print(len(x_train), "train sequences")
     print(len(x_valid), "validation sequences")
@@ -324,9 +306,7 @@ def annotate_text(
 
     start_time = time.time()
 
-    annotations = model.tag(
-        texts, output_format, features=features, multi_gpu=multi_gpu
-    )
+    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     if output_format == "json":
@@ -338,9 +318,7 @@ def annotate_text(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Trainer for dataset recognition models using the DeLFT library"
-    )
+    parser = argparse.ArgumentParser(description="Trainer for dataset recognition models using the DeLFT library")
 
     actions = ["train", "train_eval", "eval", "tag"]
 
@@ -420,23 +398,16 @@ if __name__ == "__main__":
         default=-1,
         help="max-sequence-length parameter to be used.",
     )
-    parser.add_argument(
-        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
-    )
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
         type=int,
         default=-1,
-        help="patience, number of extra epochs to perform after "
-        "the best epoch before stopping a training.",
+        help="patience, number of extra epochs to perform after the best epoch before stopping a training.",
     )
-    parser.add_argument(
-        "--learning-rate", type=float, default=None, help="Initial learning rate"
-    )
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
-    parser.add_argument(
-        "--max-epoch", type=int, default=-1, help="Maximum number of epochs."
-    )
+    parser.add_argument("--max-epoch", type=int, default=-1, help="Maximum number of epochs.")
     parser.add_argument(
         "--early-stop",
         type=t_or_f,
@@ -552,9 +523,7 @@ if __name__ == "__main__":
         someTexts.append(
             "We also compare ShanghaiTechRGBD with other RGB-D crowd counting datasets in , and we can see that ShanghaiTechRGBD is the most challenging RGB-D crowd counting dataset in terms of the number of images and heads."
         )
-        someTexts.append(
-            "Insulin levels of all samples were measured by ELISA kit (Mercodia)"
-        )
+        someTexts.append("Insulin levels of all samples were measured by ELISA kit (Mercodia)")
 
         result = annotate_text(
             someTexts,

@@ -100,9 +100,7 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
 
 def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices=None):
     cardinality = calculate_cardinality(feature_vector, indices=indices)
-    index_list, map_to_integers = cardinality_to_index_map(
-        cardinality, features_max_vector_size
-    )
+    index_list, map_to_integers = cardinality_to_index_map(cardinality, features_max_vector_size)
 
     return index_list, map_to_integers
 
@@ -156,10 +154,7 @@ def reduce_features_vector(feature_vector, features_max_vector_size):
     reduced_features_vector = []
     for index_row in range(0, len(feature_vector)):
         reduced_features_vector.append(
-            [
-                feature_vector[index_row][index_column]
-                for index, index_column in enumerate(index_list)
-            ]
+            [feature_vector[index_row][index_column] for index, index_column in enumerate(index_list)]
         )
 
     return reduced_features_vector
@@ -177,17 +172,10 @@ def to_dict(
     if not feature_indices:
         matrix = reduce_features_vector(value_list_batch, features_vector_size)
 
-        return [
-            {index: value for index, value in enumerate(value_list)}
-            for value_list in matrix
-        ]
+        return [{index: value for index, value in enumerate(value_list)} for value_list in matrix]
     else:
         return [
-            {
-                index: value
-                for index, value in enumerate(value_list)
-                if index in feature_indices
-            }
+            {index: value for index, value in enumerate(value_list) if index in feature_indices}
             for value_list in value_list_batch
         ]
 
@@ -211,9 +199,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
 
     def fit(self, X):
         if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(
-                X, self.features_vocabulary_size
-            )
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
         else:
             indexes, mapping = reduce_features_to_indexes(
                 X, self.features_vocabulary_size, indices=self.features_indices
@@ -233,8 +219,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
             [
                 [
                     self.features_map_to_index[index][value]
-                    if index in self.features_map_to_index
-                    and value in self.features_map_to_index[index]
+                    if index in self.features_map_to_index and value in self.features_map_to_index[index]
                     else 0
                     for index, value in enumerate(value_list)
                     if index in self.features_indices
@@ -313,9 +298,7 @@ class BERTPreprocessor(object):
                 break
         return result
 
-    def tokenize_and_align_features_and_labels(
-        self, texts, chars, text_features, text_labels, maxlen=512
-    ):
+    def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
         Training/evaluation usage with features: sub-tokenize+convert to ids/mask/segments input texts, realign labels
         and features given new tokens introduced by the wordpiece sub-tokenizer.
@@ -354,9 +337,7 @@ class BERTPreprocessor(object):
                 feature_blocks,
                 target_tags,
                 tokens,
-            ) = self.convert_single_text(
-                text, local_chars, features, label_list, maxlen
-            )
+            ) = self.convert_single_text(text, local_chars, features, label_list, maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
@@ -379,9 +360,7 @@ class BERTPreprocessor(object):
             input_tokens,
         )
 
-    def convert_single_text(
-        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length
-    ):
+    def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
         Converts a single sequence input into a single transformer input format using generic tokenizer
         of the transformers library, align other channel input to the new sub-tokenization
@@ -446,8 +425,7 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and self.tokenizer.convert_ids_to_tokens(input_ids[i])
-                not in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
                 and not empty_token
@@ -462,18 +440,13 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and self.tokenizer.convert_ids_to_tokens(input_ids[i])
-                not in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and not empty_token
                 and not (
                     self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("Ġ")
-                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(
-                        "▁"
-                    )
-                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(
-                        " "
-                    )
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("▁")
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(" ")
                 )
             ):
                 # HuggingFace Roberta and GPT2 tokenizers uses "Ġ" as leading space encoding, other sentencepiece
@@ -556,9 +529,7 @@ class BERTPreprocessor(object):
             offsets,
         )
 
-    def convert_single_text_bert(
-        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length
-    ):
+    def convert_single_text_bert(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
         **Deprecated** We now use Transformers Autotokenizer
 
@@ -612,16 +583,12 @@ class BERTPreprocessor(object):
         for text_token, label_token, chars_token, features_token in zip(
             text_tokens, label_tokens, chars_tokens, features_tokens
         ):
-            text_sub_tokens = self.tokenizer.tokenize(
-                text_token, add_special_tokens=False
-            )
+            text_sub_tokens = self.tokenizer.tokenize(text_token, add_special_tokens=False)
 
             # we mark added sub-tokens with the "##" prefix in order to restore token back correctly,
             # otherwise the BERT tokenizer do not mark them all with this prefix
             # (note: to be checked if it's the same with the non-original BERT tokenizer)
-            text_sub_tokens_marked = self.tokenizer.tokenize(
-                text_token, add_special_tokens=False
-            )
+            text_sub_tokens_marked = self.tokenizer.tokenize(text_token, add_special_tokens=False)
             for i in range(len(text_sub_tokens_marked)):
                 if i == 0:
                     continue
@@ -629,15 +596,9 @@ class BERTPreprocessor(object):
                 if not tok.startswith("##"):
                     text_sub_tokens_marked[i] = "##" + tok
 
-            label_sub_tokens = [label_token] + [label_token] * (
-                len(text_sub_tokens) - 1
-            )
-            chars_sub_tokens = [chars_token] + [chars_token] * (
-                len(text_sub_tokens) - 1
-            )
-            feature_sub_tokens = [features_token] + [features_token] * (
-                len(text_sub_tokens) - 1
-            )
+            label_sub_tokens = [label_token] + [label_token] * (len(text_sub_tokens) - 1)
+            chars_sub_tokens = [chars_token] + [chars_token] * (len(text_sub_tokens) - 1)
+            feature_sub_tokens = [features_token] + [features_token] * (len(text_sub_tokens) - 1)
 
             tokens.extend(text_sub_tokens)
             tokens_marked.extend(text_sub_tokens_marked)
@@ -882,14 +843,10 @@ class Preprocessor(BaseEstimator, TransformerMixin):
             labels_padded, _ = pad_sequences(labels, 0)
             labels_final = np.asarray(labels_padded)
             if not label_indices:
-                labels_final = dense_to_one_hot(
-                    labels_final, len(self.vocab_tag), nlevels=2
-                )
+                labels_final = dense_to_one_hot(labels_final, len(self.vocab_tag), nlevels=2)
 
         # if self.return_chars:
-        char_ids, word_lengths = pad_sequences(
-            char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length
-        )
+        char_ids, word_lengths = pad_sequences(char_ids, pad_tok=0, nlevels=2, max_char_length=self.max_char_length)
         char_ids = np.asarray(char_ids)
         return [char_ids], labels_final
         # else:
@@ -908,10 +865,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         variables = vars(self)
         output_dict = {}
         for var in variables.keys():
-            if (
-                var == "feature_preprocessor"
-                and variables["feature_preprocessor"] is not None
-            ):
+            if var == "feature_preprocessor" and variables["feature_preprocessor"] is not None:
                 output_dict[var] = variables[var].__dict__
             else:
                 output_dict[var] = variables[var]
@@ -930,10 +884,7 @@ class Preprocessor(BaseEstimator, TransformerMixin):
                     preprocessor.__dict__.update(val)
                     if "features_map_to_index" in preprocessor.__dict__:
                         preprocessor.__dict__["features_map_to_index"] = {
-                            int(key): val
-                            for key, val in preprocessor.__dict__[
-                                "features_map_to_index"
-                            ].items()
+                            int(key): val for key, val in preprocessor.__dict__["features_map_to_index"].items()
                         }
                     setattr(self, key, preprocessor)
                 else:
@@ -975,9 +926,7 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
     """
     if nlevels == 1:
         max_length = len(max(sequences, key=len))
-        sequence_padded, sequence_length = _pad_sequences(
-            sequences, pad_tok, max_length
-        )
+        sequence_padded, sequence_length = _pad_sequences(sequences, pad_tok, max_length)
     elif nlevels == 2:
         max_length_word = max_char_length
         sequence_padded, sequence_length = [], []
@@ -988,9 +937,7 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
             sequence_length += [sl]
 
         max_length_sentence = max(map(lambda x: len(x), sequences))
-        sequence_padded, _ = _pad_sequences(
-            sequence_padded, [pad_tok] * max_length_word, max_length_sentence
-        )
+        sequence_padded, _ = _pad_sequences(sequence_padded, [pad_tok] * max_length_word, max_length_sentence)
         sequence_length, _ = _pad_sequences(sequence_length, 0, max_length_sentence)
     else:
         raise ValueError("nlevels can take 1 or 2, not take {}.".format(nlevels))
@@ -1051,12 +998,8 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     # Compute features and store information in the model config
     if feature_preprocessor is not None:
         preprocessor.fit_features(features)
-        model_config.features_indices = (
-            preprocessor.feature_preprocessor.features_indices
-        )
-        model_config.features_map_to_index = (
-            preprocessor.feature_preprocessor.features_map_to_index
-        )
+        model_config.features_indices = preprocessor.feature_preprocessor.features_indices
+        model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
 
     return preprocessor
 

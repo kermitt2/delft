@@ -43,9 +43,7 @@ class ModelConfig(object):
         self.max_char_length = max_char_length
 
         # Features
-        self.features_vocabulary_size = (
-            features_vocabulary_size  # maximum number of unique values per feature
-        )
+        self.features_vocabulary_size = features_vocabulary_size  # maximum number of unique values per feature
         self.features_indices = features_indices
         self.features_embedding_size = features_embedding_size
         self.features_lstm_units = features_lstm_units

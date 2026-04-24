@@ -76,9 +76,7 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
     """
     if nlevels == 1:
         max_length = len(max(sequences, key=len))
-        sequence_padded, sequence_length = _pad_sequences(
-            sequences, pad_tok, max_length
-        )
+        sequence_padded, sequence_length = _pad_sequences(sequences, pad_tok, max_length)
     elif nlevels == 2:
         max_length_word = max_char_length
         sequence_padded, sequence_length = [], []
@@ -89,9 +87,7 @@ def pad_sequences(sequences, pad_tok=0, nlevels=1, max_char_length=30):
             sequence_length += [sl]
 
         max_length_sentence = max(map(lambda x: len(x), sequences))
-        sequence_padded, _ = _pad_sequences(
-            sequence_padded, [pad_tok] * max_length_word, max_length_sentence
-        )
+        sequence_padded, _ = _pad_sequences(sequence_padded, [pad_tok] * max_length_word, max_length_sentence)
         sequence_length, _ = _pad_sequences(sequence_length, 0, max_length_sentence)
     else:
         raise ValueError("nlevels can take 1 or 2, not take {}.".format(nlevels))
@@ -247,9 +243,7 @@ def cardinality_to_index_map(columns_length, features_max_vector_size):
 def reduce_features_to_indexes(feature_vector, features_max_vector_size, indices=None):
     """Reduce features to index mapping."""
     cardinality = calculate_cardinality(feature_vector, indices=indices)
-    index_list, map_to_integers = cardinality_to_index_map(
-        cardinality, features_max_vector_size
-    )
+    index_list, map_to_integers = cardinality_to_index_map(cardinality, features_max_vector_size)
     return index_list, map_to_integers
 
 
@@ -359,9 +353,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
     def fit(self, X):
         """Build feature vocabulary from data."""
         if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(
-                X, self.features_vocabulary_size
-            )
+            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
         else:
             indexes, mapping = reduce_features_to_indexes(
                 X, self.features_vocabulary_size, indices=self.features_indices
@@ -386,8 +378,7 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
             [
                 [
                     self.features_map_to_index[index][value]
-                    if index in self.features_map_to_index
-                    and value in self.features_map_to_index[index]
+                    if index in self.features_map_to_index and value in self.features_map_to_index[index]
                     else 0
                     for index, value in enumerate(value_list)
                     if index in self.features_indices
@@ -469,9 +460,7 @@ class BERTPreprocessor(object):
                 break
         return result
 
-    def tokenize_and_align_features_and_labels(
-        self, texts, chars, text_features, text_labels, maxlen=512
-    ):
+    def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
         """
         Sub-tokenize and align features/labels with new tokens.
 
@@ -518,9 +507,7 @@ class BERTPreprocessor(object):
                 feature_blocks,
                 target_tags,
                 tokens,
-            ) = self.convert_single_text(
-                text, local_chars, features, label_list, maxlen
-            )
+            ) = self.convert_single_text(text, local_chars, features, label_list, maxlen)
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
@@ -543,9 +530,7 @@ class BERTPreprocessor(object):
             input_tokens,
         )
 
-    def convert_single_text(
-        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length
-    ):
+    def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
         """
         Convert a single sequence input into transformer format.
 
@@ -595,8 +580,7 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and self.tokenizer.convert_ids_to_tokens(input_ids[i])
-                not in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and len(self.tokenizer.convert_ids_to_tokens(input_ids[i])) == 1
                 and not empty_token
@@ -605,18 +589,13 @@ class BERTPreprocessor(object):
                 continue
             elif (
                 self.is_BPE_SP
-                and self.tokenizer.convert_ids_to_tokens(input_ids[i])
-                not in self.tokenizer.all_special_tokens
+                and self.tokenizer.convert_ids_to_tokens(input_ids[i]) not in self.tokenizer.all_special_tokens
                 and offset[0] == 0
                 and not empty_token
                 and not (
                     self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("Ġ")
-                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(
-                        "▁"
-                    )
-                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(
-                        " "
-                    )
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith("▁")
+                    or self.tokenizer.convert_ids_to_tokens(input_ids[i]).startswith(" ")
                 )
             ):
                 empty_token = False

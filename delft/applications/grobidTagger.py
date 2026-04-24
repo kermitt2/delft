@@ -252,9 +252,7 @@ def train(
     if input_path is None:
         input_path = find_latest_train_file(model)
         if input_path is None:
-            raise ValueError(
-                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
-            )
+            raise ValueError(f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/")
         print(f"Using latest training file: {input_path}")
     x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -365,9 +363,7 @@ def train_eval(
     if input_path is None:
         input_path = find_latest_train_file(model)
         if input_path is None:
-            raise ValueError(
-                f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/"
-            )
+            raise ValueError(f"No training file found for model '{model}' in data/sequenceLabelling/grobid/{model}/")
         print(f"Using latest training file: {input_path}")
     x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
@@ -537,9 +533,7 @@ def annotate_text(
 
     start_time = time.time()
 
-    annotations = model.tag(
-        texts, output_format, features=features, multi_gpu=multi_gpu
-    )
+    annotations = model.tag(texts, output_format, features=features, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
 
     if output_format == "json":
@@ -558,9 +552,7 @@ class Tasks:
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Trainer for GROBID models using the DeLFT library"
-    )
+    parser = argparse.ArgumentParser(description="Trainer for GROBID models using the DeLFT library")
 
     actions = [Tasks.TRAIN, Tasks.TRAIN_EVAL, Tasks.EVAL, Tasks.TAG]
 
@@ -653,19 +645,14 @@ if __name__ == "__main__":
         default=-1,
         help="max-sequence-length parameter to be used.",
     )
-    parser.add_argument(
-        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
-    )
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
         type=int,
         default=-1,
-        help="patience, number of extra epochs to perform after "
-        "the best epoch before stopping a training.",
+        help="patience, number of extra epochs to perform after the best epoch before stopping a training.",
     )
-    parser.add_argument(
-        "--learning-rate", type=float, default=None, help="Initial learning rate"
-    )
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
     parser.add_argument(
         "--max-epoch",
@@ -731,9 +718,7 @@ if __name__ == "__main__":
     num_workers = args.num_workers
 
     if architecture is None:
-        raise ValueError(
-            "A model architecture has to be specified: " + str(architectures)
-        )
+        raise ValueError("A model architecture has to be specified: " + str(architectures))
 
     if transformer is None and embeddings_name is None:
         # default word embeddings
@@ -849,8 +834,6 @@ if __name__ == "__main__":
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
             print(
-                "The model "
-                + architecture
-                + " cannot be used without supplying features as input and it's disabled. "
+                "The model " + architecture + " cannot be used without supplying features as input and it's disabled. "
                 "Please supply an architecture without features. "
             )

@@ -52,10 +52,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
         if name == "rs":
             # beginning of entity
             if attrs.getLength() != 0:
-                if (
-                    attrs.getValue("type") != "insult"
-                    and attrs.getValue("type") != "threat"
-                ):
+                if attrs.getValue("type") != "insult" and attrs.getValue("type") != "threat":
                     print("Invalid entity type:", attrs.getValue("type"))
                 self.currentLabel = "<" + attrs.getValue("type") + ">"
         self.accumulated = ""
@@ -188,9 +185,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
                 else:
                     subType = ""
                 if self.corpus_type == "lemonde":
-                    self.currentLabel = (
-                        "<" + self.translate_fr_labels(mainType, subType) + ">"
-                    )
+                    self.currentLabel = "<" + self.translate_fr_labels(mainType, subType) + ">"
                 else:
                     self.currentLabel = "<" + mainType + ">"
         self.accumulated = ""
@@ -395,9 +390,7 @@ def load_data_and_labels_crf_content(the_file):
         featureSets.append(features)
         print("Adding the final items from the input file. ")
 
-    assert "Tokens, tags and features haven't got the same size", (
-        len(tokens) == len(tags) == len(features)
-    )
+    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(tags) == len(features)
 
     return sents, labels, featureSets
 
@@ -427,9 +420,7 @@ def load_data_crf_content(the_file):
         featureSets.append(features)
         print("Adding the final items from the input file. ")
 
-    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(
-        features
-    )
+    assert "Tokens, tags and features haven't got the same size", len(tokens) == len(features)
 
     return sents, featureSets
 
@@ -578,11 +569,7 @@ def load_data_and_labels_conll(filename):
         words, tags = [], []
         for line in f:
             line = line.rstrip()
-            if (
-                len(line) == 0
-                or line.startswith("-DOCSTART-")
-                or line.startswith("#begin document")
-            ):
+            if len(line) == 0 or line.startswith("-DOCSTART-") or line.startswith("#begin document"):
                 if len(words) != 0:
                     sents.append(words)
                     labels.append(tags)
@@ -830,14 +817,7 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                                     local_type = local_type.replace(" ", "_")
                                 if "text" in annotation_span:
                                     localText = annotation_span["text"]
-                                    if (
-                                        text[
-                                            annotation_span["start"] : annotation_span[
-                                                "end"
-                                            ]
-                                        ]
-                                        != localText
-                                    ):
+                                    if text[annotation_span["start"] : annotation_span["end"]] != localText:
                                         print(
                                             "warning - offsets and chunk mismatch: "
                                             + localText
@@ -869,9 +849,7 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                             offset = local_offsets[i]
                             found = False
                             for span in spans:
-                                if span[0] <= offset[0] and (
-                                    offset[1] <= span[1] or offset[0] < span[1]
-                                ):
+                                if span[0] <= offset[0] and (offset[1] <= span[1] or offset[0] < span[1]):
                                     if span[0] == offset[0]:
                                         labels.append("B-" + span[2])
                                     else:
