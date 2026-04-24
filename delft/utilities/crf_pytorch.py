@@ -250,10 +250,21 @@ class ChainCRF(nn.Module):
         self._num_tags = num_tags
         self._built = False
 
-        # Will be initialized in build()
-        self.U = None  # Transition matrix
-        self.b_start = None  # Start boundary energy
-        self.b_end = None  # End boundary energy
+        # Initialize parameters immediately if num_tags is provided
+        # This is necessary for load_state_dict to work correctly
+        if num_tags is not None:
+            # Transition matrix (energy between tag pairs)
+            self.U = nn.Parameter(torch.empty(num_tags, num_tags))
+            nn.init.xavier_uniform_(self.U)
+            # Boundary energies
+            self.b_start = nn.Parameter(torch.zeros(num_tags))
+            self.b_end = nn.Parameter(torch.zeros(num_tags))
+            self._built = True
+        else:
+            # Will be initialized in build() lazily
+            self.U = None
+            self.b_start = None
+            self.b_end = None
 
     def build(self, num_tags: int, device=None, dtype=None):
         """Initialize layer weights."""

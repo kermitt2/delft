@@ -42,12 +42,9 @@ MODELS=(
     "header"
     "name-citation"
     "name-header"
-    "quantities"
     "reference-segmenter"
     "segmentation"
     "table"
-    "units"
-    "values"
 )
 
 # Function to train a model with a specific transformer

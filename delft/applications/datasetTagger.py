@@ -151,6 +151,7 @@ def train(
         patience,
         early_stop,
     )
+    short_model_name = "datasets"
     model = Sequence(
         model_name,
         recurrent_dropout=0.50,
@@ -168,6 +169,7 @@ def train(
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name=short_model_name,
     )
 
     start_time = time.time()
@@ -256,6 +258,7 @@ def train_eval(
         patience=patience,
         early_stop=early_stop,
     )
+    short_model_name = "datasets"
     model = Sequence(
         model_name,
         recurrent_dropout=0.50,
@@ -273,6 +276,7 @@ def train_eval(
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name=short_model_name,
     )
 
     start_time = time.time()

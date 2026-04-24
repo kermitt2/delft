@@ -53,7 +53,14 @@ def configure(
     if learning_rate is not None:
         o_learning_rate = learning_rate
 
-    return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
+    return (
+        o_batch_size,
+        o_maxlen,
+        o_patience,
+        o_early_stop,
+        o_max_epoch,
+        o_learning_rate,
+    )
 
 
 def train(
@@ -100,6 +107,7 @@ def train(
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
         nb_workers=num_workers,
+        short_model_name="dataseer-binary",
     )
 
     if fold_count == 1:

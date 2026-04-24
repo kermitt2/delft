@@ -56,7 +56,7 @@ train_model() {
     echo "=========================================="
     
     srun $SRUN_OPTS $PYTHON_CMD $model train \
-        --architecture $architecture 
+        --architecture $architecture
     
     echo "Completed: $model with $architecture"
     echo ""

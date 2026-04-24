@@ -81,6 +81,7 @@ class Sequence(object):
         report_to_wandb=False,
         device=None,
         nb_workers: int = None,
+        short_model_name: str = None,
     ):
         if model_name is None:
             model_name = architecture
@@ -95,6 +96,7 @@ class Sequence(object):
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.report_to_wandb = report_to_wandb
+        self.short_model_name = short_model_name
 
         # Set number of workers: default to cpu_count - 1, minimum 1
         if nb_workers is None:
@@ -191,6 +193,7 @@ class Sequence(object):
                     name=model_name,
                     config={
                         "model_name": self.model_config.model_name,
+                        "short_model_name": self.short_model_name,
                         "architecture": self.model_config.architecture,
                         "transformer_name": self.model_config.transformer_name,
                         "embeddings_name": self.model_config.embeddings_name,

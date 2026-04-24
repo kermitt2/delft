@@ -88,7 +88,14 @@ def configure(
     if learning_rate is not None:
         o_learning_rate = learning_rate
 
-    return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
+    return (
+        o_batch_size,
+        o_maxlen,
+        o_patience,
+        o_early_stop,
+        o_max_epoch,
+        o_learning_rate,
+    )
 
 
 def train(
