@@ -30,9 +30,7 @@ def load_texts_and_classes(filepath):
                 continue
             pieces = line.split("\t")
             if len(pieces) < 3:
-                print(
-                    "Warning: number of fields in the data file too low for line:", line
-                )
+                print("Warning: number of fields in the data file too low for line:", line)
             texts.append(pieces[1])
             classes.append(pieces[2:])
 
@@ -304,9 +302,7 @@ def load_dataseer_corpus_csv(filepath):
         datasubtypes_list = np.asarray(datasubtypes_list)
         datasubtypes_list_lower = np.char.lower(datasubtypes_list)
         list_classes_datasubtypes = np.unique(datasubtypes_list_lower)
-        datasubtypes_final = normalize_classes(
-            datasubtypes_list_lower, list_classes_datasubtypes
-        )
+        datasubtypes_final = normalize_classes(datasubtypes_list_lower, list_classes_datasubtypes)
 
     """
     if df.shape[1] > 4:
@@ -388,9 +384,7 @@ def load_software_use_corpus_json(json_gz_file_path):
 
     texts_list_final = np.asarray(texts_list)
 
-    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(
-        texts_list_final, classes_list_final
-    )
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 
     return texts_list_final, classes_list_final
 
@@ -451,9 +445,7 @@ def load_software_context_corpus_json(json_gz_file_path):
     texts_list_final = np.asarray(texts_list)
     classes_list_final = np.asarray(classes_list)
 
-    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(
-        texts_list_final, classes_list_final
-    )
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 
     return texts_list_final, classes_list_final
 
@@ -510,9 +502,7 @@ def load_software_dataset_context_corpus_json(json_gz_file_path):
     texts_list_final = np.asarray(texts_list)
     classes_list_final = np.asarray(classes_list)
 
-    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(
-        texts_list_final, classes_list_final
-    )
+    texts_list_final, classes_list_final, _ = shuffle_triple_with_view(texts_list_final, classes_list_final)
 
     return texts_list_final, classes_list_final
 

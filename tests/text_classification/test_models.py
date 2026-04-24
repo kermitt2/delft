@@ -60,11 +60,7 @@ class TestBaseTextClassifier:
         class ConcreteClassifier(BaseTextClassifier):
             def forward(self, inputs, labels=None):
                 x = self.embed_inputs(inputs)
-                return {
-                    "logits": x.mean(dim=(1, 2))
-                    .unsqueeze(1)
-                    .expand(-1, self.nb_classes)
-                }
+                return {"logits": x.mean(dim=(1, 2)).unsqueeze(1).expand(-1, self.nb_classes)}
 
         model = ConcreteClassifier(config, training_config, vocab_size=1000)
 
@@ -78,11 +74,7 @@ class TestBaseTextClassifier:
 
         class ConcreteClassifier(BaseTextClassifier):
             def forward(self, inputs, labels=None):
-                return {
-                    "logits": inputs.mean(dim=(1, 2))
-                    .unsqueeze(1)
-                    .expand(-1, self.nb_classes)
-                }
+                return {"logits": inputs.mean(dim=(1, 2)).unsqueeze(1).expand(-1, self.nb_classes)}
 
         model = ConcreteClassifier(config, training_config)
 
@@ -103,9 +95,7 @@ class TestBaseTextClassifier:
         weights = np.random.randn(100, 50).astype(np.float32)
         model.set_embedding_weights(weights)
 
-        assert torch.allclose(
-            model.embedding.weight.data, torch.from_numpy(weights), atol=1e-6
-        )
+        assert torch.allclose(model.embedding.weight.data, torch.from_numpy(weights), atol=1e-6)
 
     def test_embed_inputs_with_indices(self):
         config = MockModelConfig(embed_size=50)
@@ -114,11 +104,7 @@ class TestBaseTextClassifier:
         class ConcreteClassifier(BaseTextClassifier):
             def forward(self, inputs, labels=None):
                 x = self.embed_inputs(inputs)
-                return {
-                    "logits": x.mean(dim=(1, 2))
-                    .unsqueeze(1)
-                    .expand(-1, self.nb_classes)
-                }
+                return {"logits": x.mean(dim=(1, 2)).unsqueeze(1).expand(-1, self.nb_classes)}
 
         model = ConcreteClassifier(config, training_config, vocab_size=100)
 
@@ -135,11 +121,7 @@ class TestBaseTextClassifier:
         class ConcreteClassifier(BaseTextClassifier):
             def forward(self, inputs, labels=None):
                 x = self.embed_inputs(inputs)
-                return {
-                    "logits": x.mean(dim=(1, 2))
-                    .unsqueeze(1)
-                    .expand(-1, self.nb_classes)
-                }
+                return {"logits": x.mean(dim=(1, 2)).unsqueeze(1).expand(-1, self.nb_classes)}
 
         model = ConcreteClassifier(config, training_config)  # No vocab_size
 
@@ -193,9 +175,7 @@ class TestLstmModel:
         class LstmWithEmbedding(lstm):
             def __init__(self, model_config, training_config, vocab_size=None):
                 # Initialize base first without vocab_size
-                BaseTextClassifier.__init__(
-                    self, model_config, training_config, vocab_size
-                )
+                BaseTextClassifier.__init__(self, model_config, training_config, vocab_size)
                 # Then add lstm-specific layers
                 self.lstm_layer = torch.nn.LSTM(
                     self.embed_size,

@@ -8,9 +8,7 @@ import time
 from delft.utilities.Utilities import t_or_f
 
 
-def configure(
-    architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None
-):
+def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_stop=None):
     maxlen = 300
     patience = 5
     o_early_stop = True
@@ -177,15 +175,9 @@ if __name__ == "__main__":
         + "HuggingFace transformers hub will be used otherwise to fetch the model, see https://huggingface.co/models "
         + "for model names",
     )
-    parser.add_argument(
-        "--learning-rate", type=float, default=None, help="Initial learning rate"
-    )
-    parser.add_argument(
-        "--max-epoch", type=int, default=-1, help="Maximum number of epochs."
-    )
-    parser.add_argument(
-        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
-    )
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument("--max-epoch", type=int, default=-1, help="Maximum number of epochs.")
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--early-stop",
         type=t_or_f,

@@ -203,22 +203,14 @@ class Trainer:
                 weight_decay=0.01,
             )
         else:
-            self.optimizer = Adam(
-                self.model.parameters(), lr=self.training_config.learning_rate
-            )
+            self.optimizer = Adam(self.model.parameters(), lr=self.training_config.learning_rate)
 
         # Learning rate scheduler
-        num_training_steps = (
-            train_size // self.training_config.batch_size
-        ) * self.training_config.max_epoch
+        num_training_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
 
-        self.scheduler = ReduceLROnPlateau(
-            self.optimizer, mode="max", factor=0.5, patience=2
-        )
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode="max", factor=0.5, patience=2)
 
-    def train(
-        self, train_loader, valid_loader=None, callbacks: List[Callable] = None
-    ) -> Dict[str, Any]:
+    def train(self, train_loader, valid_loader=None, callbacks: List[Callable] = None) -> Dict[str, Any]:
         """
         Train the model.
 
@@ -244,9 +236,7 @@ class Trainer:
         # Use model-specific checkpoint filename to avoid conflicts between architectures
         checkpoint_filename = f"{self.config.model_name}_{DEFAULT_WEIGHT_FILE_NAME}"
         checkpoint_filepath = (
-            os.path.join(self.checkpoint_path, checkpoint_filename)
-            if self.checkpoint_path
-            else checkpoint_filename
+            os.path.join(self.checkpoint_path, checkpoint_filename) if self.checkpoint_path else checkpoint_filename
         )
         checkpoint = ModelCheckpoint(checkpoint_filepath)
 
@@ -260,9 +250,7 @@ class Trainer:
             train_loss = 0.0
             num_batches = 0
 
-            train_iter = tqdm(
-                train_loader, desc=f"Epoch {epoch + 1}/{self.training_config.max_epoch}"
-            )
+            train_iter = tqdm(train_loader, desc=f"Epoch {epoch + 1}/{self.training_config.max_epoch}")
 
             for batch in train_iter:
                 inputs, labels = batch
@@ -322,9 +310,7 @@ class Trainer:
                     best_f1 = val_metrics["f1"]
 
                 # Early stopping
-                if self.training_config.early_stop and early_stopping(
-                    val_metrics["f1"]
-                ):
+                if self.training_config.early_stop and early_stopping(val_metrics["f1"]):
                     print(f"Early stopping at epoch {epoch + 1}")
                     break
 
@@ -352,9 +338,7 @@ class Trainer:
             should_load = is_main_process()
 
         if should_load and os.path.exists(best_model_path):
-            self._unwrapped_model.load_state_dict(
-                torch.load(best_model_path, map_location=self.device)
-            )
+            self._unwrapped_model.load_state_dict(torch.load(best_model_path, map_location=self.device))
             # Remove checkpoint file - the wrapper will save the final model
             try:
                 os.remove(best_model_path)
@@ -426,9 +410,7 @@ class Trainer:
 
         # Convert indices back to labels
         if self.preprocessor:
-            idx_to_label = {
-                idx: label for label, idx in self.preprocessor.vocab_tag.items()
-            }
+            idx_to_label = {idx: label for label, idx in self.preprocessor.vocab_tag.items()}
 
             pred_labels = []
             true_labels = []
@@ -438,9 +420,7 @@ class Trainer:
                 true_labels.append([idx_to_label.get(l, "O") for l in label])
 
             # Calculate metrics
-            report, evaluation = classification_report(
-                true_labels, pred_labels, digits=4
-            )
+            report, evaluation = classification_report(true_labels, pred_labels, digits=4)
 
             # Use evaluation dictionary directly
             metrics = {
@@ -489,14 +469,9 @@ class Trainer:
     def _to_device(self, inputs) -> Dict[str, torch.Tensor]:
         """Move inputs to device."""
         if isinstance(inputs, dict):
-            return {
-                k: v.to(self.device) if isinstance(v, torch.Tensor) else v
-                for k, v in inputs.items()
-            }
+            return {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
         elif isinstance(inputs, (list, tuple)):
-            return [
-                v.to(self.device) if isinstance(v, torch.Tensor) else v for v in inputs
-            ]
+            return [v.to(self.device) if isinstance(v, torch.Tensor) else v for v in inputs]
         elif isinstance(inputs, torch.Tensor):
             return inputs.to(self.device)
         return inputs
@@ -507,9 +482,7 @@ class Trainer:
 
         config_dict = {
             "model_config": self.config.__dict__,
-            "training_config": self.training_config.__dict__
-            if self.training_config
-            else {},
+            "training_config": self.training_config.__dict__ if self.training_config else {},
         }
 
         config_path = os.path.join(dir_path, CONFIG_FILE_NAME)
@@ -527,9 +500,7 @@ class Scorer:
         evaluation: Whether this is final evaluation (more detailed)
     """
 
-    def __init__(
-        self, valid_loader, preprocessor: Preprocessor = None, evaluation: bool = False
-    ):
+    def __init__(self, valid_loader, preprocessor: Preprocessor = None, evaluation: bool = False):
         self.valid_loader = valid_loader
         self.preprocessor = preprocessor
         self.evaluation = evaluation
@@ -552,10 +523,7 @@ class Scorer:
 
                 # Move to device
                 if isinstance(inputs, dict):
-                    inputs = {
-                        k: v.to(device) if isinstance(v, torch.Tensor) else v
-                        for k, v in inputs.items()
-                    }
+                    inputs = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
                 # Get predictions
                 if hasattr(model, "decode"):
@@ -582,20 +550,12 @@ class Scorer:
 
         # Convert to labels and compute metrics
         if self.preprocessor:
-            idx_to_label = {
-                idx: label for label, idx in self.preprocessor.vocab_tag.items()
-            }
+            idx_to_label = {idx: label for label, idx in self.preprocessor.vocab_tag.items()}
 
-            pred_labels = [
-                [idx_to_label.get(p, "O") for p in pred] for pred in all_predictions
-            ]
-            true_labels = [
-                [idx_to_label.get(l, "O") for l in label] for label in all_labels
-            ]
+            pred_labels = [[idx_to_label.get(p, "O") for p in pred] for pred in all_predictions]
+            true_labels = [[idx_to_label.get(l, "O") for l in label] for label in all_labels]
 
-            self.report, evaluation = classification_report(
-                true_labels, pred_labels, digits=4
-            )
+            self.report, evaluation = classification_report(true_labels, pred_labels, digits=4)
 
             # Parse metrics
             if "micro" in evaluation:

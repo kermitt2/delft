@@ -7,9 +7,7 @@ from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
 
 
 class Trainer(object):
-    def __init__(
-        self, model, model_config, training_config, device="cpu", checkpoint_path=""
-    ):
+    def __init__(self, model, model_config, training_config, device="cpu", checkpoint_path=""):
         self.model = model
         self.model_config = model_config
         self.training_config = training_config
@@ -29,20 +27,14 @@ class Trainer(object):
         self.criterion = nn.BCEWithLogitsLoss()
 
         # Callbacks - use mode="min" for loss-based early stopping
-        self.early_stopping = EarlyStopping(
-            patience=training_config.patience, min_delta=0, mode="min"
-        )
+        self.early_stopping = EarlyStopping(patience=training_config.patience, min_delta=0, mode="min")
 
         # Model checkpoint with model-specific filename
         checkpoint_filename = f"{model_config.model_name}_best_model.pth"
         checkpoint_filepath = (
-            os.path.join(checkpoint_path, checkpoint_filename)
-            if checkpoint_path
-            else checkpoint_filename
+            os.path.join(checkpoint_path, checkpoint_filename) if checkpoint_path else checkpoint_filename
         )
-        self.model_checkpoint = ModelCheckpoint(
-            checkpoint_filepath, monitor="loss", mode="min"
-        )
+        self.model_checkpoint = ModelCheckpoint(checkpoint_filepath, monitor="loss", mode="min")
 
     def train(self, train_loader, valid_loader=None):
         for epoch in range(self.training_config.max_epoch):
@@ -69,21 +61,15 @@ class Trainer(object):
                 loss.backward()
                 self.optimizer.step()
 
-                train_loss += loss.item() * (
-                    labels.size(0) if labels is not None else 1
-                )
+                train_loss += loss.item() * (labels.size(0) if labels is not None else 1)
 
             avg_train_loss = train_loss / len(train_loader.dataset)
-            print(
-                f"Epoch {epoch + 1}/{self.training_config.max_epoch}, Train Loss: {avg_train_loss:.4f}"
-            )
+            print(f"Epoch {epoch + 1}/{self.training_config.max_epoch}, Train Loss: {avg_train_loss:.4f}")
 
             # Validation
             if valid_loader is not None:
                 val_metrics = self.evaluate(valid_loader)
-                print(
-                    f"Val Loss: {val_metrics['loss']:.4f}, ROC-AUC: {val_metrics['roc_auc']:.4f}"
-                )
+                print(f"Val Loss: {val_metrics['loss']:.4f}, ROC-AUC: {val_metrics['roc_auc']:.4f}")
 
                 # Check metrics for early stopping
                 # Default to ROC-AUC if enabled, else Loss

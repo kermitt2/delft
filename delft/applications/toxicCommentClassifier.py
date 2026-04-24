@@ -185,13 +185,9 @@ if __name__ == "__main__":
         y_test = test()
 
         # write test predictions as a submission file
-        sample_submission = pd.read_csv(
-            "data/textClassification/toxic/sample_submission.csv"
-        )
+        sample_submission = pd.read_csv("data/textClassification/toxic/sample_submission.csv")
         sample_submission[list_classes] = y_test
-        sample_submission.to_csv(
-            "data/textClassification/toxic/result.csv", index=False
-        )
+        sample_submission.to_csv("data/textClassification/toxic/result.csv", index=False)
 
     if action == "classify":
         someTexts = [

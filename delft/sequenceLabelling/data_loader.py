@@ -43,11 +43,7 @@ def collate_fn(batch):
             # length key is just a scalar, so we stack
             if key == "length":
                 values = [inp[key] for inp in inputs]
-                collated_inputs[key] = (
-                    torch.stack(values).squeeze(-1)
-                    if values[0].dim() > 0
-                    else torch.stack(values)
-                )
+                collated_inputs[key] = torch.stack(values).squeeze(-1) if values[0].dim() > 0 else torch.stack(values)
             elif key == "char_input":
                 # char_input is (seq_len, char_seq_len), we need to pad the first dim
                 # Actually char_input is usually (seq_len, max_char_len)
@@ -69,9 +65,7 @@ def collate_fn(batch):
                 values = [inp[key] for inp in inputs]
                 if isinstance(values[0], torch.Tensor):
                     # Pad tokens
-                    collated_inputs[key] = torch.nn.utils.rnn.pad_sequence(
-                        values, batch_first=True
-                    )
+                    collated_inputs[key] = torch.nn.utils.rnn.pad_sequence(values, batch_first=True)
                 else:
                     collated_inputs[key] = values
 
@@ -91,9 +85,7 @@ def collate_fn(batch):
             values = [inp[i] for inp in inputs]
             if isinstance(values[0], torch.Tensor):
                 if values[0].dim() > 0:
-                    collated_inputs.append(
-                        torch.nn.utils.rnn.pad_sequence(values, batch_first=True)
-                    )
+                    collated_inputs.append(torch.nn.utils.rnn.pad_sequence(values, batch_first=True))
                 else:
                     collated_inputs.append(torch.stack(values))
             else:
@@ -191,13 +183,9 @@ class SequenceLabelingDataset(Dataset):
 
         # Get character indices
         if self.preprocessor.return_chars:
-            char_indices = self.preprocessor.transform_chars([x_tokens], extend=extend)[
-                0
-            ]
+            char_indices = self.preprocessor.transform_chars([x_tokens], extend=extend)[0]
         else:
-            char_indices = np.zeros(
-                (seq_len, self.preprocessor.max_char_length), dtype=np.int32
-            )
+            char_indices = np.zeros((seq_len, self.preprocessor.max_char_length), dtype=np.int32)
 
         # Get casing features
         if self.preprocessor.return_casing:
@@ -214,13 +202,9 @@ class SequenceLabelingDataset(Dataset):
         # Process labels
         if y_item is not None:
             if self.use_chain_crf:
-                _, labels = self.preprocessor.transform(
-                    [x_tokens], [y_item], extend=extend, label_indices=False
-                )
+                _, labels = self.preprocessor.transform([x_tokens], [y_item], extend=extend, label_indices=False)
             else:
-                _, labels = self.preprocessor.transform(
-                    [x_tokens], [y_item], extend=extend, label_indices=True
-                )
+                _, labels = self.preprocessor.transform([x_tokens], [y_item], extend=extend, label_indices=True)
             labels = np.array(labels[0], dtype=np.int64)
         else:
             labels = None
@@ -285,9 +269,7 @@ class TransformerDataset(Dataset):
         self.output_input_offsets = output_input_offsets
 
         if bert_preprocessor and bert_preprocessor.empty_features_vector is None:
-            bert_preprocessor.empty_features_vector = (
-                preprocessor.empty_features_vector()
-            )
+            bert_preprocessor.empty_features_vector = preprocessor.empty_features_vector()
 
     def __len__(self) -> int:
         return len(self.x)
@@ -340,9 +322,7 @@ class TransformerDataset(Dataset):
 
         # Process labels
         if y_item is not None:
-            _, labels = self.preprocessor.transform(
-                x_tokens, input_labels, label_indices=True
-            )
+            _, labels = self.preprocessor.transform(x_tokens, input_labels, label_indices=True)
             labels = np.array(labels[0][:actual_len], dtype=np.int64)
         else:
             labels = None
@@ -350,23 +330,15 @@ class TransformerDataset(Dataset):
         # Convert to tensors
         inputs = {
             "input_ids": torch.tensor(input_ids[0][:actual_len], dtype=torch.long),
-            "token_type_ids": torch.tensor(
-                token_type_ids[0][:actual_len], dtype=torch.long
-            ),
-            "attention_mask": torch.tensor(
-                attention_mask[0][:actual_len], dtype=torch.long
-            ),
+            "token_type_ids": torch.tensor(token_type_ids[0][:actual_len], dtype=torch.long),
+            "attention_mask": torch.tensor(attention_mask[0][:actual_len], dtype=torch.long),
         }
 
         if self.preprocessor.return_chars:
-            inputs["char_input"] = torch.tensor(
-                input_chars[0][:actual_len], dtype=torch.long
-            )
+            inputs["char_input"] = torch.tensor(input_chars[0][:actual_len], dtype=torch.long)
 
         if self.preprocessor.return_features:
-            inputs["features_input"] = torch.tensor(
-                input_features[0][:actual_len], dtype=torch.long
-            )
+            inputs["features_input"] = torch.tensor(input_features[0][:actual_len], dtype=torch.long)
 
         if self.output_input_offsets:
             inputs["input_offsets"] = input_offsets[0][:actual_len]
@@ -534,9 +506,7 @@ class BatchedDataLoader:
         # Get batch data
         batch_x = self.x[start_idx:end_idx]
         batch_y = self.y[start_idx:end_idx] if self.y is not None else None
-        batch_f = (
-            self.features[start_idx:end_idx] if self.features is not None else None
-        )
+        batch_f = self.features[start_idx:end_idx] if self.features is not None else None
 
         # Tokenize if needed
         if self.tokenize:
@@ -560,9 +530,7 @@ class BatchedDataLoader:
         batch_size = len(batch_x)
 
         # Word embeddings
-        word_emb = np.zeros(
-            (batch_size, max_len, self.embeddings.embed_size), dtype="float32"
-        )
+        word_emb = np.zeros((batch_size, max_len, self.embeddings.embed_size), dtype="float32")
         for i, tokens in enumerate(batch_x):
             word_emb[i] = to_vector_single(tokens, self.embeddings, max_len)
 
@@ -574,13 +542,9 @@ class BatchedDataLoader:
         # Labels
         if batch_y is not None:
             if self.use_chain_crf:
-                _, labels = self.preprocessor.transform(
-                    batch_x, batch_y, extend=extend, label_indices=False
-                )
+                _, labels = self.preprocessor.transform(batch_x, batch_y, extend=extend, label_indices=False)
             else:
-                _, labels = self.preprocessor.transform(
-                    batch_x, batch_y, extend=extend, label_indices=True
-                )
+                _, labels = self.preprocessor.transform(batch_x, batch_y, extend=extend, label_indices=True)
             labels = np.array(truncate_batch_values(labels, max_len), dtype=np.int64)
         else:
             labels = None

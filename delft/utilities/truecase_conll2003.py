@@ -11,11 +11,7 @@ def convert(input_file, output_file):
             words, tags = [], []
             for original_line in infile:
                 line = original_line.rstrip()
-                if (
-                    len(line) == 0
-                    or line.startswith("-DOCSTART-")
-                    or line.startswith("#begin document")
-                ):
+                if len(line) == 0 or line.startswith("-DOCSTART-") or line.startswith("#begin document"):
                     if len(words) != 0:
                         words = truecase_sentence(words)
                         for i in range(len(words)):

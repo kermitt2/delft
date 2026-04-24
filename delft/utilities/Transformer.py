@@ -34,9 +34,7 @@ class Transformer(object):
         Hub, which could fail if the service is overloaded
     """
 
-    def __init__(
-        self, name: str, resource_registry: dict = None, delft_local_path: str = None
-    ):
+    def __init__(self, name: str, resource_registry: dict = None, delft_local_path: str = None):
         self.bert_preprocessor = None
         self.transformer_config = None
         self.loading_method = None
@@ -96,23 +94,16 @@ class Transformer(object):
                     if "path-config" in transformer_configuration and os.path.isfile(
                         transformer_configuration["path-config"]
                     ):
-                        self.local_config_file = transformer_configuration[
-                            "path-config"
-                        ]
+                        self.local_config_file = transformer_configuration["path-config"]
                     else:
                         print("Missing path-config or not a file.")
 
                     if (
                         "path-weights" in transformer_configuration
                         and os.path.isfile(transformer_configuration["path-weights"])
-                        or os.path.isfile(
-                            transformer_configuration["path-weights"]
-                            + ".data-00000-of-00001"
-                        )
+                        or os.path.isfile(transformer_configuration["path-weights"] + ".data-00000-of-00001")
                     ):
-                        self.local_weights_file = transformer_configuration[
-                            "path-weights"
-                        ]
+                        self.local_weights_file = transformer_configuration["path-weights"]
                     else:
                         print("Missing weights-config or not a file.")
 
@@ -129,9 +120,7 @@ class Transformer(object):
             self.loading_method = LOADING_METHOD_HUGGINGFACE_NAME
             # print("No configuration for", self.name, "Loading from Hugging face.")
 
-    def init_preprocessor(
-        self, max_sequence_length: int, add_prefix_space: bool = True
-    ):
+    def init_preprocessor(self, max_sequence_length: int, add_prefix_space: bool = True):
         """
         Load the tokenizer according to the provided information, in case of missing configuration,
         it will try to use huggingface as fallback solution.
@@ -187,9 +176,7 @@ class Transformer(object):
             self.tokenizer = BertTokenizer.from_pretrained(self.local_vocab_file)
 
         elif self.loading_method == LOADING_METHOD_DELFT_MODEL:
-            config_path = os.path.join(
-                ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
-            )
+            config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
             self.transformer_config = AutoConfig.from_pretrained(config_path)
             self.tokenizer = AutoTokenizer.from_pretrained(
                 os.path.join(self.local_dir_path, DEFAULT_TRANSFORMER_TOKENIZER_DIR),
@@ -199,9 +186,7 @@ class Transformer(object):
     def save_tokenizer(self, output_directory):
         self.tokenizer.save_pretrained(output_directory)
 
-    def instantiate_layer(
-        self, load_pretrained_weights=True
-    ) -> Union[object, TFAutoModel, TFBertModel]:
+    def instantiate_layer(self, load_pretrained_weights=True) -> Union[object, TFAutoModel, TFBertModel]:
         """
         Instantiate a transformer to be loaded in a Keras layer using the availability method of the pre-trained transformer.
         """
@@ -215,14 +200,10 @@ class Transformer(object):
                     except:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
-                        transformer_model = TFAutoModel.from_pretrained(
-                            self.name, use_auth_token=self.auth_token
-                        )
+                        transformer_model = TFAutoModel.from_pretrained(self.name, use_auth_token=self.auth_token)
                 else:
                     try:
-                        transformer_model = TFAutoModel.from_pretrained(
-                            self.name, from_pt=True
-                        )
+                        transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
                     except:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
@@ -231,18 +212,14 @@ class Transformer(object):
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
-                config_path = os.path.join(
-                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
-                )
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_LOCAL_MODEL_DIR:
             if load_pretrained_weights:
                 try:
-                    transformer_model = TFAutoModel.from_pretrained(
-                        self.local_dir_path, from_pt=True
-                    )
+                    transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
                 except:
                     # failure might be due to safetensors format for the weights, we can try an alternative loading
                     # for this case
@@ -250,41 +227,31 @@ class Transformer(object):
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
-                config_path = os.path.join(
-                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
-                )
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 # self.transformer_config = AutoConfig.from_pretrained(self.local_dir_path)
                 return TFAutoModel.from_config(self.transformer_config)
 
         elif self.loading_method == LOADING_METHOD_PLAIN_MODEL:
             if load_pretrained_weights:
-                self.transformer_config = AutoConfig.from_pretrained(
-                    self.local_config_file
-                )
+                self.transformer_config = AutoConfig.from_pretrained(self.local_config_file)
                 # transformer_model = TFBertModel.from_pretrained(self.local_weight_file, from_tf=True)
                 raise NotImplementedError(
                     "The load of TF weights from huggingface automodel classes is not yet implemented. \
                     Please use load from Hugging Face Hub or from directory for the initial loading of the transformers weights."
                 )
             else:
-                config_path = os.path.join(
-                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
-                )
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 return TFBertModel.from_config(self.transformer_config)
 
         else:
             # TODO: revise this
             if load_pretrained_weights:
-                transformer_model = TFAutoModel.from_pretrained(
-                    self.local_dir_path, from_pt=True
-                )
+                transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
                 self.transformer_config = transformer_model.config
                 return transformer_model
             else:
-                config_path = os.path.join(
-                    ".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME
-                )
+                config_path = os.path.join(".", self.local_dir_path, TRANSFORMER_CONFIG_FILE_NAME)
                 self.transformer_config = AutoConfig.from_pretrained(config_path)
                 return TFAutoModel.from_config(self.transformer_config)

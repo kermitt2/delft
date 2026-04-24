@@ -161,9 +161,6 @@ class TestFeaturesPreprocessor:
         for key in back_as_dict.keys():
             if key == "feature_preprocessor":
                 for sub_key in back_as_dict[key].__dict__.keys():
-                    assert (
-                        back_as_dict[key].__dict__[sub_key]
-                        == original_as_dict[key].__dict__[sub_key]
-                    )
+                    assert back_as_dict[key].__dict__[sub_key] == original_as_dict[key].__dict__[sub_key]
             else:
                 assert back_as_dict[key] == original_as_dict[key]

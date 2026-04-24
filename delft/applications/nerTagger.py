@@ -135,24 +135,16 @@ def train(
 
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading data...")
-        x_train1, y_train1 = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.train"
-        )
-        x_train2, y_train2 = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.testa"
-        )
-        x_train3, y_train3 = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.testb"
-        )
+        x_train1, y_train1 = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.train")
+        x_train2, y_train2 = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.testa")
+        x_train3, y_train3 = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.testb")
 
         # we concatenate all sets
         x_all = np.concatenate((x_train1, x_train2, x_train3), axis=0)
         y_all = np.concatenate((y_train1, y_train2, y_train3), axis=0)
 
         # split train and valid sets in a random way
-        x_train, x_valid, y_train, y_valid = train_test_split(
-            x_all, y_all, test_size=0.1
-        )
+        x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-en-conll2003-" + architecture
@@ -178,24 +170,16 @@ def train(
     elif (dataset_type == "conll2012") and (lang == "en"):
         print("Loading Ontonotes 5.0 CoNLL-2012 NER data...")
 
-        x_train1, y_train1 = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.train"
-        )
-        x_train2, y_train2 = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.dev"
-        )
-        x_train3, y_train3 = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.test"
-        )
+        x_train1, y_train1 = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.train")
+        x_train2, y_train2 = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.dev")
+        x_train3, y_train3 = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.test")
 
         # we concatenate train and valid sets
         x_all = np.concatenate((x_train1, x_train2, x_train3), axis=0)
         y_all = np.concatenate((y_train1, y_train2, y_train3), axis=0)
 
         # split train and valid sets in a random way
-        x_train, x_valid, y_train, y_valid = train_test_split(
-            x_all, y_all, test_size=0.1
-        )
+        x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-en-conll2012-" + architecture
@@ -220,13 +204,9 @@ def train(
     elif lang == "fr":
         print("Loading data...")
         dataset_type = "lemonde"
-        x_all, y_all = load_data_and_labels_lemonde(
-            "data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml"
-        )
+        x_all, y_all = load_data_and_labels_lemonde("data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml")
         shuffle_arrays([x_all, y_all])
-        x_train, x_valid, y_train, y_valid = train_test_split(
-            x_all, y_all, test_size=0.1
-        )
+        x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-fr-lemonde-" + architecture
@@ -310,15 +290,9 @@ def train_eval(
 
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading CoNLL 2003 data...")
-        x_train, y_train = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.train"
-        )
-        x_valid, y_valid = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.testa"
-        )
-        x_eval, y_eval = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.testb"
-        )
+        x_train, y_train = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.train")
+        x_valid, y_valid = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.testa")
+        x_eval, y_eval = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.testb")
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-conll2003-" + architecture
@@ -367,16 +341,10 @@ def train_eval(
             )
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
-        print(
-            "Loading all Ontonotes 5.0 XML data, evaluation will be on 10% random partition"
-        )
+        print("Loading all Ontonotes 5.0 XML data, evaluation will be on 10% random partition")
         x_all, y_all = load_data_and_labels_ontonotes(data_path)
-        x_train_all, x_eval, y_train_all, y_eval = train_test_split(
-            x_all, y_all, test_size=0.1
-        )
-        x_train, x_valid, y_train, y_valid = train_test_split(
-            x_train_all, y_train_all, test_size=0.1
-        )
+        x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
+        x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-ontonotes-" + architecture
@@ -402,15 +370,9 @@ def train_eval(
     elif (dataset_type == "conll2012") and (lang == "en"):
         print("Loading Ontonotes 5.0 CoNLL-2012 NER data...")
 
-        x_train, y_train = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.train"
-        )
-        x_valid, y_valid = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.dev"
-        )
-        x_eval, y_eval = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.test"
-        )
+        x_train, y_train = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.train")
+        x_valid, y_valid = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.dev")
+        x_eval, y_eval = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.test")
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-conll2012-" + architecture
@@ -459,16 +421,10 @@ def train_eval(
 
     elif (lang == "fr") and (dataset_type == "ftb" or dataset_type is None):
         print("Loading data for ftb...")
-        x_all, y_all = load_data_and_labels_lemonde(
-            "data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml"
-        )
+        x_all, y_all = load_data_and_labels_lemonde("data/sequenceLabelling/leMonde/ftb6_ALL.EN.docs.relinked.xml")
         shuffle_arrays([x_all, y_all])
-        x_train_all, x_eval, y_train_all, y_eval = train_test_split(
-            x_all, y_all, test_size=0.1
-        )
-        x_train, x_valid, y_train, y_valid = train_test_split(
-            x_train_all, y_train_all, test_size=0.1
-        )
+        x_train_all, x_eval, y_train_all, y_eval = train_test_split(x_all, y_all, test_size=0.1)
+        x_train, x_valid, y_train, y_valid = train_test_split(x_train_all, y_train_all, test_size=0.1)
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-" + architecture
@@ -492,16 +448,10 @@ def train_eval(
         )
     elif (lang == "fr") and (dataset_type == "ftb_force_split"):
         print("Loading data for ftb_force_split...")
-        x_train, y_train = load_data_and_labels_conll(
-            "data/sequenceLabelling/leMonde/ftb6_train.conll"
-        )
+        x_train, y_train = load_data_and_labels_conll("data/sequenceLabelling/leMonde/ftb6_train.conll")
         shuffle_arrays([x_train, y_train])
-        x_valid, y_valid = load_data_and_labels_conll(
-            "data/sequenceLabelling/leMonde/ftb6_dev.conll"
-        )
-        x_eval, y_eval = load_data_and_labels_conll(
-            "data/sequenceLabelling/leMonde/ftb6_test.conll"
-        )
+        x_valid, y_valid = load_data_and_labels_conll("data/sequenceLabelling/leMonde/ftb6_dev.conll")
+        x_eval, y_eval = load_data_and_labels_conll("data/sequenceLabelling/leMonde/ftb6_test.conll")
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-force-split-" + architecture
@@ -612,13 +562,9 @@ def train_eval(
 
     start_time = time.time()
     if fold_count == 1:
-        model.train(
-            x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu
-        )
+        model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     else:
-        model.train_nfold(
-            x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu
-        )
+        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     runtime = round(time.time() - start_time, 3)
     print("training runtime: %s seconds " % (runtime))
 
@@ -640,9 +586,7 @@ def eval(
 ):
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading CoNLL-2003 NER data...")
-        x_test, y_test = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2003/eng.testb"
-        )
+        x_test, y_test = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2003/eng.testb")
         stats(x_eval=x_test, y_eval=y_test)
 
         # load model
@@ -653,9 +597,7 @@ def eval(
     elif (dataset_type == "conll2012") and (lang == "en"):
         print("Loading Ontonotes 5.0 CoNLL-2012 NER data...")
 
-        x_test, y_test = load_data_and_labels_conll(
-            "data/sequenceLabelling/CoNLL-2012-NER/eng.test"
-        )
+        x_test, y_test = load_data_and_labels_conll("data/sequenceLabelling/CoNLL-2012-NER/eng.test")
         stats(x_eval=x_test, y_eval=y_test)
 
         # load model
@@ -766,9 +708,7 @@ if __name__ == "__main__":
 
     architectures = architectures_word_embeddings + architectures_transformers_based
 
-    parser = argparse.ArgumentParser(
-        description="Neural Named Entity Recognizers based on DeLFT"
-    )
+    parser = argparse.ArgumentParser(description="Neural Named Entity Recognizers based on DeLFT")
 
     parser.add_argument("action", help="one of [train, train_eval, eval, tag]")
     parser.add_argument(
@@ -802,9 +742,7 @@ if __name__ == "__main__":
         default=None,
         help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)",
     )
-    parser.add_argument(
-        "--file-in", default=None, help="path to a text file to annotate"
-    )
+    parser.add_argument("--file-in", default=None, help="path to a text file to annotate")
     parser.add_argument(
         "--file-out",
         default=None,
@@ -836,23 +774,16 @@ if __name__ == "__main__":
         default=-1,
         help="max-sequence-length parameter to be used.",
     )
-    parser.add_argument(
-        "--batch-size", type=int, default=-1, help="batch-size parameter to be used."
-    )
+    parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
         type=int,
         default=-1,
-        help="patience, number of extra epochs to perform after "
-        "the best epoch before stopping a training.",
+        help="patience, number of extra epochs to perform after the best epoch before stopping a training.",
     )
-    parser.add_argument(
-        "--learning-rate", type=float, default=None, help="Initial learning rate"
-    )
+    parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
 
-    parser.add_argument(
-        "--max-epoch", type=int, default=-1, help="Maximum number of epochs."
-    )
+    parser.add_argument("--max-epoch", type=int, default=-1, help="Maximum number of epochs.")
     parser.add_argument(
         "--early-stop",
         type=t_or_f,

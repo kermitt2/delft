@@ -49,9 +49,7 @@ def train(
     num_workers=None,
 ):
     print("loading binary software use dataset...")
-    xtr, y = load_software_use_corpus_json(
-        "data/textClassification/software/software-use.json.gz"
-    )
+    xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
     model_name = "software_use_" + architecture
     class_weights = None
@@ -93,9 +91,7 @@ def train_and_eval(
     num_workers=None,
 ):
     print("loading binary software use dataset...")
-    xtr, y = load_software_use_corpus_json(
-        "data/textClassification/software/software-use.json.gz"
-    )
+    xtr, y = load_software_use_corpus_json("data/textClassification/software/software-use.json.gz")
 
     nb_used = 0
     for the_class in y:
@@ -145,9 +141,7 @@ def train_and_eval(
 
 
 # classify a list of texts
-def classify(
-    texts, output_format, embeddings_name=None, architecture="gru", transformer=None
-):
+def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
     model = Classifier(
         "software_use_" + architecture,

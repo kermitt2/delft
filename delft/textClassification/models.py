@@ -86,9 +86,7 @@ class BaseTextClassifier(nn.Module):
             # Already embedded
             return inputs
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         """
         Forward pass.
 
@@ -147,9 +145,7 @@ class lstm(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.lstm(x)
         x = self.dropout(x)
@@ -197,9 +193,7 @@ class bidLstm_simple(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.bilstm(x)
         x = self.dropout(x)
@@ -230,15 +224,9 @@ class cnn(BaseTextClassifier):
         super().__init__(model_config, training_config)
 
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.conv1 = nn.Conv1d(
-            self.embed_size, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv2 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv3 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
+        self.conv1 = nn.Conv1d(self.embed_size, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv2 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv3 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.pool = nn.MaxPool1d(2)
         self.gru = nn.GRU(self.recurrent_units, self.recurrent_units, batch_first=True)
         self.dense1 = nn.Linear(self.recurrent_units, self.dense_size)
@@ -246,9 +234,7 @@ class cnn(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         # Embed inputs if needed, then transpose for conv
         x = self.embed_inputs(inputs)
         x = x.transpose(1, 2)
@@ -288,15 +274,9 @@ class cnn2(BaseTextClassifier):
         super().__init__(model_config, training_config)
 
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.conv1 = nn.Conv1d(
-            self.embed_size, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv2 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv3 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
+        self.conv1 = nn.Conv1d(self.embed_size, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv2 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv3 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.gru = nn.GRU(
             self.recurrent_units,
             self.recurrent_units,
@@ -308,9 +288,7 @@ class cnn2(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x = x.transpose(1, 2)
         x = self.dropout(x)
@@ -349,24 +327,16 @@ class cnn3(BaseTextClassifier):
             batch_first=True,
             dropout=self.dropout_rate,
         )
-        self.conv1 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv2 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv3 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
+        self.conv1 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv2 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv3 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.pool = nn.MaxPool1d(2)
         self.dense1 = nn.Linear(self.recurrent_units * 2, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.gru(x)
 
@@ -410,20 +380,14 @@ class lstm_cnn(BaseTextClassifier):
             dropout=self.dropout_rate,
         )
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.conv1 = nn.Conv1d(
-            self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same"
-        )
-        self.conv2 = nn.Conv1d(
-            self.recurrent_units, 300, kernel_size=5, padding="valid"
-        )
+        self.conv1 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
+        self.conv2 = nn.Conv1d(self.recurrent_units, 300, kernel_size=5, padding="valid")
         self.dense1 = nn.Linear(300 * 2, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.lstm(x)
         x = self.dropout(x)
@@ -478,9 +442,7 @@ class gru(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.bigru1(x)
         x = self.dropout(x)
@@ -522,9 +484,7 @@ class gru_simple(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.bigru(x)
 
@@ -572,9 +532,7 @@ class gru_lstm(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x, _ = self.bigru(x)
         x = self.dropout(x)
@@ -605,9 +563,7 @@ class dpcnn(BaseTextClassifier):
         super().__init__(model_config, training_config)
 
         # Initial projection
-        self.initial_conv = nn.Conv1d(
-            self.embed_size, self.recurrent_units, kernel_size=1
-        )
+        self.initial_conv = nn.Conv1d(self.embed_size, self.recurrent_units, kernel_size=1)
 
         # Block 1
         self.conv1a = nn.Conv1d(
@@ -647,9 +603,7 @@ class dpcnn(BaseTextClassifier):
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
-    def forward(
-        self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None
-    ) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         x = self.embed_inputs(inputs)
         x = x.transpose(1, 2)
         x = self.initial_conv(x)
@@ -729,9 +683,7 @@ class bert(BaseTextClassifier):
         attention_mask = inputs.get("attention_mask", None)
         token_type_ids = inputs.get("token_type_ids", None)
 
-        outputs = self.transformer(
-            input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids
-        )
+        outputs = self.transformer(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
 
         # Use CLS token representation
         pooled = outputs.last_hidden_state[:, 0, :]
@@ -764,9 +716,7 @@ MODEL_REGISTRY = {
 architectures = list(MODEL_REGISTRY.keys())
 
 
-def getModel(
-    model_config, training_config, load_pretrained_weights=True, local_path=None
-):
+def getModel(model_config, training_config, load_pretrained_weights=True, local_path=None):
     """
     Get a model instance by architecture name.
 
@@ -782,16 +732,11 @@ def getModel(
     architecture = model_config.architecture
 
     if architecture not in MODEL_REGISTRY:
-        raise ValueError(
-            f"Unknown architecture: {architecture}. "
-            f"Available: {list(MODEL_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Unknown architecture: {architecture}. Available: {list(MODEL_REGISTRY.keys())}")
 
     model_class = MODEL_REGISTRY[architecture]
 
     if architecture == "bert":
-        return model_class(
-            model_config, training_config, load_pretrained_weights, local_path
-        )
+        return model_class(model_config, training_config, load_pretrained_weights, local_path)
     else:
         return model_class(model_config, training_config)

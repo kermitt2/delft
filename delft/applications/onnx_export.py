@@ -65,12 +65,8 @@ def export_crf_params(model, output_path: str):
         # Using pytorch-crf wrapper (standard CRF class)
         inner_crf = crf.crf
         params["transitions"] = inner_crf.transitions.detach().cpu().numpy().tolist()
-        params["startTransitions"] = (
-            inner_crf.start_transitions.detach().cpu().numpy().tolist()
-        )
-        params["endTransitions"] = (
-            inner_crf.end_transitions.detach().cpu().numpy().tolist()
-        )
+        params["startTransitions"] = inner_crf.start_transitions.detach().cpu().numpy().tolist()
+        params["endTransitions"] = inner_crf.end_transitions.detach().cpu().numpy().tolist()
     elif hasattr(crf, "U"):
         # ChainCRF - uses U (transitions), b_start, b_end naming
         params["transitions"] = crf.U.detach().cpu().numpy().tolist()
@@ -79,9 +75,7 @@ def export_crf_params(model, output_path: str):
     elif hasattr(crf, "transitions"):
         # Custom CRF fallback
         params["transitions"] = crf.transitions.detach().cpu().numpy().tolist()
-        params["startTransitions"] = (
-            crf.start_transitions.detach().cpu().numpy().tolist()
-        )
+        params["startTransitions"] = crf.start_transitions.detach().cpu().numpy().tolist()
         params["endTransitions"] = crf.end_transitions.detach().cpu().numpy().tolist()
     else:
         raise ValueError("Unknown CRF implementation")
@@ -90,9 +84,7 @@ def export_crf_params(model, output_path: str):
         json.dump(params, f, indent=2)
 
     print(f"Exported CRF params to {output_path}")
-    print(
-        f"  Transitions shape: {len(params['transitions'])}x{len(params['transitions'][0])}"
-    )
+    print(f"  Transitions shape: {len(params['transitions'])}x{len(params['transitions'][0])}")
 
 
 def export_vocab(preprocessor, model_config, output_path: str):
@@ -112,14 +104,9 @@ def export_vocab(preprocessor, model_config, output_path: str):
     }
 
     # Add feature info if available
-    if (
-        hasattr(preprocessor, "feature_preprocessor")
-        and preprocessor.feature_preprocessor
-    ):
+    if hasattr(preprocessor, "feature_preprocessor") and preprocessor.feature_preprocessor:
         fp = preprocessor.feature_preprocessor
-        vocab["featuresIndices"] = (
-            list(fp.features_indices) if fp.features_indices else None
-        )
+        vocab["featuresIndices"] = list(fp.features_indices) if fp.features_indices else None
         vocab["featuresVocabularySize"] = fp.features_vocabulary_size
         vocab["featuresMapToIndex"] = fp.features_map_to_index
 
@@ -263,9 +250,7 @@ def export_to_onnx(
         "BidLSTM_ChainCRF_FEATURES",
     ]
     if arch not in supported_archs:
-        print(
-            f"Warning: Architecture {arch} may not be fully supported. Proceeding anyway."
-        )
+        print(f"Warning: Architecture {arch} may not be fully supported. Proceeding anyway.")
 
     print(f"Architecture: {arch}")
 
@@ -299,12 +284,8 @@ def export_to_onnx(
 
     # Handle features input for FEATURES architectures
     if arch in ["BidLSTM_CRF_FEATURES", "BidLSTM_ChainCRF_FEATURES"]:
-        num_features = (
-            len(model_config.features_indices) if model_config.features_indices else 1
-        )
-        dummy_features_input = torch.zeros(
-            batch_size, seq_len, num_features, dtype=torch.long
-        )
+        num_features = len(model_config.features_indices) if model_config.features_indices else 1
+        dummy_features_input = torch.zeros(batch_size, seq_len, num_features, dtype=torch.long)
         input_names.append("features_input")
         dynamic_axes["features_input"] = {0: "batch_size", 1: "seq_length"}
         dummy_inputs = (dummy_word_input, dummy_char_input, dummy_features_input)
@@ -314,9 +295,7 @@ def export_to_onnx(
     # Export to ONNX (using static shapes for compatibility)
     onnx_path = os.path.join(output_dir, "encoder.onnx")
     print(f"Exporting to ONNX: {onnx_path}")
-    print(
-        f"  Static shapes: batch=1, seq_len={seq_len}, word_emb={word_emb_size}, max_char={max_char}"
-    )
+    print(f"  Static shapes: batch=1, seq_len={seq_len}, word_emb={word_emb_size}, max_char={max_char}")
 
     # Use dynamo=False for older-style export that's more compatible
     torch.onnx.export(
@@ -367,9 +346,7 @@ def export_to_onnx(
 def main():
     parser = argparse.ArgumentParser(description="Export DeLFT model to ONNX format")
     parser.add_argument("--model", required=True, help="Name of the model to export")
-    parser.add_argument(
-        "--output", required=True, help="Output directory for exported files"
-    )
+    parser.add_argument("--output", required=True, help="Output directory for exported files")
     parser.add_argument(
         "--max-seq-length",
         type=int,

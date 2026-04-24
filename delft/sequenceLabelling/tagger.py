@@ -6,9 +6,7 @@ from delft.sequenceLabelling.data_loader import create_dataloader
 
 
 class Tagger(object):
-    def __init__(
-        self, model, model_config, embeddings=None, preprocessor=None, device=None
-    ):
+    def __init__(self, model, model_config, embeddings=None, preprocessor=None, device=None):
         self.model = model
         self.preprocessor = preprocessor
         self.model_config = model_config
@@ -68,15 +66,10 @@ class Tagger(object):
 
         with torch.no_grad():
             for batch in dataloader:
-                inputs, _ = (
-                    batch  # dataloader yields (inputs, labels), labels are None or dummies
-                )
+                inputs, _ = batch  # dataloader yields (inputs, labels), labels are None or dummies
 
                 # Move inputs to device
-                inputs = {
-                    k: v.to(self.device) if isinstance(v, torch.Tensor) else v
-                    for k, v in inputs.items()
-                }
+                inputs = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
                 # Run inference
                 if hasattr(self.model, "decode"):
@@ -130,9 +123,9 @@ class Tagger(object):
                     if output_format == "json":
                         piece = {}
                         piece["text"] = text
-                        piece["entities"] = self._build_json_response(
-                            text, tokens, pred_tags, current_probs, offsets
-                        )["entities"]
+                        piece["entities"] = self._build_json_response(text, tokens, pred_tags, current_probs, offsets)[
+                            "entities"
+                        ]
                         res["texts"].append(piece)
                     else:
                         the_tags = list(zip(tokens, pred_tags))

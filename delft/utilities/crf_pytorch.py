@@ -88,9 +88,7 @@ class CRF(nn.Module):
         else:
             return self._forward_custom(emissions, tags, mask, reduction)
 
-    def decode(
-        self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> List[List[int]]:
+    def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """
         Decode the best tag sequence using Viterbi algorithm.
 
@@ -133,9 +131,7 @@ class CRF(nn.Module):
         else:
             return -llh
 
-    def _compute_score(
-        self, emissions: torch.Tensor, tags: torch.Tensor, mask: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_score(self, emissions: torch.Tensor, tags: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Compute the score of a tag sequence."""
         batch_size, seq_length = tags.shape
 
@@ -144,10 +140,7 @@ class CRF(nn.Module):
 
         # Emission and transition scores
         for i in range(seq_length):
-            score += (
-                emissions[:, i].gather(1, tags[:, i : i + 1]).squeeze(1)
-                * mask[:, i].float()
-            )
+            score += emissions[:, i].gather(1, tags[:, i : i + 1]).squeeze(1) * mask[:, i].float()
             if i < seq_length - 1:
                 transition_score = self.transitions[tags[:, i], tags[:, i + 1]]
                 score += transition_score * mask[:, i + 1].float()
@@ -159,9 +152,7 @@ class CRF(nn.Module):
 
         return score
 
-    def _compute_normalizer(
-        self, emissions: torch.Tensor, mask: torch.Tensor
-    ) -> torch.Tensor:
+    def _compute_normalizer(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
         """Compute the partition function using forward algorithm."""
         batch_size, seq_length, num_tags = emissions.shape
 
@@ -183,16 +174,12 @@ class CRF(nn.Module):
         alpha = alpha + self.end_transitions
         return torch.logsumexp(alpha, dim=1)
 
-    def _viterbi_decode_custom(
-        self, emissions: torch.Tensor, mask: Optional[torch.Tensor]
-    ) -> List[List[int]]:
+    def _viterbi_decode_custom(self, emissions: torch.Tensor, mask: Optional[torch.Tensor]) -> List[List[int]]:
         """Viterbi decoding without pytorch-crf."""
         batch_size, seq_length, num_tags = emissions.shape
 
         if mask is None:
-            mask = torch.ones(
-                batch_size, seq_length, dtype=torch.bool, device=emissions.device
-            )
+            mask = torch.ones(batch_size, seq_length, dtype=torch.bool, device=emissions.device)
         else:
             mask = mask.bool()
 
@@ -260,9 +247,7 @@ class ChainCRF(nn.Module):
         self._num_tags = num_tags
 
         # Transition matrix (energy between tag pairs)
-        self.U = nn.Parameter(
-            torch.empty(num_tags, num_tags, device=device, dtype=dtype)
-        )
+        self.U = nn.Parameter(torch.empty(num_tags, num_tags, device=device, dtype=dtype))
         nn.init.xavier_uniform_(self.U)
 
         # Boundary energies
@@ -290,9 +275,7 @@ class ChainCRF(nn.Module):
             During inference: Best tag sequence [batch_size, seq_len]
         """
         if not self._built:
-            self.build(
-                emissions.size(-1), device=emissions.device, dtype=emissions.dtype
-            )
+            self.build(emissions.size(-1), device=emissions.device, dtype=emissions.dtype)
 
         if tags is not None:
             # Training: compute loss
@@ -332,9 +315,7 @@ class ChainCRF(nn.Module):
 
         return nll.mean()
 
-    def decode(
-        self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Viterbi decoding to find best tag sequence.
 
@@ -378,9 +359,7 @@ class ChainCRF(nn.Module):
         best_paths[:, -1] = best_last
 
         for t in range(seq_len - 2, -1, -1):
-            best_paths[:, t] = (
-                backpointers[t].gather(1, best_paths[:, t + 1 : t + 2]).squeeze(1)
-            )
+            best_paths[:, t] = backpointers[t].gather(1, best_paths[:, t + 1 : t + 2]).squeeze(1)
 
         # Apply mask
         if mask is not None:
@@ -388,9 +367,7 @@ class ChainCRF(nn.Module):
 
         return best_paths
 
-    def _add_boundary_energy(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def _add_boundary_energy(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Add start and end boundary energies to emission scores."""
         if mask is None:
             # Add start boundary to first position
@@ -421,9 +398,7 @@ class ChainCRF(nn.Module):
         shifted = torch.cat([mask[:, 1:], torch.zeros_like(mask[:, -1:])], dim=1)
         return (mask > shifted).float()
 
-    def _path_energy(
-        self, tags: torch.Tensor, x: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def _path_energy(self, tags: torch.Tensor, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Compute the energy of a tag path."""
         batch_size, seq_len = tags.shape
         num_tags = x.size(-1)
@@ -454,9 +429,7 @@ class ChainCRF(nn.Module):
 
         return emission_energy + trans_energy
 
-    def _free_energy(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def _free_energy(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Compute the partition function (log normalizer) using forward algorithm."""
         batch_size, seq_len, num_tags = x.shape
 
@@ -484,9 +457,7 @@ class ChainCRF(nn.Module):
         return torch.logsumexp(alpha, dim=1)
 
 
-def sparse_crf_loss_masked(
-    emissions: torch.Tensor, tags: torch.Tensor, crf: CRF, mask_value: int = 0
-) -> torch.Tensor:
+def sparse_crf_loss_masked(emissions: torch.Tensor, tags: torch.Tensor, crf: CRF, mask_value: int = 0) -> torch.Tensor:
     """
     CRF loss with special token masking (for BERT models).
 
