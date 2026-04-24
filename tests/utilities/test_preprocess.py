@@ -3,19 +3,20 @@ Tests for shared preprocessing utilities in delft/utilities/preprocess.py
 """
 
 import logging
+
 import numpy as np
 
 from delft.utilities.preprocess import (
-    UNK,
     PAD,
+    UNK,
+    BERTPreprocessor,
+    FeaturesPreprocessor,
     case_index,
-    pad_sequences,
     dense_to_one_hot,
     get_casing,
     lower,
     normalize_num,
-    FeaturesPreprocessor,
-    BERTPreprocessor,
+    pad_sequences,
 )
 
 LOGGER = logging.getLogger(__name__)
@@ -60,9 +61,7 @@ class TestPadSequences:
     def test_pad_sequences_two_level(self):
         # Char-level sequences: [[chars for word1], [chars for word2]]
         sequences = [[[1, 2], [3]], [[4, 5, 6]]]
-        padded, lengths = pad_sequences(
-            sequences, pad_tok=0, nlevels=2, max_char_length=4
-        )
+        padded, lengths = pad_sequences(sequences, pad_tok=0, nlevels=2, max_char_length=4)
         assert len(padded) == 2
         # Check padding is applied
         assert len(padded[0]) == 2  # Two words in first sentence (max sentence length)

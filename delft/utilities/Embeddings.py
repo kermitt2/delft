@@ -2,6 +2,7 @@
 import gzip
 import hashlib
 import io
+import json
 import logging
 import mmap
 import os
@@ -10,7 +11,7 @@ import shutil
 import struct
 import sys
 import zipfile
-import json
+
 import lmdb
 import numpy as np
 from tqdm import tqdm
@@ -90,9 +91,7 @@ class Embeddings(object):
                                 continue
 
                         word = line[0]
-                        vector = np.array(
-                            [float(val) for val in line[1 : len(line)]], dtype="float32"
-                        )
+                        vector = np.array([float(val) for val in line[1 : len(line)]], dtype="float32")
                         if self.embed_size == 0:
                             self.embed_size = len(vector)
                         self.model[word] = vector
@@ -107,9 +106,7 @@ class Embeddings(object):
             )
 
     def make_embeddings_lmdb(self, name="fasttext-crawl"):
-        print(
-            "\nCompiling embeddings... (this is done only one time per embeddings at first usage)"
-        )
+        print("\nCompiling embeddings... (this is done only one time per embeddings at first usage)")
         description = self.get_description(name)
 
         if description is None:
@@ -163,15 +160,11 @@ class Embeddings(object):
             word = line[0]
             try:
                 if line[len(line) - 1] == "\n":
-                    vector = np.array(
-                        [float(val) for val in line[1 : len(line) - 1]], dtype="float32"
-                    )
+                    vector = np.array([float(val) for val in line[1 : len(line) - 1]], dtype="float32")
                 else:
-                    vector = np.array(
-                        [float(val) for val in line[1 : len(line)]], dtype="float32"
-                    )
+                    vector = np.array([float(val) for val in line[1 : len(line)]], dtype="float32")
 
-            except:
+            except Exception:
                 print(len(line))
                 print(line[1 : len(line)])
 
@@ -189,9 +182,7 @@ class Embeddings(object):
         if nbWords == 0:
             nbWords = i
         self.vocab_size = nbWords
-        print(
-            "embeddings loaded for", nbWords, "words and", self.embed_size, "dimensions"
-        )
+        print("embeddings loaded for", nbWords, "words and", self.embed_size, "dimensions")
 
     def clean_downloads(self):
         # cleaning possible downloaded embeddings
@@ -201,9 +192,7 @@ class Embeddings(object):
             and os.path.isdir(self.registry["embedding-download-path"])
         ):
             for filename in os.listdir(self.registry["embedding-download-path"]):
-                file_path = os.path.join(
-                    self.registry["embedding-download-path"], filename
-                )
+                file_path = os.path.join(self.registry["embedding-download-path"], filename)
                 try:
                     if os.path.isfile(file_path) or os.path.islink(file_path):
                         os.unlink(file_path)
@@ -219,15 +208,11 @@ class Embeddings(object):
 
         if self.extension == "bin":
             if fasttext_support:
-                print(
-                    "embeddings are of .bin format, so they will be loaded in memory..."
-                )
+                print("embeddings are of .bin format, so they will be loaded in memory...")
                 self.make_embeddings_simple_in_memory(name)
             else:
                 if not (sys.platform == "linux" or sys.platform == "darwin"):
-                    raise ValueError(
-                        "FastText .bin format not supported for your platform"
-                    )
+                    raise ValueError("FastText .bin format not supported for your platform")
                 else:
                     raise ValueError(
                         "Go to the documentation to get more information on how to install FastText .bin support"
@@ -267,9 +252,7 @@ class Embeddings(object):
                     self.lang = description["lang"]
 
                 # open the database in read mode
-                self.env = lmdb.open(
-                    envFilePath, readonly=True, max_readers=2048, max_spare_txns=4
-                )
+                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
                 if self.env:
                     # we need to set self.embed_size and self.vocab_size
                     with self.env.begin() as txn:
@@ -395,7 +378,7 @@ class Embeddings(object):
 
                 print("Downloading resource file for", description["name"], "...")
                 embeddings_path = download_file(url, download_path)
-                if embeddings_path != None and os.path.isfile(embeddings_path):
+                if embeddings_path is not None and os.path.isfile(embeddings_path):
                     print("Download sucessful:", embeddings_path)
             else:
                 print(
@@ -501,7 +484,7 @@ def _fetch_header_if_available(line):
     :param line: a splitted line (if not split, tried to split by spaces)
     :return: the number of words and the embedding size, if there is no header, they will be set to -1
     """
-    if type(line) == "str":
+    if line.isinstance("str"):
         line = line.split(" ")
 
     nb_words = -1

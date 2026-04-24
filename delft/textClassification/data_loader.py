@@ -5,8 +5,9 @@ Supports both legacy embedding-vector approach and new preprocessor-based index 
 """
 
 import torch
-from torch.utils.data import Dataset, DataLoader
-from delft.textClassification.preprocess import to_vector_single, to_indices_single
+from torch.utils.data import DataLoader, Dataset
+
+from delft.textClassification.preprocess import to_indices_single, to_vector_single
 
 
 class TextClassificationDataset(Dataset):

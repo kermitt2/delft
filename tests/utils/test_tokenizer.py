@@ -1,4 +1,4 @@
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple, tokenizeAndFilter
+from delft.utilities.Tokenizer import tokenizeAndFilter, tokenizeAndFilterSimple
 
 
 class TestTokenizer:

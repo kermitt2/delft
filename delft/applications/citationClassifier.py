@@ -1,10 +1,11 @@
-import json
-from delft.utilities.Utilities import split_data_and_labels
-from delft.textClassification.reader import load_citation_sentiment_corpus
-from delft.textClassification import Classifier
 import argparse
+import json
 import time
+
+from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_citation_sentiment_corpus
+from delft.utilities.Utilities import split_data_and_labels
 
 list_classes = ["negative", "neutral", "positive"]
 
@@ -56,9 +57,7 @@ def train(
     )
 
     print("loading citation sentiment corpus...")
-    xtr, y = load_citation_sentiment_corpus(
-        "data/textClassification/citations/citation_sentiment_corpus.txt"
-    )
+    xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
 
     if fold_count == 1:
         model.train(xtr, y)
@@ -97,9 +96,7 @@ def train_and_eval(
     )
 
     print("loading citation sentiment corpus...")
-    xtr, y = load_citation_sentiment_corpus(
-        "data/textClassification/citations/citation_sentiment_corpus.txt"
-    )
+    xtr, y = load_citation_sentiment_corpus("data/textClassification/citations/citation_sentiment_corpus.txt")
 
     # segment train and eval sets
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
@@ -116,9 +113,7 @@ def train_and_eval(
 
 
 # classify a list of texts
-def classify(
-    texts, output_format, architecture="gru", embeddings_name=None, transformer=None
-):
+def classify(texts, output_format, architecture="gru", embeddings_name=None, transformer=None):
     # load model
     model = Classifier(
         "citations_" + architecture,
@@ -139,9 +134,7 @@ def classify(
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Sentiment classification of citation contexts based on DeLFT"
-    )
+    parser = argparse.ArgumentParser(description="Sentiment classification of citation contexts based on DeLFT")
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
     pretrained_transformers_examples = [
@@ -202,7 +195,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

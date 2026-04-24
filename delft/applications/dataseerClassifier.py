@@ -1,16 +1,18 @@
-import json
-from delft.utilities.Utilities import split_data_and_labels, t_or_f
-from delft.textClassification.reader import load_dataseer_corpus_csv
-from delft.textClassification.reader import vectorize as vectorizer
-from delft.textClassification import Classifier
 import argparse
+import json
 import time
-from delft.textClassification.models import architectures
+
 import numpy as np
 
+from delft.textClassification import Classifier
+from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_dataseer_corpus_csv
+from delft.textClassification.reader import vectorize as vectorizer
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
+
 """
-    Classifier for deciding if a sentence introduce a dataset or not, and prediction of the 
-    dataset type. 
+    Classifier for deciding if a sentence introduce a dataset or not, and prediction of the
+    dataset type.
 """
 
 
@@ -72,9 +74,7 @@ def train(
     num_workers=None,
 ):
     print("loading binary dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/all-binary.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
     model_name = "dataseer-binary_" + architecture
     class_weights = None
@@ -110,9 +110,7 @@ def train(
     model.save()
 
     print("loading reuse dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/all-reuse.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
     model_name = "dataseer-reuse_" + architecture
     class_weights = {0: 1.5, 1: 1.0}
@@ -143,9 +141,7 @@ def train(
     model.save()
 
     print("loading first-level dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/all-multilevel.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     model_name = "dataseer-first_" + architecture
 
@@ -204,8 +200,8 @@ def train(
 
         model_name = 'dataseer-' + the_class + "_" + architecture
 
-        model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
-            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name, 
+        model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch,
+            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name,
             batch_size=batch_size, class_weights=class_weights, early_stop=early_stop, transformer_name=transformer)
 
         if fold_count == 1:
@@ -233,9 +229,7 @@ def train_and_eval(
         )
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(
-        embeddings_name, fold_count, architecture=architecture, transformer=transformer
-    )
+    train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
     # train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
@@ -247,14 +241,10 @@ def train_and_eval(
     # train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
 
-def train_and_eval_binary(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading dataset type corpus...")
     # xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/phase1-2-binary.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase1-2-binary.csv")
     # xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase3-binary.csv")
 
     # distinct values of classes
@@ -266,9 +256,7 @@ def train_and_eval_binary(
 
     class_weights = None
 
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
-        architecture
-    )
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     model = Classifier(
         "dataseer-binary_" + architecture,
@@ -321,13 +309,9 @@ def train_and_eval_binary(
     model.save()
 
 
-def train_and_eval_reuse(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_reuse(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/all-reuse.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-reuse.csv")
 
     # distinct values of classes
     print(list_classes)
@@ -336,9 +320,7 @@ def train_and_eval_reuse(
     print(len(xtr), "texts")
     print(len(y), "classes")
 
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
-        architecture
-    )
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     class_weights = {0: 1.5, 1: 1.0}
 
@@ -378,13 +360,9 @@ def train_and_eval_reuse(
     model.save()
 
 
-def train_and_eval_primary(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_primary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading dataset type corpus...")
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/all-multilevel.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-multilevel.csv")
 
     # distinct values of classes
     print(list_classes)
@@ -394,9 +372,7 @@ def train_and_eval_primary(
     print(len(y), "classes")
 
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
-        architecture
-    )
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     model = Classifier(
         "dataseer-first_" + architecture,
@@ -434,9 +410,7 @@ def train_and_eval_primary(
     model.save()
 
 
-def train_and_eval_secondary(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_secondary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("training second-level dataset subtype corpus...")
     xtr, y1, y2, _, list_classes, list_subclasses, _ = load_dataseer_corpus_csv(
         "data/textClassification/dataseer/all-multilevel.csv"
@@ -449,9 +423,7 @@ def train_and_eval_secondary(
     print(len(list_subclasses), "sub-classes")
 
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
-        architecture
-    )
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     datatypes_y = {}
     datatypes_xtr = {}
@@ -489,10 +461,7 @@ def train_and_eval_secondary(
             print("only one subclass for", the_class)
             continue
 
-        if (
-            len(datatypes_list_subclasses[the_class]) == 2
-            and "nan" in datatypes_list_subclasses[the_class]
-        ):
+        if len(datatypes_list_subclasses[the_class]) == 2 and "nan" in datatypes_list_subclasses[the_class]:
             continue
 
         if the_class == "Protein Data":
@@ -523,9 +492,7 @@ def train_and_eval_secondary(
         local_y = []
         for the_y in datatypes_y[the_class]:
             the_ind = datatypes_list_subclasses[the_class].index(the_y)
-            local_y.append(
-                vectorizer(the_ind, len(datatypes_list_subclasses[the_class]))
-            )
+            local_y.append(vectorizer(the_ind, len(datatypes_list_subclasses[the_class])))
 
         # segment train and eval sets
         x_train, y_train, x_test, y_test = split_data_and_labels(
@@ -558,19 +525,13 @@ def classify(texts, output_format, architecture="gru"):
     return result
 
 
-def train_eval_cascaded(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transformer=None):
     # general setting of parameters
     class_weights = None
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
-        architecture
-    )
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
 
     # first binary classifier: dataset or no_dataset
-    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv(
-        "data/textClassification/dataseer/all-binary.csv"
-    )
+    xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
 
     print(list_classes)
 
@@ -601,7 +562,6 @@ def train_eval_cascaded(
     model_binary.eval(x_test, y_test)
 
     x_test_binary = x_test
-    y_test_binary = y_test
 
     # second, the first level datatype taxonomy for sentences classified as dataset
     (
@@ -651,7 +611,6 @@ def train_eval_cascaded(
 
     # eval by cascading
     result_binary = model_binary.predict(x_test_binary, output_format="default")
-    result_first = model_first.predict(x_test, output_format="default")
 
     # select sequences classified as dataset
     result_intermediate = np.asarray([np.argmax(line) for line in result_binary])
@@ -662,9 +621,7 @@ def train_eval_cascaded(
             result[index] = 1
         return result
 
-    result_binary = np.array(
-        [vectorize(xi, len(list_classes)) for xi in result_intermediate]
-    )
+    result_binary = np.array([vectorize(xi, len(list_classes)) for xi in result_intermediate])
 
 
 def filter_exclude_class(xtr, y_classes, the_class):
@@ -728,13 +685,8 @@ def build_prior_class_distribution():
                     the_leafclass = list_leaf_classes[pos_leafclass[0][0]]
                     print(distribution[the_class][the_subclass][the_leafclass])
                     if "count" in distribution[the_class][the_subclass][the_leafclass]:
-                        distribution[the_class][the_subclass][the_leafclass][
-                            "count"
-                        ] = (
-                            distribution[the_class][the_subclass][the_leafclass][
-                                "count"
-                            ]
-                            + 1
+                        distribution[the_class][the_subclass][the_leafclass]["count"] = (
+                            distribution[the_class][the_subclass][the_leafclass]["count"] + 1
                         )
                 else:
                     if "count" in distribution[the_class][the_subclass]:
@@ -743,14 +695,10 @@ def build_prior_class_distribution():
                         )
             else:
                 if "count" in distribution[the_class]:
-                    distribution[the_class]["count"] = (
-                        distribution[the_class]["count"] + 1
-                    )
+                    distribution[the_class]["count"] = distribution[the_class]["count"] + 1
 
     # save the extended json
-    with open(
-        "data/textClassification/dataseer/DataTypesWithCounts.json", "w"
-    ) as outfile:
+    with open("data/textClassification/dataseer/DataTypesWithCounts.json", "w") as outfile:
         json.dump(distribution, outfile, sort_keys=False, indent=4)
 
 
@@ -862,7 +810,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

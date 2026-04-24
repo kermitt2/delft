@@ -16,14 +16,15 @@ Model architectures implemented:
 - BidLSTM_CRF_CASING: BiLSTM + CRF + casing features
 """
 
+import inspect
 import os
+from typing import Dict, List, Optional
+
 import torch
 import torch.nn as nn
-import inspect
-from typing import Optional, Dict, List
 
-from delft.utilities.crf_pytorch import CRF, ChainCRF
 from delft.sequenceLabelling.config import ModelConfig
+from delft.utilities.crf_pytorch import CRF, ChainCRF
 
 
 class CharacterEncoder(nn.Module):
@@ -38,16 +39,10 @@ class CharacterEncoder(nn.Module):
         hidden_size: Size of LSTM hidden state
     """
 
-    def __init__(
-        self, char_vocab_size: int, char_embedding_size: int, hidden_size: int
-    ):
+    def __init__(self, char_vocab_size: int, char_embedding_size: int, hidden_size: int):
         super().__init__()
-        self.char_embeddings = nn.Embedding(
-            char_vocab_size, char_embedding_size, padding_idx=0
-        )
-        self.bilstm = nn.LSTM(
-            char_embedding_size, hidden_size, batch_first=True, bidirectional=True
-        )
+        self.char_embeddings = nn.Embedding(char_vocab_size, char_embedding_size, padding_idx=0)
+        self.bilstm = nn.LSTM(char_embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.output_size = hidden_size * 2
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -101,12 +96,8 @@ class CharacterCNNEncoder(nn.Module):
         kernel_size: int = 3,
     ):
         super().__init__()
-        self.char_embeddings = nn.Embedding(
-            char_vocab_size, char_embedding_size, padding_idx=0
-        )
-        self.conv = nn.Conv1d(
-            char_embedding_size, num_filters, kernel_size, padding="same"
-        )
+        self.char_embeddings = nn.Embedding(char_vocab_size, char_embedding_size, padding_idx=0)
+        self.conv = nn.Conv1d(char_embedding_size, num_filters, kernel_size, padding="same")
         self.output_size = num_filters
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
@@ -317,9 +308,7 @@ class BidLSTM_CRF(BaseSequenceLabeler):
         self.dropout = nn.Dropout(config.dropout)
 
         # Pre-CRF dense layer
-        self.dense = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
         self.linear = nn.Linear(config.num_word_lstm_units, ntags)
 
         # CRF layer
@@ -337,9 +326,7 @@ class BidLSTM_CRF(BaseSequenceLabeler):
         if lengths is not None:
             # Create mask from lengths
             batch_size, seq_len = word_emb.shape[:2]
-            mask = torch.arange(seq_len, device=word_emb.device).expand(
-                batch_size, seq_len
-            )
+            mask = torch.arange(seq_len, device=word_emb.device).expand(batch_size, seq_len)
             mask = mask < lengths.squeeze(-1).unsqueeze(-1)
             mask = mask.float()
         else:
@@ -378,9 +365,7 @@ class BidLSTM_CRF(BaseSequenceLabeler):
             lengths = inputs.get("length", None)
             if lengths is not None:
                 batch_size, seq_len = outputs["logits"].shape[:2]
-                mask = torch.arange(seq_len, device=outputs["logits"].device).expand(
-                    batch_size, seq_len
-                )
+                mask = torch.arange(seq_len, device=outputs["logits"].device).expand(batch_size, seq_len)
                 mask = mask < lengths.squeeze(-1).unsqueeze(-1)
                 mask = mask.float()
             else:
@@ -426,9 +411,7 @@ class BidLSTM_ChainCRF(BaseSequenceLabeler):
         self.dropout = nn.Dropout(config.dropout)
 
         # Pre-CRF layers
-        self.dense1 = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense1 = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
         self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
         # ChainCRF layer
@@ -488,21 +471,13 @@ class BidLSTM_CNN(BaseSequenceLabeler):
         super().__init__(config, ntags)
 
         # Character CNN encoder
-        self.char_encoder = CharacterCNNEncoder(
-            config.char_vocab_size, config.char_embedding_size
-        )
+        self.char_encoder = CharacterCNNEncoder(config.char_vocab_size, config.char_embedding_size)
 
         # Casing embedding
-        self.casing_embedding = nn.Embedding(
-            config.case_vocab_size, config.case_embedding_size, padding_idx=0
-        )
+        self.casing_embedding = nn.Embedding(config.case_vocab_size, config.case_embedding_size, padding_idx=0)
 
         # Input size
-        input_size = (
-            config.word_embedding_size
-            + self.char_encoder.output_size
-            + config.case_embedding_size
-        )
+        input_size = config.word_embedding_size + self.char_encoder.output_size + config.case_embedding_size
 
         # Main BiLSTM
         self.bilstm = nn.LSTM(
@@ -575,9 +550,7 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
         super().__init__(config, ntags)
 
         # Character CNN encoder
-        self.char_encoder = CharacterCNNEncoder(
-            config.char_vocab_size, config.char_embedding_size
-        )
+        self.char_encoder = CharacterCNNEncoder(config.char_vocab_size, config.char_embedding_size)
 
         # Input size (word emb + char encoding, casing is optional input but not used in emission)
         input_size = config.word_embedding_size + self.char_encoder.output_size
@@ -594,9 +567,7 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
         self.dropout = nn.Dropout(config.dropout)
 
         # Pre-CRF dense
-        self.dense = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
 
         # CRF
         self.crf = CRF(ntags)
@@ -680,9 +651,7 @@ class BidGRU_CRF(BaseSequenceLabeler):
         self.dropout = nn.Dropout(config.dropout)
 
         # Pre-CRF dense
-        self.dense = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
 
         # CRF
         self.crf = CRF(ntags)
@@ -748,9 +717,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         # Features embedding
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = nn.Embedding(
-            features_vocab_size, config.features_embedding_size, padding_idx=0
-        )
+        self.features_embedding = nn.Embedding(features_vocab_size, config.features_embedding_size, padding_idx=0)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -759,11 +726,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         )
 
         # Input size
-        input_size = (
-            config.word_embedding_size
-            + self.char_encoder.output_size
-            + config.features_lstm_units * 2
-        )
+        input_size = config.word_embedding_size + self.char_encoder.output_size + config.features_lstm_units * 2
 
         # Main BiLSTM
         self.bilstm = nn.LSTM(
@@ -777,9 +740,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         self.dropout = nn.Dropout(config.dropout)
 
         # Pre-CRF dense
-        self.dense = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
         self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
         # CRF
@@ -803,9 +764,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         # If features have multiple dimensions, process with LSTM
         if len(features_emb.shape) == 4:
             # [batch, seq, num_features, emb] -> [batch*seq, num_features, emb]
-            features_emb_flat = features_emb.view(
-                -1, features_emb.shape[2], features_emb.shape[3]
-            )
+            features_emb_flat = features_emb.view(-1, features_emb.shape[2], features_emb.shape[3])
             _, (hidden, _) = self.features_lstm(features_emb_flat)
             features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1)
             features_encoded = features_encoded.view(batch_size, seq_len, -1)
@@ -872,9 +831,7 @@ class BidLSTM_ChainCRF_FEATURES(BidLSTM_CRF_FEATURES):
         features_emb = self.features_embedding(features_input)
 
         if len(features_emb.shape) == 4:
-            features_emb_flat = features_emb.view(
-                -1, features_emb.shape[2], features_emb.shape[3]
-            )
+            features_emb_flat = features_emb.view(-1, features_emb.shape[2], features_emb.shape[3])
             _, (hidden, _) = self.features_lstm(features_emb_flat)
             features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1)
             features_encoded = features_encoded.view(batch_size, seq_len, -1)
@@ -930,16 +887,10 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         )
 
         # Casing embedding
-        self.casing_embedding = nn.Embedding(
-            config.case_vocab_size, config.case_embedding_size, padding_idx=0
-        )
+        self.casing_embedding = nn.Embedding(config.case_vocab_size, config.case_embedding_size, padding_idx=0)
 
         # Input size
-        input_size = (
-            config.word_embedding_size
-            + self.char_encoder.output_size
-            + config.case_embedding_size
-        )
+        input_size = config.word_embedding_size + self.char_encoder.output_size + config.case_embedding_size
 
         # Main BiLSTM
         self.bilstm = nn.LSTM(
@@ -953,9 +904,7 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         self.dropout = nn.Dropout(config.dropout)
 
         # Pre-CRF dense
-        self.dense = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
 
         # CRF
         self.crf = CRF(ntags)
@@ -1285,9 +1234,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
         # Features embedding
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = nn.Embedding(
-            features_vocab_size, config.features_embedding_size, padding_idx=0
-        )
+        self.features_embedding = nn.Embedding(features_vocab_size, config.features_embedding_size, padding_idx=0)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -1332,9 +1279,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
         features_emb = self.features_embedding(features_input)
 
         if len(features_emb.shape) == 4:
-            features_emb_flat = features_emb.view(
-                -1, features_emb.shape[2], features_emb.shape[3]
-            )
+            features_emb_flat = features_emb.view(-1, features_emb.shape[2], features_emb.shape[3])
             _, (hidden, _) = self.features_lstm(features_emb_flat)
             features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1)
             features_encoded = features_encoded.view(batch_size, seq_len, -1)
@@ -1404,9 +1349,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         # Features
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = nn.Embedding(
-            features_vocab_size, config.features_embedding_size, padding_idx=0
-        )
+        self.features_embedding = nn.Embedding(features_vocab_size, config.features_embedding_size, padding_idx=0)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -1423,9 +1366,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
             bidirectional=True,
         )
         self.dropout = nn.Dropout(config.dropout)
-        self.dense = nn.Linear(
-            config.num_word_lstm_units * 2, config.num_word_lstm_units
-        )
+        self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
         self.crf = CRF(ntags)
 
     def forward(
@@ -1449,13 +1390,9 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         batch_size, seq_len = features_input.shape[:2]
         features_emb = self.features_embedding(features_input)
         if len(features_emb.shape) == 4:
-            features_emb_flat = features_emb.view(
-                -1, features_emb.shape[2], features_emb.shape[3]
-            )
+            features_emb_flat = features_emb.view(-1, features_emb.shape[2], features_emb.shape[3])
             _, (hidden, _) = self.features_lstm(features_emb_flat)
-            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1).view(
-                batch_size, seq_len, -1
-            )
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1).view(batch_size, seq_len, -1)
         else:
             features_encoded = features_emb.view(batch_size, seq_len, -1)
         features_encoded = self.dropout(features_encoded)
@@ -1520,13 +1457,9 @@ class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
         batch_size, seq_len = features_input.shape[:2]
         features_emb = self.features_embedding(features_input)
         if len(features_emb.shape) == 4:
-            features_emb_flat = features_emb.view(
-                -1, features_emb.shape[2], features_emb.shape[3]
-            )
+            features_emb_flat = features_emb.view(-1, features_emb.shape[2], features_emb.shape[3])
             _, (hidden, _) = self.features_lstm(features_emb_flat)
-            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1).view(
-                batch_size, seq_len, -1
-            )
+            features_encoded = torch.cat([hidden[0], hidden[1]], dim=-1).view(batch_size, seq_len, -1)
         else:
             features_encoded = features_emb.view(batch_size, seq_len, -1)
         features_encoded = self.dropout(features_encoded)
@@ -1592,10 +1525,7 @@ def get_model(
     architecture = config.architecture
 
     if architecture not in MODEL_REGISTRY:
-        raise ValueError(
-            f"Unknown architecture: {architecture}. "
-            f"Available: {list(MODEL_REGISTRY.keys())}"
-        )
+        raise ValueError(f"Unknown architecture: {architecture}. Available: {list(MODEL_REGISTRY.keys())}")
 
     model_class = MODEL_REGISTRY[architecture]
 

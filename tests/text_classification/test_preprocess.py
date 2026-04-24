@@ -3,16 +3,17 @@ Tests for text classification preprocessing in delft/textClassification/preproce
 """
 
 import logging
-import numpy as np
 import os
 import tempfile
 
+import numpy as np
+
 from delft.textClassification.preprocess import (
     TextPreprocessor,
-    to_indices_single,
     clean_text,
+    to_indices_single,
 )
-from delft.utilities.preprocess import UNK, PAD
+from delft.utilities.preprocess import PAD, UNK
 
 LOGGER = logging.getLogger(__name__)
 

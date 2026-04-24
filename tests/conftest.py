@@ -3,6 +3,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest
+
 # from py._path.local import LocalPath
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests

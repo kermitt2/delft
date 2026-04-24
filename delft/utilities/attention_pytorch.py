@@ -4,10 +4,11 @@ PyTorch Attention layer for DeLFT text classification and sequence models.
 Ported from the Keras implementation in Attention.py.
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 
 class Attention(nn.Module):
@@ -23,9 +24,7 @@ class Attention(nn.Module):
         bias: Whether to use bias in attention computation
     """
 
-    def __init__(
-        self, step_dim: int, features_dim: Optional[int] = None, bias: bool = True
-    ):
+    def __init__(self, step_dim: int, features_dim: Optional[int] = None, bias: bool = True):
         super().__init__()
         self.step_dim = step_dim
         self.features_dim = features_dim
@@ -50,9 +49,7 @@ class Attention(nn.Module):
 
         self._built = True
 
-    def forward(
-        self, x: torch.Tensor, mask: Optional[torch.Tensor] = None
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """
         Apply attention mechanism.
 
@@ -166,9 +163,7 @@ class MultiHeadAttention(nn.Module):
         context = torch.matmul(attn_weights, V)
 
         # Concatenate heads
-        context = (
-            context.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
-        )
+        context = context.transpose(1, 2).contiguous().view(batch_size, -1, self.d_model)
 
         # Final linear projection
         output = self.W_o(context)

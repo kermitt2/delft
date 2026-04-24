@@ -5,18 +5,18 @@ This module contains preprocessing classes and functions for text classification
 """
 
 import json
-import regex as re
-import numpy as np
 
+import numpy as np
+import regex as re
 from unidecode import unidecode
-from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 # Import shared utilities
 from delft.utilities.preprocess import (
-    UNK,
     PAD,
+    UNK,
     BasePreprocessor,
 )
+from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 
 special_character_removal = re.compile(r"[^A-Za-z\.\-\?\!\,\#\@\% ]", re.IGNORECASE)
 

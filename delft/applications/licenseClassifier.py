@@ -1,23 +1,25 @@
+import argparse
 import json
-from delft.utilities.Utilities import split_data_and_labels, t_or_f
-from delft.utilities.numpy import shuffle_triple_with_view
-from delft.textClassification.reader import vectorize as vectorizer
+import time
+
+import numpy as np
+
+from delft.textClassification import Classifier
+from delft.textClassification.models import architectures
 from delft.textClassification.reader import (
     load_texts_and_classes_pandas_no_id,
 )
-from delft.textClassification import Classifier
-import argparse
-import time
-from delft.textClassification.models import architectures
-import numpy as np
+from delft.textClassification.reader import vectorize as vectorizer
+from delft.utilities.numpy import shuffle_triple_with_view
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
 
 """
     Two multiclass classifiers to be used in combination with Grobid to classify a license/copyrights section
-    extracted from a scientific article into two dimensions:  
+    extracted from a scientific article into two dimensions:
     - copyright owner: publisher, authors or undecidable (changed from NA to avoid issues with pandas)
-    - license associated to the article file: explicit copyrights (no restriction), creative commons licenses 
+    - license associated to the article file: explicit copyrights (no restriction), creative commons licenses
       (CC-0, CC-BY, CC-BY-NC, etc.), other, or undecidable (changed from NA to avoid issues with pandas)
-    
+
     Note: when the license is undecidable, this means normal copyrights when a copyright owner exists.
 """
 
@@ -297,18 +299,14 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
     report_training_copyrights(y_copyrights)
 
     for class_rank in range(len(list_classes_copyright)):
-        model_name = (
-            "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
-        )
+        model_name = "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
 
         # we could experiment with binary weighting the class maybe
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_copyrights
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_copyrights]
         y_train_class_rank = np.array(y_train_class_rank)
 
         list_classes_rank = [
@@ -344,18 +342,14 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         data_type="licenses",
     )
     for class_rank in range(len(list_classes_licenses)):
-        model_name = (
-            "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
-        )
+        model_name = "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
 
         # we could experiment with binary weighting the class maybe
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_licenses
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_licenses]
         y_train_class_rank = np.array(y_train_class_rank)
 
         list_classes_rank = [
@@ -387,9 +381,7 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
 
-def train_and_eval_binary(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
@@ -402,16 +394,12 @@ def train_and_eval_binary(
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_copyrights, 0.9)
 
     for class_rank in range(len(list_classes_copyright)):
-        model_name = (
-            "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
-        )
+        model_name = "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
 
         y_train_class_rank = np.array(y_train_class_rank)
@@ -456,16 +444,12 @@ def train_and_eval_binary(
     x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y_licenses, 0.9)
 
     for class_rank in range(len(list_classes_licenses)):
-        model_name = (
-            "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
-        )
+        model_name = "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
         class_weights = None
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
 
         y_train_class_rank = np.array(y_train_class_rank)
@@ -503,9 +487,7 @@ def train_and_eval_binary(
 
 
 # classify a list of texts
-def classify(
-    texts, output_format, embeddings_name=None, architecture="gru", transformer=None
-):
+def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
     model = Classifier("copyright_" + architecture)
     model.load()
@@ -607,9 +589,7 @@ def report_training_copyrights(y):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Classify a copyright/license section using the DeLFT library"
-    )
+    parser = argparse.ArgumentParser(description="Classify a copyright/license section using the DeLFT library")
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
     pretrained_transformers_examples = [
@@ -703,9 +683,7 @@ if __name__ == "__main__":
         "train_binary",
         "train_eval_binary",
     ):
-        print(
-            "action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]"
-        )
+        print("action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer
@@ -714,7 +692,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

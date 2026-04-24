@@ -1,19 +1,21 @@
+import argparse
 import json
-from delft.utilities.Utilities import split_data_and_labels
-from delft.utilities.numpy import concatenate_or_none, shuffle_triple_with_view
+import time
+
+import numpy as np
+
+from delft.textClassification import Classifier
+from delft.textClassification.models import architectures
 from delft.textClassification.reader import (
     load_software_context_corpus_json,
     load_software_dataset_context_corpus_json,
 )
-from delft.textClassification import Classifier
-import argparse
-import time
-from delft.textClassification.models import architectures
-import numpy as np
+from delft.utilities.numpy import concatenate_or_none, shuffle_triple_with_view
+from delft.utilities.Utilities import split_data_and_labels
 
 """
     A multiclass classifier to be used in combination with a software mention recognition model, for characterizing
-    the nature of the mention of software in scientific and technical literature. 
+    the nature of the mention of software in scientific and technical literature.
     This classifier predicts if the software introduced by a software mention in a sentence is likely:
     - used or not by the described work (class used)
     - a creation of the described work (class creation)
@@ -22,7 +24,7 @@ import numpy as np
     For the software mention recognizer, see https://github.com/ourresearch/software-mentions
     and grobidTagger.py in the present project DeLFT.
 
-    Best architecture/model is fine-tuned SciBERT. 
+    Best architecture/model is fine-tuned SciBERT.
 """
 
 list_classes = ["used", "creation", "shared"]
@@ -55,9 +57,7 @@ def train(
     num_workers=None,
 ):
     print("loading multiclass software context dataset...")
-    xtr, y = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -109,9 +109,7 @@ def train_and_eval(
     num_workers=None,
 ):
     print("loading multiclass software context dataset...")
-    xtr, y = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -163,9 +161,7 @@ def train_and_eval(
 
 def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading multiclass software context dataset...")
-    x_train, y_train = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    x_train, y_train = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -183,9 +179,7 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_train_class_rank = np.array(y_train_class_rank)
 
         list_classes_rank = [
@@ -217,13 +211,9 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
 
-def train_and_eval_binary(
-    embeddings_name, fold_count, architecture="gru", transformer=None
-):
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
     print("loading multiclass software context dataset...")
-    xtr, y = load_software_context_corpus_json(
-        "data/textClassification/software/software-contexts.json.gz"
-    )
+    xtr, y = load_software_context_corpus_json("data/textClassification/software/software-contexts.json.gz")
     xtr2, y2 = load_software_dataset_context_corpus_json(
         "data/textClassification/software/all_clean.classification_extra.json.gz"
     )
@@ -243,9 +233,7 @@ def train_and_eval_binary(
 
         batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
-        y_train_class_rank = [
-            [1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train
-        ]
+        y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
 
         y_train_class_rank = np.array(y_train_class_rank)
@@ -283,9 +271,7 @@ def train_and_eval_binary(
 
 
 # classify a list of texts
-def classify(
-    texts, output_format, embeddings_name=None, architecture="gru", transformer=None
-):
+def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
     # load model
     model = Classifier("software_context_" + architecture)
     model.load()
@@ -324,9 +310,7 @@ def report_training_contexts(y):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Classify the context of a mentioned software using the DeLFT library"
-    )
+    parser = argparse.ArgumentParser(description="Classify the context of a mentioned software using the DeLFT library")
 
     word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
     pretrained_transformers_examples = [
@@ -384,9 +368,7 @@ if __name__ == "__main__":
         "train_binary",
         "train_eval_binary",
     ):
-        print(
-            "action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]"
-        )
+        print("action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer
@@ -395,7 +377,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

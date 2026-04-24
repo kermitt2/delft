@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
-from delft.sequenceLabelling.preprocess import Preprocessor, FeaturesPreprocessor
+from delft.sequenceLabelling.preprocess import FeaturesPreprocessor, Preprocessor
 
 LOGGER = logging.getLogger(__name__)
 
@@ -161,9 +161,6 @@ class TestFeaturesPreprocessor:
         for key in back_as_dict.keys():
             if key == "feature_preprocessor":
                 for sub_key in back_as_dict[key].__dict__.keys():
-                    assert (
-                        back_as_dict[key].__dict__[sub_key]
-                        == original_as_dict[key].__dict__[sub_key]
-                    )
+                    assert back_as_dict[key].__dict__[sub_key] == original_as_dict[key].__dict__[sub_key]
             else:
                 assert back_as_dict[key] == original_as_dict[key]

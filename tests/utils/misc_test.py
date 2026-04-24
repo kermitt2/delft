@@ -1,4 +1,4 @@
-from delft.utilities.misc import parse_number_ranges, parse_dict
+from delft.utilities.misc import parse_dict, parse_number_ranges
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
 

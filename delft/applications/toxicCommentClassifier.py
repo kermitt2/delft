@@ -1,12 +1,13 @@
-import json
-from delft.textClassification.reader import load_texts_and_classes_pandas
-from delft.textClassification.reader import load_texts_pandas
-from delft.textClassification import Classifier
 import argparse
-import pandas as pd
-import time
+import json
 import sys
+import time
+
+import pandas as pd
+
+from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_texts_and_classes_pandas, load_texts_pandas
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 class_weights = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0}
@@ -156,7 +157,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 
@@ -185,13 +186,9 @@ if __name__ == "__main__":
         y_test = test()
 
         # write test predictions as a submission file
-        sample_submission = pd.read_csv(
-            "data/textClassification/toxic/sample_submission.csv"
-        )
+        sample_submission = pd.read_csv("data/textClassification/toxic/sample_submission.csv")
         sample_submission[list_classes] = y_test
-        sample_submission.to_csv(
-            "data/textClassification/toxic/result.csv", index=False
-        )
+        sample_submission.to_csv("data/textClassification/toxic/result.csv", index=False)
 
     if action == "classify":
         someTexts = [
