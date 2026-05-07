@@ -27,6 +27,8 @@ uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu
 uv pip install -e . -r requirements-cuda.txt
 ```
 
+> **Note:** On Linux, the base install already includes TensorFlow with NVIDIA CUDA libraries as transitive dependencies (~2 GB). The `[gpu]` extra additionally installs PyTorch with CUDA 12.1 support. For a CPU-only setup, you can replace `tensorflow` with `tensorflow-cpu` after installation.
+
 Current DeLFT version is __0.4.6__, which has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. It will exploit your available GPU with the condition that CUDA 12.1 is properly installed.
 
 To ensure the availability of GPU devices for the right version of TensorFlow, CUDA, cuDNN and Python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
@@ -107,4 +109,22 @@ For older transformer formats with just config, vocab and checkpoint weights fil
     ...
 }
 ```
+
+## Logging training runs to Weights & Biases
+
+DeLFT can stream training metrics to [Weights & Biases](https://wandb.ai). To enable it:
+
+1. Create a `.env` file at the root of the project containing your credentials:
+
+    ```
+    WANDB_API_KEY=your_api_key
+    WANDB_PROJECT=your_project_name
+    WANDB_ENTITY=your_entity_name
+    ```
+
+2. Pass `--wandb` to any application script, e.g.:
+
+    ```sh
+    python -m delft.applications.grobidTagger date train --architecture BidLSTM --wandb
+    ```
 

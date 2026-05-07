@@ -12,3 +12,14 @@ By default, the LMDB databases are stored under the subdirectory `data/db`. The 
 
 Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `delft/resources-registry.json`, the embeddings will be loaded in memory as immutable data, like in the usual Keras scripts.
 
+## Upgrading LMDB caches from 0.3.x to 0.4.x
+
+Starting with DeLFT 0.4.x, embedding vectors are stored in LMDB as raw `float32` bytes instead of the legacy serialized-object format used in 0.3.x. This makes the cache directly readable from other languages (used by [GROBID](https://github.com/kermitt2/grobid) via JEP) and improves load performance.
+
+Existing LMDB caches built by DeLFT 0.3.x are **not directly readable** by 0.4.x. You can either rebuild them by re-loading the source embeddings, or convert in place with the bundled utility:
+
+```sh
+python -m delft.utilities.convert_lmdb_embeddings --input <old-lmdb-path> --output <new-lmdb-path>
+```
+
+After the conversion, point `embedding-lmdb-path` (in `delft/resources-registry.json`) at the new path and the embedding loader will use the converted cache transparently.

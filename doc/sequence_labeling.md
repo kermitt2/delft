@@ -1,5 +1,7 @@
 ## Sequence Labelling
 
+> ⚠️ **ELMo support was removed in DeLFT 0.4.x.** The ELMo bullet below is kept for historical reference (DeLFT 0.3.x and earlier). From 0.4.x onwards, transformer-based architectures (`BERT_CRF`, `BERT_ChainCRF`, …) cover the same use case.
+
 ### Available models
 
 The following DL architectures are supported by DeLFT:
@@ -59,6 +61,34 @@ Note that all our annotation data for sequence labelling follows the [IOB2](http
 
 ### Creating your own model
 
-As long your task is a sequence labelling of text, adding a new corpus and create an additional model should be straightfoward. If you want to build a model named `toto` based on labelled data in one of the supported format (CoNLL, TEI or GROBID CRF), create the subdirectory `data/sequenceLabelling/toto` and copy your training data under it.  
+As long as your task is sequence labelling, adding a new corpus and creating an additional model is straightforward. If you want to build a model named `toto` based on labelled data in one of the supported formats (CoNLL, TEI or GROBID CRF), create the subdirectory `data/sequenceLabelling/toto` and copy your training data under it.
 
-(To be completed)
+The fastest path is to copy one of the existing application scripts in `delft/applications/` as a starting template:
+
+- `delft/applications/nerTagger.py` — for token classification on plain CoNLL-style data (good template when your input is just `token<TAB>label` lines).
+- `delft/applications/grobidTagger.py` — for sequence labelling with extra layout / categorical features (GROBID CRF feature matrix format).
+
+In both, the model is created and trained through the high-level `Sequence` wrapper (`delft.sequenceLabelling.Sequence`):
+
+```python
+from delft.sequenceLabelling import Sequence
+
+model = Sequence(
+    "toto",
+    architecture="BidLSTM_CRF",   # or "BERT_CRF", etc.
+    embeddings_name="glove-840B", # for RNN architectures
+    # transformer_name="bert-base-cased",  # for BERT_* architectures
+)
+model.train(x_train, y_train, x_valid=x_dev, y_valid=y_dev)
+model.save("data/models/sequenceLabelling/toto")
+```
+
+Use the loaders in `delft/sequenceLabelling/reader.py` to read your training data; pick the one matching your file format:
+
+- `load_data_and_labels_conll` — CoNLL-style `token<TAB>label` files
+- `load_data_and_labels_crf_file` — GROBID CRF feature-matrix files
+- `load_data_and_labels_xml_file` — TEI XML
+- `load_data_and_labels_json_offsets` — JSON with character offsets
+- `load_data_and_labels_ontonotes` — Ontonotes 5.0 corpus
+
+After training, the model can be applied with `model.tag(...)` or via a CLI wrapper modelled on `nerTagger.py`'s `train` / `train_eval` / `tag` actions.

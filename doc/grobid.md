@@ -5,11 +5,16 @@
 ## General command line for training GROBID models in DeLFT
 
 ```
-usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
-                       [--embedding EMBEDDING] [--transformer TRANSFORMER] [--output OUTPUT]
-                       [--input INPUT] [--feature-indices FEATURE_INDICES]
-                       [--max-sequence-length MAX_SEQUENCE_LENGTH] [--batch-size BATCH_SIZE]
-                       [--tensorboard]
+usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
+                       [--architecture ARCHITECTURE] [--output OUTPUT]
+                       [--embedding EMBEDDING] [--transformer TRANSFORMER]
+                       [--input INPUT] [--incremental]
+                       [--input-model INPUT_MODEL]
+                       [--max-sequence-length MAX_SEQUENCE_LENGTH]
+                       [--batch-size BATCH_SIZE] [--patience PATIENCE]
+                       [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
+                       [--early-stop EARLY_STOP] [--multi-gpu]
+                       [--num-workers NUM_WORKERS] [--wandb]
                        model {train,train_eval,eval,tag}
 
 Trainer for GROBID models using the DeLFT library
@@ -18,37 +23,61 @@ positional arguments:
   model                 Name of the model.
   {train,train_eval,eval,tag}
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
                         Number of fold to use when evaluating with n-fold cross validation.
   --architecture ARCHITECTURE
-                        Type of model architecture to be used, one of ['BidLSTM', 'BidLSTM_CRF',
-                        'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF',
-                        'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BidLSTM_CRF_FEATURES',
-                        'BidLSTM_ChainCRF_FEATURES', 'BERT', 'BERT_CRF', 'BERT_ChainCRF',
-                        'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
-  --embedding EMBEDDING
-                        The desired pre-trained word embeddings using their descriptions in the
-                        file. For local loading, use delft/resources-registry.json. Be sure to
-                        use here the same name as in the registry, e.g. ['glove-840B',
-                        'fasttext-crawl', 'word2vec'] and that the path in the registry to the
-                        embedding file is correct on your system.
-  --transformer TRANSFORMER
-                        The desired pre-trained transformer to be used in the selected
-                        architecture. For local loading use, delft/resources-registry.json, and
-                        be sure to use here the same name as in the registry, e.g. ['bert-base-
-                        cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased'] and that
-                        the path in the registry to the model path is correct on your system.
-                        HuggingFace transformers hub will be used otherwise to fetch the model,
-                        see https://huggingface.co/models for model names
+                        Type of model architecture to be used, one of
+                        ['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF',
+                        'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF',
+                        'BidLSTM_CNN', 'BidLSTM_CRF_CASING',
+                        'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES',
+                        'BERT', 'BERT_FEATURES', 'BERT_CRF', 'BERT_ChainCRF',
+                        'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES',
+                        'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
   --output OUTPUT       Directory where to save a trained model.
-  --input INPUT         Grobid data file to be used for training (train action), for training
-                        and evaluation (train_eval action) or just for evaluation (eval action).
+  --embedding EMBEDDING
+                        The desired pre-trained word embeddings, see --help
+                        and `delft/resources-registry.json` (e.g. 'glove-840B',
+                        'fasttext-crawl', 'word2vec').
+  --transformer TRANSFORMER
+                        The desired pre-trained transformer to be used in the
+                        selected architecture, either a local entry from
+                        `delft/resources-registry.json` or a HuggingFace Hub
+                        model id (e.g. 'bert-base-cased',
+                        'allenai/scibert_scivocab_cased').
+  --input INPUT         Grobid data file to be used for training (train action),
+                        for training and evaluation (train_eval action) or just
+                        for evaluation (eval action).
+  --incremental         training is incremental, starting from existing model
+                        if present.
+  --input-model INPUT_MODEL
+                        In case of incremental training, path to an existing
+                        model to be used to start the training, instead of the
+                        default one.
   --max-sequence-length MAX_SEQUENCE_LENGTH
                         max-sequence-length parameter to be used.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
+  --patience PATIENCE   patience, number of extra epochs to perform after the
+                        best epoch before stopping a training.
+  --learning-rate LEARNING_RATE
+                        Initial learning rate.
+  --max-epoch MAX_EPOCH
+                        Maximum number of epochs for training.
+  --early-stop EARLY_STOP
+                        Force early training termination when metrics scores
+                        are not improving after a number of epochs equals to
+                        the patience parameter.
+  --multi-gpu           Enable distributed computing across multiple GPUs (the
+                        batch size needs to be set accordingly using
+                        --batch-size).
+  --num-workers NUM_WORKERS
+                        Number of worker processes for data loading (default:
+                        1, use 0 or 1 for no multiprocessing).
+  --wandb               Enable the logging of the training using Weights and
+                        Biases.
 ```
 
 

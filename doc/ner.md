@@ -1,6 +1,8 @@
 # DeLFT NER applications
 
-See [here](https://delft.readthedocs.io/en/latest/sequence_labeling/) for the list of supported sequence labeling architectures. 
+See [here](https://delft.readthedocs.io/en/latest/sequence_labeling/) for the list of supported sequence labeling architectures.
+
+> ⚠️ **ELMo support was removed in DeLFT 0.4.x.** ELMo-related results, scores and example commands (e.g. `--use-ELMo`) on this page are retained for historical reference; they apply to DeLFT 0.3.x and earlier. From 0.4.x onwards, prefer `BERT_CRF` with a domain-specific transformer (SciBERT, BioBERT, CamemBERT, …) or static embeddings (GloVe, fastText) for the best accuracy.
 
 In general, the best results will be obtained with `BidLSTM_CRF` architecture together with `ELMo` (ELMo is particularly good for sequence labeling, so don't forget ELMo!) or with `BERT_CRF` using a pretrained transformer model specialized in the NER domain of the application (e.g. SciBERT for scientific NER, CamemBERT for general NER on French, etc.).
 
