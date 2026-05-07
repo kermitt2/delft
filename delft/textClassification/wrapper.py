@@ -100,9 +100,11 @@ class Classifier(object):
         else:
             self.model_config.word_embedding_size = 0
 
-        # Set number of workers: default to cpu_count - 1, minimum 1
+        # Set number of workers. Per-call ``create_dataloader`` further
+        # auto-caps based on dataset size; default to a modest 4 to avoid the
+        # per-epoch spawn cost dominating tiny classification runs.
         if nb_workers is None:
-            self.nb_workers = max(1, os.cpu_count() - 1)
+            self.nb_workers = max(1, min(4, os.cpu_count() - 1))
         else:
             self.nb_workers = nb_workers
 
@@ -191,6 +193,7 @@ class Classifier(object):
             batch_size=self.training_config.batch_size,
             shuffle=True,
             num_workers=self.nb_workers,
+            role="train",
         )
 
         valid_loader = None
@@ -204,6 +207,7 @@ class Classifier(object):
                 batch_size=self.training_config.batch_size,
                 shuffle=False,
                 num_workers=self.nb_workers,
+                role="valid",
             )
 
         # Ensure model output directory exists for checkpoints
@@ -255,6 +259,7 @@ class Classifier(object):
             batch_size=self.model_config.batch_size,
             shuffle=False,
             num_workers=self.nb_workers,
+            role="eval",
         )
 
         all_preds = []
@@ -394,6 +399,7 @@ class Classifier(object):
             batch_size=self.model_config.batch_size,
             shuffle=False,
             num_workers=self.nb_workers,
+            role="predict",
         )
 
         all_preds = []

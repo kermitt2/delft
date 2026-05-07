@@ -303,7 +303,18 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            vector = _deserialize_float32(value)
+                            try:
+                                vector = _deserialize_float32(value)
+                            except ValueError as exc:
+                                cursor.close()
+                                self.env.close()
+                                raise ValueError(
+                                    f"Cannot read LMDB embeddings cache at "
+                                    f"{envFilePath!r} for embedding '{name}': "
+                                    f"{exc} Delete that directory and re-run; "
+                                    f"DeLFT will rebuild it from the source "
+                                    f"file in the new format."
+                                ) from exc
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -460,11 +471,27 @@ def _serialize_float32(array):
     return array.astype(np.float32).tobytes()
 
 
+_LEGACY_LMDB_MAGIC = (0x80, ord("("), ord("c"))
+
+
 def _deserialize_float32(serialized):
     """
     Deserialize raw float32 bytes to numpy array.
     This format is readable by both Python and Java.
+
+    Older DeLFT versions stored each value as a serialized numpy array
+    instead of raw float32. Such streams have a leading magic byte and a
+    length that is rarely a multiple of 4, so we can detect that case and
+    point the user at the converter rather than letting numpy raise a
+    cryptic "buffer size must be a multiple of element size".
     """
+    if serialized and len(serialized) % 4 != 0 and serialized[0] in _LEGACY_LMDB_MAGIC:
+        raise ValueError(
+            "LMDB embedding entry is in the legacy DeLFT format (serialized "
+            "numpy) and cannot be read as raw float32. The current code "
+            "writes raw float32 bytes for Java compatibility — this database "
+            "was built by an older DeLFT version and needs to be regenerated."
+        )
     return np.frombuffer(serialized, dtype=np.float32)
 
 

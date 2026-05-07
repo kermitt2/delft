@@ -17,6 +17,12 @@ from delft.sequenceLabelling.preprocess import (
     to_casing_single,
     to_vector_single,
 )
+from delft.utilities.dataloader_utils import (
+    effective_num_workers as _effective_num_workers,
+)
+from delft.utilities.dataloader_utils import (
+    safe_multiprocessing_context as _safe_multiprocessing_context,
+)
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
@@ -193,11 +199,13 @@ class SequenceLabelingDataset(Dataset):
         # Get word embeddings
         word_emb = to_vector_single(x_tokens, self.embeddings, seq_len)
 
-        # Get character indices
-        if self.preprocessor.return_chars:
-            char_indices = self.preprocessor.transform_chars([x_tokens], extend=extend)[0]
-        else:
-            char_indices = np.zeros((seq_len, self.preprocessor.max_char_length), dtype=np.int32)
+        # Get character indices. Preprocessor.transform returns [chars_padded, lengths]
+        # for a list of sentences; we pass a single sentence and take element [0][0].
+        # Regression note: the previous `if self.preprocessor.return_chars` branch
+        # called a non-existent `transform_chars` method, so the char encoder was
+        # silently fed all-zero indices. Issue #216 surfaced this when char inputs
+        # became the only signal.
+        char_indices = self.preprocessor.transform([x_tokens], extend=extend)[0][0]
 
         # Get casing features
         if self.preprocessor.return_casing:
@@ -373,6 +381,7 @@ def create_dataloader(
     num_workers: int = 0,
     pin_memory: bool = True,
     distributed: bool = False,
+    role: str = "loader",
 ) -> DataLoader:
     """
     Create a DataLoader for a DeLFT dataset.
@@ -399,20 +408,29 @@ def create_dataloader(
             use_chain_crf=model_config.use_crf if model_config else False,
         )
 
+        # Scale workers down for tiny datasets where spawn cost dominates.
+        effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
+        # pin_memory only helps CUDA host->device transfers; on MPS/CPU it's overhead.
+        effective_pin_memory = pin_memory and torch.cuda.is_available()
+
         # Use DistributedSampler for multi-GPU training
         sampler = None
         if distributed:
             sampler = DistributedSampler(dataset, shuffle=shuffle)
             shuffle = False  # Sampler handles shuffling
 
+        mp_context = _safe_multiprocessing_context() if effective_workers > 0 else None
+
         return DataLoader(
             dataset,
             batch_size=batch_size,
             shuffle=shuffle if sampler is None else False,
             sampler=sampler,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
+            num_workers=effective_workers,
+            persistent_workers=effective_workers > 0,
+            pin_memory=effective_pin_memory,
             collate_fn=collate_fn,
+            multiprocessing_context=mp_context,
         )
 
     # Default to SequenceLabelingDataset for now which covers RNNs
@@ -428,21 +446,28 @@ def create_dataloader(
         use_chain_crf=model_config.use_crf if model_config else False,
     )
 
+    effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
+    effective_pin_memory = pin_memory and torch.cuda.is_available()
+
     # Use DistributedSampler for multi-GPU training
     sampler = None
     if distributed:
         sampler = DistributedSampler(dataset, shuffle=shuffle)
         shuffle = False  # Sampler handles shuffling
 
+    mp_context = _safe_multiprocessing_context() if effective_workers > 0 else None
+
     return DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle if sampler is None else False,
         sampler=sampler,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
+        num_workers=effective_workers,
+        persistent_workers=effective_workers > 0,
+        pin_memory=effective_pin_memory,
         collate_fn=collate_fn,
-        worker_init_fn=_worker_init_fn if num_workers > 0 else None,
+        worker_init_fn=_worker_init_fn if effective_workers > 0 else None,
+        multiprocessing_context=mp_context,
     )
 
 

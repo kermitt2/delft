@@ -62,6 +62,7 @@ class Tagger(object):
             num_workers=4,
             shuffle=False,
             model_config=self.model_config,
+            role="tag",
         )
 
         steps_done = 0

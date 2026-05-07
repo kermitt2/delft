@@ -8,6 +8,12 @@ import torch
 from torch.utils.data import DataLoader, Dataset
 
 from delft.textClassification.preprocess import to_indices_single, to_vector_single
+from delft.utilities.dataloader_utils import (
+    effective_num_workers as _effective_num_workers,
+)
+from delft.utilities.dataloader_utils import (
+    safe_multiprocessing_context as _safe_multiprocessing_context,
+)
 
 
 def _worker_init_fn(worker_id):
@@ -111,6 +117,8 @@ def create_dataloader(
     batch_size=32,
     shuffle=True,
     num_workers=0,
+    pin_memory=True,
+    role="loader",
 ):
     """
     Create a DataLoader for text classification.
@@ -125,6 +133,8 @@ def create_dataloader(
         batch_size: batch size
         shuffle: whether to shuffle data
         num_workers: number of worker processes for data loading
+        pin_memory: whether to pin host memory (only effective on CUDA)
+        role: short label used in worker-count log lines
 
     Returns:
         DataLoader instance
@@ -138,12 +148,20 @@ def create_dataloader(
         preprocessor=preprocessor,
     )
 
+    effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
+    # pin_memory only helps CUDA host->device transfers; on MPS/CPU it's overhead.
+    effective_pin_memory = pin_memory and torch.cuda.is_available()
+    mp_context = _safe_multiprocessing_context() if effective_workers > 0 else None
+
     loader = DataLoader(
         dataset,
         batch_size=batch_size,
         shuffle=shuffle,
-        num_workers=num_workers,
-        worker_init_fn=_worker_init_fn if num_workers > 0 else None,
+        num_workers=effective_workers,
+        persistent_workers=effective_workers > 0,
+        pin_memory=effective_pin_memory,
+        worker_init_fn=_worker_init_fn if effective_workers > 0 else None,
+        multiprocessing_context=mp_context,
     )
 
     return loader
