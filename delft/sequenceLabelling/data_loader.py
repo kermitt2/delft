@@ -28,6 +28,48 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
 
 
+def _effective_num_workers(requested: int, dataset_size: int, batch_size: int) -> int:
+    """
+    Cap ``requested`` worker count to what makes sense for the dataset size.
+
+    Worker spawn cost on macOS dominates wall time for tiny datasets — when
+    there are fewer batches than workers, each worker handles <1 batch and
+    the per-epoch respawn (since ``persistent_workers`` defaults to False)
+    costs more than it saves. We aim for ~2 batches per worker so spawn
+    overhead is amortized. Returns 0 (in-process loading) when the dataset
+    is small enough that any worker is wasted.
+    """
+    if requested <= 0 or dataset_size <= 0 or batch_size <= 0:
+        return 0
+    num_batches = max(1, dataset_size // batch_size)
+    ideal = num_batches // 2
+    effective = max(0, min(requested, ideal))
+    if effective != requested:
+        print(
+            f"DataLoader: requested num_workers={requested}, capped to {effective} "
+            f"for dataset size={dataset_size} (batches={num_batches})."
+        )
+    return effective
+
+
+def _safe_multiprocessing_context():
+    """
+    Pick a fork-safe multiprocessing context for DataLoader workers.
+
+    On Linux with CUDA initialized in the parent, the default ``fork``
+    start method causes worker segfaults (CUDA, OpenMP, and LMDB state
+    don't survive fork cleanly). ``forkserver`` avoids this by forking
+    from a clean helper process. On macOS the default (``spawn`` since
+    PEP 690) is already safe — return None to let PyTorch decide.
+    """
+    import platform
+    import sys
+
+    if platform.system() == "Linux" and sys.version_info >= (3, 4):
+        return "forkserver"
+    return None
+
+
 def _worker_init_fn(worker_id):
     # Each fork-mode worker inherits the parent's LMDB env handle, which is unsafe.
     # Re-open per worker so each gets an independent reader-locktable slot.
