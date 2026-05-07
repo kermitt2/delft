@@ -524,7 +524,7 @@ def _fetch_header_if_available(line):
     :param line: a splitted line (if not split, tried to split by spaces)
     :return: the number of words and the embedding size, if there is no header, they will be set to -1
     """
-    if line.isinstance("str"):
+    if isinstance(line, str):
         line = line.split(" ")
 
     nb_words = -1

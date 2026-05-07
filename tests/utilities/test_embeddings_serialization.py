@@ -12,7 +12,7 @@ import struct
 
 import lmdb
 
-from delft.utilities.Embeddings import Embeddings
+from delft.utilities.Embeddings import Embeddings, _fetch_header_if_available
 
 
 def _make_fake_lmdb(parent_dir: str, name: str, vector_dict: dict) -> None:
@@ -100,3 +100,18 @@ def test_reopen_lmdb_opens_on_demand(tmp_path):
     assert emb.env is not None
     vector = emb.get_word_vector("hello")
     assert vector.shape == (5,)
+
+
+class TestFetchHeaderIfAvailable:
+    def test_raw_string_header_is_split_and_parsed(self):
+        # Used to raise AttributeError because of `line.isinstance("str")`.
+        assert _fetch_header_if_available("100 300") == (100, 300)
+
+    def test_pre_split_header_list_is_parsed(self):
+        assert _fetch_header_if_available(["100", "300"]) == (100, 300)
+
+    def test_non_header_line_returns_sentinels(self):
+        assert _fetch_header_if_available(["the", "0.1", "0.2", "0.3"]) == (-1, -1)
+
+    def test_header_with_trailing_newline(self):
+        assert _fetch_header_if_available(["100", "300\n"]) == (100, 300)
