@@ -84,11 +84,11 @@ PyPI packages are available for stable versions:
 # macOS
 pip install delft
 
-# Linux with CUDA 12.1 (adds PyTorch GPU support)
-pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
+# Linux with CUDA 12.8 (adds PyTorch GPU support)
+pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
-> **Note:** On Linux, the base `pip install delft` already includes TensorFlow with NVIDIA CUDA libraries as transitive dependencies (~2 GB). The `[gpu]` extra additionally installs PyTorch with CUDA 12.1 support. For a CPU-only setup, you can replace `tensorflow` with `tensorflow-cpu` after installation.
+> **Note:** The base install ships the CPU build of PyTorch. On Linux, the `[gpu]` extra installs PyTorch with CUDA 12.8 support.
 
 ## DeLFT Installation
 
@@ -102,7 +102,7 @@ cd delft
 It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
 
 ```sh
-uv venv --python 3.11
+uv venv --python=3.11
 source .venv/bin/activate
 uv pip install pip
 ```
@@ -113,11 +113,8 @@ Install the project in editable state:
 # macOS (torch is included automatically)
 uv pip install -e .
 
-# Linux with CUDA 12.1 (recommended for GPU)
-uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
-
-# Linux with CUDA 12.1 (alternative using requirements file)
-uv pip install -e . -r requirements-cuda.txt
+# Linux with CUDA 12.8 (recommended for GPU)
+uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
