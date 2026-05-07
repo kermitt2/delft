@@ -193,11 +193,13 @@ class SequenceLabelingDataset(Dataset):
         # Get word embeddings
         word_emb = to_vector_single(x_tokens, self.embeddings, seq_len)
 
-        # Get character indices
-        if self.preprocessor.return_chars:
-            char_indices = self.preprocessor.transform_chars([x_tokens], extend=extend)[0]
-        else:
-            char_indices = np.zeros((seq_len, self.preprocessor.max_char_length), dtype=np.int32)
+        # Get character indices. Preprocessor.transform returns [chars_padded, lengths]
+        # for a list of sentences; we pass a single sentence and take element [0][0].
+        # Regression note: the previous `if self.preprocessor.return_chars` branch
+        # called a non-existent `transform_chars` method, so the char encoder was
+        # silently fed all-zero indices. Issue #216 surfaced this when char inputs
+        # became the only signal.
+        char_indices = self.preprocessor.transform([x_tokens], extend=extend)[0][0]
 
         # Get casing features
         if self.preprocessor.return_casing:
