@@ -76,7 +76,9 @@ class Sequence(object):
         report_to_wandb=False,
         device=None,
         nb_workers: int = None,
+        short_model_name: str = None,
     ):
+        self.short_model_name = short_model_name
         if model_name is None:
             model_name = architecture
             if embeddings_name is not None:
