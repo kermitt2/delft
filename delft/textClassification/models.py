@@ -14,11 +14,12 @@ Model architectures implemented:
 - bert: Transformer-based
 """
 
+from typing import Dict, Optional
+
+import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, Dict
-import numpy as np
 
 
 class BaseTextClassifier(nn.Module):
@@ -657,7 +658,7 @@ class bert(BaseTextClassifier):
     ):
         super().__init__(model_config, training_config)
 
-        from transformers import AutoModel, AutoConfig
+        from transformers import AutoConfig, AutoModel
 
         transformer_name = model_config.transformer_name or "bert-base-uncased"
 

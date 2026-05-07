@@ -1,19 +1,18 @@
 import os
 import time
+
 import numpy as np
-
 import torch
-from sklearn.metrics import precision_recall_fscore_support, f1_score
-
-from delft.utilities.Embeddings import Embeddings, load_resource_registry
-from delft.utilities.misc import print_parameters, to_wandb_table
-from delft.textClassification.config import ModelConfig, TrainingConfig
-from delft.textClassification.models import getModel
-from delft.textClassification.data_loader import create_dataloader
-from delft.textClassification.trainer import Trainer
-from delft.textClassification.preprocess import TextPreprocessor
+from sklearn.metrics import f1_score, precision_recall_fscore_support
 
 from delft import DELFT_PROJECT_DIR
+from delft.textClassification.config import ModelConfig, TrainingConfig
+from delft.textClassification.data_loader import create_dataloader
+from delft.textClassification.models import getModel
+from delft.textClassification.preprocess import TextPreprocessor
+from delft.textClassification.trainer import Trainer
+from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.misc import print_parameters, to_wandb_table
 
 # File names for saving/loading
 PREPROCESSOR_FILE = "preprocessor.json"

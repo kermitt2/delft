@@ -1,15 +1,17 @@
-import numpy as np
+import gzip
+import json
+import os
+import re
 import xml
 from xml.sax import make_parser
-from delft.utilities.Tokenizer import (
-    tokenizeAndFilterSimple,
-    tokenizeAndFilter,
-)
-import re
-import os
-import gzip
+
+import numpy as np
 from tqdm import tqdm
-import json
+
+from delft.utilities.Tokenizer import (
+    tokenizeAndFilter,
+    tokenizeAndFilterSimple,
+)
 
 
 class TEIContentHandler(xml.sax.ContentHandler):
@@ -75,7 +77,7 @@ class TEIContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel == None:
+            if self.currentLabel is None:
                 self.currentLabel = "O"
             for token in localTokens:
                 self.tokens.append(token)
@@ -125,7 +127,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
     def translate_fr_labels(self, mainType, subType):
         # default
         labelOutput = "O"
-        senseOutput = ""
+        # senseOutput = ""
 
         if mainType.lower() == "company":
             labelOutput = "business"
@@ -171,13 +173,13 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             if attrs.getLength() != 0:
                 # if attrs.getValue("type") != 'insult' and attrs.getValue("type") != 'threat':
                 #    print("Invalid entity type:", attrs.getValue("type"))
-                attribute_names = attrs.getNames()
+                # attribute_names = attrs.getNames()
                 mainType = None
                 if "type" in attrs:
                     mainType = attrs.getValue("type")
                 if "TYPE" in attrs:
                     mainType = attrs.getValue("TYPE")
-                if mainType == None:
+                if mainType is None:
                     print("ENAMEX element without type attribute!")
 
                 if "sub_type" in attrs:
@@ -208,7 +210,7 @@ class ENAMEXContentHandler(xml.sax.ContentHandler):
             # end of entity
             localTokens = tokenizeAndFilterSimple(self.accumulated)
             begin = True
-            if self.currentLabel == None:
+            if self.currentLabel is None:
                 self.currentLabel = "O"
             for token in localTokens:
                 self.tokens.append(token)
@@ -690,11 +692,11 @@ def load_data_and_labels_ontonotes(ontonotesRoot, lang="en"):
     # and process all .name files
     nb_files = 0
     # map lang and subdir names
-    lang_name = "english"
-    if lang == "zh":
-        lang_name = "/chinese/"
-    elif lang == "ar":
-        lang_name = "/arabic/"
+    # lang_name = "english"
+    # if lang == "zh":
+    #     lang_name = "/chinese/"
+    # elif lang == "ar":
+    #     lang_name = "/arabic/"
 
     tokens = []
     labels = []
@@ -827,7 +829,7 @@ def load_data_and_labels_json_offsets(jsonCorpus, tokenizer=None):
                                             + str(annotation_span["end"])
                                         )
 
-                                if local_type == None:
+                                if local_type is None:
                                     print(
                                         "warning - empty label: "
                                         + localText

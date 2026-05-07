@@ -5,7 +5,7 @@ import numpy as np
 __author__ = "@de-code"
 
 """
-Utility class, from: 
+Utility class, from:
 https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/sciencebeam_trainer_delft/utils/numpy.py
 """
 

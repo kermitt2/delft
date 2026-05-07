@@ -4,10 +4,11 @@ PyTorch Attention layer for DeLFT text classification and sequence models.
 Ported from the Keras implementation in Attention.py.
 """
 
+from typing import Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional
 
 
 class Attention(nn.Module):

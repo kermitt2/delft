@@ -1,23 +1,25 @@
+import argparse
 import json
-from delft.utilities.Utilities import split_data_and_labels, t_or_f
-from delft.utilities.numpy import shuffle_triple_with_view
-from delft.textClassification.reader import vectorize as vectorizer
+import time
+
+import numpy as np
+
+from delft.textClassification import Classifier
+from delft.textClassification.models import architectures
 from delft.textClassification.reader import (
     load_texts_and_classes_pandas_no_id,
 )
-from delft.textClassification import Classifier
-import argparse
-import time
-from delft.textClassification.models import architectures
-import numpy as np
+from delft.textClassification.reader import vectorize as vectorizer
+from delft.utilities.numpy import shuffle_triple_with_view
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
 
 """
     Two multiclass classifiers to be used in combination with Grobid to classify a license/copyrights section
-    extracted from a scientific article into two dimensions:  
+    extracted from a scientific article into two dimensions:
     - copyright owner: publisher, authors or undecidable (changed from NA to avoid issues with pandas)
-    - license associated to the article file: explicit copyrights (no restriction), creative commons licenses 
+    - license associated to the article file: explicit copyrights (no restriction), creative commons licenses
       (CC-0, CC-BY, CC-BY-NC, etc.), other, or undecidable (changed from NA to avoid issues with pandas)
-    
+
     Note: when the license is undecidable, this means normal copyrights when a copyright owner exists.
 """
 
@@ -690,7 +692,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

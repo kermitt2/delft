@@ -2,6 +2,7 @@
 import gzip
 import hashlib
 import io
+import json
 import logging
 import mmap
 import os
@@ -10,7 +11,7 @@ import shutil
 import struct
 import sys
 import zipfile
-import json
+
 import lmdb
 import numpy as np
 from tqdm import tqdm
@@ -163,7 +164,7 @@ class Embeddings(object):
                 else:
                     vector = np.array([float(val) for val in line[1 : len(line)]], dtype="float32")
 
-            except:
+            except Exception:
                 print(len(line))
                 print(line[1 : len(line)])
 
@@ -377,7 +378,7 @@ class Embeddings(object):
 
                 print("Downloading resource file for", description["name"], "...")
                 embeddings_path = download_file(url, download_path)
-                if embeddings_path != None and os.path.isfile(embeddings_path):
+                if embeddings_path is not None and os.path.isfile(embeddings_path):
                     print("Download sucessful:", embeddings_path)
             else:
                 print(
@@ -483,7 +484,7 @@ def _fetch_header_if_available(line):
     :param line: a splitted line (if not split, tried to split by spaces)
     :return: the number of words and the embedding size, if there is no header, they will be set to -1
     """
-    if type(line) == "str":
+    if line.isinstance("str"):
         line = line.split(" ")
 
     nb_words = -1

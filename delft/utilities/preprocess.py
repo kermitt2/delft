@@ -7,11 +7,10 @@ sequenceLabelling and textClassification modules.
 
 import logging
 import re
-from typing import Iterable, Dict
 from abc import ABC, abstractmethod
+from typing import Dict, Iterable
 
 import numpy as np
-
 from sklearn.base import BaseEstimator, TransformerMixin
 
 LOGGER = logging.getLogger(__name__)

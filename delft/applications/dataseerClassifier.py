@@ -1,16 +1,18 @@
-import json
-from delft.utilities.Utilities import split_data_and_labels, t_or_f
-from delft.textClassification.reader import load_dataseer_corpus_csv
-from delft.textClassification.reader import vectorize as vectorizer
-from delft.textClassification import Classifier
 import argparse
+import json
 import time
-from delft.textClassification.models import architectures
+
 import numpy as np
 
+from delft.textClassification import Classifier
+from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_dataseer_corpus_csv
+from delft.textClassification.reader import vectorize as vectorizer
+from delft.utilities.Utilities import split_data_and_labels, t_or_f
+
 """
-    Classifier for deciding if a sentence introduce a dataset or not, and prediction of the 
-    dataset type. 
+    Classifier for deciding if a sentence introduce a dataset or not, and prediction of the
+    dataset type.
 """
 
 
@@ -198,8 +200,8 @@ def train(
 
         model_name = 'dataseer-' + the_class + "_" + architecture
 
-        model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch, 
-            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name, 
+        model = Classifier(model_name, architecture=architecture, list_classes=datatypes_list_subclasses[the_class], max_epoch=max_epoch,
+            fold_number=fold_count, patience=patience, use_roc_auc=True, embeddings_name=embeddings_name,
             batch_size=batch_size, class_weights=class_weights, early_stop=early_stop, transformer_name=transformer)
 
         if fold_count == 1:
@@ -560,7 +562,6 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
     model_binary.eval(x_test, y_test)
 
     x_test_binary = x_test
-    y_test_binary = y_test
 
     # second, the first level datatype taxonomy for sentences classified as dataset
     (
@@ -610,7 +611,6 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
 
     # eval by cascading
     result_binary = model_binary.predict(x_test_binary, output_format="default")
-    result_first = model_first.predict(x_test, output_format="default")
 
     # select sequences classified as dataset
     result_intermediate = np.asarray([np.argmax(line) for line in result_binary])
@@ -810,7 +810,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

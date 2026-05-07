@@ -16,14 +16,15 @@ Model architectures implemented:
 - BidLSTM_CRF_CASING: BiLSTM + CRF + casing features
 """
 
+import inspect
 import os
+from typing import Dict, List, Optional
+
 import torch
 import torch.nn as nn
-import inspect
-from typing import Optional, Dict, List
 
-from delft.utilities.crf_pytorch import CRF, ChainCRF
 from delft.sequenceLabelling.config import ModelConfig
+from delft.utilities.crf_pytorch import CRF, ChainCRF
 
 
 class CharacterEncoder(nn.Module):

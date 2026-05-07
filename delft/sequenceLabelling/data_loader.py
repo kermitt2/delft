@@ -4,21 +4,22 @@ PyTorch Dataset and DataLoader for DeLFT sequence labeling models.
 Replaces the Keras data generators with PyTorch equivalents.
 """
 
+from typing import List, Optional, Tuple
+
 import numpy as np
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
-from typing import Optional, List, Tuple
 
-from delft.utilities.Utilities import truncate_batch_values, len_until_first_pad
-from delft.utilities.numpy import shuffle_triple_with_view
 from delft.sequenceLabelling.preprocess import (
-    to_vector_single,
-    to_casing_single,
-    Preprocessor,
     BERTPreprocessor,
+    Preprocessor,
+    to_casing_single,
+    to_vector_single,
 )
+from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
 
 
 def collate_fn(batch):

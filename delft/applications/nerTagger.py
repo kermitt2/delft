@@ -1,16 +1,18 @@
+import argparse
 import os
+import time
+
 import numpy as np
+from sklearn.model_selection import train_test_split
+
 from delft.sequenceLabelling import Sequence
-from delft.utilities.Utilities import stats, t_or_f
-from delft.utilities.numpy import shuffle_arrays
 from delft.sequenceLabelling.reader import (
     load_data_and_labels_conll,
     load_data_and_labels_lemonde,
     load_data_and_labels_ontonotes,
 )
-from sklearn.model_selection import train_test_split
-import argparse
-import time
+from delft.utilities.numpy import shuffle_arrays
+from delft.utilities.Utilities import stats, t_or_f
 
 
 def configure(
@@ -641,8 +643,6 @@ def annotate(
 
     if not os.path.isfile(file_in):
         raise ValueError("the provided input file is not valid")
-
-    annotations = []
 
     if (dataset_type == "conll2003") and (lang == "en"):
         # load model

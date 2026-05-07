@@ -3,17 +3,18 @@ Tests for text classification models in delft/textClassification/models.py
 """
 
 import logging
+
 import numpy as np
 import torch
 
 from delft.textClassification.models import (
+    MODEL_REGISTRY,
     BaseTextClassifier,
-    lstm,
-    gru,
     cnn,
     dpcnn,
     getModel,
-    MODEL_REGISTRY,
+    gru,
+    lstm,
 )
 
 LOGGER = logging.getLogger(__name__)

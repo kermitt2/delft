@@ -1,9 +1,9 @@
-from typing import List, Dict, Tuple
+from typing import Dict, List, Tuple
 
 __author__ = "@de-code"
 
 """
-Utility class from: 
+Utility class from:
 https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/sciencebeam_trainer_delft/utils/misc.py
 """
 
@@ -67,12 +67,12 @@ def print_parameters(model_config, training_config):
 
     if (
         hasattr(training_config, "class_weights")
-        and training_config.class_weights != None
+        and training_config.class_weights is not None
         and hasattr(model_config, "list_classes")
     ):
         list_classes = model_config.list_classes
         weight_summary = ""
-        for indx, class_name in enumerate(model_config.list_classes):
+        for indx, class_name in enumerate(list_classes):
             if indx != 0:
                 weight_summary += ", "
             weight_summary += class_name + ": " + str(training_config.class_weights[indx])

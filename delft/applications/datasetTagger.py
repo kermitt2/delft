@@ -1,9 +1,9 @@
-import os
 import argparse
 import json
+import os
 import time
-import numpy as np
 
+import numpy as np
 from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence

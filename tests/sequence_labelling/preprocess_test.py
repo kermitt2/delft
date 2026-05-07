@@ -4,7 +4,7 @@ import os
 import numpy as np
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
-from delft.sequenceLabelling.preprocess import Preprocessor, FeaturesPreprocessor
+from delft.sequenceLabelling.preprocess import FeaturesPreprocessor, Preprocessor
 
 LOGGER = logging.getLogger(__name__)
 

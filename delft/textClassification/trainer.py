@@ -1,8 +1,10 @@
+import os
+
+import numpy as np
 import torch
 import torch.nn as nn
-import numpy as np
-import os
 from sklearn.metrics import roc_auc_score
+
 from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
 
 
@@ -74,7 +76,7 @@ class Trainer(object):
                 # Check metrics for early stopping
                 # Default to ROC-AUC if enabled, else Loss
                 if self.training_config.use_roc_auc:
-                    score = val_metrics["roc_auc"]
+                    # score = val_metrics["roc_auc"]
                     pass
 
                 # Save model checkpoint if improved

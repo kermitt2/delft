@@ -308,9 +308,9 @@ def train(
     )
 
     if incremental:
-        if input_model_path != None:
+        if input_model_path is not None:
             model.load(input_model_path)
-        elif output_path != None:
+        elif output_path is not None:
             model.load(output_path)
         else:
             model.load()
@@ -423,9 +423,9 @@ def train_eval(
     )
 
     if incremental:
-        if input_model_path != None:
+        if input_model_path is not None:
             model.load(input_model_path)
-        elif output_path != None:
+        elif output_path is not None:
             model.load(output_path)
         else:
             model.load()
@@ -798,7 +798,7 @@ if __name__ == "__main__":
             someTexts.append("2023 July the 22nd")
         elif model == "citation":
             someTexts.append(
-                "N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996."
+                r"N. Al-Dhahir and J. Cioffi, \“On the uniform ADC bit precision and clip level computation for a Gaussian signal,\” IEEE Trans. Signal Processing, pp. 434–438, Feb. 1996."
             )
             someTexts.append(
                 "T. Steinherz, E. Rivlin, N. Intrator, Off-line cursive script word recognition—a survey, Int. J. Doc. Anal. Recognition 2(3) (1999) 1–33."

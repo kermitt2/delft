@@ -1,21 +1,22 @@
-import json
-from delft.utilities.Utilities import split_data_and_labels
-from delft.textClassification.reader import load_software_use_corpus_json
-from delft.textClassification import Classifier
 import argparse
+import json
 import time
+
+from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_software_use_corpus_json
+from delft.utilities.Utilities import split_data_and_labels
 
 """
     This binary classifier is used in combination with a software mention recognition model, for characterizing
-    the nature of the citation of software in scientific and technical literature. 
+    the nature of the citation of software in scientific and technical literature.
     This classifier predicts if the software introduced by a software mention in a sentence is used
-    or not by the described work. 
+    or not by the described work.
 
     For the software mention recognizer, see https://github.com/ourresearch/software-mentions
     and grobidTagger.py in the present project DeLFT.
 
-    Best architecture/model is fine-tuned SciBERT. 
+    Best architecture/model is fine-tuned SciBERT.
 """
 
 list_classes = ["not_used", "used"]
@@ -225,7 +226,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

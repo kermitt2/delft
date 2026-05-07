@@ -6,40 +6,34 @@ This module replaces the TensorFlow-based wrapper with PyTorch implementations.
 
 import os
 import time
+import warnings
 from itertools import islice
 
 import numpy as np
-
-import warnings
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 warnings.filterwarnings("ignore", category=DeprecationWarning)
 warnings.filterwarnings("ignore", category=UserWarning)
 
 import torch
+import transformers
 
 from delft import DELFT_PROJECT_DIR
-from delft.utilities.misc import print_parameters
-
-from delft.sequenceLabelling.trainer import Trainer, Scorer
-from delft.sequenceLabelling.trainer import (
-    DEFAULT_WEIGHT_FILE_NAME,
-    CONFIG_FILE_NAME,
-    PROCESSOR_FILE_NAME,
-)
-from delft.utilities.misc import to_wandb_table
-
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
-from delft.sequenceLabelling.models import get_model
-from delft.sequenceLabelling.preprocess import prepare_preprocessor, Preprocessor
 from delft.sequenceLabelling.data_loader import create_dataloader
-
-from delft.utilities.Embeddings import Embeddings, load_resource_registry
-from delft.utilities.numpy import concatenate_or_none
-
 from delft.sequenceLabelling.evaluation import classification_report
-
-import transformers
+from delft.sequenceLabelling.models import get_model
+from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
+from delft.sequenceLabelling.trainer import (
+    CONFIG_FILE_NAME,
+    DEFAULT_WEIGHT_FILE_NAME,
+    PROCESSOR_FILE_NAME,
+    Scorer,
+    Trainer,
+)
+from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.misc import print_parameters, to_wandb_table
+from delft.utilities.numpy import concatenate_or_none
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
@@ -237,9 +231,9 @@ class Sequence(object):
         # Multi-GPU support with PyTorch DistributedDataParallel
         if multi_gpu:
             from delft.utilities.distributed import (
-                setup_distributed,
                 get_world_size,
                 is_main_process,
+                setup_distributed,
             )
 
             local_rank = setup_distributed()

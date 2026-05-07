@@ -2,10 +2,10 @@ import os
 from typing import Union
 
 from transformers import (
-    AutoTokenizer,
-    TFAutoModel,
     AutoConfig,
+    AutoTokenizer,
     BertTokenizer,
+    TFAutoModel,
     TFBertModel,
 )
 
@@ -192,19 +192,19 @@ class Transformer(object):
         """
         if self.loading_method == LOADING_METHOD_HUGGINGFACE_NAME:
             if load_pretrained_weights:
-                if self.auth_token != None:
+                if self.auth_token is not None:
                     try:
                         transformer_model = TFAutoModel.from_pretrained(
                             self.name, from_pt=True, use_auth_token=self.auth_token
                         )
-                    except:
+                    except Exception:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
                         transformer_model = TFAutoModel.from_pretrained(self.name, use_auth_token=self.auth_token)
                 else:
                     try:
                         transformer_model = TFAutoModel.from_pretrained(self.name, from_pt=True)
-                    except:
+                    except Exception:
                         # failure might be due to safetensors format for the weights, we can try an alternative loading
                         # for this case
                         transformer_model = TFAutoModel.from_pretrained(self.name)
@@ -220,7 +220,7 @@ class Transformer(object):
             if load_pretrained_weights:
                 try:
                     transformer_model = TFAutoModel.from_pretrained(self.local_dir_path, from_pt=True)
-                except:
+                except Exception:
                     # failure might be due to safetensors format for the weights, we can try an alternative loading
                     # for this case
                     transformer_model = TFAutoModel.from_pretrained(self.local_dir_path)

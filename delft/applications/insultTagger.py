@@ -1,10 +1,10 @@
-import os
-import json
-from delft.sequenceLabelling import Sequence
-from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 import argparse
+import json
+import os
 import time
 
+from delft.sequenceLabelling import Sequence
+from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 from delft.utilities.Utilities import t_or_f
 
 
@@ -224,7 +224,7 @@ if __name__ == "__main__":
     wandb = args.wandb
     num_workers = args.num_workers
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

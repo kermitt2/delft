@@ -10,9 +10,10 @@ References:
 - pytorch-crf: https://github.com/kmkurn/pytorch-crf
 """
 
+from typing import List, Optional
+
 import torch
 import torch.nn as nn
-from typing import Optional, List
 
 # Try to import TorchCRF from pytorch-crf package
 try:

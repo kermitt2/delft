@@ -14,9 +14,7 @@ and as a map for further processing (e.g. n-fold average)
 
 """
 
-from __future__ import absolute_import
-from __future__ import division
-from __future__ import print_function
+from __future__ import absolute_import, division, print_function
 
 from collections import defaultdict
 
@@ -303,7 +301,6 @@ def compute_metrics(y_true, y_pred):
     true_entities = set(get_entities(y_true))
     pred_entities = set(get_entities(y_pred))
 
-    name_width = 0
     d1 = defaultdict(set)
     d2 = defaultdict(set)
     for e in true_entities:

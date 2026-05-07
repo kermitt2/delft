@@ -13,12 +13,12 @@ Usage:
     python -m delft.applications.onnx_export --model MODEL_NAME --output OUTPUT_DIR
 """
 
-import os
-import json
 import argparse
+import json
+import os
 
-import torch
 import numpy as np
+import torch
 
 from delft.sequenceLabelling.wrapper import Sequence
 

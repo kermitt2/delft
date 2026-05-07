@@ -4,10 +4,10 @@ PyTorch Trainer for DeLFT sequence labeling models.
 Provides training loop, evaluation, and callbacks for PyTorch models.
 """
 
-import os
 import json
 import logging
-from typing import List, Dict, Any, Callable
+import os
+from typing import Any, Callable, Dict, List
 
 import torch
 import torch.nn as nn
@@ -19,7 +19,6 @@ from tqdm import tqdm
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.preprocess import Preprocessor
-
 
 # Default file names
 DEFAULT_WEIGHT_FILE_NAME = "model_weights.pt"
@@ -206,7 +205,7 @@ class Trainer:
             self.optimizer = Adam(self.model.parameters(), lr=self.training_config.learning_rate)
 
         # Learning rate scheduler
-        num_training_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
+        # num_training_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
 
         self.scheduler = ReduceLROnPlateau(self.optimizer, mode="max", factor=0.5, patience=2)
 
@@ -308,6 +307,7 @@ class Trainer:
 
                 if should_save and checkpoint(self._unwrapped_model, val_metrics["f1"]):
                     best_f1 = val_metrics["f1"]
+                    pass
 
                 # Early stopping
                 if self.training_config.early_stop and early_stopping(val_metrics["f1"]):
@@ -324,6 +324,7 @@ class Trainer:
                             "val_precision": val_metrics["precision"],
                             "val_recall": val_metrics["recall"],
                             "learning_rate": self.optimizer.param_groups[0]["lr"],
+                            "best_f1": best_f1,
                         }
                     )
             else:
@@ -333,7 +334,7 @@ class Trainer:
         best_model_path = checkpoint_filepath
         should_load = True
         if self.distributed:
-            from delft.utilities.distributed import is_main_process, barrier
+            from delft.utilities.distributed import barrier, is_main_process
 
             should_load = is_main_process()
 

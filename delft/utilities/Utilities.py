@@ -1,21 +1,19 @@
 # some convenient methods for all models
-import regex as re
 import numpy as np
+import regex as re
 
 # seed is fixed for reproducibility
 from numpy.random import seed
 
 seed(7)
+import argparse
 import os.path
 import shutil
-import requests
 from urllib.parse import urlparse
 
-
-from tqdm import tqdm
-
-import argparse
+import requests
 import truecase
+from tqdm import tqdm
 
 
 def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:
@@ -35,20 +33,20 @@ def glove_preprocess(text):
     """
     # Different regex parts for smiley faces
     eyes = "[8:=;]"
-    nose = "['`\-]?"
+    nose = r"['`\-]?"
     text = re.sub("https?:* ", "<URL>", text)
     text = re.sub("www.* ", "<URL>", text)
-    text = re.sub("\[\[User(.*)\|", "<USER>", text)
+    text = re.sub(r"\[\[User(.*)\|", "<USER>", text)
     text = re.sub("<3", "<HEART>", text)
-    text = re.sub("[-+]?[.\d]*[\d]+[:,.\d]*", "<NUMBER>", text)
+    text = re.sub(r"[-+]?[.\d]*[\d]+[:,.\d]*", "<NUMBER>", text)
     text = re.sub(eyes + nose + "[Dd)]", "<SMILE>", text)
     text = re.sub("[(d]" + nose + eyes, "<SMILE>", text)
     text = re.sub(eyes + nose + "p", "<LOLFACE>", text)
-    text = re.sub(eyes + nose + "\(", "<SADFACE>", text)
-    text = re.sub("\)" + nose + eyes, "<SADFACE>", text)
+    text = re.sub(eyes + nose + r"\(", "<SADFACE>", text)
+    text = re.sub(r"\)" + nose + eyes, "<SADFACE>", text)
     text = re.sub(eyes + nose + "[/|l*]", "<NEUTRALFACE>", text)
     text = re.sub("/", " / ", text)
-    text = re.sub("[-+]?[.\d]*[\d]+[:,.\d]*", "<NUMBER>", text)
+    text = re.sub(r"[-+]?[.\d]*[\d]+[:,.\d]*", "<NUMBER>", text)
     text = re.sub("([!]){2,}", "! <REPEAT>", text)
     text = re.sub("([?]){2,}", "? <REPEAT>", text)
     text = re.sub("([.]){2,}", ". <REPEAT>", text)
@@ -395,10 +393,10 @@ def convert_conll2003_to_iob2(filein, fileout):
                         f2.write(word + "\t" + tag + "\n")
                     else:
                         subtag = tag[2:]
-                        if previous_tag.endswith(tag[2:]):
+                        if previous_tag.endswith(subtag):
                             f2.write(word + "\t" + tag + "\n")
                         else:
-                            f2.write(word + "\tB-" + tag[2:] + "\n")
+                            f2.write(word + "\tB-" + subtag + "\n")
                     previous_tag = tag
 
 

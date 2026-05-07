@@ -1,10 +1,11 @@
-import json
-from delft.utilities.Utilities import split_data_and_labels
-from delft.textClassification.reader import load_citation_sentiment_corpus
-from delft.textClassification import Classifier
 import argparse
+import json
 import time
+
+from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
+from delft.textClassification.reader import load_citation_sentiment_corpus
+from delft.utilities.Utilities import split_data_and_labels
 
 list_classes = ["negative", "neutral", "positive"]
 
@@ -194,7 +195,7 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer == None and embeddings_name == None:
+    if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
 

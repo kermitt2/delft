@@ -1,8 +1,10 @@
 import datetime
+
 import numpy as np
 import torch
-from delft.utilities.Tokenizer import tokenizeAndFilter
+
 from delft.sequenceLabelling.data_loader import create_dataloader
+from delft.utilities.Tokenizer import tokenizeAndFilter
 
 
 class Tagger(object):

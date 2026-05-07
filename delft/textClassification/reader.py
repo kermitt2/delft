@@ -1,7 +1,9 @@
-import numpy as np
 import gzip
 import json
+
+import numpy as np
 import pandas as pd
+
 from delft.utilities.numpy import shuffle_triple_with_view
 
 
@@ -311,7 +313,7 @@ def load_dataseer_corpus_csv(filepath):
         leafdatatypes_list = np.asarray(leafdatatypes_list)
         #leafdatatypes_list_lower = np.char.lower(leafdatatypes_list)
         leafdatatypes_list_lower = leafdatatypes_list
-        list_classes_leafdatatypes = np.unique(leafdatatypes_list_lower)  
+        list_classes_leafdatatypes = np.unique(leafdatatypes_list_lower)
         print(list_classes_leafdatatypes)
         leafdatatypes_final = normalize_classes(leafdatatypes_list_lower, list_classes_leafdatatypes)
     """

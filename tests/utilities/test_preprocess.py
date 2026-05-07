@@ -3,19 +3,20 @@ Tests for shared preprocessing utilities in delft/utilities/preprocess.py
 """
 
 import logging
+
 import numpy as np
 
 from delft.utilities.preprocess import (
-    UNK,
     PAD,
+    UNK,
+    BERTPreprocessor,
+    FeaturesPreprocessor,
     case_index,
-    pad_sequences,
     dense_to_one_hot,
     get_casing,
     lower,
     normalize_num,
-    FeaturesPreprocessor,
-    BERTPreprocessor,
+    pad_sequences,
 )
 
 LOGGER = logging.getLogger(__name__)
