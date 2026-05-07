@@ -23,6 +23,7 @@ from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.models import get_model
+from delft.utilities.Utilities import pick_device
 from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
 from delft.sequenceLabelling.trainer import (
     CONFIG_FILE_NAME,
@@ -97,10 +98,7 @@ class Sequence(object):
             self.nb_workers = nb_workers
 
         # Set device
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
+        self.device = pick_device(device)
 
         word_emb_size = 0
         self.embeddings = None

@@ -5,6 +5,7 @@ import torch
 
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.utilities.Tokenizer import tokenizeAndFilter
+from delft.utilities.Utilities import pick_device
 
 
 class Tagger(object):
@@ -13,7 +14,7 @@ class Tagger(object):
         self.preprocessor = preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
-        self.device = device if device else torch.device("cpu")
+        self.device = pick_device(device)
 
     def tag(self, texts, output_format, features=None):
         if output_format == "json":

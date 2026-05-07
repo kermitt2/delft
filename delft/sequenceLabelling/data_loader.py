@@ -22,6 +22,17 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
 
 
+def _worker_init_fn(worker_id):
+    # Each fork-mode worker inherits the parent's LMDB env handle, which is unsafe.
+    # Re-open per worker so each gets an independent reader-locktable slot.
+    info = torch.utils.data.get_worker_info()
+    if info is None:
+        return
+    embeddings = getattr(info.dataset, "embeddings", None)
+    if embeddings is not None and hasattr(embeddings, "reopen_lmdb"):
+        embeddings.reopen_lmdb()
+
+
 def collate_fn(batch):
     """
     Custom collate function to handle variable-length sequences.
@@ -431,6 +442,7 @@ def create_dataloader(
         num_workers=num_workers,
         pin_memory=pin_memory,
         collate_fn=collate_fn,
+        worker_init_fn=_worker_init_fn if num_workers > 0 else None,
     )
 
 
