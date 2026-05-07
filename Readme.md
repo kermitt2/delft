@@ -38,9 +38,9 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The latest DeLFT release __0.4.6__ has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+The DeLFT __0.4.x__ release line has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
 
-## Changes in 0.4.1
+## Migrating from 0.3.x to 0.4.x
 
 ### Breaking changes
 
@@ -78,15 +78,17 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 
 ## Using DeLFT 
 
-PyPI packages are available for stable versions. Latest stable version is `0.4.1`:
+PyPI packages are available for stable versions:
 
 ```sh
 # macOS
-pip install delft==0.4.1
+pip install delft
 
-# Linux with CUDA 12.1 (GPU)
-pip install "delft[gpu]==0.4.1" --extra-index-url https://download.pytorch.org/whl/cu121
+# Linux with CUDA 12.1 (adds PyTorch GPU support)
+pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
 ```
+
+> **Note:** On Linux, the base `pip install delft` already includes TensorFlow with NVIDIA CUDA libraries as transitive dependencies (~2 GB). The `[gpu]` extra additionally installs PyTorch with CUDA 12.1 support. For a CPU-only setup, you can replace `tensorflow` with `tensorflow-cpu` after installation.
 
 ## DeLFT Installation
 
@@ -131,7 +133,7 @@ See the [DELFT documentation](https://delft.readthedocs.io) for usage.
     ```
 2. use the parameter `--wandb` when running the scripts, e.g.
     ```sh   
-    python -m applications.delft.grobidTagger date train --architecture BidLSTM --wandb
+    python -m delft.applications.grobidTagger date train --architecture BidLSTM --wandb
     ```
 
 ## Contributing
