@@ -23,7 +23,6 @@ from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.models import get_model
-from delft.utilities.Utilities import pick_device
 from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
 from delft.sequenceLabelling.trainer import (
     CONFIG_FILE_NAME,
@@ -35,6 +34,7 @@ from delft.sequenceLabelling.trainer import (
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
+from delft.utilities.Utilities import pick_device
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
