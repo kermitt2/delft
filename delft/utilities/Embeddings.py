@@ -63,6 +63,46 @@ class Embeddings(object):
     def __getattr__(self, name):
         return getattr(self.model, name)
 
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["env"] = None
+        return state
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
+
+    def reopen_lmdb(self):
+        """
+        Reopen the LMDB environment for fork-safe multiprocessing. Call from a
+        DataLoader worker_init_fn so each worker gets a fresh handle. No-op when
+        embeddings aren't backed by LMDB.
+        """
+        if self.env is None and self.embedding_lmdb_path is None:
+            return
+        if self.env is not None:
+            try:
+                self.env.close()
+            except Exception:
+                pass
+        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
+            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
+            self.env = lmdb.open(
+                envFilePath,
+                readonly=True,
+                max_readers=2048,
+                max_spare_txns=2,
+                lock=False,
+            )
+
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
         print("loading embeddings...")
