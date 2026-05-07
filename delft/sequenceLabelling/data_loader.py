@@ -609,10 +609,12 @@ class BatchedDataLoader:
 
         batch_size = len(batch_x)
 
-        # Word embeddings
-        word_emb = np.zeros((batch_size, max_len, self.embeddings.embed_size), dtype="float32")
-        for i, tokens in enumerate(batch_x):
-            word_emb[i] = to_vector_single(tokens, self.embeddings, max_len)
+        # Word embeddings (zero-width placeholder when embeddings are disabled)
+        embed_size = self.embeddings.embed_size if self.embeddings is not None else 0
+        word_emb = np.zeros((batch_size, max_len, embed_size), dtype="float32")
+        if self.embeddings is not None:
+            for i, tokens in enumerate(batch_x):
+                word_emb[i] = to_vector_single(tokens, self.embeddings, max_len)
 
         # Character indices
         batches = self.preprocessor.transform(batch_x, extend=extend)

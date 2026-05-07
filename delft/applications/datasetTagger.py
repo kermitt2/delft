@@ -455,8 +455,8 @@ if __name__ == "__main__":
     num_workers = args.num_workers
 
     if transformer is None and embeddings_name is None:
-        # default word embeddings
-        embeddings_name = "glove-840B"
+        # No transformer and no word embeddings: train character-only (issue #216).
+        print("No --transformer and no --embedding given: training without word embeddings (char-only).")
 
     if action == "train":
         train(

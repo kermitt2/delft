@@ -786,8 +786,13 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
     """
     Given a list of tokens convert it to a sequence of word embedding
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
-    vector when appropriate
+    vector when appropriate. When ``embeddings`` is ``None``, return a
+    zero-width placeholder so downstream concatenation with character
+    embeddings is a no-op (char-only training, see issue #216).
     """
+    if embeddings is None:
+        return np.zeros((maxlen, 0), dtype=np.float32)
+
     window = tokens[-maxlen:]
 
     # TBD: use better initializers (uniform, etc.)
