@@ -4,7 +4,7 @@
 
 DeLFT is designed around three goals: covering rich text (tokens with layout / structural features, not just plain sentences), reproducibility and benchmarking under comparable evaluation criteria, and production-level performance and integration. A native Java integration of the library is available in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The current release is **0.4.6**, tested with Python 3.10/3.11 and TensorFlow 2.17. See [Introduction](Introduction.md) for the full feature overview, or jump straight to:
+The current release line is **0.4.x**, tested with Python 3.10/3.11 and TensorFlow 2.17. See [Introduction](Introduction.md) for the full feature overview, or jump straight to:
 
 - [Install DeLFT](Install-DeLFT.md) — get a working environment in a few commands.
 - [Embeddings](embeddings.md) — how DeLFT manages static word embeddings via LMDB.
