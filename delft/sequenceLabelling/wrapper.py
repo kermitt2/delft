@@ -34,6 +34,7 @@ from delft.sequenceLabelling.trainer import (
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
+from delft.utilities.Utilities import pick_device
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
@@ -75,7 +76,9 @@ class Sequence(object):
         report_to_wandb=False,
         device=None,
         nb_workers: int = None,
+        short_model_name: str = None,
     ):
+        self.short_model_name = short_model_name
         if model_name is None:
             model_name = architecture
             if embeddings_name is not None:
@@ -97,10 +100,7 @@ class Sequence(object):
             self.nb_workers = nb_workers
 
         # Set device
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
+        self.device = pick_device(device)
 
         word_emb_size = 0
         self.embeddings = None

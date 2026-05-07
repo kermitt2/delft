@@ -1,12 +1,14 @@
 # some convenient methods for all models
 import numpy as np
 import regex as re
+import torch
 
 # seed is fixed for reproducibility
 from numpy.random import seed
 
 seed(7)
 import argparse
+import os
 import os.path
 import shutil
 from urllib.parse import urlparse
@@ -14,6 +16,46 @@ from urllib.parse import urlparse
 import requests
 import truecase
 from tqdm import tqdm
+
+
+def best_device() -> torch.device:
+    """
+    Pick the best available compute device: CUDA → MPS (Apple Silicon) → CPU.
+
+    When MPS is selected, transparently enables CPU fallback for ops that don't
+    have MPS kernels yet, so unsupported ops degrade gracefully instead of
+    raising NotImplementedError mid-training.
+    """
+    if torch.cuda.is_available():
+        return torch.device("cuda")
+    if torch.backends.mps.is_available():
+        os.environ.setdefault("PYTORCH_ENABLE_MPS_FALLBACK", "1")
+        return torch.device("mps")
+    return torch.device("cpu")
+
+
+def pick_device(device=None) -> torch.device:
+    """
+    Resolve a device (auto-pick when device=None, else honor the caller's choice)
+    and print a one-line summary so the user can see which compute is in use.
+    """
+    if device is None:
+        d = best_device()
+    elif isinstance(device, torch.device):
+        d = device
+    else:
+        d = torch.device(device)
+
+    if d.type == "cuda":
+        n = torch.cuda.device_count()
+        name = torch.cuda.get_device_name(d)
+        plural = "" if n == 1 else "s"
+        print(f"Running on {d} ({name}); {n} CUDA device{plural} available")
+    elif d.type == "mps":
+        print(f"Running on {d} (Apple Silicon GPU via Metal Performance Shaders)")
+    else:
+        print(f"Running on {d}")
+    return d
 
 
 def truncate_batch_values(batch_values: list, max_sequence_length: int) -> list:

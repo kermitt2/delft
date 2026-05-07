@@ -548,7 +548,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
         patience=patience,
         early_stop=early_stop,
         class_weights=class_weights,
-        transformer=transformer,
+        transformer_name=transformer,
         learning_rate=learning_rate,
     )
 
@@ -599,7 +599,7 @@ def train_eval_cascaded(embeddings_name, fold_count, architecture="gru", transfo
         patience=patience,
         early_stop=early_stop,
         class_weights=class_weights,
-        transformer=transformer,
+        transformer_name=transformer,
         learning_rate=learning_rate,
     )
 

@@ -13,6 +13,7 @@ from delft.textClassification.preprocess import TextPreprocessor
 from delft.textClassification.trainer import Trainer
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
+from delft.utilities.Utilities import pick_device
 
 # File names for saving/loading
 PREPROCESSOR_FILE = "preprocessor.json"
@@ -50,7 +51,9 @@ class Classifier(object):
         device=None,
         report_to_wandb=False,
         nb_workers: int = None,
+        short_model_name: str = None,
     ):
+        self.short_model_name = short_model_name
         self.model_config = ModelConfig(
             model_name=model_name,
             architecture=architecture,
@@ -87,10 +90,7 @@ class Classifier(object):
         self.report_to_wandb = report_to_wandb
         self.wandb = None
 
-        if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        else:
-            self.device = torch.device(device)
+        self.device = pick_device(device)
 
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 

@@ -10,6 +10,17 @@ from torch.utils.data import DataLoader, Dataset
 from delft.textClassification.preprocess import to_indices_single, to_vector_single
 
 
+def _worker_init_fn(worker_id):
+    # Each fork-mode worker inherits the parent's LMDB env handle, which is unsafe.
+    # Re-open per worker so each gets an independent reader-locktable slot.
+    info = torch.utils.data.get_worker_info()
+    if info is None:
+        return
+    embeddings = getattr(info.dataset, "embeddings", None)
+    if embeddings is not None and hasattr(embeddings, "reopen_lmdb"):
+        embeddings.reopen_lmdb()
+
+
 class TextClassificationDataset(Dataset):
     """
     Dataset for text classification.
@@ -132,6 +143,7 @@ def create_dataloader(
         batch_size=batch_size,
         shuffle=shuffle,
         num_workers=num_workers,
+        worker_init_fn=_worker_init_fn if num_workers > 0 else None,
     )
 
     return loader

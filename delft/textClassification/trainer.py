@@ -20,7 +20,7 @@ class Trainer(object):
         learning_rate = training_config.learning_rate
         if model_config.transformer_name is not None:
             # BERT models usually use AdamW
-            from transformers import AdamW
+            from torch.optim import AdamW
 
             self.optimizer = AdamW(self.model.parameters(), lr=learning_rate)
         else:

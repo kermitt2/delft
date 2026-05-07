@@ -7,8 +7,8 @@ lmdb==2.1.1
 truecase
 requests>=2.20
 pandas==2.2.3
-transformers==4.48.0
-torch==2.5.1
+transformers==5.7.0
+torch==2.11.0
 pytorch-crf>=0.7.2
 sentencepiece
 protobuf

@@ -19,6 +19,7 @@ from tqdm import tqdm
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.preprocess import Preprocessor
+from delft.utilities.Utilities import pick_device
 
 # Default file names
 DEFAULT_WEIGHT_FILE_NAME = "model_weights.pt"
@@ -150,7 +151,7 @@ class Trainer:
 
         # Set device
         if device is None:
-            self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+            self.device = pick_device()
         else:
             self.device = torch.device(device)
 
