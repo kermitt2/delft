@@ -81,14 +81,14 @@ Visit the [DELFT documentation](https://delft.readthedocs.io) for detailed infor
 PyPI packages are available for stable versions:
 
 ```sh
-# macOS
+# macOS or Linux CPU
 pip install delft
 
 # Linux with CUDA 12.8 (adds PyTorch GPU support)
 pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
-> **Note:** The base install ships the CPU build of PyTorch. On Linux, the `[gpu]` extra installs PyTorch with CUDA 12.8 support.
+> **Note:** The base install pulls the standard PyTorch wheel from PyPI — that's a CPU build on Linux, and a native build on macOS arm64 that includes MPS (Apple Silicon GPU) support automatically. The `[gpu]` extra is for NVIDIA CUDA 12.8 on Linux.
 
 ## DeLFT Installation
 
@@ -110,10 +110,10 @@ uv pip install pip
 Install the project in editable state:
 
 ```sh
-# macOS (torch is included automatically)
+# macOS or Linux CPU (torch is included automatically)
 uv pip install -e .
 
-# Linux with CUDA 12.8 (recommended for GPU)
+# Linux with CUDA 12.8 (recommended for NVIDIA GPU)
 uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
