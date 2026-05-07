@@ -22,6 +22,30 @@ from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
 
 
+def _effective_num_workers(requested: int, dataset_size: int, batch_size: int) -> int:
+    """
+    Cap ``requested`` worker count to what makes sense for the dataset size.
+
+    Worker spawn cost on macOS dominates wall time for tiny datasets — when
+    there are fewer batches than workers, each worker handles <1 batch and
+    the per-epoch respawn (since ``persistent_workers`` defaults to False)
+    costs more than it saves. We aim for ~2 batches per worker so spawn
+    overhead is amortized. Returns 0 (in-process loading) when the dataset
+    is small enough that any worker is wasted.
+    """
+    if requested <= 0 or dataset_size <= 0 or batch_size <= 0:
+        return 0
+    num_batches = max(1, dataset_size // batch_size)
+    ideal = num_batches // 2
+    effective = max(0, min(requested, ideal))
+    if effective != requested:
+        print(
+            f"DataLoader: requested num_workers={requested}, capped to {effective} "
+            f"for dataset size={dataset_size} (batches={num_batches})."
+        )
+    return effective
+
+
 def _worker_init_fn(worker_id):
     # Each fork-mode worker inherits the parent's LMDB env handle, which is unsafe.
     # Re-open per worker so each gets an independent reader-locktable slot.
@@ -401,6 +425,11 @@ def create_dataloader(
             use_chain_crf=model_config.use_crf if model_config else False,
         )
 
+        # Scale workers down for tiny datasets where spawn cost dominates.
+        effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size)
+        # pin_memory only helps CUDA host->device transfers; on MPS/CPU it's overhead.
+        effective_pin_memory = pin_memory and torch.cuda.is_available()
+
         # Use DistributedSampler for multi-GPU training
         sampler = None
         if distributed:
@@ -412,8 +441,9 @@ def create_dataloader(
             batch_size=batch_size,
             shuffle=shuffle if sampler is None else False,
             sampler=sampler,
-            num_workers=num_workers,
-            pin_memory=pin_memory,
+            num_workers=effective_workers,
+            persistent_workers=effective_workers > 0,
+            pin_memory=effective_pin_memory,
             collate_fn=collate_fn,
         )
 
@@ -430,6 +460,9 @@ def create_dataloader(
         use_chain_crf=model_config.use_crf if model_config else False,
     )
 
+    effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size)
+    effective_pin_memory = pin_memory and torch.cuda.is_available()
+
     # Use DistributedSampler for multi-GPU training
     sampler = None
     if distributed:
@@ -441,10 +474,11 @@ def create_dataloader(
         batch_size=batch_size,
         shuffle=shuffle if sampler is None else False,
         sampler=sampler,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
+        num_workers=effective_workers,
+        persistent_workers=effective_workers > 0,
+        pin_memory=effective_pin_memory,
         collate_fn=collate_fn,
-        worker_init_fn=_worker_init_fn if num_workers > 0 else None,
+        worker_init_fn=_worker_init_fn if effective_workers > 0 else None,
     )
 
 

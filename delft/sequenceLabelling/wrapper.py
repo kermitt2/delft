@@ -93,9 +93,12 @@ class Sequence(object):
         self.embeddings_name = embeddings_name
         self.report_to_wandb = report_to_wandb
 
-        # Set number of workers: default to cpu_count - 1, minimum 1
+        # Set number of workers. The per-epoch respawn cost on macOS makes
+        # large worker counts counterproductive for small datasets, and
+        # ``create_dataloader`` further auto-caps based on dataset size.
+        # Default to a modest 4 (or fewer on small machines).
         if nb_workers is None:
-            self.nb_workers = max(1, os.cpu_count() - 1)
+            self.nb_workers = max(1, min(4, os.cpu_count() - 1))
         else:
             self.nb_workers = nb_workers
 
