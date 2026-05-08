@@ -79,6 +79,12 @@ class Embeddings(object):
                 max_spare_txns=2,
                 lock=False,
             )
+            with self.env.begin() as txn:
+                cursor = txn.cursor()
+                for _key, value in cursor:
+                    _check_lmdb_format(value)
+                    break
+                cursor.close()
 
     def reopen_lmdb(self):
         """
@@ -303,18 +309,8 @@ class Embeddings(object):
                     with self.env.begin() as txn:
                         cursor = txn.cursor()
                         for key, value in cursor:
-                            try:
-                                vector = _deserialize_float32(value)
-                            except ValueError as exc:
-                                cursor.close()
-                                self.env.close()
-                                raise ValueError(
-                                    f"Cannot read LMDB embeddings cache at "
-                                    f"{envFilePath!r} for embedding '{name}': "
-                                    f"{exc} Delete that directory and re-run; "
-                                    f"DeLFT will rebuild it from the source "
-                                    f"file in the new format."
-                                ) from exc
+                            _check_lmdb_format(value)
+                            vector = _deserialize_float32(value)
                             self.embed_size = vector.shape[0]
                             break
                         cursor.close()
@@ -471,28 +467,37 @@ def _serialize_float32(array):
     return array.astype(np.float32).tobytes()
 
 
-_LEGACY_LMDB_MAGIC = (0x80, ord("("), ord("c"))
-
-
 def _deserialize_float32(serialized):
     """
     Deserialize raw float32 bytes to numpy array.
     This format is readable by both Python and Java.
-
-    Older DeLFT versions stored each value as a serialized numpy array
-    instead of raw float32. Such streams have a leading magic byte and a
-    length that is rarely a multiple of 4, so we can detect that case and
-    point the user at the converter rather than letting numpy raise a
-    cryptic "buffer size must be a multiple of element size".
     """
-    if serialized and len(serialized) % 4 != 0 and serialized[0] in _LEGACY_LMDB_MAGIC:
-        raise ValueError(
-            "LMDB embedding entry is in the legacy DeLFT format (serialized "
-            "numpy) and cannot be read as raw float32. The current code "
-            "writes raw float32 bytes for Java compatibility — this database "
-            "was built by an older DeLFT version and needs to be regenerated."
-        )
     return np.frombuffer(serialized, dtype=np.float32)
+
+
+def _check_lmdb_format(value):
+    """
+    Verify that an LMDB value contains raw float32 bytes, not the legacy
+    serialized-numpy format. Two signals must both be present to avoid false
+    positives on raw float32 data that happens to start with 0x80:
+
+    1. pickle magic byte (0x80) followed by protocol version 2-5
+    2. ``b"numpy"`` substring in the first 50 bytes (always present in
+       serialized numpy arrays produced by older DeLFT versions)
+
+    Raises ValueError with a clear, actionable message when both signals match.
+    """
+    if len(value) < 2:
+        return
+
+    if value[0] == 0x80 and value[1] in (2, 3, 4, 5) and b"numpy" in value[:50]:
+        raise ValueError(
+            "LMDB embedding database is in the legacy DeLFT format and is "
+            "incompatible with the current raw float32 format. Reading it "
+            "would produce garbage vectors. Delete the database directory "
+            "and re-run; DeLFT will rebuild it from the source embedding "
+            "file in the new format."
+        )
 
 
 def open_embedding_file(embeddings_path):
