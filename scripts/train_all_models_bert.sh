@@ -12,10 +12,11 @@ set -e  # Exit on error
 
 # Common SLURM configuration
 SRUN_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
---container-workdir=/netscratch/lfoppiano/delft/delft-pytorch \
+--container-workdir=/netscratch/lfoppiano/delft/delft-pytorch2 \
 --container-image=/netscratch/lfoppiano/enroot/delft-pytorch.sqsh \
+--export=ALL \
 --mem=100G \
--p V100-32GB,RTX3090,RTXA6000,L40S \
+-p RTX3090,RTXA6000,RTXB6000,L40S \
 --gpus=1 \
 --nodes=1 \
 --time=3-00:00"
