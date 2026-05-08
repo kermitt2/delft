@@ -29,6 +29,8 @@ uv pip install -e . -r requirements-cuda.txt
 
 > **Note:** On Linux, the base install already includes TensorFlow with NVIDIA CUDA libraries as transitive dependencies (~2 GB). The `[gpu]` extra additionally installs PyTorch with CUDA 12.1 support. For a CPU-only setup, you can replace `tensorflow` with `tensorflow-cpu` after installation.
 
+> **For training a model:** add the `[dev]` extras (which include `wandb`, `pytest`, `ruff`) — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc). Inference-only setups don't need this.
+
 DeLFT __0.4.x__ has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. It will exploit your available GPU with the condition that CUDA 12.1 is properly installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
 
 To ensure the availability of GPU devices for the right version of TensorFlow, CUDA, cuDNN and Python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).

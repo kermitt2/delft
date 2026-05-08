@@ -50,6 +50,7 @@ class Classifier(object):
         transformer_name: str = None,
         device=None,
         report_to_wandb=False,
+        wandb_project: str = None,
         nb_workers: int = None,
         short_model_name: str = None,
     ):
@@ -88,6 +89,7 @@ class Classifier(object):
         self.embeddings = None
         self.preprocessor = None
         self.report_to_wandb = report_to_wandb
+        self.wandb_project = wandb_project
         self.wandb = None
 
         self.device = pick_device(device)
@@ -117,20 +119,60 @@ class Classifier(object):
             import wandb
             from dotenv import load_dotenv
 
+            if not hasattr(wandb, "init"):
+                # ``wandb`` resolved to an empty PEP-420 namespace package
+                # from a local ``wandb/`` directory (wandb's own run-log
+                # folder) because the real wandb package is *not installed*
+                # in this environment. With wandb installed, the regular
+                # package in site-packages wins over the namespace candidate;
+                # without it, the cwd directory wins by elimination.
+                print(
+                    f"Warning: 'wandb' module imported but has no 'init' "
+                    f"attribute — wandb is not installed in this environment "
+                    f"and a local 'wandb/' directory in {os.getcwd()!r} is "
+                    f"being picked up as an empty namespace package (PEP 420). "
+                    f"Run 'pip install wandb' or remove the local 'wandb/' tree. "
+                    f"Disabling wandb."
+                )
+                self.report_to_wandb = False
+                return
+
             load_dotenv(override=True)
             if os.getenv("WANDB_API_KEY") is None:
                 print("Warning: WANDB_API_KEY not set, wandb disabled")
                 self.report_to_wandb = False
                 return
 
+            # wandb's default run-log dir is ``./wandb/``. With wandb installed
+            # that's harmless (the regular package always wins). But if this
+            # repo is later run in an environment where wandb isn't installed,
+            # that directory becomes a PEP-420 namespace package and ``import
+            # wandb`` silently resolves to an empty module — masking the real
+            # "wandb not installed" diagnosis. wandb sucks for picking that
+            # name; we override to ``./.wandb/`` (dot-prefix → impossible as a
+            # Python module name → can never be imported as a namespace pkg).
+            # Respect any user-provided WANDB_DIR from env/.env.
+            if not os.getenv("WANDB_DIR"):
+                os.environ["WANDB_DIR"] = os.path.join(os.getcwd(), ".wandb")
+                print(
+                    f"wandb's default './wandb/' run dir shadows the wandb "
+                    f"package import — using {os.environ['WANDB_DIR']!r} "
+                    f"instead. Set WANDB_DIR to override."
+                )
+
+            # CLI/API arg wins; otherwise fall back to WANDB_PROJECT env var.
+            project = self.wandb_project or os.getenv("WANDB_PROJECT")
+
             if run_id:
-                wandb.init(id=run_id, resume="must")
+                wandb.init(id=run_id, resume="must", project=project)
                 print(f"Resumed wandb run: {run_id}")
             else:
                 wandb.init(
                     name=model_name,
+                    project=project,
                     config={
                         "model_name": self.model_config.model_name,
+                        "short_model_name": self.short_model_name,
                         "architecture": self.model_config.architecture,
                         "transformer_name": self.model_config.transformer_name,
                         "embeddings_name": self.model_config.embeddings_name,

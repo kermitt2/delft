@@ -65,6 +65,7 @@ def train(
     transformer=None,
     cascaded=False,
     report_to_wandb=False,
+    wandb_project=None,
     batch_size=-1,
     maxlen=-1,
     patience=-1,
@@ -99,7 +100,9 @@ def train(
         transformer_name=transformer,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name="dataseer-binary",
     )
 
     if fold_count == 1:
@@ -754,6 +757,11 @@ if __name__ == "__main__":
         action="store_true",
     )
     parser.add_argument(
+        "--wandb-project",
+        default=None,
+        help="Wandb project name. If unset, falls back to the WANDB_PROJECT env var, then to wandb's default.",
+    )
+    parser.add_argument(
         "--max-epoch",
         type=int,
         default=-1,
@@ -815,6 +823,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    wandb_project = args.wandb_project
     num_workers = args.num_workers
 
     if args.action == "train":
@@ -828,6 +837,7 @@ if __name__ == "__main__":
             transformer=transformer,
             cascaded=cascaded,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             batch_size=args.batch_size,
             maxlen=args.maxlen,
             patience=args.patience,

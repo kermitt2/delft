@@ -117,10 +117,13 @@ uv pip install -e .
 uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
+> **For training a model:** add the `[dev]` extras — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, `pytest`, or `ruff`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc).
+
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
 
 ### Send data to Weight and Biases
 
+0. Make sure `wandb` is installed — it ships with the `[dev]` extras (`uv pip install -e ".[gpu,dev]"`) and is **not** in the base install.
 1. Create a file `.env` in the root of the project with the following content:
    
     ```

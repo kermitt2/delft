@@ -111,6 +111,7 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
     (
@@ -150,6 +151,7 @@ def train(
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-en-conll2003-" + architecture
+        short_model_name = "ner-en-conll2003"
 
         model = Sequence(
             model_name,
@@ -166,7 +168,9 @@ def train(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -185,6 +189,7 @@ def train(
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-en-conll2012-" + architecture
+        short_model_name = "ner-en-conll2012"
 
         model = Sequence(
             model_name,
@@ -201,7 +206,9 @@ def train(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
     elif lang == "fr":
         print("Loading data...")
@@ -212,6 +219,7 @@ def train(
         stats(x_train, y_train, x_valid, y_valid)
 
         model_name = "ner-fr-lemonde-" + architecture
+        short_model_name = "ner-fr-lemonde"
 
         model = Sequence(
             model_name,
@@ -228,7 +236,9 @@ def train(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -266,6 +276,7 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
     (
@@ -298,6 +309,7 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-conll2003-" + architecture
+        short_model_name = "ner-en-conll2003"
 
         if not train_with_validation_set:
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -317,7 +329,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -339,7 +353,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
@@ -350,6 +366,7 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-ontonotes-" + architecture
+        short_model_name = "ner-en-ontonotes"
 
         model = Sequence(
             model_name,
@@ -367,6 +384,7 @@ def train_eval(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -378,6 +396,7 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-en-conll2012-" + architecture
+        short_model_name = "ner-en-conll2012"
 
         if not train_with_validation_set:
             model = Sequence(
@@ -396,7 +415,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly),
@@ -418,7 +439,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
 
     elif (lang == "fr") and (dataset_type == "ftb" or dataset_type is None):
@@ -430,6 +453,7 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-" + architecture
+        short_model_name = "ner-fr-lemonde"
 
         model = Sequence(
             model_name,
@@ -447,6 +471,7 @@ def train_eval(
             multiprocessing=multiprocessing,
             learning_rate=learning_rate,
             nb_workers=num_workers,
+            short_model_name=short_model_name,
         )
     elif (lang == "fr") and (dataset_type == "ftb_force_split"):
         print("Loading data for ftb_force_split...")
@@ -457,6 +482,7 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-force-split-" + architecture
+        short_model_name = "ner-fr-lemonde-force-split"
 
         if not train_with_validation_set:
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -476,7 +502,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -498,7 +526,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
     elif (lang == "fr") and (dataset_type == "ftb_force_split_xml"):
         print("Loading data for ftb_force_split_xml...")
@@ -515,6 +545,7 @@ def train_eval(
         stats(x_train, y_train, x_valid, y_valid, x_eval, y_eval)
 
         model_name = "ner-fr-lemonde-force-split-xml-" + architecture
+        short_model_name = "ner-fr-lemonde-force-split-xml"
 
         if not train_with_validation_set:
             # restrict training on train set, use validation set for early stop, as in most papers
@@ -534,7 +565,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -556,7 +589,9 @@ def train_eval(
                 multiprocessing=multiprocessing,
                 learning_rate=learning_rate,
                 report_to_wandb=report_to_wandb,
+                wandb_project=wandb_project,
                 nb_workers=num_workers,
+                short_model_name=short_model_name,
             )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -585,6 +620,7 @@ def eval(
     data_path=None,
     report_to_wandb=False,
     wandb_run_id=None,
+    wandb_project=None,
 ):
     if (dataset_type == "conll2003") and (lang == "en"):
         print("Loading CoNLL-2003 NER data...")
@@ -617,7 +653,7 @@ def eval(
 
     # Initialize wandb for eval if requested
     if report_to_wandb:
-        model.init_wandb_for_eval(run_id=wandb_run_id)
+        model.init_wandb_for_eval(run_id=wandb_run_id, wandb_project=wandb_project)
 
     start_time = time.time()
 
@@ -813,6 +849,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--wandb-project",
+        default=None,
+        help="Wandb project name. If unset, falls back to the WANDB_PROJECT env var, then to wandb's default.",
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=None,
@@ -843,6 +885,7 @@ if __name__ == "__main__":
     multi_gpu = args.multi_gpu
     wandb = args.wandb
     wandb_run_id = args.wandb_run_id
+    wandb_project = args.wandb_project
     num_workers = args.num_workers
 
     # name of embeddings refers to the file delft/resources-registry.json
@@ -867,6 +910,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 
@@ -890,6 +934,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 
@@ -900,6 +945,7 @@ if __name__ == "__main__":
             architecture=architecture,
             report_to_wandb=wandb,
             wandb_run_id=wandb_run_id,
+            wandb_project=wandb_project,
         )
 
     if action == "tag":
