@@ -11,6 +11,7 @@ from delft.textClassification.data_loader import create_dataloader
 from delft.textClassification.models import getModel
 from delft.textClassification.preprocess import TextPreprocessor
 from delft.textClassification.trainer import Trainer
+from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.Utilities import pick_device
@@ -93,6 +94,8 @@ class Classifier(object):
         self.wandb = None
 
         self.device = pick_device(device)
+        validate_device_arch_compatibility(self.device)
+        configure_cudnn_for_device(self.device)
 
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 

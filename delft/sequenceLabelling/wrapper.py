@@ -31,6 +31,7 @@ from delft.sequenceLabelling.trainer import (
     Scorer,
     Trainer,
 )
+from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
@@ -106,6 +107,8 @@ class Sequence(object):
 
         # Set device
         self.device = pick_device(device)
+        validate_device_arch_compatibility(self.device)
+        configure_cudnn_for_device(self.device)
 
         word_emb_size = 0
         self.embeddings = None
