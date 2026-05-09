@@ -34,31 +34,36 @@ def find_latest_train_file(model: str) -> str:
     """
     Find the latest training file for the given model based on the date in the filename.
 
-    Files are expected to have names like: {model}-YYMMDD.train
+    Files are expected to have names like: {model}-YYMMDD.train or {model}-YYMMDD.train.gz
+    (some Grobid models, e.g. fulltext, ship only as gzip). On ties, the plain .train
+    is preferred over the .gz to avoid decompression overhead.
+
     Returns the path to the latest file, or None if no files found.
     """
     data_dir = f"data/sequenceLabelling/grobid/{model}"
     if not os.path.exists(data_dir):
         return None
 
-    # Pattern: model-YYMMDD.train
-    pattern = re.compile(rf"^{re.escape(model)}-(\d{{6}})\.train$")
+    # Pattern: model-YYMMDD.train  or  model-YYMMDD.train.gz
+    pattern = re.compile(rf"^{re.escape(model)}-(\d{{6}})\.train(\.gz)?$")
 
     latest_file = None
     latest_date = None
+    latest_is_gz = True
 
     for filename in os.listdir(data_dir):
         match = pattern.match(filename)
         if match:
             date_str = match.group(1)
+            is_gz = match.group(2) is not None
             try:
-                # Parse YYMMDD format
                 date = datetime.strptime(date_str, "%y%m%d")
-                if latest_date is None or date > latest_date:
-                    latest_date = date
-                    latest_file = os.path.join(data_dir, filename)
             except ValueError:
                 continue
+            if latest_date is None or date > latest_date or (date == latest_date and latest_is_gz and not is_gz):
+                latest_date = date
+                latest_is_gz = is_gz
+                latest_file = os.path.join(data_dir, filename)
 
     return latest_file
 
