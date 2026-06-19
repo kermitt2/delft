@@ -4,7 +4,11 @@ import os
 import numpy as np
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
-from delft.sequenceLabelling.preprocess import FeaturesPreprocessor, Preprocessor
+from delft.sequenceLabelling.preprocess import (
+    FeaturesPreprocessor,
+    Preprocessor,
+    to_vector_single,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +71,17 @@ class TestWordPreprocessor:
         p = Preprocessor.load(preprocessor2)
 
         assert len(p.vocab_char) == 70
+
+
+class TestToVectorSingle:
+    def test_returns_zero_width_array_when_embeddings_is_none(self):
+        result = to_vector_single(["foo", "bar"], embeddings=None, maxlen=5)
+        assert result.shape == (5, 0)
+        assert result.dtype == np.float32
+
+    def test_handles_empty_token_list_when_embeddings_is_none(self):
+        result = to_vector_single([], embeddings=None, maxlen=3)
+        assert result.shape == (3, 0)
 
 
 def _to_dense(a: np.array):

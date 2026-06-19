@@ -66,6 +66,16 @@ transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 
 class Sequence(object):
+    """
+    Provides high-level API for training, evaluation, and tagging with
+    sequence labeling models.
+
+    Word embeddings are optional. Pass ``embeddings_name=None`` together
+    with ``transformer_name=None`` to train using only character (and
+    optional features) inputs — this avoids loading multi-GB embedding
+    files at the cost of a small accuracy drop. See issue #216.
+    """
+
     # number of parallel worker for the data generator
     nb_workers = 6
 

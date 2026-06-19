@@ -188,10 +188,12 @@ class DataGenerator(BaseGenerator):
             max_length_x += 1
             extend = True
 
-        # generate data
-        batch_x = np.zeros((max_iter, max_length_x, self.embeddings.embed_size), dtype="float32")
-        for i in range(0, max_iter):
-            batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
+        # generate data (zero-width placeholder when embeddings are disabled)
+        embed_size = self.embeddings.embed_size if self.embeddings is not None else 0
+        batch_x = np.zeros((max_iter, max_length_x, embed_size), dtype="float32")
+        if self.embeddings is not None:
+            for i in range(0, max_iter):
+                batch_x[i] = to_vector_single(x_tokenized[i], self.embeddings, max_length_x)
 
         # store tag embeddings
         batch_y = None

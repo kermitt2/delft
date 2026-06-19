@@ -400,8 +400,8 @@ if __name__ == "__main__":
     multi_gpu = args.multi_gpu
 
     if transformer is None and embeddings_name is None:
-        # default word embeddings
-        embeddings_name = "glove-840B"
+        # No transformer and no word embeddings: train character-only (issue #216).
+        print("No --transformer and no --embedding given: training without word embeddings (char-only).")
 
     if action == "train":
         train(
