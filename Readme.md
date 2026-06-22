@@ -67,7 +67,7 @@ The DeLFT __0.4.x__ release line has been tested successfully with Python 3.10/3
 ### Other changes
 
 - Weights & Biases integration for experiment tracking (`--wandb` flag)
-- Distributed training support via SLURM scripts
+- Distributed training support via SLURM scripts — see [Training on a cluster (SLURM)](doc/distributed_training.md)
 - Additional checks for avoiding empty embeddings
 - Updated default word2vec embedding URL
 - Updated dependency versions (transformers 4.48, torch 2.5.1, numpy 1.26.4, scikit-learn 1.6.1, pandas 2.2.3)
