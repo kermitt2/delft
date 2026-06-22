@@ -63,6 +63,40 @@ def configure_cudnn_for_device(device: torch.device) -> None:
         )
 
 
+def _parse_arch(arch: str) -> tuple[int, int] | None:
+    """Parse a ``get_arch_list()`` entry like ``"sm_86"`` into ``(8, 6)``.
+
+    Returns ``None`` for entries we can't interpret as SASS targets
+    (e.g. ``"compute_80"`` PTX pseudo-targets, or unexpected formats) so
+    the caller can simply skip them.
+    """
+    if not arch.startswith("sm_"):
+        return None
+    digits = arch[len("sm_") :]
+    if not digits.isdigit() or len(digits) < 2:
+        return None
+    # Minor is the last digit; major is everything before it (sm_100 -> 10.0).
+    return int(digits[:-1]), int(digits[-1])
+
+
+def _wheel_supports_capability(
+    capability: tuple[int, int], arch_list: list[str]
+) -> bool:
+    """Return True if any arch in the wheel can run on ``capability``.
+
+    Encodes CUDA's SASS binary-compatibility contract: a cubin built for
+    sm_X.y runs on a device sm_X.z iff same major X and z >= y.
+
+    TODO(human): implement the predicate.
+      - Parse each entry with _parse_arch(); skip the Nones.
+      - `capability` is the device's (major, minor).
+      - Return True if ANY parsed (arch_major, arch_minor) satisfies:
+          same major as the device AND arch_minor <= device minor.
+      - Otherwise False.
+    """
+    raise NotImplementedError
+
+
 def validate_device_arch_compatibility(device: torch.device) -> None:
     """Fail fast if the installed torch wheel lacks kernels for ``device``.
 
@@ -75,10 +109,13 @@ def validate_device_arch_compatibility(device: torch.device) -> None:
     mid-training.
 
     The arch list reports the targets the wheel was actually compiled
-    for; we require an exact match for the device's compute capability.
-    PyTorch will JIT-compile PTX for forward-compatible higher arches,
-    but the wheels we're guarding against ship neither sm_70 SASS nor
-    sm_70-compatible PTX, so a strict membership check is correct here.
+    for. A device is supported when the wheel ships SASS for any arch in
+    the *same major* version with a *minor <= the device's minor*: CUDA
+    guarantees a cubin built for sm_X.y runs on sm_X.z when z >= y. So a
+    cu130 wheel shipping sm_86 runs fine on an sm_89 L40S, even though
+    sm_89 is absent from the list. The V100 (sm_70) still fails correctly:
+    the only major-7 entry is sm_75, and 70 < 75 (can't run a higher-minor
+    cubin on a lower-minor device).
 
     No-op for non-CUDA devices (CPU, MPS).
     """
@@ -91,7 +128,7 @@ def validate_device_arch_compatibility(device: torch.device) -> None:
 
     capability = torch.cuda.get_device_capability(device)
     cap_str = f"sm_{capability[0]}{capability[1]}"
-    if cap_str in arch_list:
+    if _wheel_supports_capability(capability, arch_list):
         return
 
     name = torch.cuda.get_device_name(device)
