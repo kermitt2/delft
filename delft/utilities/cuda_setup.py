@@ -85,14 +85,17 @@ def _wheel_supports_capability(capability: tuple[int, int], arch_list: list[str]
     Encodes CUDA's SASS binary-compatibility contract: a cubin built for
     sm_X.y runs on a device sm_X.z iff same major X and z >= y.
 
-    TODO(human): implement the predicate.
-      - Parse each entry with _parse_arch(); skip the Nones.
-      - `capability` is the device's (major, minor).
-      - Return True if ANY parsed (arch_major, arch_minor) satisfies:
-          same major as the device AND arch_minor <= device minor.
-      - Otherwise False.
+    A cubin built for sm_X.y runs on sm_X.z iff same major X and y <= z.
     """
-    raise NotImplementedError
+    device_major, device_minor = capability
+    for arch in arch_list:
+        parsed = _parse_arch(arch)
+        if parsed is None:
+            continue
+        arch_major, arch_minor = parsed
+        if arch_major == device_major and arch_minor <= device_minor:
+            return True
+    return False
 
 
 def validate_device_arch_compatibility(device: torch.device) -> None:

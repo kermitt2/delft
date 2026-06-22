@@ -54,6 +54,19 @@ class TestValidateDeviceArchCompatibility:
         ):
             validate_device_arch_compatibility(device)
 
+    def test_l40s_runs_on_lower_minor_kernels(self):
+        # L40S is sm_89; the cu130 wheel ships sm_86 but not sm_89. CUDA's
+        # SASS forward-compat (sm_86 cubin runs on sm_89) means this is
+        # supported, even though sm_89 is absent from the arch list.
+        device = torch.device("cuda:0")
+        arch_list = ["sm_75", "sm_80", "sm_86", "sm_90", "sm_100", "sm_120"]
+        with (
+            patch("torch.cuda.get_arch_list", return_value=arch_list),
+            patch("torch.cuda.get_device_capability", return_value=(8, 9)),
+            patch("torch.cuda.get_device_name", return_value="NVIDIA L40S"),
+        ):
+            validate_device_arch_compatibility(device)
+
     def test_empty_arch_list_is_noop(self):
         # CPU-only torch builds report an empty arch list; nothing to
         # check, and we do not want to raise on those.
