@@ -79,9 +79,7 @@ def _parse_arch(arch: str) -> tuple[int, int] | None:
     return int(digits[:-1]), int(digits[-1])
 
 
-def _wheel_supports_capability(
-    capability: tuple[int, int], arch_list: list[str]
-) -> bool:
+def _wheel_supports_capability(capability: tuple[int, int], arch_list: list[str]) -> bool:
     """Return True if any arch in the wheel can run on ``capability``.
 
     Encodes CUDA's SASS binary-compatibility contract: a cubin built for
