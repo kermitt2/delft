@@ -99,6 +99,7 @@ def train(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    wandb_project=None,
     batch_size=-1,
     maxlen=-1,
     patience=-1,
@@ -136,6 +137,7 @@ def train(
         class_weights=class_weights_copyright,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         short_model_name="copyright",
         learning_rate=learning_rate,
         nb_workers=num_workers,
@@ -172,6 +174,7 @@ def train(
         class_weights=class_weights_licenses,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         short_model_name="license",
         learning_rate=learning_rate,
         nb_workers=num_workers,
@@ -191,6 +194,7 @@ def train_and_eval(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    wandb_project=None,
     batch_size=-1,
     maxlen=-1,
     patience=-1,
@@ -233,6 +237,7 @@ def train_and_eval(
         class_weights=class_weights_copyright,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         short_model_name="copyright",
         learning_rate=learning_rate,
         nb_workers=num_workers,
@@ -274,6 +279,7 @@ def train_and_eval(
         class_weights=class_weights_licenses,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         short_model_name="license",
         learning_rate=learning_rate,
         nb_workers=num_workers,
@@ -631,6 +637,11 @@ if __name__ == "__main__":
         action="store_true",
     )
     parser.add_argument(
+        "--wandb-project",
+        default=None,
+        help="Wandb project name. If unset, falls back to the WANDB_PROJECT env var, then to wandb's default.",
+    )
+    parser.add_argument(
         "--max-epoch",
         type=int,
         default=-1,
@@ -697,6 +708,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    wandb_project = args.wandb_project
     num_workers = args.num_workers
 
     if args.action == "train":
@@ -709,6 +721,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             batch_size=args.batch_size,
             maxlen=args.maxlen,
             patience=args.patience,
@@ -739,6 +752,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             batch_size=args.batch_size,
             maxlen=args.maxlen,
             patience=args.patience,

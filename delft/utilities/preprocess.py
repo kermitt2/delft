@@ -192,7 +192,48 @@ def calculate_cardinality(feature_vector, indices=None):
     if not len(feature_vector) > 0:
         return []
 
-    for index_column in range(index, len(feature_vector[0][0])):
+    # Determine the column-iteration bound robustly. The original code used
+    # ``len(feature_vector[0][0])`` which assumes every row in every document
+    # has the same width as the first row of the first document — a property
+    # that does not hold when training data mixes GROBID feature-schema
+    # versions (e.g. table training files combining 25- and 26-wide rows).
+    row_widths = [len(row) for doc in feature_vector for row in doc if row]
+    if not row_widths:
+        return []
+    min_width = min(row_widths)
+    max_width = max(row_widths)
+
+    if indices is not None:
+        # Caller declared the expected feature columns — every row must be
+        # wide enough to cover the largest requested index. Surface a clear
+        # error pointing at the first malformed doc/row rather than crashing
+        # later inside the inner loop with a confusing IndexError.
+        required_width = max(indices) + 1
+        if min_width < required_width:
+            for d, doc in enumerate(feature_vector):
+                for r, row in enumerate(doc):
+                    if row and len(row) < required_width:
+                        raise ValueError(
+                            f"Feature width mismatch: features_indices requires at "
+                            f"least {required_width} columns per row, but document "
+                            f"{d}, row {r} has only {len(row)}. Check that your "
+                            f"training data matches the declared feature schema."
+                        )
+        bound = required_width
+    else:
+        # No declared indices — derive the column set from the data. Bound by
+        # the narrowest row so wider rows simply drop their trailing columns
+        # rather than the iteration crashing on the first too-short row.
+        if min_width != max_width:
+            print(
+                f"Warning: feature width drift detected — rows vary between "
+                f"{min_width} and {max_width} columns; truncating to {min_width}. "
+                f"Trailing features in wider rows will not be included in the "
+                f"feature vocabulary."
+            )
+        bound = min_width
+
+    for index_column in range(index, bound):
         if indices and index_column not in indices:
             index += 1
             continue

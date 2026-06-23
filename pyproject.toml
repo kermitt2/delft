@@ -66,6 +66,9 @@ dependencies = [
 gpu = [
     "torch==2.11.0+cu128",
 ]
+gpu-pre-turing = [
+    "torch==2.11.0+cu126",
+]
 dev = [
     "pytest",
     "bump-my-version",

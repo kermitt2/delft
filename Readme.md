@@ -67,7 +67,7 @@ The DeLFT __0.4.x__ release line has been tested successfully with Python 3.10/3
 ### Other changes
 
 - Weights & Biases integration for experiment tracking (`--wandb` flag)
-- Distributed training support via SLURM scripts
+- Distributed training support via SLURM scripts — see [Training on a cluster (SLURM)](doc/distributed_training.md)
 - Additional checks for avoiding empty embeddings
 - Updated default word2vec embedding URL
 - Updated dependency versions (transformers 4.48, torch 2.5.1, numpy 1.26.4, scikit-learn 1.6.1, pandas 2.2.3)
@@ -117,10 +117,13 @@ uv pip install -e .
 uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
+> **For training a model:** add the `[dev]` extras — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, `pytest`, or `ruff`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc).
+
 See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
 
 ### Send data to Weight and Biases
 
+0. Make sure `wandb` is installed — it ships with the `[dev]` extras (`uv pip install -e ".[gpu,dev]"`) and is **not** in the base install.
 1. Create a file `.env` in the root of the project with the following content:
    
     ```

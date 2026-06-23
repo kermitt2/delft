@@ -662,10 +662,12 @@ class bert(BaseTextClassifier):
 
         transformer_name = model_config.transformer_name or "bert-base-uncased"
 
+        # Pin fp32: some HF checkpoints (e.g. deberta-v3) ship as fp16, and recent
+        # transformers versions honor that, which clashes with the fp32 classifier head below.
         if local_path:
-            self.transformer = AutoModel.from_pretrained(local_path)
+            self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
         elif load_pretrained_weights:
-            self.transformer = AutoModel.from_pretrained(transformer_name)
+            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
         else:
             config = AutoConfig.from_pretrained(transformer_name)
             self.transformer = AutoModel.from_config(config)

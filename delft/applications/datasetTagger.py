@@ -98,6 +98,7 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
     print("Loading data...")
@@ -159,7 +160,9 @@ def train(
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name="datasets",
     )
 
     start_time = time.time()
@@ -192,6 +195,7 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
     print("Loading data...")
@@ -254,7 +258,9 @@ def train_eval(
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name="datasets",
     )
 
     start_time = time.time()
@@ -430,6 +436,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--wandb-project",
+        default=None,
+        help="Wandb project name. If unset, falls back to the WANDB_PROJECT env var, then to wandb's default.",
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=None,
@@ -452,6 +464,7 @@ if __name__ == "__main__":
     early_stop = args.early_stop
     multi_gpu = args.multi_gpu
     wandb = args.wandb
+    wandb_project = args.wandb_project
     num_workers = args.num_workers
 
     if transformer is None and embeddings_name is None:
@@ -473,6 +486,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 
@@ -506,6 +520,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 

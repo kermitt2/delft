@@ -54,6 +54,7 @@ def train(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
     print("loading multiclass software context dataset...")
@@ -89,7 +90,9 @@ def train(
         class_weights=class_weights,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name="software_context",
     )
 
     if fold_count == 1:
@@ -106,6 +109,7 @@ def train_and_eval(
     architecture="gru",
     transformer=None,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
     print("loading multiclass software context dataset...")
@@ -146,7 +150,9 @@ def train_and_eval(
         class_weights=class_weights,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name="software_context",
     )
 
     if fold_count == 1:
@@ -353,6 +359,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--wandb-project",
+        default=None,
+        help="Wandb project name. If unset, falls back to the WANDB_PROJECT env var, then to wandb's default.",
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=None,
@@ -382,6 +394,7 @@ if __name__ == "__main__":
         embeddings_name = "glove-840B"
 
     wandb = args.wandb
+    wandb_project = args.wandb_project
     num_workers = args.num_workers
 
     if args.action == "train":
@@ -394,6 +407,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 
@@ -418,6 +432,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 

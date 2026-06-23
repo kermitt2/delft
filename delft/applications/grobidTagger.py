@@ -34,31 +34,36 @@ def find_latest_train_file(model: str) -> str:
     """
     Find the latest training file for the given model based on the date in the filename.
 
-    Files are expected to have names like: {model}-YYMMDD.train
+    Files are expected to have names like: {model}-YYMMDD.train or {model}-YYMMDD.train.gz
+    (some Grobid models, e.g. fulltext, ship only as gzip). On ties, the plain .train
+    is preferred over the .gz to avoid decompression overhead.
+
     Returns the path to the latest file, or None if no files found.
     """
     data_dir = f"data/sequenceLabelling/grobid/{model}"
     if not os.path.exists(data_dir):
         return None
 
-    # Pattern: model-YYMMDD.train
-    pattern = re.compile(rf"^{re.escape(model)}-(\d{{6}})\.train$")
+    # Pattern: model-YYMMDD.train  or  model-YYMMDD.train.gz
+    pattern = re.compile(rf"^{re.escape(model)}-(\d{{6}})\.train(\.gz)?$")
 
     latest_file = None
     latest_date = None
+    latest_is_gz = True
 
     for filename in os.listdir(data_dir):
         match = pattern.match(filename)
         if match:
             date_str = match.group(1)
+            is_gz = match.group(2) is not None
             try:
-                # Parse YYMMDD format
                 date = datetime.strptime(date_str, "%y%m%d")
-                if latest_date is None or date > latest_date:
-                    latest_date = date
-                    latest_file = os.path.join(data_dir, filename)
             except ValueError:
                 continue
+            if latest_date is None or date > latest_date or (date == latest_date and latest_is_gz and not is_gz):
+                latest_date = date
+                latest_is_gz = is_gz
+                latest_file = os.path.join(data_dir, filename)
 
     return latest_file
 
@@ -246,8 +251,10 @@ def train(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
+    short_model_name = model
     print("Loading data...")
     if input_path is None:
         input_path = find_latest_train_file(model)
@@ -304,7 +311,9 @@ def train(
         patience=patience,
         learning_rate=learning_rate,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name=short_model_name,
     )
 
     if incremental:
@@ -357,8 +366,10 @@ def train_eval(
     early_stop=None,
     multi_gpu=False,
     report_to_wandb=False,
+    wandb_project=None,
     num_workers=None,
 ):
+    short_model_name = model
     print("Loading data...")
     if input_path is None:
         input_path = find_latest_train_file(model)
@@ -419,7 +430,9 @@ def train_eval(
         features_indices=features_indices,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
         nb_workers=num_workers,
+        short_model_name=short_model_name,
     )
 
     if incremental:
@@ -476,6 +489,7 @@ def eval_(
     architecture="BidLSTM_CRF",
     report_to_wandb=False,
     wandb_run_id=None,
+    wandb_project=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -502,7 +516,7 @@ def eval_(
 
     # Initialize wandb for eval if requested
     if report_to_wandb:
-        model.init_wandb_for_eval(run_id=wandb_run_id)
+        model.init_wandb_for_eval(run_id=wandb_run_id, wandb_project=wandb_project)
 
     # evaluation
     print("\nEvaluation:")
@@ -689,6 +703,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--wandb-project",
+        default=None,
+        help="Wandb project name. If unset, falls back to the WANDB_PROJECT env var, then to wandb's default.",
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=None,
@@ -715,6 +735,7 @@ if __name__ == "__main__":
     multi_gpu = args.multi_gpu
     wandb = args.wandb
     wandb_run_id = args.wandb_run_id
+    wandb_project = args.wandb_project
     num_workers = args.num_workers
 
     if architecture is None:
@@ -742,6 +763,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 
@@ -761,6 +783,7 @@ if __name__ == "__main__":
             architecture=architecture,
             report_to_wandb=wandb,
             wandb_run_id=wandb_run_id,
+            wandb_project=wandb_project,
         )
 
     if action == Tasks.TRAIN_EVAL:
@@ -784,6 +807,7 @@ if __name__ == "__main__":
             early_stop=early_stop,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
+            wandb_project=wandb_project,
             num_workers=num_workers,
         )
 
