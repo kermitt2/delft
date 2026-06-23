@@ -17,7 +17,8 @@ uv pip install pip
 Install the project in editable state:
 
 ```sh
-# macOS (torch is included automatically)
+# macOS or Linux CPU (torch is included automatically;
+# on macOS arm64 the wheel ships with MPS / Apple Silicon GPU support)
 uv pip install -e .
 
 # Linux with CUDA 12.8 — modern GPUs (Turing sm_75 and above: RTX 20/30/40 series, A100, H100, L40S, …)
@@ -27,13 +28,13 @@ uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu
 uv pip install -e ".[gpu-pre-turing]" --extra-index-url https://download.pytorch.org/whl/cu126
 ```
 
-> **Note:** Pick exactly one of `[gpu]` or `[gpu-pre-turing]` — they pin different PyTorch CUDA wheels (cu128 vs cu126) and cannot coexist.
+> **Note:** Pick exactly one of `[gpu]` or `[gpu-pre-turing]` — they pin different PyTorch CUDA wheels (cu128 vs cu126) and cannot coexist. The base install (no extra) pulls the standard PyTorch wheel from PyPI — a CPU build on Linux, and a native build on macOS arm64 that includes MPS (Apple Silicon GPU) support automatically.
 
 > **For training a model:** add the `[dev]` extras (which include `wandb`, `pytest`, `ruff`) — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc). Inference-only setups don't need this.
 
-DeLFT __0.4.x__ has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17. It will exploit your available GPU with the condition that CUDA 12.1 is properly installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
+DeLFT __0.5.x__ is built on PyTorch and has been tested successfully with Python 3.10/3.11. It will exploit your available GPU with the condition that a compatible CUDA 12.8 driver is installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
 
-To ensure the availability of GPU devices for the right version of TensorFlow, CUDA, cuDNN and Python, you can check the dependencies [here](https://www.tensorflow.org/install/source#gpu).
+For the PyTorch / CUDA compatibility matrix, see the [PyTorch installation guide](https://pytorch.org/get-started/locally/).
 
 ### Older NVIDIA GPUs (V100 and other pre-Turing cards)
 
@@ -67,23 +68,58 @@ uv pip install -e ".[gpu-pre-turing]" --extra-index-url https://download.pytorch
 
 If your cluster's GPU pool is heterogeneous (e.g. mixing V100 with RTX3090/A6000/L40S), the cuDNN auto-disable runs per-job — but the wheel-side issue is global to the venv. Either keep a separate `gpu-pre-turing` venv for the V100 nodes, or use the `gpu-pre-turing` extra for all nodes (modern GPUs run fine on the cu126 wheel, just slightly older toolkit).
 
-### Upgrading from 0.3.4
+## Upgrading
 
-When upgrading from DeLFT 0.3.4, be aware of the following breaking changes:
+DeLFT's public API — the `Sequence` and `Classifier` wrappers, the application CLIs, the data formats, and the architecture names — has stayed stable across releases. Most upgrade work is therefore about the runtime environment and saved artifacts rather than your own code.
 
-- **Python 3.10 or 3.11 required** (3.8 and 3.9 are no longer supported)
-- **TensorFlow 2.17 / tf_keras 2.17**: Pre-trained model weights from 0.3.4 are not directly compatible. Use the model conversion utility to migrate existing models without retraining:
-  ```sh
-  python -m delft.utilities.convert_model --input <old-model-dir> --output <new-model-dir> --verify
-  ```
-  For models saved with an older `transformers` library (tokenizer errors), add `--redownload-tokenizer`. Use `--force-partial` if the old architecture added layers not present in the current code. Run with `--dry-run` to inspect without writing
-- **CUDA 12.1 required** for GPU support (previously CUDA 11.x)
-- **LMDB embedding caches must be converted** from the old pickle format to the new float32 format:
+### From 0.3.x to 0.4.x
+
+The 0.4.x line modernized the (then TensorFlow-based) stack:
+
+- **Python 3.10 or 3.11 required** (3.8 and 3.9 are no longer supported).
+- **TensorFlow 2.17 / `tf_keras` 2.17** replaced the older TensorFlow setup.
+- **LMDB embedding caches** moved from the legacy pickle format to raw `float32` bytes (directly readable from other languages, used by [GROBID](https://github.com/kermitt2/grobid)). Convert existing caches once, or simply rebuild them:
   ```sh
   python -m delft.utilities.convert_lmdb_embeddings --input <old-lmdb-path> --output <new-lmdb-path>
   ```
-- **ELMo support has been removed** — use transformer models or static embeddings instead
-- **torch is no longer installed by default on Linux** to avoid CUDA conflicts — use the `[gpu]` extra (see install commands above)
+- **ELMo support was removed** — use transformer models or static embeddings instead.
+
+0.4.x is the last TensorFlow-based release line. If you are still on 0.3.x today, you can upgrade straight to 0.5.x (PyTorch): apply the LMDB note above, then follow the next section.
+
+### From 0.4.x to 0.5.x (migration to PyTorch)
+
+The 0.5.x line replaces the TensorFlow/Keras backend with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and the saved weights are not.
+
+What changed under the hood:
+
+| Area | 0.4.x (TensorFlow) | 0.5.x (PyTorch) |
+|------|--------------------|-----------------|
+| DL backend | `tensorflow` 2.17 / `tf_keras` 2.17 | `torch` 2.11 |
+| Transformers | `transformers` 4.x, wrapped as Keras layers | `transformers` 5.7, native PyTorch |
+| CRF layer | `tensorflow-addons` CRF + custom ChainCRF | [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) + custom ChainCRF (`crf_pytorch.py`) |
+| GPU / CUDA | CUDA 12.1 | CUDA 12.8 (`torch==…+cu128`) |
+| ELMo | supported (`--use-ELMo`) | removed |
+| New | — | ModernBERT, ONNX export, W&B resume, SLURM / `accelerate` |
+
+Upgrade steps:
+
+1. **Reinstall into a fresh virtual environment** — this avoids leftover `tensorflow` / `tf_keras` / `tensorflow-addons` packages conflicting with the new stack:
+   ```sh
+   uv venv --python 3.11
+   source .venv/bin/activate
+   uv pip install pip
+   uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128   # Linux GPU
+   # or: uv pip install -e .   # macOS / CPU
+   ```
+2. **Retrain your custom models.** TensorFlow weights cannot be loaded into the PyTorch models and there is **no automatic converter** (the previous `convert_model` utility has been removed). Because the training API is unchanged, retraining is usually just re-running your original command, e.g.:
+   ```sh
+   python -m delft.applications.grobidTagger header train_eval --architecture BERT_CRF
+   ```
+   Bundled application models (GROBID, NER, …) have already been regenerated for PyTorch and work out of the box.
+3. **Replace ELMo usages.** The `--use-ELMo` flag and the `use_ELMo` parameter are gone; use a transformer architecture (`BERT_CRF`, `BERT_ChainCRF`, …) with a domain-specific model (SciBERT, BioBERT, CamemBERT, …), or static embeddings (GloVe, fastText).
+4. **LMDB caches** built before 0.4.x: convert (or rebuild) them as in the previous section. Caches already in the 0.4.x `float32` format are reused as-is.
+
+> If you imported DeLFT internals directly (rather than the `Sequence` / `Classifier` wrappers), note that the TensorFlow modules have been removed. The PyTorch equivalents are `delft/utilities/crf_pytorch.py`, `delft/utilities/attention_pytorch.py`, `delft/sequenceLabelling/models.py`, and `delft/sequenceLabelling/data_loader.py`. The DataLoader worker policy shared by both task families lives in `delft/utilities/dataloader_utils.py`.
 
 ## Loading resources locally
 

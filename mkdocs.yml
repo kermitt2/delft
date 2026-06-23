@@ -24,6 +24,7 @@ nav:
     - 'Snippet classification': 'classifiers.md'
   - 'Sequence Labeling': 'sequence_labeling.md'
   - 'Text Classification': 'text_classification.md'
+  - 'Experiment tracking (W&B)': 'wandb.md'
   - 'Training on a cluster (SLURM)': 'distributed_training.md'
   
 

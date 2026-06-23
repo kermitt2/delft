@@ -81,6 +81,8 @@ options:
 ```
 
 
+> Add `--wandb` to any `train` / `train_eval` / `eval` command to log the run to Weights & Biases. See [Experiment tracking (W&B)](wandb.md) for setup, project selection, and resuming a run for evaluation.
+
 ## GROBID models
 
 DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. Default static embeddings for GROBID models are `glove-840B`, which can be changed with parameter `--embedding`. 
