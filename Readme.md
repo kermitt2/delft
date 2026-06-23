@@ -52,7 +52,7 @@ The **0.5.x** release line replaces the TensorFlow/Keras backend (used up to 0.4
 
 ### Other changes
 
-- Weights & Biases integration for experiment tracking, with resume support (`--wandb` flag)
+- Weights & Biases integration for experiment tracking, with resume support (`--wandb` flag) — see [Experiment tracking (W&B)](doc/wandb.md)
 - Distributed / multi-GPU training support via SLURM scripts and `accelerate` — see [Training on a cluster (SLURM)](doc/distributed_training.md)
 - ONNX export for `BidLSTM_CRF` / `BidLSTM_CRF_FEATURES` models (see below)
 - Additional checks for avoiding empty embeddings
