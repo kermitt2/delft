@@ -77,49 +77,23 @@ pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu12
 
 ## DeLFT Installation
 
-For installing DeLFT and use the current master version, get the github repo:
+To work from source (current `master`), clone the repo, set up a virtual environment, and install in editable mode:
 
 ```sh
 git clone https://github.com/kermitt2/delft
 cd delft
-```
-
-It is advised to setup first a virtual environment to avoid falling into one of these gloomy python dependency marshlands:
-
-```sh
 uv venv --python=3.11
 source .venv/bin/activate
 uv pip install pip
+uv pip install -e .          # macOS or Linux CPU (torch is included automatically)
 ```
 
-Install the project in editable state:
+For NVIDIA GPU (CUDA) wheels, older pre-Turing GPUs (V100/P100), the `[dev]` extras required for training, and upgrading from a TensorFlow-based build, follow the full **[Install DeLFT](doc/Install-DeLFT.md)** guide. See the [DeLFT documentation](https://delft.readthedocs.io) for usage.
 
-```sh
-# macOS or Linux CPU (torch is included automatically)
-uv pip install -e .
+### Experiment tracking and distributed training
 
-# Linux with CUDA 12.8 (recommended for NVIDIA GPU)
-uv pip install -e ".[gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
-```
-
-> **For training a model:** add the `[dev]` extras — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, `pytest`, or `ruff`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc).
-
-See the [DELFT documentation](https://delft.readthedocs.io) for usage. 
-
-### Send data to Weight and Biases
-
-0. Make sure `wandb` is installed — it ships with the `[dev]` extras (`uv pip install -e ".[gpu,dev]"`) and is **not** in the base install.
-1. Create a file `.env` in the root of the project with the following content:
-   
-    ```
-    WANDB_API_KEY=your_api_key
-    WANDB_PROJECT=your_project_name
-    WANDB_ENTITY=your_entity_name
-    ```
-2. use the parameter `--wandb` when running the scripts, e.g.
-    ```sh   
-    python -m delft.applications.grobidTagger date train --architecture BidLSTM --wandb
-    ```
+- **Weights & Biases** — pass `--wandb` to any `train` / `train_eval` / `eval` command to log the run. Setup (`WANDB_API_KEY`, project selection, resuming a run for evaluation) is in **[Experiment tracking (W&B)](doc/wandb.md)**.
+- **SLURM clusters** — multi-GPU training and the cluster submitter scripts are documented in **[Training on a cluster (SLURM)](doc/distributed_training.md)**.
 
 ### ONNX Export
 

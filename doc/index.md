@@ -10,5 +10,7 @@ The current release line is **0.5.x**, built on PyTorch and tested with Python 3
 - [Embeddings](embeddings.md) — how DeLFT manages static word embeddings via LMDB.
 - [NER](ner.md), [GROBID models](grobid.md), [Snippet classification](classifiers.md) — ready-to-use applications and reproducibility tables.
 - [Sequence Labeling](sequence_labeling.md) and [Text Classification](text_classification.md) — supported architectures and how to add your own.
+- [Experiment tracking (W&B)](wandb.md) — log training and evaluation runs to Weights & Biases.
+- [Training on a cluster (SLURM)](distributed_training.md) — single-node multi-GPU training and the SLURM submitter scripts.
 
 The full navigation is available in the sidebar on the left.
