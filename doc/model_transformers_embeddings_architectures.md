@@ -1,6 +1,6 @@
 # Loading transformer models
 
-DeLFT integrates HuggingFace transformers as Keras layers. A transformer can be loaded from three different sources, in order of preference (each falls back to the next if the resource is not found):
+DeLFT integrates HuggingFace transformers natively as PyTorch modules. A transformer can be loaded from three different sources, in order of preference (each falls back to the next if the resource is not found):
 
 1. **Local directory** — a self-contained HuggingFace-format model directory (config, tokenizer, weights), declared via `model_dir` in `delft/resources-registry.json`.
 2. **Plain (legacy) checkpoint** — separate config, weights and vocabulary files, declared via `path-config`, `path-weights` and `path-vocab` entries. Used to load older BERT-style checkpoints downloaded directly from the original GitHub releases.

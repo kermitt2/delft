@@ -10,7 +10,7 @@
 
 # DeLFT
 
-__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, focusing on sequence labeling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
+__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a deep-learning framework for text processing, focusing on sequence labeling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
 
 DeLFT has three main purposes: 
 
@@ -34,43 +34,28 @@ Some contributions include:
 
 * A comprehensive evaluation framework with the standard metrics for sequence labeling and classification tasks, including n-fold cross validation. 
 
-* Integration of HuggingFace transformers as Keras layers.
+* Native integration of HuggingFace transformers (including recent models such as ModernBERT).
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The DeLFT __0.4.x__ release line has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+The DeLFT __0.5.x__ release line is built on PyTorch and has been tested successfully with Python 3.10/3.11 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
 
-## Migrating from 0.3.x to 0.4.x
+## Migrating to PyTorch (0.4.x → 0.5.x)
 
-### Breaking changes
+The **0.5.x** release line replaces the TensorFlow/Keras backend (used up to 0.4.x) with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and saved weights are not. See the [Upgrading section of the installation guide](doc/Install-DeLFT.md#upgrading) for the full step-by-step. Highlights:
 
-- **TensorFlow 2.17 / tf_keras 2.17**: DeLFT now requires TensorFlow 2.17.1 and the standalone `tf_keras` 2.17.0 package. All Keras imports have been updated from `tensorflow.keras` to `tf_keras`. Pre-trained model weights from 0.3.4 are **not directly compatible**, but can be converted without retraining:
-
-  ```sh
-  python -m delft.utilities.convert_model --input <old-model-dir> --output <new-model-dir> --verify
-  ```
-
-  The converter rebuilds the model architecture from the saved `config.json`, remaps weights from the old HDF5 file into the fresh model, and saves a new weights file. Additional flags: `--redownload-tokenizer` (when the saved tokenizer is incompatible with the current `transformers` version), `--force-partial` (allow partial conversion when some weights cannot be matched), `--dry-run` (inspect without writing). Use `--help` for full options.
-
-- **Python 3.10+ required**: Python 3.8 and 3.9 are no longer supported.
-
-- **CUDA 12.1 required for GPU**: TensorFlow 2.17 requires CUDA 12.1. On Linux, torch is no longer included in the base `pip install delft` to avoid CUDA version conflicts between torch (CUDA 12.4) and TensorFlow (CUDA 12.1). Use `pip install "delft[gpu]"` with the PyTorch cu121 index instead (see installation instructions below).
-
-- **LMDB embedding format changed**: Embeddings are now stored as raw float32 bytes instead of pickle-serialized objects. This enables Java interoperability (used by [GROBID](https://github.com/kermitt2/grobid)) and improves performance. Existing LMDB caches must be converted using the provided utility:
-
-  ```sh
-  python -m delft.utilities.convert_lmdb_embeddings --input <old-lmdb-path> --output <new-lmdb-path>
-  ```
-
-- **ELMo support removed**: ELMo embeddings are no longer supported. The `use_ELMo` parameter has been removed from all application scripts and configurations. Use transformer-based models (BERT, SciBERT, etc.) or static embeddings (GloVe, fastText) instead.
+- **PyTorch backend**: `torch` 2.11, `transformers` 5.7 (native, no Keras-layer wrapping), and [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) replace TensorFlow / `tf_keras` / `tensorflow-addons`. Newer transformers such as ModernBERT are supported.
+- **Retrain custom models**: TensorFlow weights cannot be loaded into the PyTorch models and there is **no automatic converter** (the previous `convert_model` utility was removed). Bundled application models have been regenerated for PyTorch; custom models must be retrained with their original `train` / `train_eval` command.
+- **GPU / CUDA 12.8**: GPU builds target CUDA 12.8 via the `[gpu]` extra (see installation below). Reinstall into a fresh virtual environment to avoid leftover `tensorflow` packages.
+- **ELMo support removed**: the `--use-ELMo` flag and `use_ELMo` parameter are gone. Use transformer-based models (BERT, SciBERT, …) or static embeddings (GloVe, fastText) instead.
+- **LMDB embedding caches** built before 0.4.x use the legacy pickle format; convert them once with `python -m delft.utilities.convert_lmdb_embeddings --input <old> --output <new>` (or simply rebuild).
 
 ### Other changes
 
-- Weights & Biases integration for experiment tracking (`--wandb` flag)
-- Distributed training support via SLURM scripts — see [Training on a cluster (SLURM)](doc/distributed_training.md)
+- Weights & Biases integration for experiment tracking, with resume support (`--wandb` flag)
+- Distributed / multi-GPU training support via SLURM scripts and `accelerate` — see [Training on a cluster (SLURM)](doc/distributed_training.md)
+- ONNX export for `BidLSTM_CRF` / `BidLSTM_CRF_FEATURES` models (see below)
 - Additional checks for avoiding empty embeddings
-- Updated default word2vec embedding URL
-- Updated dependency versions (transformers 4.48, torch 2.5.1, numpy 1.26.4, scikit-learn 1.6.1, pandas 2.2.3)
 
 ## DeLFT Documentation
 
@@ -143,7 +128,7 @@ DeLFT supports exporting trained sequence labeling models (`BidLSTM_CRF` and `Bi
 **Export a model:**
 
 ```sh
-python -m delft.sequenceLabelling.onnx_export \
+python -m delft.applications.onnx_export \
     --model grobid-date-BidLSTM_CRF_FEATURES \
     --output exported_models/date-features
 ```

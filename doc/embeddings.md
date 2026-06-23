@@ -10,7 +10,7 @@ By default, the LMDB databases are stored under the subdirectory `data/db`. The 
 
 > I have plenty of memory on my machine, I don't care about load time because I need to grab a coffee every ten minutes, I only process one language at the time, so I am not interested in taking advantage of the LMDB emebedding management !
 
-Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `delft/resources-registry.json`, the embeddings will be loaded in memory as immutable data, like in the usual Keras scripts.
+Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `delft/resources-registry.json`, the embeddings will be loaded in memory as immutable data.
 
 ## Upgrading LMDB caches from 0.3.x to 0.4.x
 

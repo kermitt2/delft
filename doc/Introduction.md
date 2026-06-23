@@ -8,7 +8,7 @@
 
 # DeLFT
 
-__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a Keras and TensorFlow framework for text processing, focusing on sequence labeling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
+__DeLFT__ (**De**ep **L**earning **F**ramework for **T**ext) is a deep-learning framework for text processing, focusing on sequence labeling (e.g. named entity tagging, information extraction) and text classification (e.g. comment classification). This library re-implements standard state-of-the-art Deep Learning architectures relevant to text processing tasks.  
 
 DeLFT has three main purposes: 
 
@@ -32,8 +32,8 @@ Some contributions include:
 
 * A comprehensive evaluation framework with the standard metrics for sequence labeling and classification tasks, including n-fold cross validation. 
 
-* Integration of HuggingFace transformers as Keras layers
+* Native integration of HuggingFace transformers (including recent models such as ModernBERT)
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The DeLFT __0.4.x__ release line has been tested successfully with Python 3.10/3.11 and TensorFlow 2.17 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+The DeLFT __0.5.x__ release line is built on PyTorch and has been tested successfully with Python 3.10/3.11 (see the PyPI badge above for the exact current version). If you are coming from a TensorFlow-based 0.4.x build, read [Install DeLFT → Upgrading](Install-DeLFT.md#upgrading) first. As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.

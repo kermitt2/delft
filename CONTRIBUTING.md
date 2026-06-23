@@ -29,8 +29,8 @@ uv pip install pip
 # macOS
 uv pip install -e ".[dev]"
 
-# Linux with CUDA 12.1 (GPU)
-uv pip install -e ".[dev,gpu]" --extra-index-url https://download.pytorch.org/whl/cu121
+# Linux with NVIDIA CUDA 12.8 (GPU)
+uv pip install -e ".[dev,gpu]" --extra-index-url https://download.pytorch.org/whl/cu128
 ```
 
 ## Code Style

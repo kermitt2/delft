@@ -6,7 +6,7 @@
 
 The following DL architectures are supported by DeLFT:
 
-* __BidLSTM_CRF__ (CRF implementation based on recent tensorflow addons) or __BidLSTM_ChainCRF__ (CRF implementation from previous DeLFT version updated to tensorflow 2) with words and characters input following:
+* __BidLSTM_CRF__ (CRF implementation based on [`pytorch-crf`](https://pypi.org/project/pytorch-crf/)) or __BidLSTM_ChainCRF__ (custom ChainCRF implementation in `delft/utilities/crf_pytorch.py`) with words and characters input following:
 
 ```
 [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
@@ -39,14 +39,14 @@ The following DL architectures are supported by DeLFT:
 [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 ```
 
-* __BERT_CRF__ transformer architecture, for fine-tuning and a CRF as final activation layer. Any pre-trained TensorFlow BERT models can be used (e.g. DistilBERT, SciBERT or BioBERT for scientific and medical texts). 
+* __BERT_CRF__ transformer architecture, for fine-tuning and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used (e.g. DistilBERT, SciBERT or BioBERT for scientific and medical texts). 
 
 * __BERT_CRF_CHAR__ transformer architecture, for fine-tuning, with a character input channel and a CRF as final activation layer. The character input channel initializes character embeddings, which are then concatenated with BERT embeddings, followed by a bidirectional LSTM prior to the CRF layer.
-Any pre-trained TensorFlow BERT models can be used. 
+Any pre-trained BERT model from the HuggingFace Hub can be used. 
 
-* __BERT_CRF_FEATURES__ transformer architecture, for fine-tuning, with a generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format) and a CRF as final activation layer. Any pre-trained TensorFlow BERT models can be used. 
+* __BERT_CRF_FEATURES__ transformer architecture, for fine-tuning, with a generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format) and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used. 
 
-* __BERT_CRF_CHAR_FEATURES__ transformer architecture, for fine-tuning, with a character input channel, a generic feature channel and a CRF as final activation layer. Any pre-trained TensorFlow BERT models can be used. 
+* __BERT_CRF_CHAR_FEATURES__ transformer architecture, for fine-tuning, with a character input channel, a generic feature channel and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used. 
 
 All RNN models (LSTM/GRU/CNN) can further uses ELMo contextualized embeddings to improve results:
 
