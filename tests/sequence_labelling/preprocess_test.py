@@ -4,7 +4,11 @@ import os
 import numpy as np
 
 # derived from https://github.com/elifesciences/sciencebeam-trainer-delft/tree/develop/tests
-from delft.sequenceLabelling.preprocess import FeaturesPreprocessor, Preprocessor
+from delft.sequenceLabelling.preprocess import (
+    FeaturesPreprocessor,
+    Preprocessor,
+    to_vector_single,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -67,6 +71,47 @@ class TestWordPreprocessor:
         p = Preprocessor.load(preprocessor2)
 
         assert len(p.vocab_char) == 70
+
+
+class TestToVectorSingle:
+    def test_returns_zero_width_array_when_embeddings_is_none(self):
+        result = to_vector_single(["foo", "bar"], embeddings=None, maxlen=5)
+        assert result.shape == (5, 0)
+        assert result.dtype == np.float32
+
+    def test_handles_empty_token_list_when_embeddings_is_none(self):
+        result = to_vector_single([], embeddings=None, maxlen=3)
+        assert result.shape == (3, 0)
+
+
+class TestEffectiveNumWorkers:
+    def test_returns_zero_when_requested_zero(self):
+        from delft.sequenceLabelling.data_loader import _effective_num_workers
+
+        assert _effective_num_workers(0, dataset_size=1000, batch_size=16) == 0
+
+    def test_caps_to_half_the_batches(self):
+        from delft.sequenceLabelling.data_loader import _effective_num_workers
+
+        # 100 / 10 = 10 batches, half = 5; requested 11 -> capped to 5
+        assert _effective_num_workers(11, dataset_size=100, batch_size=10) == 5
+
+    def test_returns_zero_for_tiny_dataset(self):
+        from delft.sequenceLabelling.data_loader import _effective_num_workers
+
+        # 9 batches, half = 4; but with 1 batch, half = 0 -> 0 workers
+        assert _effective_num_workers(11, dataset_size=10, batch_size=20) == 0
+
+    def test_does_not_exceed_requested(self):
+        from delft.sequenceLabelling.data_loader import _effective_num_workers
+
+        # plenty of batches but only 2 requested -> stay at 2
+        assert _effective_num_workers(2, dataset_size=10000, batch_size=16) == 2
+
+    def test_handles_zero_dataset_size(self):
+        from delft.sequenceLabelling.data_loader import _effective_num_workers
+
+        assert _effective_num_workers(8, dataset_size=0, batch_size=16) == 0
 
 
 def _to_dense(a: np.array):
