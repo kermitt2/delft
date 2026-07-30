@@ -73,7 +73,7 @@ dev = [
     "pytest",
     "bump-my-version",
     "wandb",
-    "ruff",
+    "ruff<0.16.0",
 ]
 
 [project.urls]
