@@ -38,11 +38,11 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The DeLFT __0.5.x__ release line is built on PyTorch and has been tested successfully with Python 3.10/3.11 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+The DeLFT __1.0.x__ release line is built on PyTorch and has been tested successfully with Python 3.10/3.11 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
 
-## Migrating to PyTorch (0.4.x → 0.5.x)
+## Migrating to PyTorch (0.4.x → 1.0.x)
 
-The **0.5.x** release line replaces the TensorFlow/Keras backend (used up to 0.4.x) with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and saved weights are not. See the [Upgrading section of the installation guide](doc/Install-DeLFT.md#upgrading) for the full step-by-step. Highlights:
+The **1.0.x** release line replaces the TensorFlow/Keras backend (used up to 0.4.x) with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and saved weights are not. See the [Upgrading section of the installation guide](doc/Install-DeLFT.md#upgrading) for the full step-by-step. Highlights:
 
 - **PyTorch backend**: `torch` 2.11, `transformers` 5.7 (native, no Keras-layer wrapping), and [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) replace TensorFlow / `tf_keras` / `tensorflow-addons`. Newer transformers such as ModernBERT are supported.
 - **Retrain custom models**: TensorFlow weights cannot be loaded into the PyTorch models and there is **no automatic converter** (the previous `convert_model` utility was removed). Bundled application models have been regenerated for PyTorch; custom models must be retrained with their original `train` / `train_eval` command.

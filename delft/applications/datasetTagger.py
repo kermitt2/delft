@@ -333,7 +333,6 @@ if __name__ == "__main__":
         "BidLSTM_CRF",
         "BidLSTM_ChainCRF",
         "BidLSTM_CNN_CRF",
-        "BidLSTM_CNN_CRF",
         "BidGRU_CRF",
         "BidLSTM_CNN",
         "BidLSTM_CRF_CASING",
@@ -348,8 +347,6 @@ if __name__ == "__main__":
         "BERT_CRF",
         "BERT_ChainCRF",
         "BERT_CRF_FEATURES",
-        "BERT_CRF_CHAR",
-        "BERT_CRF_CHAR_FEATURES",
     ]
 
     architectures = architectures_word_embeddings + architectures_transformers_based

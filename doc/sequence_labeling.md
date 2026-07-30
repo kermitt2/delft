@@ -1,18 +1,42 @@
 ## Sequence Labelling
 
-> ⚠️ **ELMo support was removed in DeLFT 0.4.x.** The ELMo bullet below is kept for historical reference (DeLFT 0.3.x and earlier). From 0.4.x onwards, transformer-based architectures (`BERT_CRF`, `BERT_ChainCRF`, …) cover the same use case.
+> ⚠️ **ELMo support was removed in DeLFT 0.4.x.** RNN architectures can no longer be combined with ELMo contextualised embeddings. From 0.4.x onwards, transformer-based architectures (`BERT_CRF`, `BERT_ChainCRF`, …) cover the same use case.
 
 ### Available models
 
-The following DL architectures are supported by DeLFT:
+The following DL architectures are supported by DeLFT, and can be selected with the `--architecture` parameter of any application script:
 
-* __BidLSTM_CRF__ (CRF implementation based on [`pytorch-crf`](https://pypi.org/project/pytorch-crf/)) or __BidLSTM_ChainCRF__ (custom ChainCRF implementation in `delft/utilities/crf_pytorch.py`) with words and characters input following:
+| RNN architectures | Transformer architectures |
+|---|---|
+| `BidLSTM` | `BERT` |
+| `BidLSTM_CRF` | `BERT_CRF` |
+| `BidLSTM_ChainCRF` | `BERT_ChainCRF` |
+| `BidLSTM_CRF_FEATURES` | `BERT_FEATURES` |
+| `BidLSTM_ChainCRF_FEATURES` | `BERT_CRF_FEATURES` |
+| `BidLSTM_CRF_CASING` | `BERT_ChainCRF_FEATURES` |
+| `BidLSTM_CNN` | |
+| `BidLSTM_CNN_CRF` | |
+| `BidGRU_CRF` | |
+
+Two CRF decoders are available and give the naming convention above: `*_CRF` uses
+[`pytorch-crf`](https://pypi.org/project/pytorch-crf/), while `*_ChainCRF` uses the custom ChainCRF
+implementation in `delft/utilities/crf_pytorch.py`. They are interchangeable — the rest of the
+network is identical. Architectures without a CRF suffix (`BidLSTM`, `BERT`, `BERT_FEATURES`) use a
+plain softmax output instead.
+
+The authoritative list is `MODEL_REGISTRY` in `delft/sequenceLabelling/models.py`.
+
+* __BidLSTM__ with words and characters input and a softmax output — the simplest RNN tagger, useful as a fast baseline.
+
+* __BidLSTM_CRF__ or __BidLSTM_ChainCRF__ with words and characters input following:
 
 ```
 [1] Guillaume Lample, Miguel Ballesteros, Sandeep Subramanian, Kazuya Kawakami, Chris Dyer. "Neural Architectures for Named Entity Recognition". Proceedings of NAACL 2016. https://arxiv.org/abs/1603.01360
 ```
 
-* __BidLSTM_CRF_FEATURES__ same as above, with generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format).
+* __BidLSTM_CRF_FEATURES__ / __BidLSTM_ChainCRF_FEATURES__ same as above, with generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format).
+
+* __BidLSTM_CRF_CASING__ same as __BidLSTM_CRF__, with an additional casing feature channel derived from the surface form of each token.
 
 * __BidLSTM_CNN__ with words, characters and custom casing features input, see:
 
@@ -39,22 +63,11 @@ The following DL architectures are supported by DeLFT:
 [6] Jacob Devlin, Ming-Wei Chang, Kenton Lee, and Kristina Toutanova, BERT: Pre-training of Deep Bidirectional Transformers for Language Understanding. 2018. https://arxiv.org/abs/1810.04805
 ```
 
-* __BERT_CRF__ transformer architecture, for fine-tuning and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used (e.g. DistilBERT, SciBERT or BioBERT for scientific and medical texts). 
+* __BERT_CRF__ / __BERT_ChainCRF__ transformer architecture, for fine-tuning and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used (e.g. DistilBERT, SciBERT or BioBERT for scientific and medical texts). 
 
-* __BERT_CRF_CHAR__ transformer architecture, for fine-tuning, with a character input channel and a CRF as final activation layer. The character input channel initializes character embeddings, which are then concatenated with BERT embeddings, followed by a bidirectional LSTM prior to the CRF layer.
-Any pre-trained BERT model from the HuggingFace Hub can be used. 
+* __BERT_FEATURES__ transformer architecture, for fine-tuning, with a generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format) and a softmax output. Any pre-trained BERT model from the HuggingFace Hub can be used. 
 
-* __BERT_CRF_FEATURES__ transformer architecture, for fine-tuning, with a generic feature channel (feature matrix can be provided in the usual CRF++/Wapiti/YamCha format) and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used. 
-
-* __BERT_CRF_CHAR_FEATURES__ transformer architecture, for fine-tuning, with a character input channel, a generic feature channel and a CRF as final activation layer. Any pre-trained BERT model from the HuggingFace Hub can be used. 
-
-All RNN models (LSTM/GRU/CNN) can further uses ELMo contextualized embeddings to improve results:
-
-* [__ELMo__](https://allennlp.org/elmo) contextualised embeddings, see:
-
-```
-[7] Matthew E. Peters, Mark Neumann, Mohit Iyyer, Matt Gardner, Christopher Clark, Kenton Lee, Luke Zettlemoyer. "Deep contextualized word representations". 2018. https://arxiv.org/abs/1802.05365
-```
+* __BERT_CRF_FEATURES__ / __BERT_ChainCRF_FEATURES__ same as above, with a CRF as final activation layer instead of the softmax output. Any pre-trained BERT model from the HuggingFace Hub can be used. 
 
 Note that all our annotation data for sequence labelling follows the [IOB2](https://en.wikipedia.org/wiki/Inside%E2%80%93outside%E2%80%93beginning_(tagging)) scheme and we did not find any advantages to add alternative labelling scheme after experiments.
 

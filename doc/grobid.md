@@ -30,12 +30,11 @@ options:
   --architecture ARCHITECTURE
                         Type of model architecture to be used, one of
                         ['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF',
-                        'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF',
+                        'BidLSTM_CNN_CRF', 'BidGRU_CRF',
                         'BidLSTM_CNN', 'BidLSTM_CRF_CASING',
                         'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES',
                         'BERT', 'BERT_FEATURES', 'BERT_CRF', 'BERT_ChainCRF',
-                        'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES',
-                        'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
+                        'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES']
   --output OUTPUT       Directory where to save a trained model.
   --embedding EMBEDDING
                         The desired pre-trained word embeddings, see --help
@@ -87,16 +86,19 @@ options:
 
 DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. Default static embeddings for GROBID models are `glove-840B`, which can be changed with parameter `--embedding`. 
 
+For an end-to-end comparison of architectures on the `header` model (F1-score and runtime on the PMC evaluation set), see [Header model evaluation summary](features_header_eval_summary.md).
+
 Train a model with all available training data:
 
 ```sh
-python3  *name-of-model* train --architecture *name-of-architecture*
+python3 delft/applications/grobidTagger.py *name-of-model* train --architecture *name-of-architecture*
 ```
 
-where *name-of-model* is one of GROBID model (_date_, _affiliation-address_, _citation_, _header_, _name-citation_, _name-header_, ...), for instance:
+where *name-of-model* is one of GROBID model (_date_, _affiliation-address_, _citation_, _header_, _name-citation_, _name-header_, ...),
 
-and where *name-of-architecture* is one of `['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES', 'BERT', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']`.
+and where *name-of-architecture* is one of `['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF', 'BidLSTM_CNN', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CRF_CASING', 'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES', 'BERT', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_FEATURES', 'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES']` (see [Sequence Labeling](sequence_labeling.md#available-models)).
 
+For instance, for the _date_ model:
 
 ```sh
 python3 delft/applications/grobidTagger.py date train --architecture BidLSTM_CRF

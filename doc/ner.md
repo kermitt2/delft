@@ -78,9 +78,10 @@ optional arguments:
   --train-with-validation-set
                         Use the validation set for training together with the training set
   --architecture ARCHITECTURE
-                        type of model architecture to be used, one of ['BidLSTM_CRF', 'BidLSTM_CNN_CRF',
-                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BERT',
-                        'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
+                        type of model architecture to be used, one of ['BidLSTM', 'BidLSTM_CRF',
+                        'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN',
+                        'BidLSTM_CRF_CASING', 'BERT', 'BERT_CRF', 'BERT_ChainCRF',
+                        'BERT_CRF_FEATURES']
   --data-path DATA_PATH
                         path to the corpus of documents for training (only use currently with Ontonotes
                         corpus in orginal XML format)
@@ -680,9 +681,10 @@ optional arguments:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
   --architecture ARCHITECTURE
-                        Type of model architecture to be used, one of ['BidLSTM_CRF', 'BidLSTM_CNN_CRF',
-                        'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN', 'BidLSTM_CRF_CASING', 'BERT',
-                        'BERT_CRF', 'BERT_CRF_FEATURES', 'BERT_CRF_CHAR', 'BERT_CRF_CHAR_FEATURES']
+                        Type of model architecture to be used, one of ['BidLSTM', 'BidLSTM_CRF',
+                        'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN',
+                        'BidLSTM_CRF_CASING', 'BERT', 'BERT_CRF', 'BERT_ChainCRF',
+                        'BERT_CRF_FEATURES']
   --embedding EMBEDDING
                         The desired pre-trained word embeddings using their descriptions in the file. For
                         local loading, use delft/resources-registry.json. Be sure to use here the same

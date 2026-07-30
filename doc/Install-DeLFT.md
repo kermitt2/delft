@@ -32,7 +32,7 @@ uv pip install -e ".[gpu-pre-turing]" --extra-index-url https://download.pytorch
 
 > **For training a model:** add the `[dev]` extras (which include `wandb`, `pytest`, `ruff`) — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc). Inference-only setups don't need this.
 
-DeLFT __0.5.x__ is built on PyTorch and has been tested successfully with Python 3.10/3.11. It will exploit your available GPU with the condition that a compatible CUDA 12.8 driver is installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
+DeLFT __1.0.x__ is built on PyTorch and has been tested successfully with Python 3.10/3.11. It will exploit your available GPU with the condition that a compatible CUDA 12.8 driver is installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
 
 For the PyTorch / CUDA compatibility matrix, see the [PyTorch installation guide](https://pytorch.org/get-started/locally/).
 
@@ -84,15 +84,15 @@ The 0.4.x line modernized the (then TensorFlow-based) stack:
   ```
 - **ELMo support was removed** — use transformer models or static embeddings instead.
 
-0.4.x is the last TensorFlow-based release line. If you are still on 0.3.x today, you can upgrade straight to 0.5.x (PyTorch): apply the LMDB note above, then follow the next section.
+0.4.x is the last TensorFlow-based release line. If you are still on 0.3.x today, you can upgrade straight to 1.0.x (PyTorch): apply the LMDB note above, then follow the next section.
 
-### From 0.4.x to 0.5.x (migration to PyTorch)
+### From 0.4.x to 1.0.x (migration to PyTorch)
 
-The 0.5.x line replaces the TensorFlow/Keras backend with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and the saved weights are not.
+The 1.0.x line replaces the TensorFlow/Keras backend with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and the saved weights are not.
 
 What changed under the hood:
 
-| Area | 0.4.x (TensorFlow) | 0.5.x (PyTorch) |
+| Area | 0.4.x (TensorFlow) | 1.0.x (PyTorch) |
 |------|--------------------|-----------------|
 | DL backend | `tensorflow` 2.17 / `tf_keras` 2.17 | `torch` 2.11 |
 | Transformers | `transformers` 4.x, wrapped as Keras layers | `transformers` 5.7, native PyTorch |

@@ -4,9 +4,9 @@
 
 DeLFT is designed around three goals: covering rich text (tokens with layout / structural features, not just plain sentences), reproducibility and benchmarking under comparable evaluation criteria, and production-level performance and integration. A native Java integration of the library is available in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The current release line is **0.5.x**, built on PyTorch and tested with Python 3.10/3.11. Upgrading from a TensorFlow-based build? See [Install DeLFT → Upgrading](Install-DeLFT.md#upgrading) first. See [Introduction](Introduction.md) for the full feature overview, or jump straight to:
+The current release line is **1.0.x**, built on PyTorch and tested with Python 3.10/3.11. Upgrading from a TensorFlow-based build? See [Install DeLFT → Upgrading](Install-DeLFT.md#upgrading) first. See [Introduction](Introduction.md) for the full feature overview, or jump straight to:
 
-- [Install DeLFT](Install-DeLFT.md) — get a working environment in a few commands, plus the [Upgrading](Install-DeLFT.md#upgrading) notes (including the 0.4.x → 0.5.x PyTorch migration).
+- [Install DeLFT](Install-DeLFT.md) — get a working environment in a few commands, plus the [Upgrading](Install-DeLFT.md#upgrading) notes (including the 0.4.x → 1.0.x PyTorch migration).
 - [Embeddings](embeddings.md) — how DeLFT manages static word embeddings via LMDB.
 - [NER](ner.md), [GROBID models](grobid.md), [Snippet classification](classifiers.md) — ready-to-use applications and reproducibility tables.
 - [Sequence Labeling](sequence_labeling.md) and [Text Classification](text_classification.md) — supported architectures and how to add your own.

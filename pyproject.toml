@@ -13,15 +13,9 @@ filename = "pyproject.toml"
 search = 'version = "{current_version}"'
 replace = 'version = "{new_version}"'
 
-[[tool.bumpversion.files]]
-filename = "Readme.md"
-search = "The latest DeLFT release __{current_version}__"
-replace = "The latest DeLFT release __{new_version}__"
-
-[[tool.bumpversion.files]]
-filename = "doc/Install-DeLFT.md"
-search = "Current DeLFT version is __{current_version}__"
-replace = "Current DeLFT version is __{new_version}__"
+# The docs intentionally refer to release *lines* ("the 1.0.x release line") and
+# point at the PyPI badge for the exact version, so there is no per-patch version
+# string to rewrite there.
 
 [project]
 name = "delft"
