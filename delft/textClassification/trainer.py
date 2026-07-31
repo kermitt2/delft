@@ -3,9 +3,44 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import r2_score, roc_auc_score
 
 from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
+
+
+def compute_roc_auc(y_true, y_pred):
+    """
+    Mean ROC-AUC over the classes of a (possibly multi-label) problem.
+
+    Each class is scored on its own rather than through roc_auc_score's own
+    averaging: a class holding a single label value in this split makes
+    roc_auc_score raise, and averaging them all in one call turns that into a
+    0.0 for the whole evaluation instead of for that one class. Such a class
+    falls back to r2_score, clamped at 0, as the Keras implementation did.
+
+    Args:
+        y_true: (n_samples, n_classes) array of true labels
+        y_pred: (n_samples, n_classes) array of predicted probabilities
+
+    Returns:
+        The mean score as a float, 0.0 when there are no classes.
+    """
+    num_classes = y_true.shape[1]
+    if num_classes == 0:
+        return 0.0
+
+    total_roc_auc = 0.0
+    for j in range(num_classes):
+        if len(np.unique(y_true[:, j])) == 1:
+            class_roc_auc = max(0.0, r2_score(y_true[:, j], y_pred[:, j]))
+        else:
+            try:
+                class_roc_auc = roc_auc_score(y_true[:, j], y_pred[:, j])
+            except ValueError:
+                class_roc_auc = 0.0
+        total_roc_auc += class_roc_auc
+
+    return total_roc_auc / num_classes
 
 
 class Trainer(object):
@@ -122,17 +157,4 @@ class Trainer(object):
         y_true = np.concatenate(all_labels, axis=0)
         y_pred = np.concatenate(all_preds, axis=0)
 
-        # Calculate ROC-AUC
-        # Handle single class vs multi-class
-        if y_true.shape[1] > 1:
-            try:
-                roc_auc = roc_auc_score(y_true, y_pred, average="macro")
-            except ValueError:
-                roc_auc = 0.0
-        else:
-            try:
-                roc_auc = roc_auc_score(y_true, y_pred)
-            except ValueError:
-                roc_auc = 0.0
-
-        return {"loss": avg_val_loss, "roc_auc": roc_auc}
+        return {"loss": avg_val_loss, "roc_auc": compute_roc_auc(y_true, y_pred)}
