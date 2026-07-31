@@ -8,6 +8,40 @@ from sklearn.metrics import r2_score, roc_auc_score
 from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
 
 
+def restore_best_weights(model, checkpoint_filepath, device="cpu"):
+    """
+    Load the best-epoch checkpoint back into the model and drop the file.
+
+    ModelCheckpoint writes the weights of the best epoch as training goes, but
+    the model left in memory at the end of training is the last epoch's. The
+    checkpoint is a temporary artefact - the wrapper saves the real model - so
+    it is removed once restored.
+
+    Args:
+        model: the model to restore in place, DDP-wrapped or not
+        checkpoint_filepath: path written by ModelCheckpoint
+        device: map_location for torch.load
+
+    Returns:
+        True when weights were restored, False when there is no checkpoint
+        (no validation set, or no epoch ever improved).
+    """
+    if not os.path.exists(checkpoint_filepath):
+        return False
+
+    # ModelCheckpoint saves module.state_dict() for DDP-wrapped models
+    target = model.module if hasattr(model, "module") else model
+    # the checkpoint is a plain state_dict written by ModelCheckpoint
+    target.load_state_dict(torch.load(checkpoint_filepath, map_location=device, weights_only=True))
+
+    try:
+        os.remove(checkpoint_filepath)
+    except OSError:
+        pass  # ignore if the file can't be removed
+
+    return True
+
+
 def compute_roc_auc(y_true, y_pred):
     """
     Mean ROC-AUC over the classes of a (possibly multi-label) problem.
@@ -121,6 +155,12 @@ class Trainer(object):
                 if self.early_stopping(val_metrics["loss"]):
                     print("Early stopping")
                     break
+
+        # Training ends on the last epoch, which - with early stopping - is
+        # `patience` epochs past the best one. Put the best weights back before
+        # the wrapper saves the model, as the sequence labelling trainer does.
+        if restore_best_weights(self.model, self.model_checkpoint.filepath, self.device):
+            print(f"Restored best weights from {self.model_checkpoint.filepath}")
 
     def evaluate(self, dataloader):
         self.model.eval()
