@@ -10,6 +10,7 @@ import pickle
 import shutil
 import struct
 import sys
+import threading
 import zipfile
 
 import lmdb
@@ -30,6 +31,71 @@ from delft.utilities.Utilities import download_file
 
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
+
+# Since py-lmdb 1.0, opening the same environment twice in a process raises
+#   lmdb.Error: The environment '<path>' is already open in this process.
+# whatever the readonly/lock flags. Embedding databases are read-only and
+# shareable, and hosts like GROBID legitimately need several Embeddings over the
+# same database: one Sequence model is loaded per document structure, all in a
+# single JEP SharedInterpreter. So environments are cached per resolved path and
+# reused, which also keeps a single reader locktable for the whole process.
+#
+# The pid is stored next to the environment: a handle inherited through fork()
+# is unusable in the child but still occupies a slot in py-lmdb's registry
+# there, so it has to be closed before a fresh one can be opened.
+_lmdb_env_lock = threading.RLock()
+_lmdb_envs = {}
+
+
+def _lmdb_env_key(path):
+    return os.path.realpath(path)
+
+
+def open_lmdb_env(path, **kwargs):
+    """
+    Open an LMDB environment, or reuse the one already open for this path in
+    this process.
+
+    Returns a (environment, opened) tuple, where `opened` is False when an
+    existing environment was handed back instead of a newly opened one.
+    """
+    key = _lmdb_env_key(path)
+    pid = os.getpid()
+    with _lmdb_env_lock:
+        cached = _lmdb_envs.get(key)
+        if cached is not None:
+            cached_pid, cached_env = cached
+            if cached_pid == pid:
+                return cached_env, False
+            # inherited through fork(): release the slot before reopening
+            del _lmdb_envs[key]
+            try:
+                cached_env.close()
+            except Exception:
+                pass
+        env = lmdb.open(path, **kwargs)
+        _lmdb_envs[key] = (pid, env)
+        return env, True
+
+
+def close_lmdb_env(path):
+    """Close and forget the environment cached for this path, if any."""
+    with _lmdb_env_lock:
+        cached = _lmdb_envs.pop(_lmdb_env_key(path), None)
+    if cached is not None:
+        try:
+            cached[1].close()
+        except Exception:
+            pass
+
+
+def current_lmdb_env(path):
+    """The environment currently cached for this path in this process, or None."""
+    with _lmdb_env_lock:
+        cached = _lmdb_envs.get(_lmdb_env_key(path))
+    if cached is None or cached[0] != os.getpid():
+        return None
+    return cached[1]
 
 
 class Embeddings(object):
@@ -70,10 +136,9 @@ class Embeddings(object):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
-            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
-            self.env = lmdb.open(
-                envFilePath,
+        if self.has_lmdb_env():
+            self.env, _ = open_lmdb_env(
+                self.lmdb_env_path(),
                 readonly=True,
                 max_readers=2048,
                 max_spare_txns=2,
@@ -86,28 +151,37 @@ class Embeddings(object):
                     break
                 cursor.close()
 
+    def lmdb_env_path(self):
+        """Path of the LMDB database backing these embeddings, or None."""
+        if not self.embedding_lmdb_path:
+            return None
+        return os.path.join(self.embedding_lmdb_path, self.name)
+
+    def has_lmdb_env(self):
+        """Whether an LMDB database exists on disk for these embeddings."""
+        envFilePath = self.lmdb_env_path()
+        return envFilePath is not None and os.path.isdir(envFilePath)
+
     def reopen_lmdb(self):
         """
         Reopen the LMDB environment for fork-safe multiprocessing. Call from a
         DataLoader worker_init_fn so each worker gets a fresh handle. No-op when
         embeddings aren't backed by LMDB.
+
+        A handle inherited from the parent is recognised by pid and closed by
+        open_lmdb_env, so when several Embeddings share one database and each
+        calls this in the same worker, the database is reopened once and they
+        all get the same handle.
         """
-        if self.env is None and self.embedding_lmdb_path is None:
+        if not self.has_lmdb_env():
             return
-        if self.env is not None:
-            try:
-                self.env.close()
-            except Exception:
-                pass
-        if self.embedding_lmdb_path and os.path.isdir(os.path.join(self.embedding_lmdb_path, self.name)):
-            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
-            self.env = lmdb.open(
-                envFilePath,
-                readonly=True,
-                max_readers=2048,
-                max_spare_txns=2,
-                lock=False,
-            )
+        self.env, _ = open_lmdb_env(
+            self.lmdb_env_path(),
+            readonly=True,
+            max_readers=2048,
+            max_spare_txns=2,
+            lock=False,
+        )
 
     def make_embeddings_simple_in_memory(self, name="fasttext-crawl"):
         nbWords = 0
@@ -297,42 +371,59 @@ class Embeddings(object):
                 if description is not None:
                     self.lang = description["lang"]
 
-                # open the database in read mode
-                self.env = lmdb.open(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+                # open the database in read mode, or reuse the environment
+                # already open on this path in the current process
+                self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
                 if self.env:
-                    # we need to set self.embed_size and self.vocab_size
-                    with self.env.begin() as txn:
-                        stats = txn.stat()
-                        size = stats["entries"]
-                        self.vocab_size = size
+                    try:
+                        # we need to set self.embed_size and self.vocab_size
+                        with self.env.begin() as txn:
+                            stats = txn.stat()
+                            size = stats["entries"]
+                            self.vocab_size = size
 
-                    with self.env.begin() as txn:
-                        cursor = txn.cursor()
-                        for key, value in cursor:
-                            _check_lmdb_format(value)
-                            vector = _deserialize_float32(value)
-                            self.embed_size = vector.shape[0]
-                            break
-                        cursor.close()
+                        with self.env.begin() as txn:
+                            cursor = txn.cursor()
+                            for key, value in cursor:
+                                _check_lmdb_format(value)
+                                vector = _deserialize_float32(value)
+                                self.embed_size = vector.shape[0]
+                                break
+                            cursor.close()
+                    except Exception:
+                        # never leave an environment behind on the way out: the
+                        # real cause (a legacy-format database, say) would then
+                        # be masked by "already open in this process" on the
+                        # next attempt
+                        if opened:
+                            close_lmdb_env(envFilePath)
+                            self.env = None
+                        raise
 
                     if self.vocab_size > 100 and self.embed_size > 10:
                         # lmdb database exists and looks valid
                         load_db = False
 
-                        # no idea why, but we need to close and reopen the environment to avoid
-                        # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-                        # when opening new transaction !
-                        self.env.close()
-                        self.env = lmdb.open(
-                            envFilePath,
-                            readonly=True,
-                            max_readers=2048,
-                            max_spare_txns=2,
-                        )
+                        if opened:
+                            # no idea why, but we need to close and reopen the environment to avoid
+                            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+                            # when opening new transaction !
+                            # Only for an environment we opened ourselves: a reused
+                            # one already went through this and is read by others.
+                            close_lmdb_env(envFilePath)
+                            self.env, _ = open_lmdb_env(
+                                envFilePath,
+                                readonly=True,
+                                max_readers=2048,
+                                max_spare_txns=2,
+                            )
 
             if load_db:
-                # create and load the database in write mode
-                self.env = lmdb.open(envFilePath, map_size=map_size)
+                # create and load the database in write mode. The check above may
+                # have left a read-only environment open on this path, and write
+                # mode needs an exclusive open.
+                close_lmdb_env(envFilePath)
+                self.env, _ = open_lmdb_env(envFilePath, map_size=map_size)
                 self.make_embeddings_lmdb(name)
 
     def get_description(self, name):
@@ -347,7 +438,7 @@ class Embeddings(object):
                 return emb
         return None
 
-    def get_word_vector(self, word):
+    def get_word_vector(self, word, _retry=True):
         """
         Get static embeddings (e.g. glove) for a given token
         """
@@ -369,20 +460,40 @@ class Embeddings(object):
                     # word_vector = np.random.uniform(low=-0.5, high=0.0, size=(self.embed_size,))
                     # alternatively use fasttext OOV ngram possibilities (if ngram available)
         except lmdb.Error:
-            # no idea why, but we need to close and reopen the environment to avoid
-            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-            # when opening new transaction !
-            self.env.close()
-            envFilePath = os.path.join(self.embedding_lmdb_path, self.name)
-            self.env = lmdb.open(
+            if not _retry:
+                # a second failure is a real problem, not a stale handle
+                raise
+            self.env = self.recover_lmdb_env()
+            return self.get_word_vector(word, _retry=False)
+        return word_vector
+
+    def recover_lmdb_env(self):
+        """
+        Recover the LMDB environment after a failed transaction, typically
+        mdb_txn_begin: MDB_BAD_RSLOT (invalid reuse of a reader locktable slot),
+        or a handle closed by another holder.
+
+        The environment is shared process-wide, so several Embeddings instances
+        may hold the same object. Only the caller still holding the current
+        handle reopens it; a caller holding a superseded one adopts the
+        replacement, otherwise concurrent readers would close each other's
+        freshly opened environment in turn.
+        """
+        envFilePath = self.lmdb_env_path()
+        with _lmdb_env_lock:
+            current = current_lmdb_env(envFilePath)
+            if current is not None and current is not self.env:
+                # already reopened by another instance or another thread
+                return current
+            close_lmdb_env(envFilePath)
+            env, _ = open_lmdb_env(
                 envFilePath,
                 readonly=True,
                 max_readers=2048,
                 max_spare_txns=2,
                 lock=False,
             )
-            return self.get_word_vector(word)
-        return word_vector
+            return env
 
     def get_word_vector_in_memory(self, word):
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):

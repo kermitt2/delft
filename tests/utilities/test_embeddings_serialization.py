@@ -12,7 +12,13 @@ import struct
 
 import lmdb
 
-from delft.utilities.Embeddings import Embeddings, _fetch_header_if_available
+from delft.utilities.Embeddings import (
+    Embeddings,
+    _fetch_header_if_available,
+    close_lmdb_env,
+    current_lmdb_env,
+    open_lmdb_env,
+)
 
 
 def _make_fake_lmdb(parent_dir: str, name: str, vector_dict: dict) -> None:
@@ -100,6 +106,88 @@ def test_reopen_lmdb_opens_on_demand(tmp_path):
     assert emb.env is not None
     vector = emb.get_word_vector("hello")
     assert vector.shape == (5,)
+
+
+class TestSharedLmdbEnvironment:
+    """
+    py-lmdb >= 1.0 refuses to open the same environment twice in one process:
+        lmdb.Error: The environment '<path>' is already open in this process.
+    GROBID loads one Sequence model per document structure into a single JEP
+    SharedInterpreter, so several Embeddings end up over the same database.
+    """
+
+    def test_several_embeddings_share_one_environment(self, tmp_path):
+        _make_fake_lmdb(str(tmp_path), "fake-embed", {"hello": [0.1, 0.2, 0.3, 0.4, 0.5]})
+        envpath = os.path.join(str(tmp_path), "fake-embed")
+        try:
+            header = _make_embeddings(str(tmp_path), "fake-embed", embed_size=5)
+            citation = _make_embeddings(str(tmp_path), "fake-embed", embed_size=5)
+
+            header.reopen_lmdb()
+            citation.reopen_lmdb()  # used to raise lmdb.Error
+
+            assert header.env is citation.env
+            assert header.get_word_vector("hello").shape == (5,)
+            assert citation.get_word_vector("hello").shape == (5,)
+        finally:
+            close_lmdb_env(envpath)
+
+    def test_open_lmdb_env_reports_reuse(self, tmp_path):
+        _make_fake_lmdb(str(tmp_path), "fake-embed", {"hello": [0.1, 0.2, 0.3, 0.4, 0.5]})
+        envpath = os.path.join(str(tmp_path), "fake-embed")
+        try:
+            first, opened_first = open_lmdb_env(envpath, readonly=True)
+            second, opened_second = open_lmdb_env(envpath, readonly=True)
+
+            assert opened_first is True
+            assert opened_second is False
+            assert first is second
+
+            # another spelling of the same path resolves to the same entry
+            third, opened_third = open_lmdb_env(os.path.join(str(tmp_path), ".", "fake-embed"), readonly=True)
+            assert opened_third is False
+            assert third is first
+        finally:
+            close_lmdb_env(envpath)
+        assert current_lmdb_env(envpath) is None
+
+    def test_recovery_adopts_replacement_instead_of_reopening(self, tmp_path):
+        _make_fake_lmdb(str(tmp_path), "fake-embed", {"hello": [0.1, 0.2, 0.3, 0.4, 0.5]})
+        envpath = os.path.join(str(tmp_path), "fake-embed")
+        try:
+            header = _make_embeddings(str(tmp_path), "fake-embed", embed_size=5)
+            citation = _make_embeddings(str(tmp_path), "fake-embed", embed_size=5)
+            header.reopen_lmdb()
+            citation.reopen_lmdb()
+            superseded = header.env
+
+            # header hits MDB_BAD_RSLOT and reopens the shared environment
+            recovered = header.recover_lmdb_env()
+            assert recovered is not superseded
+
+            # citation still holds the superseded handle: it must adopt the new
+            # one rather than close it and open yet another
+            adopted = citation.recover_lmdb_env()
+            assert adopted is recovered
+
+            citation.env = adopted
+            assert citation.get_word_vector("hello").shape == (5,)
+        finally:
+            close_lmdb_env(envpath)
+
+    def test_get_word_vector_recovers_from_closed_environment(self, tmp_path):
+        _make_fake_lmdb(str(tmp_path), "fake-embed", {"hello": [0.1, 0.2, 0.3, 0.4, 0.5]})
+        envpath = os.path.join(str(tmp_path), "fake-embed")
+        try:
+            emb = _make_embeddings(str(tmp_path), "fake-embed", embed_size=5)
+            emb.reopen_lmdb()
+            emb.env.close()  # a handle closed underneath us
+
+            vector = emb.get_word_vector("hello")
+            assert vector.shape == (5,)
+            assert abs(float(vector.sum()) - 1.5) < 1e-5
+        finally:
+            close_lmdb_env(envpath)
 
 
 class TestFetchHeaderIfAvailable:
