@@ -14,7 +14,31 @@ from delft.textClassification.trainer import Trainer
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
+from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Utilities import pick_device
+
+
+def split_train_validation(x_train, y_train, split_ratio=0.9):
+    """
+    Carve a validation set off the end of the training data.
+
+    The data is shuffled first, keeping x and y aligned: the split is positional,
+    so class-ordered input would leave whole classes out of validation, and a
+    class holding a single label value there has no defined ROC-AUC (see
+    delft.textClassification.trainer.compute_roc_auc).
+
+    Returns:
+        (x_train, y_train, x_valid, y_valid)
+    """
+    x_train, y_train, _ = shuffle_triple_with_view(np.asarray(x_train), np.asarray(y_train))
+    split_idx = int(len(x_train) * split_ratio)
+    return (
+        x_train[:split_idx],
+        y_train[:split_idx],
+        x_train[split_idx:],
+        y_train[split_idx:],
+    )
+
 
 # File names for saving/loading
 PREPROCESSOR_FILE = "preprocessor.json"
@@ -207,11 +231,7 @@ class Classifier(object):
         y_valid = None
 
         if self.training_config.early_stop:
-            split_idx = int(len(x_train) * 0.9)
-            x_valid = x_train[split_idx:]
-            y_valid = y_train[split_idx:]
-            x_train = x_train[:split_idx]
-            y_train = y_train[:split_idx]
+            x_train, y_train, x_valid, y_valid = split_train_validation(x_train, y_train)
 
         # Init model
         self.model = getModel(self.model_config, self.training_config)
