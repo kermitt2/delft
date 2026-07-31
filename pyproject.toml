@@ -56,7 +56,7 @@ dependencies = [
     "requests>=2.20",
     "pandas==2.2.3",
     "transformers==4.48.0",
-    "torch==2.5.1 ; sys_platform == 'darwin'",
+    "torch==2.13.0 ; sys_platform == 'darwin'",
     "tfa-nightly==0.23.0.dev20240415222534",
     "blingfire2==0.2.1",
     "accelerate>=0.20.3",
@@ -66,7 +66,7 @@ dependencies = [
 
 [project.optional-dependencies]
 gpu = [
-    "torch==2.5.1+cu121",
+    "torch==2.13.0",
 ]
 dev = [
     "pytest",
