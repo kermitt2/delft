@@ -97,15 +97,19 @@ class Trainer(object):
 
         self.criterion = nn.BCEWithLogitsLoss()
 
-        # Callbacks - use mode="min" for loss-based early stopping
-        self.early_stopping = EarlyStopping(patience=training_config.patience, min_delta=0, mode="min")
+        # Metric driving both checkpointing and early stopping: ROC-AUC when
+        # use_roc_auc is set (higher is better), validation loss otherwise.
+        self.monitor = "roc_auc" if training_config.use_roc_auc else "loss"
+        monitor_mode = "max" if self.monitor == "roc_auc" else "min"
+
+        self.early_stopping = EarlyStopping(patience=training_config.patience, min_delta=0, mode=monitor_mode)
 
         # Model checkpoint with model-specific filename
         checkpoint_filename = f"{model_config.model_name}_best_model.pth"
         checkpoint_filepath = (
             os.path.join(checkpoint_path, checkpoint_filename) if checkpoint_path else checkpoint_filename
         )
-        self.model_checkpoint = ModelCheckpoint(checkpoint_filepath, monitor="loss", mode="min")
+        self.model_checkpoint = ModelCheckpoint(checkpoint_filepath, monitor=self.monitor, mode=monitor_mode)
 
     def train(self, train_loader, valid_loader=None):
         for epoch in range(self.training_config.max_epoch):
@@ -142,17 +146,13 @@ class Trainer(object):
                 val_metrics = self.evaluate(valid_loader)
                 print(f"Val Loss: {val_metrics['loss']:.4f}, ROC-AUC: {val_metrics['roc_auc']:.4f}")
 
-                # Check metrics for early stopping
-                # Default to ROC-AUC if enabled, else Loss
-                if self.training_config.use_roc_auc:
-                    # score = val_metrics["roc_auc"]
-                    pass
+                score = val_metrics[self.monitor]
 
                 # Save model checkpoint if improved
-                self.model_checkpoint(self.model, val_metrics["loss"])
+                self.model_checkpoint(self.model, score)
 
-                # Check early stopping (uses loss for stopping decision)
-                if self.early_stopping(val_metrics["loss"]):
+                # Check early stopping
+                if self.early_stopping(score):
                     print("Early stopping")
                     break
 

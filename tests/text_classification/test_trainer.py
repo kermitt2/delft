@@ -7,8 +7,10 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+from torch.utils.data import DataLoader, TensorDataset
 
-from delft.textClassification.trainer import compute_roc_auc, restore_best_weights
+from delft.textClassification.config import ModelConfig, TrainingConfig
+from delft.textClassification.trainer import Trainer, compute_roc_auc, restore_best_weights
 
 
 class TestComputeRocAuc:
@@ -62,6 +64,91 @@ class _TinyModel(nn.Module):
         with torch.no_grad():
             self.linear.weight.fill_(value)
             self.linear.bias.fill_(value)
+
+
+class _StubClassifier(nn.Module):
+    """Minimal stand-in returning the dict shape the Trainer expects."""
+
+    def __init__(self):
+        super().__init__()
+        self.linear = nn.Linear(4, 2)
+
+    def forward(self, inputs, labels=None):
+        logits = self.linear(inputs)
+        loss = None
+        if labels is not None:
+            loss = nn.functional.binary_cross_entropy_with_logits(logits, labels)
+        return {"loss": loss, "logits": logits}
+
+
+def _make_trainer(tmp_path, use_roc_auc, max_epoch=1, patience=5):
+    model_config = ModelConfig(model_name="test-monitor", architecture="gru")
+    training_config = TrainingConfig(
+        learning_rate=1e-3,
+        max_epoch=max_epoch,
+        patience=patience,
+        use_roc_auc=use_roc_auc,
+        early_stop=True,
+    )
+    return Trainer(
+        _StubClassifier(),
+        model_config,
+        training_config,
+        device="cpu",
+        checkpoint_path=str(tmp_path),
+    )
+
+
+def _loader(n=8):
+    torch.manual_seed(0)
+    x = torch.randn(n, 4)
+    y = (torch.rand(n, 2) > 0.5).float()
+    return DataLoader(TensorDataset(x, y), batch_size=4)
+
+
+class TestMonitoredMetric:
+    """
+    use_roc_auc used to be dead: the branch reading it was `pass`, and both
+    checkpointing and early stopping tracked validation loss regardless.
+    """
+
+    def test_roc_auc_is_maximised_when_enabled(self, tmp_path):
+        trainer = _make_trainer(tmp_path, use_roc_auc=True)
+
+        assert trainer.monitor == "roc_auc"
+        assert trainer.model_checkpoint.mode == "max"
+        assert trainer.early_stopping.mode == "max"
+
+    def test_loss_is_minimised_when_disabled(self, tmp_path):
+        trainer = _make_trainer(tmp_path, use_roc_auc=False)
+
+        assert trainer.monitor == "loss"
+        assert trainer.model_checkpoint.mode == "min"
+        assert trainer.early_stopping.mode == "min"
+
+    def test_checkpoint_follows_roc_auc_not_loss(self, tmp_path, monkeypatch):
+        """A rising ROC-AUC must keep checkpointing even as the loss worsens."""
+        trainer = _make_trainer(tmp_path, use_roc_auc=True, max_epoch=2)
+        scripted = iter([{"loss": 0.1, "roc_auc": 0.60}, {"loss": 0.5, "roc_auc": 0.90}])
+        monkeypatch.setattr(trainer, "evaluate", lambda loader: next(scripted))
+
+        loader = _loader()
+        trainer.train(loader, valid_loader=loader)
+
+        # tracking loss would have kept 0.1 and skipped the second epoch's save
+        assert trainer.model_checkpoint.best_score == 0.90
+        assert trainer.early_stopping.best_score == 0.90
+
+    def test_checkpoint_follows_loss_when_roc_auc_disabled(self, tmp_path, monkeypatch):
+        trainer = _make_trainer(tmp_path, use_roc_auc=False, max_epoch=2)
+        scripted = iter([{"loss": 0.5, "roc_auc": 0.60}, {"loss": 0.1, "roc_auc": 0.20}])
+        monkeypatch.setattr(trainer, "evaluate", lambda loader: next(scripted))
+
+        loader = _loader()
+        trainer.train(loader, valid_loader=loader)
+
+        assert trainer.model_checkpoint.best_score == 0.1
+        assert trainer.early_stopping.best_score == 0.1
 
 
 class TestRestoreBestWeights:
