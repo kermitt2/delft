@@ -5,9 +5,12 @@ Used by both ``delft.sequenceLabelling.data_loader`` and
 two task families from drifting as PyTorch / platform behaviour changes.
 """
 
+import logging
 import platform
 
 import torch
+
+LOGGER = logging.getLogger(__name__)
 
 
 def effective_num_workers(requested: int, dataset_size: int, batch_size: int, *, role: str = "loader") -> int:
@@ -21,25 +24,40 @@ def effective_num_workers(requested: int, dataset_size: int, batch_size: int, *,
 
     ``role`` is a free-form label (e.g. ``"train"``, ``"valid"``) used only
     in the log line so successive calls during one fit can be distinguished.
+
+    The outcome is logged at DEBUG level only: a DataLoader is created on
+    every ``tag()``/``predict()`` call, so anything louder floods the output
+    of an embedding host such as GROBID, which cannot filter our stdout.
     """
     if requested <= 0 or dataset_size <= 0 or batch_size <= 0:
-        print(
-            f"DataLoader[{role}]: num_workers=0 (in-process); "
-            f"dataset_size={dataset_size}, batch_size={batch_size}, "
-            f"requested={requested}."
+        LOGGER.debug(
+            "DataLoader[%s]: num_workers=0 (in-process); dataset_size=%s, batch_size=%s, requested=%s.",
+            role,
+            dataset_size,
+            batch_size,
+            requested,
         )
         return 0
     num_batches = max(1, dataset_size // batch_size)
     ideal = num_batches // 2
     effective = max(0, min(requested, ideal))
     if effective != requested:
-        print(
-            f"DataLoader[{role}]: num_workers={effective} "
-            f"(requested {requested}, capped for dataset_size={dataset_size}, "
-            f"batches={num_batches})."
+        LOGGER.debug(
+            "DataLoader[%s]: num_workers=%s (requested %s, capped for dataset_size=%s, batches=%s).",
+            role,
+            effective,
+            requested,
+            dataset_size,
+            num_batches,
         )
     else:
-        print(f"DataLoader[{role}]: num_workers={effective} (dataset_size={dataset_size}, batches={num_batches}).")
+        LOGGER.debug(
+            "DataLoader[%s]: num_workers=%s (dataset_size=%s, batches=%s).",
+            role,
+            effective,
+            dataset_size,
+            num_batches,
+        )
     return effective
 
 

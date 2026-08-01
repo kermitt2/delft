@@ -8,6 +8,7 @@ from numpy.random import seed
 
 seed(7)
 import argparse
+import logging
 import os
 import os.path
 import shutil
@@ -16,6 +17,11 @@ from urllib.parse import urlparse
 import requests
 import truecase
 from tqdm import tqdm
+
+LOGGER = logging.getLogger(__name__)
+
+# Devices already announced on stdout, see pick_device().
+_ANNOUNCED_DEVICES = set()
 
 
 def best_device() -> torch.device:
@@ -38,6 +44,11 @@ def pick_device(device=None) -> torch.device:
     """
     Resolve a device (auto-pick when device=None, else honor the caller's choice)
     and print a one-line summary so the user can see which compute is in use.
+
+    The summary is printed once per distinct device per process. Resolution
+    happens on every ``Sequence``/``Tagger`` instantiation, i.e. on every
+    ``tag()`` call, and repeating the line there floods the output of an
+    embedding host such as GROBID, which cannot filter our stdout.
     """
     if device is None:
         d = best_device()
@@ -50,11 +61,16 @@ def pick_device(device=None) -> torch.device:
         n = torch.cuda.device_count()
         name = torch.cuda.get_device_name(d)
         plural = "" if n == 1 else "s"
-        print(f"Running on {d} ({name}); {n} CUDA device{plural} available")
+        message = f"Running on {d} ({name}); {n} CUDA device{plural} available"
     elif d.type == "mps":
-        print(f"Running on {d} (Apple Silicon GPU via Metal Performance Shaders)")
+        message = f"Running on {d} (Apple Silicon GPU via Metal Performance Shaders)"
     else:
-        print(f"Running on {d}")
+        message = f"Running on {d}"
+
+    LOGGER.debug(message)
+    if str(d) not in _ANNOUNCED_DEVICES:
+        _ANNOUNCED_DEVICES.add(str(d))
+        print(message)
     return d
 
 

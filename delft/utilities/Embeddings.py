@@ -3,7 +3,6 @@ import gzip
 import hashlib
 import io
 import json
-import logging
 import mmap
 import os
 import pickle
@@ -16,9 +15,6 @@ import zipfile
 import lmdb
 import numpy as np
 from tqdm import tqdm
-
-logging.basicConfig()
-logging.getLogger().setLevel(logging.ERROR)
 
 # for fasttext binary embeddings
 fasttext_support = True
