@@ -855,7 +855,8 @@ if __name__ == "__main__":
         "--num-workers",
         type=int,
         default=None,
-        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval, 4 for tagging.",
+        help="Number of DataLoader worker processes. Default: min(4, cpu_count - 1) for "
+        "train/eval, 0 (in-process) for tagging.",
     )
 
     args = parser.parse_args()

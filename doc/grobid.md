@@ -73,8 +73,9 @@ options:
                         batch size needs to be set accordingly using
                         --batch-size).
   --num-workers NUM_WORKERS
-                        Number of worker processes for data loading (default:
-                        1, use 0 or 1 for no multiprocessing).
+                        Number of DataLoader worker processes (default:
+                        min(4, cpu_count - 1) for train/eval, 0 for tagging;
+                        use 0 for no multiprocessing at all).
   --wandb               Enable the logging of the training using Weights and
                         Biases.
 ```
@@ -226,4 +227,38 @@ The evaluation of a model with a specific Grobid data file can be performed usin
 
 ```sh
 python3 delft/applications/grobidTagger.py citation eval --architecture *name-of-architecture* --input *path-to-the-grobid-data-file-to-be-used-for-evaluation*
+```
+
+## Calling DeLFT from GROBID
+
+GROBID embeds DeLFT in the JVM process through [JEP](https://github.com/ninia/jep): it instantiates a `Sequence`, loads the model once, then calls `tag()` for every sequence to be labelled.
+
+In that setup the number of DataLoader worker *processes* matters. A DataLoader is built on every `tag()` call, so any value above 0 respawns worker processes per call, each one forking the host interpreter. Pass `nb_workers=0` to run everything in-process:
+
+```python
+from delft.sequenceLabelling import Sequence
+
+model = Sequence("grobid-header-BidLSTM_CRF_FEATURES", nb_workers=0)
+model.load()
+annotations = model.tag(texts, "json", features=features)
+```
+
+`nb_workers` can also be given per call, which takes precedence over the constructor:
+
+```python
+annotations = model.tag(texts, "json", features=features, nb_workers=0)
+```
+
+When neither is set, tagging defaults to `nb_workers=0` already — the constructor default (`min(4, cpu_count - 1)`) only applies to training and evaluation, where the worker pool is spawned once and amortised over the whole run. `create_dataloader` additionally caps the requested count by dataset size, so small batches never spawn workers that would sit idle.
+
+The same applies to text classification, where `Classifier.predict()` accepts `nb_workers` and the equivalent `use_main_thread_only=True`:
+
+```python
+result = classifier.predict(texts, "json", use_main_thread_only=True)
+```
+
+From the command line, `--num-workers 0` has the same effect:
+
+```sh
+python3 delft/applications/grobidTagger.py header tag --architecture BidLSTM_CRF_FEATURES --num-workers 0
 ```

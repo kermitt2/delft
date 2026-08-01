@@ -1,4 +1,8 @@
 import logging
+from unittest.mock import MagicMock, patch
+
+import pytest
+import torch
 
 from delft.sequenceLabelling.tagger import get_entities_with_offsets
 from delft.utilities.Tokenizer import tokenizeAndFilter
@@ -109,3 +113,92 @@ def test_get_entities_with_offsets():
     #         text = text[0:-1]
     #
     #     assert text == original_string[char_start: char_end + 1]
+
+
+class TestTaggerWorkers:
+    """DataLoader worker processes at tagging time.
+
+    GROBID embeds DeLFT through JEP and calls ``tag()`` per sequence, so it
+    must be able to request 0 workers, i.e. in-process loading with nothing
+    forked off the host interpreter.
+    """
+
+    @staticmethod
+    def _tagger(**kwargs):
+        from delft.sequenceLabelling.tagger import Tagger
+
+        model_config = MagicMock()
+        model_config.batch_size = 20
+        return Tagger(
+            MagicMock(),
+            model_config,
+            preprocessor=MagicMock(),
+            device=torch.device("cpu"),
+            **kwargs,
+        )
+
+    def test_defaults_to_in_process_loading(self):
+        assert self._tagger().nb_workers == 0
+
+    def test_clamps_negative_worker_count(self):
+        assert self._tagger(nb_workers=-1).nb_workers == 0
+        assert self._tagger(nb_workers=None).nb_workers == 0
+
+    @pytest.mark.parametrize("nb_workers", [0, 3])
+    def test_passes_nb_workers_to_the_dataloader(self, nb_workers):
+        tagger = self._tagger(nb_workers=nb_workers)
+        with patch("delft.sequenceLabelling.tagger.create_dataloader", return_value=[]) as create_dataloader:
+            tagger.tag([["some", "tokens"]], "raw")
+        assert create_dataloader.call_args.kwargs["num_workers"] == nb_workers
+
+
+class TestSequenceTagWorkers:
+    @staticmethod
+    def _sequence(nb_workers, explicit):
+        from delft.sequenceLabelling.wrapper import Sequence
+
+        sequence = Sequence.__new__(Sequence)
+        sequence.model = MagicMock()
+        sequence.model_config = MagicMock()
+        sequence.embeddings = None
+        sequence.p = MagicMock()
+        sequence.device = torch.device("cpu")
+        sequence.nb_workers = nb_workers
+        sequence.nb_workers_explicit = explicit
+        return sequence
+
+    @staticmethod
+    def _tag(sequence, **kwargs):
+        with patch("delft.sequenceLabelling.tagger.Tagger") as tagger_class:
+            sequence.tag([["some", "tokens"]], "raw", **kwargs)
+        return tagger_class.call_args.kwargs["nb_workers"]
+
+    def test_defaults_to_no_worker_when_unset(self):
+        # the constructor default (min(4, cpu_count - 1)) is a training
+        # setting: workers are respawned on every tag() call.
+        assert self._tag(self._sequence(nb_workers=4, explicit=False)) == 0
+
+    def test_uses_the_constructor_value_when_set(self):
+        assert self._tag(self._sequence(nb_workers=2, explicit=True)) == 2
+
+    def test_zero_survives_the_constructor(self):
+        assert self._tag(self._sequence(nb_workers=0, explicit=True)) == 0
+
+    def test_per_call_value_wins(self):
+        assert self._tag(self._sequence(nb_workers=4, explicit=True), nb_workers=0) == 0
+
+
+class TestSequenceWorkerConfiguration:
+    def test_keeps_an_explicit_zero(self):
+        from delft.sequenceLabelling.wrapper import Sequence
+
+        sequence = Sequence("test-model", architecture="BidLSTM_CRF", nb_workers=0)
+        assert sequence.nb_workers == 0
+        assert sequence.nb_workers_explicit is True
+
+    def test_defaults_to_a_training_worker_pool(self):
+        from delft.sequenceLabelling.wrapper import Sequence
+
+        sequence = Sequence("test-model", architecture="BidLSTM_CRF")
+        assert sequence.nb_workers >= 1
+        assert sequence.nb_workers_explicit is False

@@ -535,6 +535,7 @@ def annotate_text(
     architecture="BidLSTM_CRF",
     features=None,
     multi_gpu=False,
+    num_workers=None,
 ):
     annotations = []
 
@@ -542,7 +543,7 @@ def annotate_text(
     model_name = "grobid-" + model
     model_name += "-" + architecture
 
-    model = Sequence(model_name)
+    model = Sequence(model_name, nb_workers=num_workers)
     model.load()
 
     start_time = time.time()
@@ -709,7 +710,9 @@ if __name__ == "__main__":
         "--num-workers",
         type=int,
         default=None,
-        help="Number of workers for data loading. Default: cpu_count - 1 for train/eval, 4 for tagging.",
+        help="Number of DataLoader worker processes. Default: min(4, cpu_count - 1) for "
+        "train/eval, 0 (in-process) for tagging. Use 0 to disable multiprocessing "
+        "entirely, which is what an embedding host such as GROBID needs.",
     )
 
     args = parser.parse_args()
@@ -851,6 +854,7 @@ if __name__ == "__main__":
                 "json",
                 architecture=architecture,
                 multi_gpu=multi_gpu,
+                num_workers=num_workers,
             )
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:

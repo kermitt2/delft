@@ -9,12 +9,20 @@ from delft.utilities.Utilities import pick_device
 
 
 class Tagger(object):
-    def __init__(self, model, model_config, embeddings=None, preprocessor=None, device=None):
+    def __init__(self, model, model_config, embeddings=None, preprocessor=None, device=None, nb_workers=0):
+        """
+        ``nb_workers`` is the number of DataLoader worker *processes* used for
+        inference. It defaults to 0 (in-process loading), which is the only
+        safe value when DeLFT is embedded in a host process such as GROBID via
+        JEP: a DataLoader is built on every tag() call, so any worker > 0 pays
+        a process spawn per call and forks the host's interpreter.
+        """
         self.model = model
         self.preprocessor = preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
         self.device = pick_device(device)
+        self.nb_workers = max(0, nb_workers) if nb_workers is not None else 0
 
     def tag(self, texts, output_format, features=None):
         if output_format == "json":
@@ -59,7 +67,7 @@ class Tagger(object):
             embeddings=self.embeddings,
             batch_size=self.model_config.batch_size,
             features=features,
-            num_workers=4,
+            num_workers=self.nb_workers,
             shuffle=False,
             model_config=self.model_config,
             role="tag",

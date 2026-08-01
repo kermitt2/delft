@@ -129,13 +129,17 @@ class Classifier(object):
         else:
             self.model_config.word_embedding_size = 0
 
-        # Set number of workers. Per-call ``create_dataloader`` further
-        # auto-caps based on dataset size; default to a modest 4 to avoid the
-        # per-epoch spawn cost dominating tiny classification runs.
+        # Set number of DataLoader worker processes. Per-call
+        # ``create_dataloader`` further auto-caps based on dataset size;
+        # default to a modest 4 to avoid the per-epoch spawn cost dominating
+        # tiny classification runs. ``nb_workers=0`` means in-process loading,
+        # with no worker process spawned at all — the value to use when DeLFT
+        # runs embedded in a host process such as GROBID (see ``predict()``).
+        self.nb_workers_explicit = nb_workers is not None
         if nb_workers is None:
             self.nb_workers = max(1, min(4, os.cpu_count() - 1))
         else:
-            self.nb_workers = nb_workers
+            self.nb_workers = max(0, nb_workers)
 
         if report_to_wandb:
             self._init_wandb(model_name)
@@ -432,9 +436,25 @@ class Classifier(object):
 
         return evaluation
 
-    def predict(self, texts, output_format="json", use_main_thread_only=False, batch_size=None):
+    def predict(self, texts, output_format="json", use_main_thread_only=False, batch_size=None, nb_workers=None):
+        """Classify texts with the model.
+
+        ``nb_workers`` is the number of DataLoader worker processes to use for
+        this call. It falls back to the value given to the constructor, and to
+        0 (in-process, no worker process spawned) when neither was set — a
+        DataLoader is built per call, so worker processes are respawned on
+        every predict() and rarely pay for themselves at inference time.
+        ``use_main_thread_only=True`` forces 0 whatever the other settings;
+        callers embedding DeLFT in a host process (e.g. GROBID through JEP)
+        should use either.
+        """
         if batch_size is not None:
             self.model_config.batch_size = batch_size
+
+        if use_main_thread_only:
+            nb_workers = 0
+        elif nb_workers is None:
+            nb_workers = self.nb_workers if self.nb_workers_explicit else 0
 
         if self.model is None:
             raise OSError("Model not loaded")
@@ -463,7 +483,7 @@ class Classifier(object):
             transformer_tokenizer=transformer_tokenizer,
             batch_size=self.model_config.batch_size,
             shuffle=False,
-            num_workers=self.nb_workers,
+            num_workers=nb_workers,
             role="predict",
         )
 

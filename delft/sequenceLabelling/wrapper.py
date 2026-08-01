@@ -101,14 +101,18 @@ class Sequence(object):
         self.report_to_wandb = report_to_wandb
         self.wandb_project = wandb_project
 
-        # Set number of workers. The per-epoch respawn cost on macOS makes
-        # large worker counts counterproductive for small datasets, and
-        # ``create_dataloader`` further auto-caps based on dataset size.
-        # Default to a modest 4 (or fewer on small machines).
+        # Set number of DataLoader worker processes. The per-epoch respawn
+        # cost on macOS makes large worker counts counterproductive for small
+        # datasets, and ``create_dataloader`` further auto-caps based on
+        # dataset size. Default to a modest 4 (or fewer on small machines).
+        # ``nb_workers=0`` means in-process loading, with no worker process
+        # spawned at all — the value to use when DeLFT runs embedded in a
+        # host process such as GROBID (see ``tag()``).
+        self.nb_workers_explicit = nb_workers is not None
         if nb_workers is None:
             self.nb_workers = max(1, min(4, os.cpu_count() - 1))
         else:
-            self.nb_workers = nb_workers
+            self.nb_workers = max(0, nb_workers)
 
         # Set device
         self.device = pick_device(device)
@@ -652,10 +656,22 @@ class Sequence(object):
         # Set best model as main model
         self.model = self.models[best_index]
 
-    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False):
-        """Tag texts with the model."""
+    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False, nb_workers=None):
+        """Tag texts with the model.
+
+        ``nb_workers`` is the number of DataLoader worker processes to use for
+        this call. It falls back to the value given to the constructor, and to
+        0 (in-process, no worker process spawned) when neither was set — a
+        DataLoader is built per call, so worker processes are respawned on
+        every tag() and rarely pay for themselves at inference time. Callers
+        embedding DeLFT in a host process (e.g. GROBID through JEP) should
+        keep it at 0.
+        """
         if batch_size is not None:
             self.model_config.batch_size = batch_size
+
+        if nb_workers is None:
+            nb_workers = self.nb_workers if self.nb_workers_explicit else 0
 
         if self.model is None:
             raise OSError("Could not find a model.")
@@ -672,6 +688,7 @@ class Sequence(object):
             self.embeddings,
             preprocessor=self.p,
             device=self.device,
+            nb_workers=nb_workers,
         )
 
         annotations = tagger.tag(texts, output_format, features=features)
