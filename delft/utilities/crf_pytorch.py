@@ -24,6 +24,60 @@ except ImportError:
     HAS_TORCHCRF = False
 
 
+@torch.jit.script
+def viterbi_decode(
+    emissions: torch.Tensor,
+    mask: torch.Tensor,
+    start_transitions: torch.Tensor,
+    transitions: torch.Tensor,
+    end_transitions: torch.Tensor,
+) -> List[List[int]]:
+    """
+    TorchScript Viterbi decoding, output-identical to ``torchcrf.CRF.decode``.
+
+    pytorch-crf's decode is an interpreted per-timestep Python loop, which
+    dominates inference time on the long sequences GROBID sends. Scripting it
+    keeps the arithmetic identical while lifting the loop out of the
+    interpreter.
+
+    Args:
+        emissions: [seq_length, batch_size, num_tags] — time-first, the
+            torchcrf-internal layout.
+        mask: [seq_length, batch_size] bool, same layout.
+        start_transitions, transitions, end_transitions: the CRF's own
+            parameters.
+
+    Returns:
+        One list of tag indices per batch item, each truncated to its own
+        length as given by the mask.
+    """
+    seq_length = emissions.size(0)
+    batch_size = emissions.size(1)
+
+    score = start_transitions + emissions[0]
+    history = torch.jit.annotate(List[torch.Tensor], [])
+
+    for i in range(1, seq_length):
+        next_score = score.unsqueeze(2) + transitions + emissions[i].unsqueeze(1)  # [B,K,K]
+        next_score, indices = next_score.max(dim=1)  # [B,K]
+        score = torch.where(mask[i].unsqueeze(1), next_score, score)
+        history.append(indices)
+
+    score = score + end_transitions
+
+    seq_ends = mask.long().sum(dim=0) - 1
+    out = torch.jit.annotate(List[List[int]], [])
+
+    for idx in range(batch_size):
+        best = [int(score[idx].argmax(dim=0).item())]
+        for j in range(int(seq_ends[idx].item()) - 1, -1, -1):
+            best.append(int(history[j][idx][best[-1]].item()))
+        best.reverse()
+        out.append(best)
+
+    return out
+
+
 class CRF(nn.Module):
     """
     Conditional Random Field layer using pytorch-crf.
@@ -83,15 +137,19 @@ class CRF(nn.Module):
                 return -self.crf(emissions, tags, mask=mask, reduction=reduction)
             else:
                 # Inference: decode best sequence
-                if mask is not None:
-                    mask = mask.bool()
-                return self.crf.decode(emissions, mask=mask)
+                return self.decode(emissions, mask=mask)
         else:
             return self._forward_custom(emissions, tags, mask, reduction)
 
     def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """
         Decode the best tag sequence using Viterbi algorithm.
+
+        Delegates to the scripted ``viterbi_decode`` rather than to
+        ``torchcrf.CRF.decode``: same arithmetic, same output, but without the
+        interpreted per-timestep loop. The loop is control-flow and
+        latency-bound, so it runs on CPU whatever device the model sits on —
+        on GPU it would cost a kernel launch plus a sync per timestep.
 
         Args:
             emissions: Emission scores [batch_size, seq_len, num_tags]
@@ -101,9 +159,24 @@ class CRF(nn.Module):
             List of best tag sequences for each item in batch
         """
         if HAS_TORCHCRF:
-            if mask is not None:
-                mask = mask.bool()
-            return self.crf.decode(emissions, mask=mask)
+            emissions = emissions.cpu()
+            if mask is None:
+                mask = torch.ones(emissions.shape[:2], dtype=torch.bool)
+            else:
+                mask = mask.bool().cpu()
+
+            if self.batch_first:
+                # torchcrf works time-first internally; match that layout.
+                emissions = emissions.transpose(0, 1)
+                mask = mask.transpose(0, 1)
+
+            return viterbi_decode(
+                emissions,
+                mask,
+                self.crf.start_transitions.detach().cpu(),
+                self.crf.transitions.detach().cpu(),
+                self.crf.end_transitions.detach().cpu(),
+            )
         else:
             return self._viterbi_decode_custom(emissions, mask)
 
