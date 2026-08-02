@@ -1,9 +1,9 @@
-"""Log volume of the per-call helpers.
+"""Log volume of the inference helpers.
 
-``effective_num_workers`` and ``pick_device`` both run on every ``tag()`` /
-``predict()`` call. When DeLFT is embedded in a host process such as GROBID
-their output lands on the host's stdout, which the host cannot filter, so
-neither may write a line per call.
+``effective_num_workers`` runs on every ``tag()`` / ``predict()`` call, and
+``pick_device`` may be called repeatedly across wrappers. When DeLFT is
+embedded in a host process such as GROBID their output lands on the host's
+stdout, which the host cannot filter, so neither may write a line per call.
 """
 
 import logging

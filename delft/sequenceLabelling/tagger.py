@@ -5,12 +5,17 @@ import torch
 
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.utilities.Tokenizer import tokenizeAndFilter
-from delft.utilities.Utilities import pick_device
 
 
 class Tagger(object):
     def __init__(self, model, model_config, embeddings=None, preprocessor=None, device=None, nb_workers=0):
         """
+        ``device`` is resolved by the caller, once — ``Sequence`` does it in its
+        constructor and hands the result down. Resolving it here instead would
+        repeat the work (and the device announcement) on every tag() call.
+        When it is omitted we take the device the model already sits on rather
+        than re-picking one, so a Tagger can never disagree with its model.
+
         ``nb_workers`` is the number of DataLoader worker *processes* used for
         inference. It defaults to 0 (in-process loading), which is the only
         safe value when DeLFT is embedded in a host process such as GROBID via
@@ -21,7 +26,9 @@ class Tagger(object):
         self.preprocessor = preprocessor
         self.model_config = model_config
         self.embeddings = embeddings
-        self.device = pick_device(device)
+        if device is None:
+            device = next(model.parameters(), torch.empty(0)).device
+        self.device = device if isinstance(device, torch.device) else torch.device(device)
         self.nb_workers = max(0, nb_workers) if nb_workers is not None else 0
 
     def tag(self, texts, output_format, features=None):

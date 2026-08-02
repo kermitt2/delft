@@ -188,6 +188,59 @@ class TestSequenceTagWorkers:
         assert self._tag(self._sequence(nb_workers=4, explicit=True), nb_workers=0) == 0
 
 
+class TestTaggerReuse:
+    """GROBID calls tag() per sequence, so the Tagger is built once and kept.
+
+    It must still be rebuilt whenever something it closes over is replaced,
+    otherwise a load() or a fold selection would keep tagging with the old
+    model.
+    """
+
+    @staticmethod
+    def _sequence():
+        from delft.sequenceLabelling.wrapper import Sequence
+
+        sequence = Sequence.__new__(Sequence)
+        sequence.model = MagicMock()
+        sequence.model_config = MagicMock()
+        sequence.model_config.batch_size = 20
+        sequence.embeddings = None
+        sequence.p = MagicMock()
+        sequence.device = torch.device("cpu")
+        sequence.nb_workers = 0
+        sequence.nb_workers_explicit = True
+        sequence._tagger = None
+        return sequence
+
+    def test_reuses_the_same_tagger_across_calls(self):
+        sequence = self._sequence()
+        assert sequence._get_tagger(0) is sequence._get_tagger(0)
+
+    def test_rebuilds_when_the_model_is_replaced(self):
+        sequence = self._sequence()
+        first = sequence._get_tagger(0)
+        sequence.model = MagicMock()
+        assert sequence._get_tagger(0) is not first
+
+    def test_rebuilds_when_the_preprocessor_is_replaced(self):
+        sequence = self._sequence()
+        first = sequence._get_tagger(0)
+        sequence.p = MagicMock()
+        assert sequence._get_tagger(0) is not first
+
+    def test_rebuilds_for_a_different_worker_count(self):
+        sequence = self._sequence()
+        first = sequence._get_tagger(0)
+        assert sequence._get_tagger(2) is not first
+
+    def test_takes_the_device_resolved_by_the_wrapper(self):
+        sequence = self._sequence()
+        with patch("delft.utilities.Utilities.pick_device") as pick_device:
+            tagger = sequence._get_tagger(0)
+        pick_device.assert_not_called()
+        assert tagger.device == torch.device("cpu")
+
+
 class TestSequenceWorkerConfiguration:
     def test_keeps_an_explicit_zero(self):
         from delft.sequenceLabelling.wrapper import Sequence
