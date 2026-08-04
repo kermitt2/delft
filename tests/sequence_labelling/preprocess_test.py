@@ -83,6 +83,23 @@ class TestToVectorSingle:
         result = to_vector_single([], embeddings=None, maxlen=3)
         assert result.shape == (3, 0)
 
+    def test_keeps_the_vectors_in_float32(self):
+        """
+        The store holds float32 and the model consumes float32, so the buffer
+        must not widen to the numpy default in between — that only bought a
+        widening plus a narrowing, and twice the memory traffic, per token.
+        """
+
+        class FakeEmbeddings:
+            embed_size = 4
+
+            def get_word_vector(self, word):
+                return np.full(4, len(word), dtype=np.float32)
+
+        result = to_vector_single(["ab", "cde"], FakeEmbeddings(), maxlen=3, num_norm=False)
+        assert result.dtype == np.float32
+        assert result.tolist() == [[2.0] * 4, [3.0] * 4, [0.0] * 4]
+
 
 class TestEffectiveNumWorkers:
     def test_returns_zero_when_requested_zero(self):
