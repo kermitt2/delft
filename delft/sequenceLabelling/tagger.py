@@ -83,7 +83,10 @@ class Tagger(object):
         steps_done = 0
         self.model.eval()
 
-        with torch.no_grad():
+        # inference_mode rather than no_grad: it additionally skips view and
+        # version-counter tracking, which is pure overhead here since nothing
+        # leaves this loop but lists of tag indices.
+        with torch.inference_mode():
             for batch in dataloader:
                 inputs, _ = batch  # dataloader yields (inputs, labels), labels are None or dummies
 
