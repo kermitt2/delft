@@ -49,6 +49,17 @@ class CharacterEncoder(nn.Module):
         """
         Encode characters for each token.
 
+        Character rows are padded to ``max_char_length`` (30 by default) while
+        the median token is 3 characters long, so the padding is skipped rather
+        than fed to the LSTM. Index 0 is reserved for <PAD> and every real
+        character maps to 1 or above, so a zero can only be trailing padding
+        and the row's length is just its non-zero count.
+
+        This mirrors the Keras original, whose character embedding was built
+        with ``mask_zero=True``: the forward state is read at the last real
+        character and the backward pass starts there rather than running in
+        from the padding.
+
         Args:
             x: Character indices [batch, seq_len, max_char_len]
 
@@ -63,11 +74,23 @@ class CharacterEncoder(nn.Module):
         # Embed characters
         char_emb = self.char_embeddings(x)  # [batch*seq, max_char, emb_size]
 
-        # Encode with BiLSTM
-        _, (hidden, _) = self.bilstm(char_emb)
+        lengths = (x != 0).sum(dim=1)
+
+        # A row can be all padding — a padded token slot, or the empty token the
+        # preprocessor appends to length-1 sequences. pack_padded_sequence
+        # rejects a length of 0, so such rows run one step and are zeroed after,
+        # which is what an entirely masked sequence returns anyway.
+        packed = nn.utils.rnn.pack_padded_sequence(
+            char_emb,
+            lengths.clamp(min=1).cpu(),
+            batch_first=True,
+            enforce_sorted=False,
+        )
+        _, (hidden, _) = self.bilstm(packed)
 
         # Concatenate forward and backward hidden states
         hidden = torch.cat([hidden[0], hidden[1]], dim=-1)  # [batch*seq, hidden*2]
+        hidden = hidden * (lengths > 0).unsqueeze(1).to(hidden.dtype)
 
         # Reshape back
         output = hidden.view(batch_size, seq_len, -1)
