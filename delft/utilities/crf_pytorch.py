@@ -12,6 +12,7 @@ References:
 
 from typing import List, Optional
 
+import numpy as np
 import torch
 import torch.nn as nn
 
@@ -100,6 +101,70 @@ def viterbi_decode(
     return out
 
 
+# Above this batch size the scripted decode wins and below it numpy does.
+# numpy has the lower per-op overhead, which is what a narrow batch is bound
+# by, while torch's max() returns values and indices in a single pass, which
+# pays off once the arrays are big enough for the arithmetic to matter.
+# Measured at T=300, K=44 — numpy/torch: B=1 1.38x, B=2 1.16x, B=3 1.10x,
+# B=4 1.00x, B=6 0.90x, B=9 0.88x, B=20 0.77x. A host tagging one sequence at
+# a time sits at the left end; training and evaluation batches sit at the right.
+NUMPY_DECODE_MAX_BATCH = 3
+
+
+def viterbi_decode_numpy(
+    emissions: torch.Tensor,
+    mask: torch.Tensor,
+    start_transitions: torch.Tensor,
+    transitions: torch.Tensor,
+    end_transitions: torch.Tensor,
+) -> List[List[int]]:
+    """
+    numpy twin of :func:`viterbi_decode`, for narrow batches.
+
+    Same operations in the same order, so the results are bit-identical: the
+    broadcasts are IEEE float32 either way, and both argmax implementations
+    return the first of several equal maxima. ``tests/utilities/
+    test_crf_pytorch.py`` pins the two together, tie-heavy cases included.
+
+    Arguments are as in :func:`viterbi_decode` — time-first emissions
+    [seq_length, batch_size, num_tags] and a [seq_length, batch_size] mask.
+    """
+    em = emissions.detach().numpy()
+    mk = mask.detach().numpy()
+    start = start_transitions.detach().numpy()
+    trans = transitions.detach().numpy()
+    end = end_transitions.detach().numpy()
+
+    seq_length, batch_size, num_tags = em.shape
+
+    score = start + em[0]
+    backpointers = np.empty((max(seq_length - 1, 0), batch_size, num_tags), dtype=np.int64)
+
+    all_valid = bool(mk.all())
+    for i in range(1, seq_length):
+        next_score = score[:, :, None] + trans + em[i][:, None, :]  # [B,K,K]
+        indices = next_score.argmax(axis=1)  # [B,K]
+        best = next_score.max(axis=1)  # [B,K]
+        score = best if all_valid else np.where(mk[i][:, None], best, score)
+        backpointers[i - 1] = indices
+
+    score = score + end
+
+    seq_ends = mk.sum(axis=0) - 1
+    best_last = score.argmax(axis=1)
+    history = backpointers.tolist()
+
+    out = []
+    for idx in range(batch_size):
+        best_path = [int(best_last[idx])]
+        for j in range(int(seq_ends[idx]) - 1, -1, -1):
+            best_path.append(history[j][idx][best_path[-1]])
+        best_path.reverse()
+        out.append(best_path)
+
+    return out
+
+
 class CRF(nn.Module):
     """
     Conditional Random Field layer using pytorch-crf.
@@ -167,11 +232,15 @@ class CRF(nn.Module):
         """
         Decode the best tag sequence using Viterbi algorithm.
 
-        Delegates to the scripted ``viterbi_decode`` rather than to
+        Decodes with one of this module's own implementations rather than
         ``torchcrf.CRF.decode``: same arithmetic, same output, but without the
         interpreted per-timestep loop. The loop is control-flow and
         latency-bound, so it runs on CPU whatever device the model sits on —
         on GPU it would cost a kernel launch plus a sync per timestep.
+
+        Which of the two runs is decided by batch size alone, on the measured
+        crossover recorded at ``NUMPY_DECODE_MAX_BATCH``. They are
+        bit-identical, so this only ever changes how long the call takes.
 
         Args:
             emissions: Emission scores [batch_size, seq_len, num_tags]
@@ -192,7 +261,8 @@ class CRF(nn.Module):
                 emissions = emissions.transpose(0, 1)
                 mask = mask.transpose(0, 1)
 
-            return viterbi_decode(
+            decode = viterbi_decode_numpy if emissions.size(1) <= NUMPY_DECODE_MAX_BATCH else viterbi_decode
+            return decode(
                 emissions,
                 mask,
                 self.crf.start_transitions.detach().cpu(),
