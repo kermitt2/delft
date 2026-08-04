@@ -5,12 +5,14 @@ Tests for shared preprocessing utilities in delft/utilities/preprocess.py
 import logging
 
 import numpy as np
+import pytest
 
 from delft.utilities.preprocess import (
     PAD,
     UNK,
     BERTPreprocessor,
     FeaturesPreprocessor,
+    _map_feature_row,
     case_index,
     dense_to_one_hot,
     get_casing,
@@ -152,6 +154,63 @@ class TestFeaturesPreprocessor:
         fp.features_indices = [0, 1]
         empty = fp.empty_features_vector()
         assert empty == [0, 0]
+
+
+MAP_TO_INDEX = {1: {"x": 3, "y": 4}, 2: {"p": 5}, 3: {}}
+
+
+def _reference_row(value_list, features_indices, features_map_to_index):
+    """
+    The straightforward reading of the per-token mapping.
+
+    ``_map_feature_row`` hoists the index resolution out of this loop because
+    it runs for every token of every tagged sequence; this pins the two forms
+    to the same output.
+    """
+    return [
+        features_map_to_index[index][value]
+        if index in features_map_to_index and value in features_map_to_index[index]
+        else 0
+        for index, value in enumerate(value_list)
+        if index in features_indices
+    ]
+
+
+class TestMapFeatureRow:
+    @pytest.mark.parametrize(
+        "indices",
+        [
+            [1, 2],  # the ordinary case
+            [3, 1, 2],  # unsorted: output order still follows position order
+            [0, 1, 2, 3],  # a position whose mapping is empty
+            [1, 2, 7],  # a position past the end of the row
+            [],  # nothing selected
+        ],
+    )
+    @pytest.mark.parametrize(
+        "value_list",
+        [
+            ["a", "x", "p", "q"],
+            ["b", "y", "z", "w"],
+            ["c", "unknown", "p"],  # shorter than the widest row
+            [],
+        ],
+    )
+    def test_matches_the_plain_form(self, indices, value_list):
+        fp = FeaturesPreprocessor(features_indices=indices, features_map_to_index=MAP_TO_INDEX)
+        lookups = [(i, fp.features_map_to_index.get(i) or {}) for i in sorted(set(indices))]
+        assert _map_feature_row(value_list, lookups) == _reference_row(value_list, indices, MAP_TO_INDEX)
+
+    def test_unknown_values_map_to_zero(self):
+        assert _map_feature_row(["a", "nope", "p"], [(1, MAP_TO_INDEX[1]), (2, MAP_TO_INDEX[2])]) == [0, 5]
+
+
+class TestFeaturesPreprocessorTransform:
+    def test_transforms_a_padded_batch(self):
+        fp = FeaturesPreprocessor(features_indices=[1, 2], features_map_to_index=MAP_TO_INDEX)
+        X = [[["a", "x", "p"], ["b", "y", "p"]], [["c", "x", "p"]]]
+        # the shorter document is padded up with an all-zero token row
+        assert fp.transform(X).tolist() == [[[3, 5], [4, 5]], [[3, 5], [0, 0]]]
 
 
 class TestBERTPreprocessor:
