@@ -54,24 +54,46 @@ def viterbi_decode(
     seq_length = emissions.size(0)
     batch_size = emissions.size(1)
 
+    # [T,B,1,K], so the per-step broadcast operand is a plain index rather than
+    # an index plus an unsqueeze. Every op in the loop is on the critical path:
+    # each step depends on the previous one, so nothing overlaps and the cost is
+    # the number of dispatches, not the arithmetic (K is a few dozen).
+    emissions_bcast = emissions.unsqueeze(2)
+
     score = start_transitions + emissions[0]
     history = torch.jit.annotate(List[torch.Tensor], [])
 
-    for i in range(1, seq_length):
-        next_score = score.unsqueeze(2) + transitions + emissions[i].unsqueeze(1)  # [B,K,K]
-        next_score, indices = next_score.max(dim=1)  # [B,K]
-        score = torch.where(mask[i].unsqueeze(1), next_score, score)
-        history.append(indices)
+    if bool(mask.all().item()):
+        # Nothing is padded — the usual case when a host tags one sequence at a
+        # time. torch.where would then copy next_score onto itself, so drop it.
+        for i in range(1, seq_length):
+            next_score = score.unsqueeze(2) + transitions + emissions_bcast[i]  # [B,K,K]
+            score, indices = next_score.max(dim=1)  # [B,K]
+            history.append(indices)
+    else:
+        for i in range(1, seq_length):
+            next_score = score.unsqueeze(2) + transitions + emissions_bcast[i]  # [B,K,K]
+            next_score, indices = next_score.max(dim=1)  # [B,K]
+            score = torch.where(mask[i].unsqueeze(1), next_score, score)
+            history.append(indices)
 
     score = score + end_transitions
 
-    seq_ends = mask.long().sum(dim=0) - 1
+    # Backtracking is pure integer bookkeeping. Reading it off nested Python
+    # lists costs one bulk copy, where indexing the tensors costs two selects
+    # and a device sync per timestep.
+    seq_ends: List[int] = mask.long().sum(dim=0).sub(1).tolist()
+    best_last: List[int] = score.argmax(dim=1).tolist()
+    backpointers = torch.jit.annotate(List[List[List[int]]], [])
+    if len(history) > 0:
+        backpointers = torch.jit.annotate(List[List[List[int]]], torch.stack(history).tolist())
+
     out = torch.jit.annotate(List[List[int]], [])
 
     for idx in range(batch_size):
-        best = [int(score[idx].argmax(dim=0).item())]
-        for j in range(int(seq_ends[idx].item()) - 1, -1, -1):
-            best.append(int(history[j][idx][best[-1]].item()))
+        best = [best_last[idx]]
+        for j in range(seq_ends[idx] - 1, -1, -1):
+            best.append(backpointers[j][idx][best[-1]])
         best.reverse()
         out.append(best)
 
