@@ -1,6 +1,6 @@
 from unittest.mock import mock_open, patch
 
-from delft import cgroup_cpu_limit
+from delft import cgroup_cpu_limit, cpu_affinity_count
 
 CGROUP_V2 = "/sys/fs/cgroup/cpu.max"
 CGROUP_V1_QUOTA = "/sys/fs/cgroup/cpu/cpu.cfs_quota_us"
@@ -50,3 +50,17 @@ class TestCgroupCpuLimit:
     def test_returns_none_when_the_quota_is_unparseable(self):
         with fake_cgroup({CGROUP_V2: "garbage"}):
             assert cgroup_cpu_limit() is None
+
+
+class TestCpuAffinityCount:
+    def test_counts_the_cores_in_the_affinity_mask(self):
+        with patch("os.sched_getaffinity", return_value={0, 1, 2, 5}):
+            assert cpu_affinity_count() == 4
+
+    def test_returns_none_when_the_platform_has_no_affinity_call(self):
+        with patch("os.sched_getaffinity", side_effect=AttributeError):
+            assert cpu_affinity_count() is None
+
+    def test_returns_none_when_the_affinity_call_fails(self):
+        with patch("os.sched_getaffinity", side_effect=OSError):
+            assert cpu_affinity_count() is None

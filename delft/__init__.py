@@ -39,6 +39,21 @@ def cgroup_cpu_limit():
     return None
 
 
+def cpu_affinity_count():
+    """
+    How many cores this process may be scheduled on, or None if unknowable.
+
+    ``docker --cpuset-cpus`` pins the container to a set of cores through the
+    cpuset controller, which leaves the CFS quota untouched — so
+    cgroup_cpu_limit() sees no limit at all and torch happily sizes its pool to
+    every core on the host. The affinity mask is what actually narrowed.
+    """
+    try:
+        return len(os.sched_getaffinity(0))
+    except (AttributeError, OSError):  # not Linux, or the call is unavailable
+        return None
+
+
 def configure_threads():
     """
     Make sure torch has a usable CPU thread pool, without oversubscribing.
@@ -55,7 +70,8 @@ def configure_threads():
     Xeon than leaving torch's default in place.
 
     Where torch's default is wrong is inside a CPU-limited container: it counts
-    the host's cores and ignores the cgroup quota, so we cap it at the quota.
+    the host's cores and sees neither the cgroup quota (``--cpus``) nor the
+    affinity mask (``--cpuset-cpus``), so we cap it at whichever applies.
 
     OMP_NUM_THREADS (and MKL_NUM_THREADS) steer oneDNN/OpenMP and are read when
     the native libraries load, i.e. at ``import torch`` — setting them from
@@ -71,14 +87,15 @@ def configure_threads():
     if "OMP_NUM_THREADS" in os.environ or "MKL_NUM_THREADS" in os.environ:
         return
 
-    n_logical = os.cpu_count() or 1
+    n_logical = cpu_affinity_count() or os.cpu_count() or 1
     intra_op = max(torch.get_num_threads(), min(MIN_INTRA_OP_THREADS, n_logical))
+    intra_op = min(intra_op, n_logical)
 
     limit = cgroup_cpu_limit()
     if limit is not None:
-        intra_op = max(1, min(intra_op, int(limit)))
+        intra_op = min(intra_op, int(limit))
 
-    torch.set_num_threads(intra_op)
+    torch.set_num_threads(max(1, intra_op))
 
     try:
         torch.set_num_interop_threads(max(1, intra_op // 2))
