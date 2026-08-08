@@ -53,14 +53,17 @@ class TestCgroupCpuLimit:
 
 
 class TestCpuAffinityCount:
+    # create=True because os.sched_getaffinity is Linux-only: without it these
+    # tests fail on the macOS leg of the matrix, where mock refuses to patch an
+    # attribute that is not there.
     def test_counts_the_cores_in_the_affinity_mask(self):
-        with patch("os.sched_getaffinity", return_value={0, 1, 2, 5}):
+        with patch("os.sched_getaffinity", return_value={0, 1, 2, 5}, create=True):
             assert cpu_affinity_count() == 4
 
     def test_returns_none_when_the_platform_has_no_affinity_call(self):
-        with patch("os.sched_getaffinity", side_effect=AttributeError):
+        with patch("os.sched_getaffinity", side_effect=AttributeError, create=True):
             assert cpu_affinity_count() is None
 
     def test_returns_none_when_the_affinity_call_fails(self):
-        with patch("os.sched_getaffinity", side_effect=OSError):
+        with patch("os.sched_getaffinity", side_effect=OSError, create=True):
             assert cpu_affinity_count() is None
