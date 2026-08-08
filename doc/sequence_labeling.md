@@ -88,8 +88,8 @@ from delft.sequenceLabelling import Sequence
 
 model = Sequence(
     "toto",
-    architecture="BidLSTM_CRF",   # or "BERT_CRF", etc.
-    embeddings_name="glove-840B", # for RNN architectures
+    architecture="BidLSTM_CRF",  # or "BERT_CRF", etc.
+    embeddings_name="glove-840B",  # for RNN architectures
     # transformer_name="bert-base-cased",  # for BERT_* architectures
 )
 model.train(x_train, y_train, x_valid=x_dev, y_valid=y_dev)
