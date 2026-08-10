@@ -37,13 +37,24 @@ class CharacterEncoder(nn.Module):
         char_vocab_size: Size of character vocabulary
         char_embedding_size: Dimension of character embeddings
         hidden_size: Size of LSTM hidden state
+        mask_zero: Skip padded character positions, as the Keras
+            implementations did where their embedding set mask_zero=True. The
+            LSTM then returns its state at the last real character rather than
+            after running on through the padding.
     """
 
-    def __init__(self, char_vocab_size: int, char_embedding_size: int, hidden_size: int):
+    def __init__(
+        self,
+        char_vocab_size: int,
+        char_embedding_size: int,
+        hidden_size: int,
+        mask_zero: bool = False,
+    ):
         super().__init__()
         self.char_embeddings = nn.Embedding(char_vocab_size, char_embedding_size, padding_idx=0)
         self.bilstm = nn.LSTM(char_embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.output_size = hidden_size * 2
+        self.mask_zero = mask_zero
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         """
@@ -63,16 +74,35 @@ class CharacterEncoder(nn.Module):
         # Embed characters
         char_emb = self.char_embeddings(x)  # [batch*seq, max_char, emb_size]
 
-        # Encode with BiLSTM
-        _, (hidden, _) = self.bilstm(char_emb)
+        if not self.mask_zero:
+            # Encode with BiLSTM
+            _, (hidden, _) = self.bilstm(char_emb)
 
-        # Concatenate forward and backward hidden states
-        hidden = torch.cat([hidden[0], hidden[1]], dim=-1)  # [batch*seq, hidden*2]
+            # Concatenate forward and backward hidden states
+            hidden = torch.cat([hidden[0], hidden[1]], dim=-1)  # [batch*seq, hidden*2]
 
-        # Reshape back
-        output = hidden.view(batch_size, seq_len, -1)
+            # Reshape back
+            output = hidden.view(batch_size, seq_len, -1)
 
-        return output
+            return output
+
+        # Skip the padding, so that a token encodes the same whatever window
+        # it sits in
+        lengths = (x != 0).sum(dim=1)
+        packed = nn.utils.rnn.pack_padded_sequence(
+            # a length of zero is not packable; those rows are zeroed below
+            char_emb,
+            lengths.clamp(min=1).cpu(),
+            batch_first=True,
+            enforce_sorted=False,
+        )
+        _, (hidden, _) = self.bilstm(packed)
+        hidden = torch.cat([hidden[0], hidden[1]], dim=-1)
+        # a token that is entirely padding is masked out completely, leaving
+        # the initial state rather than whatever a single step produced
+        hidden = hidden * (lengths > 0).unsqueeze(-1).to(hidden.dtype)
+
+        return hidden.view(batch_size, seq_len, -1)
 
 
 class CharacterCNNEncoder(nn.Module):
@@ -209,6 +239,7 @@ class BidLSTM(BaseSequenceLabeler):
             config.char_vocab_size,
             config.char_embedding_size,
             config.num_char_lstm_units,
+            mask_zero=True,
         )
 
         # Input size: word embeddings + character encodings
@@ -291,6 +322,7 @@ class BidLSTM_CRF(BaseSequenceLabeler):
             config.char_vocab_size,
             config.char_embedding_size,
             config.num_char_lstm_units,
+            mask_zero=True,
         )
 
         # Input size
@@ -627,6 +659,7 @@ class BidGRU_CRF(BaseSequenceLabeler):
             config.char_vocab_size,
             config.char_embedding_size,
             config.num_char_lstm_units,
+            mask_zero=True,
         )
 
         # Input size
@@ -712,6 +745,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
             config.char_vocab_size,
             config.char_embedding_size,
             config.num_char_lstm_units,
+            mask_zero=True,
         )
 
         # Features embedding
@@ -810,6 +844,8 @@ class BidLSTM_ChainCRF_FEATURES(BidLSTM_CRF_FEATURES):
 
     def __init__(self, config: ModelConfig, ntags: int = None):
         super().__init__(config, ntags)
+        # its Keras counterpart set mask_zero=False, unlike BidLSTM_CRF_FEATURES
+        self.char_encoder.mask_zero = False
         # Replace CRF with ChainCRF
         self.crf = ChainCRF(ntags)
         # Add extra dense layer before CRF (matching Keras architecture)
@@ -884,6 +920,7 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
             config.char_vocab_size,
             config.char_embedding_size,
             config.num_char_lstm_units,
+            mask_zero=True,
         )
 
         # Casing embedding
