@@ -696,6 +696,7 @@ class BidGRU_CRF(BaseSequenceLabeler):
 
         # Pre-CRF dense
         self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
+        self.linear = nn.Linear(config.num_word_lstm_units, ntags)
 
         # CRF
         self.crf = CRF(ntags)
@@ -720,7 +721,8 @@ class BidGRU_CRF(BaseSequenceLabeler):
         gru_out, _ = self.bigru2(gru_out)
 
         # Dense
-        emissions = torch.tanh(self.dense(gru_out))
+        x = torch.tanh(self.dense(gru_out))
+        emissions = self.linear(x)
 
         outputs = {"logits": emissions}
 
@@ -953,6 +955,7 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
 
         # Pre-CRF dense
         self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
+        self.linear = nn.Linear(config.num_word_lstm_units, ntags)
 
         # CRF
         self.crf = CRF(ntags)
@@ -981,7 +984,8 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         lstm_out = self.dropout(lstm_out)
 
         # Dense
-        emissions = torch.tanh(self.dense(lstm_out))
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.linear(x)
 
         outputs = {"logits": emissions}
 
