@@ -119,8 +119,8 @@ def get_token_mask(char_input: torch.Tensor) -> torch.Tensor:
     return mask
 
 
-def run_masked_lstm(lstm: nn.LSTM, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-    """Runs a sequence LSTM over the real positions only."""
+def run_masked_lstm(lstm: nn.RNNBase, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Runs a sequence LSTM or GRU over the real positions only."""
     lengths = mask.sum(dim=1)
     packed = nn.utils.rnn.pack_padded_sequence(x, lengths.clamp(min=1).cpu(), batch_first=True, enforce_sorted=False)
     packed_output, _ = lstm(packed)
@@ -292,6 +292,10 @@ class BidLSTM(BaseSequenceLabeler):
         word_emb = inputs["word_input"]  # [batch, seq, emb_size]
         char_input = inputs["char_input"]  # [batch, seq, max_char]
 
+        # Same masking as BidLSTM_CRF: under Keras the mask propagated from the
+        # character embedding into this LSTM
+        mask = get_token_mask(char_input)
+
         # Encode characters
         char_encoded = self.char_encoder(char_input)
 
@@ -299,8 +303,8 @@ class BidLSTM(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded], dim=-1)
         x = self.dropout(x)
 
-        # BiLSTM
-        lstm_out, _ = self.bilstm(x)
+        # BiLSTM over the real positions only
+        lstm_out = run_masked_lstm(self.bilstm, x, mask)
         lstm_out = self.dropout(lstm_out)
 
         # Classification
@@ -708,6 +712,10 @@ class BidGRU_CRF(BaseSequenceLabeler):
         word_emb = inputs["word_input"]
         char_input = inputs["char_input"]
 
+        # Same masking as BidLSTM_CRF: under Keras the mask propagated from the
+        # character embedding into these GRUs
+        mask = get_token_mask(char_input)
+
         # Encode characters
         char_encoded = self.char_encoder(char_input)
 
@@ -715,10 +723,10 @@ class BidGRU_CRF(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded], dim=-1)
         x = self.dropout(x)
 
-        # BiGRU layers
-        gru_out, _ = self.bigru1(x)
+        # BiGRU layers over the real positions only
+        gru_out = run_masked_lstm(self.bigru1, x, mask)
         gru_out = self.dropout(gru_out)
-        gru_out, _ = self.bigru2(gru_out)
+        gru_out = run_masked_lstm(self.bigru2, gru_out, mask)
 
         # Dense
         x = torch.tanh(self.dense(gru_out))
@@ -727,7 +735,7 @@ class BidGRU_CRF(BaseSequenceLabeler):
         outputs = {"logits": emissions}
 
         if labels is not None:
-            loss = self.crf(emissions, labels)
+            loss = self.crf(emissions, labels, mask=mask)
             outputs["loss"] = loss
 
         return outputs
@@ -735,9 +743,13 @@ class BidGRU_CRF(BaseSequenceLabeler):
     def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
+            mask = get_token_mask(inputs["char_input"])
             outputs = self.forward(inputs)
-            predictions = self.crf.decode(outputs["logits"])
-        return predictions
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        # a masked decode returns only the real positions; callers expect one
+        # tag per position, so the padding is filled back in
+        sequence_length = outputs["logits"].shape[1]
+        return [tags + [0] * (sequence_length - len(tags)) for tags in predictions]
 
 
 class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
@@ -801,6 +813,10 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         char_input = inputs["char_input"]
         features_input = inputs["features_input"]
 
+        # Same masking as BidLSTM_CRF: under Keras the mask propagated from the
+        # character embedding into this LSTM
+        mask = get_token_mask(char_input)
+
         # Encode characters
         char_encoded = self.char_encoder(char_input)
 
@@ -825,8 +841,8 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded, features_encoded], dim=-1)
         x = self.dropout(x)
 
-        # BiLSTM
-        lstm_out, _ = self.bilstm(x)
+        # BiLSTM over the real positions only
+        lstm_out = run_masked_lstm(self.bilstm, x, mask)
         lstm_out = self.dropout(lstm_out)
 
         # Dense layers
@@ -836,7 +852,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         outputs = {"logits": emissions}
 
         if labels is not None:
-            loss = self.crf(emissions, labels)
+            loss = self.crf(emissions, labels, mask=mask)
             outputs["loss"] = loss
 
         return outputs
@@ -844,9 +860,13 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
     def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
+            mask = get_token_mask(inputs["char_input"])
             outputs = self.forward(inputs)
-            predictions = self.crf.decode(outputs["logits"])
-        return predictions
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        # a masked decode returns only the real positions; callers expect one
+        # tag per position, so the padding is filled back in
+        sequence_length = outputs["logits"].shape[1]
+        return [tags + [0] * (sequence_length - len(tags)) for tags in predictions]
 
 
 class BidLSTM_ChainCRF_FEATURES(BidLSTM_CRF_FEATURES):
@@ -968,6 +988,10 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         char_input = inputs["char_input"]
         casing_input = inputs["casing_input"]
 
+        # Same masking as BidLSTM_CRF: under Keras the mask propagated from the
+        # character embedding into this LSTM
+        mask = get_token_mask(char_input)
+
         # Encode characters
         char_encoded = self.char_encoder(char_input)
 
@@ -979,8 +1003,8 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded, casing_emb], dim=-1)
         x = self.dropout(x)
 
-        # BiLSTM
-        lstm_out, _ = self.bilstm(x)
+        # BiLSTM over the real positions only
+        lstm_out = run_masked_lstm(self.bilstm, x, mask)
         lstm_out = self.dropout(lstm_out)
 
         # Dense
@@ -990,7 +1014,7 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         outputs = {"logits": emissions}
 
         if labels is not None:
-            loss = self.crf(emissions, labels)
+            loss = self.crf(emissions, labels, mask=mask)
             outputs["loss"] = loss
 
         return outputs
@@ -998,9 +1022,13 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
     def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
+            mask = get_token_mask(inputs["char_input"])
             outputs = self.forward(inputs)
-            predictions = self.crf.decode(outputs["logits"])
-        return predictions
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        # a masked decode returns only the real positions; callers expect one
+        # tag per position, so the padding is filled back in
+        sequence_length = outputs["logits"].shape[1]
+        return [tags + [0] * (sequence_length - len(tags)) for tags in predictions]
 
 
 # ============================================================================
