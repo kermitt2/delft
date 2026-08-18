@@ -217,3 +217,91 @@ class TestBidLSTMCRF:
     def test_should_decode_padded_positions_as_the_padding_tag(self, model, word_input):
         predictions = model.decode({"word_input": word_input, "char_input": CHAR_INPUT})
         assert predictions[0][SHORTER_DOCUMENT_LENGTH:] == [0]
+
+
+# The architectures whose Keras counterparts masked padded tokens, via the
+# character embedding's mask_zero=True propagating into the word-level RNN
+TOKEN_MASKED_ARCHITECTURES = [
+    "BidLSTM",
+    "BidLSTM_CRF",
+    "BidGRU_CRF",
+    "BidLSTM_CRF_CASING",
+    "BidLSTM_CRF_FEATURES",
+]
+
+
+def _get_masked_model(architecture: str):
+    # an untrained model may decode the same tags either way by chance; this
+    # seed is one where the unmasked implementation decodes different ones
+    torch.manual_seed(5)
+    model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
+    model.eval()
+    return model
+
+
+def _get_inputs(architecture: str, word_input: torch.Tensor, char_input: torch.Tensor) -> dict:
+    inputs = {"word_input": word_input, "char_input": char_input}
+    batch_size, sequence_length = char_input.shape[:2]
+    if architecture == "BidLSTM_CRF_CASING":
+        inputs["casing_input"] = torch.ones(batch_size, sequence_length, dtype=torch.long)
+    if architecture == "BidLSTM_CRF_FEATURES":
+        inputs["features_input"] = torch.ones(batch_size, sequence_length, 1, dtype=torch.long)
+    return inputs
+
+
+class TestTokenMaskedArchitectures:
+    @pytest.mark.parametrize("architecture", TOKEN_MASKED_ARCHITECTURES)
+    def test_should_give_the_same_logits_whatever_the_document_is_batched_with(self, architecture, word_input):
+        model = _get_masked_model(architecture)
+        with torch.no_grad():
+            batched = model(_get_inputs(architecture, word_input, CHAR_INPUT))
+            on_its_own = model(
+                _get_inputs(
+                    architecture,
+                    word_input[:1, :SHORTER_DOCUMENT_LENGTH],
+                    CHAR_INPUT[:1, :SHORTER_DOCUMENT_LENGTH],
+                )
+            )
+        assert torch.allclose(
+            batched["logits"][:1, :SHORTER_DOCUMENT_LENGTH],
+            on_its_own["logits"],
+            atol=1e-6,
+        )
+
+    @pytest.mark.parametrize("architecture", TOKEN_MASKED_ARCHITECTURES)
+    def test_should_give_the_same_tags_whatever_the_document_is_batched_with(self, architecture, word_input):
+        model = _get_masked_model(architecture)
+        batched = model.decode(_get_inputs(architecture, word_input, CHAR_INPUT))
+        on_its_own = model.decode(
+            _get_inputs(
+                architecture,
+                word_input[:1, :SHORTER_DOCUMENT_LENGTH],
+                CHAR_INPUT[:1, :SHORTER_DOCUMENT_LENGTH],
+            )
+        )
+        assert batched[0][:SHORTER_DOCUMENT_LENGTH] == on_its_own[0][:SHORTER_DOCUMENT_LENGTH]
+
+    @pytest.mark.parametrize("architecture", TOKEN_MASKED_ARCHITECTURES)
+    def test_should_give_the_same_loss_whatever_the_document_is_batched_with(self, architecture, word_input):
+        model = _get_masked_model(architecture)
+        labels = torch.tensor([[1, 2, 0], [3, 1, 2]])
+        with torch.no_grad():
+            batched = model(
+                _get_inputs(architecture, word_input[:1], CHAR_INPUT[:1]),
+                labels=labels[:1],
+            )
+            on_its_own = model(
+                _get_inputs(
+                    architecture,
+                    word_input[:1, :SHORTER_DOCUMENT_LENGTH],
+                    CHAR_INPUT[:1, :SHORTER_DOCUMENT_LENGTH],
+                ),
+                labels=labels[:1, :SHORTER_DOCUMENT_LENGTH],
+            )
+        assert torch.allclose(batched["loss"], on_its_own["loss"], atol=1e-6)
+
+    @pytest.mark.parametrize("architecture", TOKEN_MASKED_ARCHITECTURES)
+    def test_should_decode_one_tag_per_position(self, architecture, word_input):
+        model = _get_masked_model(architecture)
+        predictions = model.decode(_get_inputs(architecture, word_input, CHAR_INPUT))
+        assert [len(tags) for tags in predictions] == [CHAR_INPUT.shape[1]] * CHAR_INPUT.shape[0]
