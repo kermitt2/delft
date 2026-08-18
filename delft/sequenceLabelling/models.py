@@ -105,6 +105,29 @@ class CharacterEncoder(nn.Module):
         return hidden.view(batch_size, seq_len, -1)
 
 
+def get_token_mask(char_input: torch.Tensor) -> torch.Tensor:
+    """Marks the token positions that are not padding.
+
+    Keras derived this from the character embedding's own mask, reduced over the
+    character axis, so a token counts as padding when every one of its
+    characters does. Taking it from char_input rather than from the length input
+    reproduces that and works whether or not a length was supplied.
+    """
+    mask = (char_input != 0).any(dim=-1)
+    # the CRF requires the first position of every sequence to be unmasked
+    mask[:, 0] = True
+    return mask
+
+
+def run_masked_lstm(lstm: nn.LSTM, x: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+    """Runs a sequence LSTM over the real positions only."""
+    lengths = mask.sum(dim=1)
+    packed = nn.utils.rnn.pack_padded_sequence(x, lengths.clamp(min=1).cpu(), batch_first=True, enforce_sorted=False)
+    packed_output, _ = lstm(packed)
+    output, _ = nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True, total_length=x.shape[1])
+    return output
+
+
 class CharacterCNNEncoder(nn.Module):
     """
     Character-level encoder using CNN.
@@ -353,16 +376,11 @@ class BidLSTM_CRF(BaseSequenceLabeler):
         word_emb = inputs["word_input"]
         char_input = inputs["char_input"]
 
-        # Get sequence lengths for masking
-        lengths = inputs.get("length", None)
-        if lengths is not None:
-            # Create mask from lengths
-            batch_size, seq_len = word_emb.shape[:2]
-            mask = torch.arange(seq_len, device=word_emb.device).expand(batch_size, seq_len)
-            mask = mask < lengths.squeeze(-1).unsqueeze(-1)
-            mask = mask.float()
-        else:
-            mask = None
+        # The Keras mask propagated from the character embedding through the
+        # Concatenate into this LSTM, so padded token positions took no part in
+        # the sequence over them and a document's output did not depend on the
+        # batch it was in.
+        mask = get_token_mask(char_input)
 
         # Encode characters
         char_encoded = self.char_encoder(char_input)
@@ -371,8 +389,8 @@ class BidLSTM_CRF(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded], dim=-1)
         x = self.dropout(x)
 
-        # BiLSTM
-        lstm_out, _ = self.bilstm(x)
+        # BiLSTM over the real positions only
+        lstm_out = run_masked_lstm(self.bilstm, x, mask)
         lstm_out = self.dropout(lstm_out)
 
         # Dense
@@ -391,20 +409,13 @@ class BidLSTM_CRF(BaseSequenceLabeler):
     def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
+            mask = get_token_mask(inputs["char_input"])
             outputs = self.forward(inputs)
-
-            # Get mask
-            lengths = inputs.get("length", None)
-            if lengths is not None:
-                batch_size, seq_len = outputs["logits"].shape[:2]
-                mask = torch.arange(seq_len, device=outputs["logits"].device).expand(batch_size, seq_len)
-                mask = mask < lengths.squeeze(-1).unsqueeze(-1)
-                mask = mask.float()
-            else:
-                mask = None
-
             predictions = self.crf.decode(outputs["logits"], mask=mask)
-        return predictions
+        # a masked decode returns only the real positions; callers expect one
+        # tag per position, so the padding is filled back in
+        sequence_length = outputs["logits"].shape[1]
+        return [tags + [0] * (sequence_length - len(tags)) for tags in predictions]
 
 
 class BidLSTM_ChainCRF(BaseSequenceLabeler):
