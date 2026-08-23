@@ -163,14 +163,31 @@ def lower(word):
     return word.lower()
 
 
+_DIGITS = re.compile(r"[0-9０１２３４５６７８９]")
+
+
 def normalize_num(word):
     """Normalize numeric characters to zeros."""
-    return re.sub(r"[0-9０１２３４５６７８９]", r"0", word)
+    # Compiled once: this runs per token of every tagged sequence, where the
+    # re module's own cache lookup costs about as much as the substitution.
+    return _DIGITS.sub("0", word)
 
 
 # =============================================================================
 # Feature Preprocessing Functions
 # =============================================================================
+
+
+def _map_feature_row(value_list, lookups):
+    """
+    Map one token's raw feature row to its index vector.
+
+    ``lookups`` is the (position, value->index mapping) pairs to keep, in
+    ascending position order. ``width`` stands in for the enumerate() this
+    replaces: a position past the end of the row is simply not emitted.
+    """
+    width = len(value_list)
+    return [mapping.get(value_list[index], 0) for index, mapping in lookups if index < width]
 
 
 def calculate_cardinality(feature_vector, indices=None):
@@ -414,19 +431,15 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
         Returns:
             numpy array of feature indices
         """
-        features_vector = [
-            [
-                [
-                    self.features_map_to_index[index][value]
-                    if index in self.features_map_to_index and value in self.features_map_to_index[index]
-                    else 0
-                    for index, value in enumerate(value_list)
-                    if index in self.features_indices
-                ]
-                for value_list in document
-            ]
-            for document in X
+        # Resolve "which positions do we keep, and what does each map with"
+        # once per call instead of once per feature per token: features_indices
+        # is a list, so the membership test it replaces was a linear scan run
+        # ~30 times for every token of every sequence.
+        lookups = [
+            (index, self.features_map_to_index.get(index) or {}) for index in sorted(set(self.features_indices or ()))
         ]
+
+        features_vector = [[_map_feature_row(value_list, lookups) for value_list in document] for document in X]
 
         features_count = len(self.features_indices)
 

@@ -96,6 +96,7 @@ class Sequence(object):
         self.model = None
         self.models = None
         self.p: Preprocessor = None
+        self._tagger = None  # built lazily and reused across tag() calls
         self.log_dir = log_dir
         self.embeddings_name = embeddings_name
         self.report_to_wandb = report_to_wandb
@@ -679,10 +680,35 @@ class Sequence(object):
         self.model.eval()
         start_time = time.time()
 
-        # Preprocess texts
+        annotations = self._get_tagger(nb_workers).tag(texts, output_format, features=features)
+
+        runtime = round(time.time() - start_time, 3)
+        if output_format == "json":
+            annotations["runtime"] = runtime
+
+        return annotations
+
+    def _get_tagger(self, nb_workers):
+        """Return the Tagger for the current model, building it at most once.
+
+        GROBID calls tag() many times per document and a Tagger is cheap but
+        not free, so keep it around. It is rebuilt whenever anything it closes
+        over is replaced — a load(), a fold selection, or a different worker
+        count.
+        """
         from delft.sequenceLabelling.tagger import Tagger
 
-        tagger = Tagger(
+        cached = getattr(self, "_tagger", None)
+        if (
+            cached is not None
+            and cached.model is self.model
+            and cached.preprocessor is self.p
+            and cached.embeddings is self.embeddings
+            and cached.nb_workers == nb_workers
+        ):
+            return cached
+
+        self._tagger = Tagger(
             self.model,
             self.model_config,
             self.embeddings,
@@ -690,14 +716,7 @@ class Sequence(object):
             device=self.device,
             nb_workers=nb_workers,
         )
-
-        annotations = tagger.tag(texts, output_format, features=features)
-
-        runtime = round(time.time() - start_time, 3)
-        if output_format == "json":
-            annotations["runtime"] = runtime
-
-        return annotations
+        return self._tagger
 
     def save(
         self,

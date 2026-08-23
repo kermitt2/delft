@@ -45,9 +45,9 @@ def pick_device(device=None) -> torch.device:
     Resolve a device (auto-pick when device=None, else honor the caller's choice)
     and print a one-line summary so the user can see which compute is in use.
 
-    The summary is printed once per distinct device per process. Resolution
-    happens on every ``Sequence``/``Tagger`` instantiation, i.e. on every
-    ``tag()`` call, and repeating the line there floods the output of an
+    The summary is printed once per distinct device per process: callers
+    resolve the device once, in their constructor, but several wrappers may be
+    built in one process and repeating the line floods the output of an
     embedding host such as GROBID, which cannot filter our stdout.
     """
     if device is None:

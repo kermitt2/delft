@@ -796,9 +796,10 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
     window = tokens[-maxlen:]
 
     # TBD: use better initializers (uniform, etc.)
-    x = np.zeros(
-        (maxlen, embeddings.embed_size),
-    )
+    # float32 throughout: the vectors are float32 in the store and the model
+    # consumes float32, so the default float64 buffer only bought a widening
+    # and a narrowing per token, plus twice the memory traffic.
+    x = np.zeros((maxlen, embeddings.embed_size), dtype=np.float32)
 
     # TBD: padding should be left and which vector do we use for padding?
     # and what about masking padding later for RNN?
@@ -807,7 +808,7 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
             word = _lower(word)
         if num_norm:
             word = _normalize_num(word)
-        x[i, :] = embeddings.get_word_vector(word).astype("float32")
+        x[i, :] = embeddings.get_word_vector(word)
 
     return x
 

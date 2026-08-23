@@ -459,8 +459,9 @@ class Classifier(object):
         if self.model is None:
             raise OSError("Model not loaded")
 
+        # The model is moved to self.device once, at load()/train() time; no
+        # need to walk its parameters again on every predict() call.
         self.model.eval()
-        self.model.to(self.device)
 
         transformer_tokenizer = None
         if self.model_config.transformer_name is not None:
