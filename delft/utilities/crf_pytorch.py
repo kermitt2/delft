@@ -408,6 +408,13 @@ class ChainCRF(nn.Module):
         self.b_start = None  # Start boundary energy
         self.b_end = None  # End boundary energy
 
+        # Build now when the tag count is already known, so that the parameters
+        # are registered before an optimizer is constructed over
+        # model.parameters() and are present in state_dict(). Building them
+        # lazily in forward() leaves them out of both.
+        if num_tags is not None:
+            self.build(num_tags)
+
     def build(self, num_tags: int, device=None, dtype=None):
         """Initialize layer weights."""
         self._num_tags = num_tags
