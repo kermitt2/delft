@@ -340,7 +340,7 @@ if __name__ == "__main__":
         "BidLSTM_ChainCRF_FEATURES",
     ]
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
 
     architectures_transformers_based = [
         "BERT",
