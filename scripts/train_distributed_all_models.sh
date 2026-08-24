@@ -16,7 +16,7 @@ WAIT_INTERVAL=${WAIT_INTERVAL:-30}
 
 # Common SLURM configuration
 SBATCH_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
---container-workdir=/netscratch/lfoppiano/delft/delft-pytorch2 \
+--container-workdir=/netscratch/lfoppiano/delft/delft-pytorch \
 --container-image=/netscratch/lfoppiano/enroot/delft-pytorch.sqsh \
 --export=ALL \
 --mem=100G \
