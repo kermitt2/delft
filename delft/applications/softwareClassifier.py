@@ -173,7 +173,7 @@ if __name__ == "__main__":
         description="Classify whether a mentioned software is used or not, using the DeLFT library"
     )
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
     pretrained_transformers_examples = [
         "bert-base-cased",
         "bert-large-cased",

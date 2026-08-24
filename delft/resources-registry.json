@@ -73,6 +73,68 @@
             "lang": "fr",
             "item": "word",
             "url": ""
+        },
+        {
+            "name": "static-retrieval-mrl-en",
+            "model": "sentence-transformers/static-retrieval-mrl-en-v1",
+            "type": "static-embedding",
+            "format": "static-transformer",
+            "normalize": true,
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "static-retrieval-mrl-en-256",
+            "model": "sentence-transformers/static-retrieval-mrl-en-v1",
+            "type": "static-embedding",
+            "format": "static-transformer",
+            "dimensions": 256,
+            "normalize": true,
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "static-similarity-mrl-multilingual",
+            "model": "sentence-transformers/static-similarity-mrl-multilingual-v1",
+            "type": "static-embedding",
+            "format": "static-transformer",
+            "normalize": true,
+            "lang": "multi",
+            "item": "word"
+        },
+        {
+            "name": "static-similarity-mrl-multilingual-256",
+            "model": "sentence-transformers/static-similarity-mrl-multilingual-v1",
+            "type": "static-embedding",
+            "format": "static-transformer",
+            "dimensions": 256,
+            "normalize": true,
+            "lang": "multi",
+            "item": "word"
+        },
+        {
+            "name": "potion-base-8M",
+            "model": "minishlab/potion-base-8M",
+            "type": "model2vec",
+            "format": "static-transformer",
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "potion-base-32M",
+            "model": "minishlab/potion-base-32M",
+            "type": "model2vec",
+            "format": "static-transformer",
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "potion-multilingual-128M",
+            "model": "minishlab/potion-multilingual-128M",
+            "type": "model2vec",
+            "format": "static-transformer",
+            "lang": "multi",
+            "item": "word"
         }
     ],
     "transformers": [

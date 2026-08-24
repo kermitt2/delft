@@ -23,10 +23,31 @@ try:
 except ImportError:
     fasttext_support = False
 
+from delft.utilities.StaticEmbeddings import (
+    StaticTransformerEmbeddings,
+    looks_like_static_embedding_reference,
+)
 from delft.utilities.Utilities import download_file
 
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
+
+# modern static embeddings (sentence-transformers static embeddings, Model2Vec
+# potion models) are not a vector file to be compiled into LMDB, they are a
+# tokenizer plus an embedding matrix loaded from the HuggingFace hub, see
+# delft/utilities/StaticEmbeddings.py
+STATIC_TRANSFORMER_FORMAT = "static-transformer"
+STATIC_TRANSFORMER_FORMATS = (STATIC_TRANSFORMER_FORMAT, "hf")
+
+
+def is_static_transformer_description(description):
+    """Whether an embeddings registry entry describes a modern static embedding model."""
+    if not isinstance(description, dict):
+        return False
+    return (
+        description.get("format") in STATIC_TRANSFORMER_FORMATS or description.get("type") in STATIC_TRANSFORMER_FORMATS
+    )
+
 
 # Since py-lmdb 1.0, opening the same environment twice in a process raises
 #   lmdb.Error: The environment '<path>' is already open in this process.
@@ -149,6 +170,11 @@ class Embeddings(object):
 
     def lmdb_env_path(self):
         """Path of the LMDB database backing these embeddings, or None."""
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            # a static embedding model is never compiled into LMDB, and its
+            # name may be a path, which os.path.join below would take as the
+            # database directory
+            return None
         if not self.embedding_lmdb_path:
             return None
         return os.path.join(self.embedding_lmdb_path, self.name)
@@ -317,12 +343,50 @@ class Embeddings(object):
                 except Exception as e:
                     print("Failed to delete %s. Reason: %s" % (file_path, e))
 
+    def make_static_transformer_embeddings(self, name, description=None):
+        """
+        Load a modern static embedding model (sentence-transformers static
+        embeddings, Model2Vec potion models), either described in the
+        embeddings registry or given directly as a HuggingFace hub identifier
+        or as a path to a local copy of such a model.
+        """
+        if description is None:
+            description = {}
+        model_reference = description.get("model") or description.get("path") or name
+        self.lang = description.get("lang", self.lang)
+        self.extension = STATIC_TRANSFORMER_FORMAT
+
+        print("loading static embedding model", model_reference, "...")
+        self.model = StaticTransformerEmbeddings(
+            model_reference,
+            dimensions=description.get("dimensions"),
+            normalize=description.get("normalize"),
+            lang=self.lang,
+        )
+        self.embed_size = self.model.embed_size
+        self.vocab_size = self.model.vocab_size
+        print(
+            "embeddings loaded for",
+            self.vocab_size,
+            "sub-word units and",
+            self.embed_size,
+            "dimensions",
+        )
+
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
         if description is not None:
-            self.extension = description["format"]
+            self.extension = description.get("format", self.extension)
 
-        if self.extension == "bin":
+        if is_static_transformer_description(description) or (
+            description is None and looks_like_static_embedding_reference(name)
+        ):
+            # a static embedding model is used as it is, there is nothing to
+            # compile into LMDB: the vocabulary is made of sub-word units and
+            # word vectors are pooled on the fly
+            self.make_static_transformer_embeddings(name, description)
+
+        elif self.extension == "bin":
             if fasttext_support:
                 print("embeddings are of .bin format, so they will be loaded in memory...")
                 self.make_embeddings_simple_in_memory(name)
@@ -438,6 +502,8 @@ class Embeddings(object):
         """
         Get static embeddings (e.g. glove) for a given token
         """
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
@@ -492,6 +558,8 @@ class Embeddings(object):
             return env
 
     def get_word_vector_in_memory(self, word):
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()

@@ -142,7 +142,7 @@ def classify(texts, output_format, architecture="gru", embeddings_name=None, tra
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Sentiment classification of citation contexts based on DeLFT")
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
     pretrained_transformers_examples = [
         "bert-base-cased",
         "bert-large-cased",
