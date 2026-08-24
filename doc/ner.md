@@ -90,8 +90,9 @@ optional arguments:
   --embedding EMBEDDING
                         The desired pre-trained word embeddings using their descriptions in the file. For
                         local loading, use delft/resources-registry.json. Be sure to use here the same
-                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec'] and
-                        that the path in the registry to the embedding file is correct on your system.
+                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec',
+                        'potion-base-8M'] and that the path in the registry to the embedding file is
+                        correct on your system.
   --transformer TRANSFORMER
                         The desired pre-trained transformer to be used in the selected architecture. For
                         local loading use, delft/resources-registry.json, and be sure to use here the
@@ -688,8 +689,9 @@ optional arguments:
   --embedding EMBEDDING
                         The desired pre-trained word embeddings using their descriptions in the file. For
                         local loading, use delft/resources-registry.json. Be sure to use here the same
-                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec'] and
-                        that the path in the registry to the embedding file is correct on your system.
+                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec',
+                        'potion-base-8M'] and that the path in the registry to the embedding file is
+                        correct on your system.
   --transformer TRANSFORMER
                         The desired pre-trained transformer to be used in the selected architecture. For
                         local loading use, delft/resources-registry.json, and be sure to use here the

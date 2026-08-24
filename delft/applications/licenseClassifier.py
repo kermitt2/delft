@@ -597,7 +597,7 @@ def report_training_copyrights(y):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Classify a copyright/license section using the DeLFT library")
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
     pretrained_transformers_examples = [
         "bert-base-cased",
         "bert-large-cased",

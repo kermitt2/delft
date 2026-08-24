@@ -100,7 +100,7 @@ if __name__ == "__main__":
         description="Classification of comments/short texts in toxicity types (toxic, severe_toxic, obscene, threat, insult, identity_hate) based on DeLFT"
     )
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
     pretrained_transformers_examples = [
         "bert-base-cased",
         "bert-large-cased",
