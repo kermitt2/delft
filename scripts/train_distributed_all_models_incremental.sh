@@ -26,6 +26,7 @@ SBATCH_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
 --time=3-00:00"
 
 PYTHON_CMD=".venv/bin/python -m delft.applications.grobidTagger"
+EMBEDDING=${1:-glove-840B}
 
 # Architectures to train
 ARCHITECTURES=(
@@ -99,13 +100,13 @@ submit_job() {
             --job-name="$job_name" \
             --output="$log_file" \
             --error="$log_file" \
-            --wrap="$PYTHON_CMD $model train --architecture $architecture --num-workers 6 --max-sequence-length 3000 --incremental" 2>&1 | grep -oP '\d+')
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --embedding $EMBEDDING --num-workers 6 --max-sequence-length 3000 --incremental" 2>&1 | grep -oP '\d+')
     else
         job_id=$(sbatch $SBATCH_OPTS \
             --job-name="$job_name" \
             --output="$log_file" \
             --error="$log_file" \
-            --wrap="$PYTHON_CMD $model train --architecture $architecture --incremental" 2>&1 | grep -oP '\d+')
+            --wrap="$PYTHON_CMD $model train --architecture $architecture --embedding $EMBEDDING --incremental" 2>&1 | grep -oP '\d+')
     fi
 
     if [[ -n "$job_id" ]]; then
