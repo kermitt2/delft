@@ -1,7 +1,7 @@
 {
     "model_name": "grobid-reference-segmenter-BidLSTM_ChainCRF",
     "architecture": "BidLSTM_ChainCRF",
-    "embeddings_name": "glove-840B",
+    "embeddings_name": null,
     "char_vocab_size": 172,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
@@ -12,7 +12,7 @@
     "features_embedding_size": 4,
     "features_lstm_units": 4,
     "max_sequence_length": 3000,
-    "word_embedding_size": 300,
+    "word_embedding_size": 0,
     "num_word_lstm_units": 100,
     "case_embedding_size": 5,
     "dropout": 0.5,
