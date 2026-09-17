@@ -405,7 +405,11 @@ def create_dataloader(
         from transformers import AutoTokenizer
 
         # Initialize BERT/Transformer preprocessor
-        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name)
+        # add_prefix_space: the sequences are already split into words, and the byte-level BPE
+        # tokenizers (RoBERTa, GPT2...) only mark the start of a word with a leading space.
+        # Without it no sub-token carries that mark, and the alignment of the labels, which
+        # relies on it for these tokenizers, drops the first sub-token of every word.
+        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name, add_prefix_space=True)
         bert_preprocessor = BERTPreprocessor(tokenizer)
 
         dataset = TransformerDataset(
