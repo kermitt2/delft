@@ -64,7 +64,8 @@ options:
                         every window-stride (in tokens, or in sub-tokens with
                         a transformer), instead of truncating them. A stride
                         smaller than max-sequence-length makes the windows
-                        overlap.
+                        overlap. The validation and evaluation sets are
+                        then scored on whole sequences too.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
   --patience PATIENCE   patience, number of extra epochs to perform after the
@@ -270,7 +271,9 @@ A model takes at most `--max-sequence-length` tokens (sub-tokens with a transfor
 python3 delft/applications/grobidTagger.py fulltext train --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased --max-sequence-length 512 --window-stride 256
 ```
 
-The whole sequence is then trained on, and the model also sees sequences that start and end in the middle of a field, which is what it receives when the caller cuts long inputs before sending them for labelling. A stride equal to `--max-sequence-length` puts the windows side by side; a smaller one makes them overlap, for more examples per epoch. Only the training set is cut into windows: the validation and evaluation sets are truncated as before, so that scores stay comparable with and without the option.
+The whole sequence is then trained on, and the model also sees sequences that start and end in the middle of a field, which is what it receives when the caller cuts long inputs before sending them for labelling. A stride equal to `--max-sequence-length` puts the windows side by side; a smaller one makes them overlap, for more examples per epoch.
+
+The validation and evaluation sets are then cut into windows too, but always side by side, and the windows of a sequence are put back together before scoring: each token is scored once, a field that spans two windows counts as one, and the scores cover the whole of every sequence rather than its beginning. The stride is saved with the model, so that the `eval` action evaluates a model the way it was trained. Scores obtained with and without the option are not comparable: they are not measured on the same tokens.
 
 From Python, the option is `Sequence(..., window_stride=256)`.
 

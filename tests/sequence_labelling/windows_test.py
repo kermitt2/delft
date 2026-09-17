@@ -8,7 +8,13 @@ import pytest
 from delft.sequenceLabelling.config import ModelConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.preprocess import Preprocessor
-from delft.sequenceLabelling.windows import split_into_windows, subtoken_costs, window_bounds
+from delft.sequenceLabelling.windows import (
+    join_scored_windows,
+    join_windows,
+    split_into_windows,
+    subtoken_costs,
+    window_bounds,
+)
 from delft.sequenceLabelling.wrapper import Sequence
 
 WORDS = ["Jim", "Hensonization", "was", "a", "puppeteer", "in", "Mississippi", "today"]
@@ -58,24 +64,53 @@ class TestWindowBounds:
 class TestSplitIntoWindows:
     def test_labels_and_features_are_cut_with_their_tokens(self):
         features = [[f"f{i}"] for i in range(len(WORDS))]
-        x, y, f = split_into_windows([WORDS], [LABELS], [features], max_length=5, stride=3)
+        x, y, f, counts = split_into_windows([WORDS], [LABELS], [features], max_length=5, stride=3)
+        assert counts == [2]
         assert x == [WORDS[0:5], WORDS[3:8]]
         assert y == [LABELS[0:5], LABELS[3:8]]
         assert f == [features[0:5], features[3:8]]
 
     def test_sequences_that_fit_are_left_alone(self):
-        x, y, f = split_into_windows([WORDS[:2], WORDS, WORDS[:1]], [LABELS[:2], LABELS, LABELS[:1]], None, 5, 5)
+        x, y, f, counts = split_into_windows(
+            [WORDS[:2], WORDS, WORDS[:1]], [LABELS[:2], LABELS, LABELS[:1]], None, 5, 5
+        )
+        assert counts == [1, 2, 1]
         assert x == [WORDS[:2], WORDS[:5], WORDS[5:], WORDS[:1]]
         assert y == [LABELS[:2], LABELS[:5], LABELS[5:], LABELS[:1]]
         assert f is None
 
     def test_works_without_labels(self):
-        x, y, f = split_into_windows([WORDS], None, None, max_length=5, stride=5)
+        x, y, f, _ = split_into_windows([WORDS], None, None, max_length=5, stride=5)
         assert x == [WORDS[:5], WORDS[5:]] and y is None and f is None
 
     def test_sub_token_costs(self, wordpiece_tokenizer):
         assert subtoken_costs(wordpiece_tokenizer)(WORDS) == SUB_TOKENS_PER_WORD
         assert subtoken_costs(wordpiece_tokenizer)([]) == []
+
+
+class TestJoinWindows:
+    @pytest.mark.parametrize("max_length", [1, 3, 5, 8, 20])
+    def test_puts_back_together_windows_cut_side_by_side(self, max_length):
+        sequences = [WORDS, WORDS[:3], [], WORDS[:5]]
+        windows, _, _, counts = split_into_windows(sequences, None, None, max_length, stride=max_length)
+        assert join_windows(windows, counts) == sequences
+
+    def test_rejects_windows_that_do_not_match_the_counts(self):
+        with pytest.raises(ValueError, match="3 windows"):
+            join_windows([["a"], ["b"], ["c"]], [1, 1])
+
+    def test_scores_are_left_alone_without_windows(self):
+        loader, _ = _loader(5, window_stride=None)
+        assert join_scored_windows(loader, [[1], [2]], [[3], [4]]) == ([[1], [2]], [[3], [4]])
+
+    def test_scores_are_joined_per_sequence(self):
+        loader, _ = _loader(5, window_stride=5)  # WORDS makes two windows, WORDS[:3] one
+        predictions, labels = join_scored_windows(loader, [[1, 1], [2], [3]], [[4, 4], [5], [6]])
+        assert predictions == [[1, 1, 2], [3]] and labels == [[4, 4, 5], [6]]
+
+    def test_scores_are_left_alone_when_only_a_part_of_the_windows_was_seen(self):
+        loader, _ = _loader(5, window_stride=5)
+        assert join_scored_windows(loader, [[1, 1], [2]], [[4, 4], [5]]) == ([[1, 1], [2]], [[4, 4], [5]])
 
 
 def _labels_seen(loader, preprocessor):
@@ -134,22 +169,60 @@ class TestTrainingLoader:
             assert _labels_seen(*_loader(7, window_stride=None, transformer_name="in-memory"))[0] == LABELS[0:3]
 
 
-def test_sequence_trains_on_the_windows(tmp_path, monkeypatch, capsys):
+def _windowed_sequence(tmp_path, monkeypatch, **kwargs):
     monkeypatch.chdir(tmp_path)
-    sequence = Sequence(
+    return Sequence(
         "test-model",
         architecture="BidLSTM_CRF",
         embeddings_name=None,
         max_sequence_length=5,
-        window_stride=3,
         max_epoch=1,
         batch_size=2,
         early_stop=False,
         nb_workers=0,
         device="cpu",
+        **kwargs,
     )
-    assert sequence.training_config.window_stride == 3
-    x = np.array([WORDS, WORDS[:3]], dtype=object)
-    y = np.array([LABELS, LABELS[:3]], dtype=object)
-    sequence.train(x, y, x_valid=x, y_valid=y)
-    assert "[train] window stride 3: 2 sequences make 3 windows of at most 5" in capsys.readouterr().out
+
+
+X = np.array([WORDS, WORDS[:3]], dtype=object)
+Y = np.array([LABELS, LABELS[:3]], dtype=object)
+
+
+def test_sequence_trains_on_the_windows_and_validates_on_whole_sequences(tmp_path, monkeypatch, capsys):
+    sequence = _windowed_sequence(tmp_path, monkeypatch, window_stride=3)
+    sequence.train(X, Y, x_valid=X, y_valid=Y)
+    output = capsys.readouterr().out
+    assert "[train] window stride 3: 2 sequences make 3 windows of at most 5" in output
+    # side by side for the validation set, whatever the stride of the training set
+    assert "[valid] window stride 5: 2 sequences make 3 windows of at most 5" in output
+
+
+def _scored_labels(sequence):
+    """The expected labels that eval() hands to the scoring, per sequence."""
+    with patch("delft.sequenceLabelling.wrapper.classification_report", return_value=("", {})) as report:
+        sequence.eval(X, Y)
+    return report.call_args[0][0]
+
+
+def test_evaluation_scores_whole_sequences(tmp_path, monkeypatch):
+    sequence = _windowed_sequence(tmp_path, monkeypatch, window_stride=3)
+    sequence.train(X, Y)
+    assert _scored_labels(sequence) == [LABELS, LABELS[:3]]
+
+
+def test_evaluation_truncates_without_a_stride(tmp_path, monkeypatch):
+    sequence = _windowed_sequence(tmp_path, monkeypatch)
+    sequence.train(X, Y)
+    assert _scored_labels(sequence) == [LABELS[:5], LABELS[:3]]
+
+
+def test_a_saved_model_is_evaluated_the_way_it_was_trained(tmp_path, monkeypatch):
+    sequence = _windowed_sequence(tmp_path, monkeypatch, window_stride=3)
+    sequence.train(X, Y)
+    sequence.save(str(tmp_path))
+
+    loaded = Sequence("test-model", nb_workers=0, device="cpu")
+    loaded.load(str(tmp_path))
+    assert loaded.model_config.window_stride == 3
+    assert _scored_labels(loaded) == [LABELS, LABELS[:3]]

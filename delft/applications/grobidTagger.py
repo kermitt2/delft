@@ -680,7 +680,8 @@ if __name__ == "__main__":
         default=None,
         help="Cut the training sequences longer than max-sequence-length into windows of that length, one every "
         + "window-stride (in tokens, or in sub-tokens with a transformer), instead of truncating them. A stride "
-        + "smaller than max-sequence-length makes the windows overlap.",
+        + "smaller than max-sequence-length makes the windows overlap. The validation and evaluation sets are then "
+        + "scored on whole sequences too.",
     )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(

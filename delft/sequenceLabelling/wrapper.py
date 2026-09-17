@@ -31,6 +31,7 @@ from delft.sequenceLabelling.trainer import (
     Scorer,
     Trainer,
 )
+from delft.sequenceLabelling.windows import join_scored_windows
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
@@ -164,7 +165,9 @@ class Sequence(object):
             batch_size=batch_size,
             features_indices=features_indices,
             transformer_name=transformer_name,
+            window_stride=window_stride,
         )
+        self.window_stride = window_stride
 
         self.training_config = TrainingConfig(
             learning_rate,
@@ -177,7 +180,6 @@ class Sequence(object):
             patience,
             max_checkpoints_to_keep,
             multiprocessing,
-            window_stride=window_stride,
         )
 
         if report_to_wandb:
@@ -409,7 +411,7 @@ class Sequence(object):
             num_workers=self.nb_workers,
             distributed=distributed,
             role="train",
-            window_stride=self.training_config.window_stride,
+            window_stride=self.model_config.window_stride,
         )
 
         valid_loader = None
@@ -426,6 +428,7 @@ class Sequence(object):
                 num_workers=self.nb_workers,
                 distributed=distributed,
                 role="valid",
+                window_stride=self._scoring_window_stride(),
             )
 
         # Use model output directory for checkpoints to keep files organized
@@ -513,7 +516,7 @@ class Sequence(object):
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{fold_id}-train",
-                window_stride=self.training_config.window_stride,
+                window_stride=self.model_config.window_stride,
             )
             valid_loader = create_dataloader(
                 fold_x_valid,
@@ -525,6 +528,7 @@ class Sequence(object):
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{fold_id}-valid",
+                window_stride=self._scoring_window_stride(),
             )
 
             trainer = Trainer(
@@ -538,6 +542,14 @@ class Sequence(object):
             trainer.train(train_loader, valid_loader)
 
             self.models.append(fold_model)
+
+    def _scoring_window_stride(self):
+        """
+        The validation and evaluation sets are cut into windows when the training set is,
+        but side by side: each token is then scored once, and the windows of a sequence
+        are put back together before scoring.
+        """
+        return self.model_config.max_sequence_length if self.model_config.window_stride else None
 
     def eval(self, x_test, y_test, features=None):
         """Evaluate the model."""
@@ -565,6 +577,7 @@ class Sequence(object):
             model_config=self.model_config,
             num_workers=self.nb_workers,
             role="eval",
+            window_stride=self._scoring_window_stride(),
         )
 
         # Evaluate
@@ -593,6 +606,8 @@ class Sequence(object):
                             valid_label.append(l)
                     all_predictions.append(valid_pred)
                     all_labels.append(valid_label)
+
+        all_predictions, all_labels = join_scored_windows(test_loader, all_predictions, all_labels)
 
         # Convert to labels
         idx_to_label = {idx: label for label, idx in self.p.vocab_tag.items()}
@@ -647,6 +662,7 @@ class Sequence(object):
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{i}-eval",
+                window_stride=self._scoring_window_stride(),
             )
 
             scorer = Scorer(test_loader, self.p, evaluation=True)
@@ -802,6 +818,8 @@ class Sequence(object):
 
     def _load_from_directory(self, model_path, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
+        if self.window_stride is not None:
+            self.model_config.window_stride = self.window_stride
 
         if self.model_config.embeddings_name is not None:
             self.embeddings = Embeddings(
