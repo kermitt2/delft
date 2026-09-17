@@ -494,7 +494,7 @@ class BidLSTM_ChainCRF(BaseSequenceLabeler):
 
         return outputs
 
-    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
             outputs = self.forward(inputs)
@@ -929,7 +929,7 @@ class BidLSTM_ChainCRF_FEATURES(BidLSTM_CRF_FEATURES):
 
         return outputs
 
-    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
             outputs = self.forward(inputs)
@@ -1273,7 +1273,7 @@ class BERT_ChainCRF(BaseSequenceLabeler):
 
         return result
 
-    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
             outputs = self.forward(inputs)
@@ -1562,7 +1562,7 @@ class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
             result["loss"] = loss
         return result
 
-    def decode(self, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         with torch.no_grad():
             outputs = self.forward(inputs)
             predictions = self.crf.decode(outputs["logits"])

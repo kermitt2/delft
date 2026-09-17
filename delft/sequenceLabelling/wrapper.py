@@ -578,9 +578,6 @@ class Sequence(object):
                     outputs = self.model(inputs)
                     predictions = outputs["logits"].argmax(dim=-1).tolist()
 
-                if isinstance(predictions, torch.Tensor):
-                    predictions = predictions.tolist()
-
                 labels_list = labels.tolist()
                 for pred, label in zip(predictions, labels_list):
                     valid_pred = []
