@@ -364,7 +364,9 @@ class BERTPreprocessor(object):
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(self.tokenizer.pad_token_id)
-            token_type_ids.append(self.tokenizer.pad_token_id)
+            # the segment of a padding position is 0: the padding id of the tokenizer is not a
+            # segment, and is out of range for the models with a single one (RoBERTa: id 1)
+            token_type_ids.append(0)
             attention_mask.append(0)
             label_ids.append("<PAD>")
             chars_blocks.append(self.empty_char_vector)
@@ -521,7 +523,7 @@ class BERTPreprocessor(object):
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
             input_ids.append(self.tokenizer.pad_token_id)
-            input_mask.append(self.tokenizer.pad_token_id)
+            input_mask.append(0)
             segment_ids.append(0)
             label_ids.append("<PAD>")
             chars_blocks.append(self.empty_char_vector)

@@ -26,7 +26,7 @@ from delft.utilities.dataloader_utils import (
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
+from delft.utilities.Utilities import truncate_batch_values
 
 
 def _worker_init_fn(worker_id):
@@ -305,7 +305,9 @@ class TransformerDataset(Dataset):
         if self.tokenize:
             x_tokens = [tokenizeAndFilterSimple(x_item)]
         else:
-            x_tokens = [x_item]
+            # a list, which the tokenizer asks for: sequences of the same length (a file with
+            # a single one, for instance) come from the readers as the rows of an array
+            x_tokens = [list(x_item)]
 
         # Truncate if needed
         seq_len = len(x_tokens[0])
@@ -343,7 +345,10 @@ class TransformerDataset(Dataset):
         )
 
         # Get actual length
-        actual_len = len_until_first_pad(input_ids[0], 0)
+        # from the attention mask rather than from the padding id, which is only 0 for some
+        # tokenizers (BERT, DeBERTa): with another one (RoBERTa: 1, ModernBERT: 50283) no
+        # padding was found, and every sequence kept the full max_sequence_length
+        actual_len = int(sum(attention_mask[0]))
 
         # 1 on the first sub-token of each word, 0 on special tokens, continuation
         # sub-tokens and padding. A model predicts one label per sub-token; the
