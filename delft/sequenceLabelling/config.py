@@ -29,6 +29,7 @@ class ModelConfig(object):
         features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
         features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
         transformer_name=None,
+        window_stride=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -62,6 +63,12 @@ class ModelConfig(object):
 
         self.transformer_name = transformer_name
 
+        # When set, a sequence longer than max_sequence_length is not truncated when training
+        # and evaluating, but cut into windows of that length: one every window_stride for the
+        # training set, side by side for the validation and evaluation sets. Saved with the
+        # model so that it is evaluated the way it was trained.
+        self.window_stride = window_stride
+
     def save(self, file):
         with open(file, "w") as f:
             json.dump(vars(self), f, sort_keys=False, indent=4)
@@ -90,7 +97,6 @@ class TrainingConfig(object):
         patience=5,
         max_checkpoints_to_keep=0,
         multiprocessing=True,
-        window_stride=None,
     ):
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
@@ -102,6 +108,3 @@ class TrainingConfig(object):
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
         self.multiprocessing = multiprocessing
-        # When set, a training sequence longer than max_sequence_length is cut into windows
-        # of that length, one every window_stride, instead of losing what follows the cut.
-        self.window_stride = window_stride
