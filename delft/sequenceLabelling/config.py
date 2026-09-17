@@ -29,6 +29,7 @@ class ModelConfig(object):
         features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
         features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
         transformer_name=None,
+        text_features_indices=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -61,6 +62,10 @@ class ModelConfig(object):
         self.batch_size = batch_size  # this is the batch size for prediction
 
         self.transformer_name = transformer_name
+
+        # Columns of the features the text of a token is taken from, column 0 being the
+        # token itself; None for the token alone. See delft.sequenceLabelling.text_features.
+        self.text_features_indices = text_features_indices
 
     def save(self, file):
         with open(file, "w") as f:

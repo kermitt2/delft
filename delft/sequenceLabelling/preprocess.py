@@ -6,6 +6,7 @@ from typing import Iterable, List, Set
 import numpy as np
 
 from delft.sequenceLabelling.config import ModelConfig
+from delft.sequenceLabelling.text_features import TEXT_SEPARATOR
 
 LOGGER = logging.getLogger(__name__)
 
@@ -156,11 +157,19 @@ class BERTPreprocessor(object):
                 break
         return result
 
-    def tokenize_and_align_features_and_labels(self, texts, chars, text_features, text_labels, maxlen=512):
+    def tokenize_and_align_features_and_labels(
+        self, texts, chars, text_features, text_labels, maxlen=512, word_positions=None
+    ):
         """
         Training/evaluation usage with features: sub-tokenize+convert to ids/mask/segments input texts, realign labels
         and features given new tokens introduced by the wordpiece sub-tokenizer.
         texts is a list of texts already pre-tokenized
+
+        When a position of a sequence holds several words (see
+        ``delft.sequenceLabelling.text_features``), ``texts`` has the words and
+        ``word_positions`` gives, for each text, the position each word belongs to:
+        chars, features and labels are then per position, and only the first
+        sub-token of a position carries its label.
         """
         target_ids = []
         target_type_ids = []
@@ -195,7 +204,14 @@ class BERTPreprocessor(object):
                 feature_blocks,
                 target_tags,
                 tokens,
-            ) = self.convert_single_text(text, local_chars, features, label_list, maxlen)
+            ) = self.convert_single_text(
+                text,
+                local_chars,
+                features,
+                label_list,
+                maxlen,
+                word_positions=None if word_positions is None else word_positions[i],
+            )
             target_ids.append(input_ids)
             target_type_ids.append(token_type_ids)
             target_attention_mask.append(attention_mask)
@@ -218,27 +234,31 @@ class BERTPreprocessor(object):
             input_tokens,
         )
 
-    def convert_single_text(self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length):
+    def convert_single_text(
+        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length, word_positions=None
+    ):
         """
         Converts a single sequence input into a single transformer input format using generic tokenizer
         of the transformers library, align other channel input to the new sub-tokenization
         """
+        nb_positions = len(text_tokens) if word_positions is None else max(word_positions, default=-1) + 1
+
         if label_tokens is None:
             # we create a dummy label list to facilitate
             label_tokens = []
-            while len(label_tokens) < len(text_tokens):
+            while len(label_tokens) < nb_positions:
                 label_tokens.append(0)
 
         if features_tokens is None:
             # we create a dummy feature list to facilitate
             features_tokens = []
-            while len(features_tokens) < len(text_tokens):
+            while len(features_tokens) < nb_positions:
                 features_tokens.append(self.empty_features_vector)
 
         if chars_tokens is None:
             # we create a dummy feature list to facilitate
             chars_tokens = []
-            while len(chars_tokens) < len(text_tokens):
+            while len(chars_tokens) < nb_positions:
                 chars_tokens.append(self.empty_char_vector)
 
         # sub-tokenization
@@ -325,6 +345,9 @@ class BERTPreprocessor(object):
         token_type_ids = new_token_type_ids
         offsets = new_offsets
         word_ids = new_word_ids
+        if word_positions is not None:
+            # several words per position: sub-tokens are aligned on positions, not on words
+            word_ids = [None if word_id is None else word_positions[word_id] for word_id in word_ids]
 
         # Use the tokenizer's word_ids() method for reliable word boundary detection
         # This is more robust across different tokenizer implementations (BERT, RoBERTa, modernBERT, etc.)
@@ -782,16 +805,23 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
     return preprocessor
 
 
-def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True):
+def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True, tokens_per_position=1):
     """
     Given a list of tokens convert it to a sequence of word embedding
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
     vector when appropriate. When ``embeddings`` is ``None``, return a
     zero-width placeholder so downstream concatenation with character
     embeddings is a no-op (char-only training, see issue #216).
+
+    With ``tokens_per_position`` above 1, the text of a position holds that many tokens
+    separated by a space (see ``delft.sequenceLabelling.text_features``): their vectors
+    are concatenated, a missing token leaving zeros.
     """
     if embeddings is None:
         return np.zeros((maxlen, 0), dtype=np.float32)
+
+    if tokens_per_position > 1:
+        return _to_concatenated_vectors(tokens, embeddings, maxlen, lowercase, num_norm, tokens_per_position)
 
     window = tokens[-maxlen:]
 
@@ -810,6 +840,21 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True)
             word = _normalize_num(word)
         x[i, :] = embeddings.get_word_vector(word)
 
+    return x
+
+
+def _to_concatenated_vectors(tokens, embeddings, maxlen, lowercase, num_norm, tokens_per_position):
+    size = embeddings.embed_size
+    x = np.zeros((maxlen, size * tokens_per_position), dtype=np.float32)
+    for i, text in enumerate(tokens[-maxlen:]):
+        for k, word in enumerate(text.split(TEXT_SEPARATOR)[:tokens_per_position]):
+            if not word:
+                continue
+            if lowercase:
+                word = _lower(word)
+            if num_norm:
+                word = _normalize_num(word)
+            x[i, k * size : (k + 1) * size] = embeddings.get_word_vector(word)
     return x
 
 

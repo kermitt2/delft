@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.model_names import GROBID_PREFIX, build_model_name, validate_suffix
-from delft.utilities.Utilities import longest_row, t_or_f
+from delft.utilities.Utilities import longest_row, parse_number_ranges, t_or_f
 
 MODEL_LIST = [
     "affiliation-address",
@@ -252,6 +252,7 @@ def train(
     wandb_project=None,
     num_workers=None,
     suffix=None,
+    text_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -314,6 +315,7 @@ def train(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        text_features_indices=text_features_indices,
     )
 
     if incremental:
@@ -369,6 +371,7 @@ def train_eval(
     wandb_project=None,
     num_workers=None,
     suffix=None,
+    text_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -435,6 +438,7 @@ def train_eval(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        text_features_indices=text_features_indices,
     )
 
     if incremental:
@@ -670,6 +674,13 @@ if __name__ == "__main__":
         default=-1,
         help="max-sequence-length parameter to be used.",
     )
+    parser.add_argument(
+        "--text-features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file the text of a token is taken from, the token being column 0. For the "
+        + "models that label lines, 0,1 reads the first two tokens of a line rather than the first one.",
+    )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
@@ -794,6 +805,7 @@ if __name__ == "__main__":
             wandb_project=wandb_project,
             num_workers=num_workers,
             suffix=suffix,
+            text_features_indices=args.text_features_indices,
         )
 
     if action == Tasks.EVAL:
@@ -841,6 +853,7 @@ if __name__ == "__main__":
             wandb_project=wandb_project,
             num_workers=num_workers,
             suffix=suffix,
+            text_features_indices=args.text_features_indices,
         )
 
     if action == Tasks.TAG:

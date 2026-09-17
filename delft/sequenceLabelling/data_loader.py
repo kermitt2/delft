@@ -17,6 +17,7 @@ from delft.sequenceLabelling.preprocess import (
     to_casing_single,
     to_vector_single,
 )
+from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position, words_and_positions
 from delft.utilities.dataloader_utils import (
     effective_num_workers as _effective_num_workers,
 )
@@ -147,10 +148,12 @@ class SequenceLabelingDataset(Dataset):
         tokenize: bool = False,
         features: Optional[List] = None,
         use_chain_crf: bool = False,
+        tokens_per_position: int = 1,
     ):
         self.x = x
         self.y = y
         self.features = features
+        self.tokens_per_position = tokens_per_position
         self.preprocessor = preprocessor
         self.embeddings = embeddings
         self.char_embed_size = char_embed_size
@@ -198,7 +201,7 @@ class SequenceLabelingDataset(Dataset):
             seq_len = 2
 
         # Get word embeddings
-        word_emb = to_vector_single(x_tokens, self.embeddings, seq_len)
+        word_emb = to_vector_single(x_tokens, self.embeddings, seq_len, tokens_per_position=self.tokens_per_position)
 
         # Get character indices. Preprocessor.transform returns [chars_padded, lengths]
         # for a list of sentences; we pass a single sentence and take element [0][0].
@@ -278,7 +281,9 @@ class TransformerDataset(Dataset):
         features: Optional[List] = None,
         use_chain_crf: bool = False,
         output_input_offsets: bool = False,
+        tokens_per_position: int = 1,
     ):
+        self.tokens_per_position = tokens_per_position
         self.x = x
         self.y = y
         self.features = features
@@ -330,6 +335,12 @@ class TransformerDataset(Dataset):
         # tokens, continuation sub-tokens and padding. With no labels (inference),
         # placeholders are aligned, which are only ever compared to PAD.
         alignment_labels = y_item if y_item is not None else [["O"] * len(x_tokens[0])]
+
+        # a position that holds several words is sub-tokenized word by word
+        words, word_positions = x_tokens, None
+        if self.tokens_per_position > 1:
+            sequence_words, positions = words_and_positions(x_tokens[0])
+            words, word_positions = [sequence_words], [positions]
         (
             input_ids,
             token_type_ids,
@@ -339,7 +350,7 @@ class TransformerDataset(Dataset):
             input_labels,
             input_offsets,
         ) = self.bert_preprocessor.tokenize_and_align_features_and_labels(
-            x_tokens, batch_c, sub_f, alignment_labels, maxlen=self.max_sequence_length
+            words, batch_c, sub_f, alignment_labels, maxlen=self.max_sequence_length, word_positions=word_positions
         )
 
         # Get actual length
@@ -401,6 +412,9 @@ def create_dataloader(
     Args:
         distributed: If True, use DistributedSampler for multi-GPU training
     """
+    # the text of a token may come from columns of its features rather than from x
+    x = text_from_features(x, features, getattr(model_config, "text_features_indices", None))
+
     if model_config and model_config.transformer_name:
         from transformers import AutoTokenizer
 
@@ -417,6 +431,7 @@ def create_dataloader(
             tokenize=False,  # Input x is usually already tokenized in DeLFT list-of-lists format
             features=features,
             use_chain_crf=model_config.use_crf if model_config else False,
+            tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
         )
 
         # Scale workers down for tiny datasets where spawn cost dominates.
@@ -455,6 +470,7 @@ def create_dataloader(
         features=features,
         max_sequence_length=model_config.max_sequence_length if model_config else None,
         use_chain_crf=model_config.use_crf if model_config else False,
+        tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
     )
 
     effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)

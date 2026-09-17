@@ -11,6 +11,7 @@ usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
                        [--input INPUT] [--incremental]
                        [--input-model INPUT_MODEL]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH]
+                       [--text-features-indices TEXT_FEATURES_INDICES]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
                        [--early-stop EARLY_STOP] [--multi-gpu]
@@ -57,6 +58,11 @@ options:
                         default one.
   --max-sequence-length MAX_SEQUENCE_LENGTH
                         max-sequence-length parameter to be used.
+  --text-features-indices TEXT_FEATURES_INDICES
+                        Columns of the training file the text of a token is
+                        taken from, the token being column 0. For the models
+                        that label lines, 0,1 reads the first two tokens of a
+                        line rather than the first one.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
   --patience PATIENCE   patience, number of extra epochs to perform after the
@@ -253,6 +259,20 @@ python3 delft/applications/grobidTagger.py citation eval --architecture *name-of
 ### Sequences longer than the model takes
 
 A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
+
+### Models that label lines: reading more than the first token
+
+In the _segmentation_ and _reference-segmenter_ models a position of a sequence is a line, not a token. GROBID gives the first two tokens of the line in the first two columns of the training file, and by default DeLFT takes the text of a position from the first column only: the model reads one word per line.
+
+`--text-features-indices` lists the columns the text is taken from, column 0 being the token:
+
+```sh
+python3 delft/applications/grobidTagger.py segmentation train --architecture BidLSTM_CRF_FEATURES --text-features-indices 0,1
+```
+
+The text of a line is then its first two tokens: the characters of both are encoded, the word embeddings of the two are concatenated (the input of the model grows accordingly), and a transformer sub-tokenizes both, the label of the line staying on its first sub-token. The columns are saved with the model, so nothing is to be given to evaluate or to tag, except the features themselves, which `tag()` then requires. The tokens returned by `tag()` are the ones it was given.
+
+Two tokens are longer than one: consider a higher `max_char_length` (30 by default) when creating the `Sequence`. From Python, the option is `Sequence(..., text_features_indices=[0, 1])`.
 
 ## Calling DeLFT from GROBID
 
