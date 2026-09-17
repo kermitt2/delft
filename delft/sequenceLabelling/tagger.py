@@ -107,6 +107,10 @@ class Tagger(object):
                     tags = pred_indices.tolist()
                     probs = probs.tolist()
 
+                # transformers predict one label per sub-token: the data loader marks
+                # the first sub-token of each word, where the label of the word is
+                word_starts = inputs["word_start_mask"].tolist() if "word_start_mask" in inputs else None
+
                 # Process batch results
                 for i in range(len(tags)):
                     idx = steps_done * self.model_config.batch_size + i
@@ -118,29 +122,18 @@ class Tagger(object):
                     offsets = all_offsets[idx]
 
                     pred_tags_indices = tags[i]
+                    current_probs = probs[i] if probs else None
+
+                    if word_starts is not None:
+                        positions = [
+                            p for p, is_start in enumerate(word_starts[i][: len(pred_tags_indices)]) if is_start
+                        ]
+                        pred_tags_indices = [pred_tags_indices[p] for p in positions]
+                        if current_probs is not None:
+                            current_probs = [current_probs[p] for p in positions]
 
                     # Inverse transform tags
                     pred_tags = self.preprocessor.inverse_transform(pred_tags_indices)
-
-                    # For BERT/Transformers, we might need alignment if subwords were used
-                    # But create_dataloader and models should handle this?
-                    # In Keras version, generator returned offsets for alignment.
-                    # In PyTorch version, if we use the same preprocessor/tokenizer logic,
-                    # we need to ensure alignment.
-                    # The create_dataloader in data_loader_pytorch uses "bert_preprocessor" logic if transformer_name is set.
-
-                    # If we simply use the outputs, they should match the input tokens fed to the model.
-                    # However, if we used subword tokenization, the model output matches subwords.
-                    # We need to map back to original words.
-
-                    # For now, let's assume 1-to-1 mapping or that preprocessor handles it.
-                    # Re-checking tagger.py logic for transformers:
-                    # It uses generator_output which contains input_offsets for subword alignment.
-
-                    # If using transformers, the model output corresponding to subwords.
-                    # We simply take the first subword label for the whole word usually.
-
-                    current_probs = probs[i] if probs else None
 
                     if output_format == "json":
                         piece = {}

@@ -27,6 +27,12 @@ from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
 
+# label the transformer preprocessor aligns on special tokens, continuation sub-tokens
+# and padding
+PAD_LABEL = "<PAD>"
+# placeholder label aligned at inference, where only the word boundaries matter
+WORD_START_LABEL = "O"
+
 
 def _worker_init_fn(worker_id):
     # Each fork-mode worker inherits the parent's LMDB env handle, which is unsafe.
@@ -324,7 +330,10 @@ class TransformerDataset(Dataset):
         else:
             sub_f = None
 
-        # Tokenize and align for transformer
+        # Tokenize and align for transformer. The aligned labels are also what tells
+        # the first sub-token of a word from everything else, so placeholder labels
+        # are aligned when there are none (inference).
+        alignment_labels = y_item if y_item is not None else [[WORD_START_LABEL] * len(x_tokens[0])]
         (
             input_ids,
             token_type_ids,
@@ -334,11 +343,16 @@ class TransformerDataset(Dataset):
             input_labels,
             input_offsets,
         ) = self.bert_preprocessor.tokenize_and_align_features_and_labels(
-            x_tokens, batch_c, sub_f, y_item, maxlen=self.max_sequence_length
+            x_tokens, batch_c, sub_f, alignment_labels, maxlen=self.max_sequence_length
         )
 
         # Get actual length
         actual_len = len_until_first_pad(input_ids[0], 0)
+
+        # 1 on the first sub-token of each word, 0 on special tokens, continuation
+        # sub-tokens and padding. A model predicts one label per sub-token; the
+        # label of a word is the one predicted at its first sub-token.
+        word_start_mask = [0 if label == PAD_LABEL else 1 for label in input_labels[0][:actual_len]]
 
         # Process labels
         if y_item is not None:
@@ -352,6 +366,7 @@ class TransformerDataset(Dataset):
             "input_ids": torch.tensor(input_ids[0][:actual_len], dtype=torch.long),
             "token_type_ids": torch.tensor(token_type_ids[0][:actual_len], dtype=torch.long),
             "attention_mask": torch.tensor(attention_mask[0][:actual_len], dtype=torch.long),
+            "word_start_mask": torch.tensor(word_start_mask, dtype=torch.long),
         }
 
         if self.preprocessor.return_chars:
