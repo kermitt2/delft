@@ -599,6 +599,28 @@ if __name__ == "__main__":
         ontonotes_conll2012_names(data_path, output_path)
 
 
+def set_random_seed(seed):
+    """
+    Seed the random number generators a training draws from (Python, NumPy, PyTorch), so
+    that it can be run again with the same split of the data, the same initial weights
+    and the same order of the batches. None leaves them as they are.
+
+    Two runs are then the same on a same machine; some GPU operations stay
+    non-deterministic, and results differ between devices.
+    """
+    if seed is None:
+        return
+    import random
+
+    import torch
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
 def t_or_f(arg):
     ua = str(arg).upper()
     if "TRUE".startswith(ua):

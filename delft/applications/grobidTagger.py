@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.model_names import GROBID_PREFIX, build_model_name, validate_suffix
-from delft.utilities.Utilities import longest_row, t_or_f
+from delft.utilities.Utilities import longest_row, set_random_seed, t_or_f
 
 MODEL_LIST = [
     "affiliation-address",
@@ -247,6 +247,7 @@ def train(
     patience=-1,
     learning_rate=None,
     early_stop=None,
+    seed=None,
     multi_gpu=False,
     report_to_wandb=False,
     wandb_project=None,
@@ -264,8 +265,9 @@ def train(
 
     print(len(x_all), "total sequences")
 
+    set_random_seed(seed)
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(
-        x_all, y_all, f_all, test_size=0.1, shuffle=True
+        x_all, y_all, f_all, test_size=0.1, shuffle=True, random_state=seed
     )
 
     print(len(x_train), "train sequences")
@@ -364,6 +366,7 @@ def train_eval(
     patience=-1,
     learning_rate=None,
     early_stop=None,
+    seed=None,
     multi_gpu=False,
     report_to_wandb=False,
     wandb_project=None,
@@ -379,11 +382,12 @@ def train_eval(
         print(f"Using latest training file: {input_path}")
     x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
+    set_random_seed(seed)
     x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(
-        x_all, y_all, f_all, test_size=0.1, shuffle=True
+        x_all, y_all, f_all, test_size=0.1, shuffle=True, random_state=seed
     )
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(
-        x_train_all, y_train_all, f_train_all, test_size=0.1
+        x_train_all, y_train_all, f_train_all, test_size=0.1, random_state=seed
     )
 
     print(len(x_train), "train sequences")
@@ -621,6 +625,13 @@ if __name__ == "__main__":
         help="Number of fold to use when evaluating with n-fold cross validation.",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
+    parser.add_argument(
         "--architecture",
         help="Type of model architecture to be used, one of " + str(architectures),
     )
@@ -789,6 +800,7 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
+            seed=args.seed,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
             wandb_project=wandb_project,
@@ -836,6 +848,7 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
+            seed=args.seed,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
             wandb_project=wandb_project,

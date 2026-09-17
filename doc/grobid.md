@@ -5,7 +5,7 @@
 ## General command line for training GROBID models in DeLFT
 
 ```
-usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
+usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
                        [--architecture ARCHITECTURE] [--output OUTPUT]
                        [--embedding EMBEDDING] [--transformer TRANSFORMER]
                        [--input INPUT] [--incremental]
@@ -27,6 +27,10 @@ options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
                         Number of fold to use when evaluating with n-fold cross validation.
+  --seed SEED           Seed of the random number generators, to run a training
+                        again with the same split of the data, the same
+                        initial weights and the same order of the batches.
+                        Default: not seeded, every run differs.
   --architecture ARCHITECTURE
                         Type of model architecture to be used, one of
                         ['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF',
@@ -86,6 +90,8 @@ options:
                         Biases.
 ```
 
+
+> Add `--seed 42` to a `train` / `train_eval` command to make it reproducible: the split of the data, the initial weights and the order of the batches are then the same from a run to the next, and so are the scores on a same machine. Without it every run draws its own, and two runs cannot be compared on the same evaluation set.
 
 > Add `--wandb` to any `train` / `train_eval` / `eval` command to log the run to Weights & Biases. See [Experiment tracking (W&B)](wandb.md) for setup, project selection, and resuming a run for evaluation.
 

@@ -106,6 +106,16 @@ model.save("data/models/sequenceLabelling/", weight_file="model_weights.pt")
 
 Saving a model again in the other format removes the weights of the previous training from its directory, so that nothing loads them by mistake. `Classifier.save()` and `Classifier.load()` do the same for text classification, where the pickled weights are named `model_weights.pth`.
 
+The training is set with the arguments of `Sequence`:
+
+- `clip_gradients` (1.0): maximum norm of the gradients, 0 for no clipping;
+- `lr_decay` (0.5): factor the learning rate is multiplied by when the F1 on the validation set has not improved for two epochs;
+- `early_stop` and `patience` (5): stop when that F1 has not improved for `patience` epochs. The weights of the best epoch are the ones kept;
+- `max_checkpoints_to_keep` (0): above 0, the weights of the last epochs are left in the directory of the model, as `<model name>-epoch<N>.pt`;
+- `model.train(..., callbacks=[...])`: functions called at the end of every epoch as `callback(epoch, logs)`, `logs` holding the `loss` and, with a validation set, `val_loss`, `f1`, `precision`, `recall` and `learning_rate`.
+
+`delft.utilities.Utilities.set_random_seed(seed)` seeds Python, NumPy and PyTorch, for a training that can be run again.
+
 Use the loaders in `delft/sequenceLabelling/reader.py` to read your training data; pick the one matching your file format:
 
 - `load_data_and_labels_conll` — CoNLL-style `token<TAB>label` files
