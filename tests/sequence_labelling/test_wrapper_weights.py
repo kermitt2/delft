@@ -48,10 +48,39 @@ def test_loaded_model_tags_like_the_saved_one(tmp_path, weight_file):
     assert loaded.tag([WORDS], "raw") == saved.tag([WORDS], "raw")
 
 
-def test_default_format_is_unchanged(tmp_path):
+def _files(tmp_path):
+    return sorted(path.name for path in (tmp_path / "test-model").iterdir())
+
+
+def test_weights_are_saved_as_safetensors_by_default(tmp_path):
     _sequence("BidLSTM_CRF").save(str(tmp_path))
-    assert sorted(path.name for path in (tmp_path / "test-model").iterdir()) == [
-        "config.json",
-        DEFAULT_WEIGHT_FILE_NAME,
-        "preprocessor.json",
-    ]
+    assert _files(tmp_path) == ["config.json", SAFETENSORS_WEIGHT_FILE_NAME, "preprocessor.json"]
+
+
+def test_model_saved_by_an_earlier_release_still_loads(tmp_path):
+    saved = _sequence("BidLSTM_CRF")
+    saved.save(str(tmp_path), weight_file=DEFAULT_WEIGHT_FILE_NAME)
+    assert DEFAULT_WEIGHT_FILE_NAME in _files(tmp_path) and SAFETENSORS_WEIGHT_FILE_NAME not in _files(tmp_path)
+
+    loaded = Sequence("test-model", device="cpu")
+    loaded.load(str(tmp_path))
+    assert loaded.tag([WORDS], "raw") == saved.tag([WORDS], "raw")
+
+
+@pytest.mark.parametrize(
+    "first, second",
+    [
+        (DEFAULT_WEIGHT_FILE_NAME, SAFETENSORS_WEIGHT_FILE_NAME),
+        (SAFETENSORS_WEIGHT_FILE_NAME, DEFAULT_WEIGHT_FILE_NAME),
+    ],
+)
+def test_saving_again_in_the_other_format_leaves_no_weights_of_the_previous_training(tmp_path, first, second):
+    _sequence("BidLSTM_CRF").save(str(tmp_path), weight_file=first)
+    retrained = _sequence("BidLSTM_CRF")
+    retrained.save(str(tmp_path), weight_file=second)
+    assert _files(tmp_path) == sorted(["config.json", second, "preprocessor.json"])
+
+    loaded = Sequence("test-model", device="cpu")
+    loaded.load(str(tmp_path))
+    state, loaded_state = retrained.model.state_dict(), loaded.model.state_dict()
+    assert all(torch.equal(state[name], loaded_state[name]) for name in state)

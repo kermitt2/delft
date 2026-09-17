@@ -96,13 +96,15 @@ model.train(x_train, y_train, x_valid=x_dev, y_valid=y_dev)
 model.save("data/models/sequenceLabelling/toto")
 ```
 
-A saved model is a directory holding `config.json`, `preprocessor.json` and the weights. The weights are a pickled torch state dict, `model_weights.pt`, by default. Naming a `.safetensors` file writes them in the [safetensors](https://github.com/huggingface/safetensors) format instead, which holds tensors and nothing else, where unpickling a file runs whatever code it contains. It is the format to publish a model in:
+A saved model is a directory holding `config.json`, `preprocessor.json` and the weights, `model.safetensors`. The [safetensors](https://github.com/huggingface/safetensors) format holds tensors and nothing else, where the pickled torch state dict DeLFT wrote up to 1.1.0, `model_weights.pt`, runs whatever code it contains when it is loaded.
+
+`model.load()` takes either format, without having to be told which, so the models saved by an earlier release still load. Pickled weights can still be written, for something that reads that file itself:
 
 ```python
-model.save("data/models/sequenceLabelling/", weight_file="model.safetensors")
+model.save("data/models/sequenceLabelling/", weight_file="model_weights.pt")
 ```
 
-`model.load()` takes either format, without having to be told which: when the file it looks for is not in the directory, it loads the weights the directory holds in the other format. `Classifier.save()` and `Classifier.load()` do the same for text classification.
+Saving a model again in the other format removes the weights of the previous training from its directory, so that nothing loads them by mistake. `Classifier.save()` and `Classifier.load()` do the same for text classification, where the pickled weights are named `model_weights.pth`.
 
 Use the loaders in `delft/sequenceLabelling/reader.py` to read your training data; pick the one matching your file format:
 

@@ -36,7 +36,13 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
 from delft.utilities.Utilities import pick_device
-from delft.utilities.weights import find_weight_file, load_weights, save_weights
+from delft.utilities.weights import (
+    SAFETENSORS_WEIGHT_FILE_NAME,
+    find_weight_file,
+    load_weights,
+    remove_other_weights,
+    save_weights,
+)
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
@@ -722,12 +728,15 @@ class Sequence(object):
     def save(
         self,
         dir_path="data/models/sequenceLabelling/",
-        weight_file=DEFAULT_WEIGHT_FILE_NAME,
+        weight_file=SAFETENSORS_WEIGHT_FILE_NAME,
     ):
         """Save model to disk.
 
-        The weights are a pickled state dict, unless ``weight_file`` ends with
-        ``.safetensors`` (see ``delft.utilities.weights``).
+        The weights are saved as safetensors, or as a pickled state dict when
+        ``weight_file`` does not end with ``.safetensors``, as in
+        ``DEFAULT_WEIGHT_FILE_NAME``, the format written up to DeLFT 1.1.0 (see
+        ``delft.utilities.weights``). Weights the directory holds in the other format,
+        from a previous training, are removed.
         """
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
@@ -745,12 +754,13 @@ class Sequence(object):
             # Save PyTorch model
             weight_path = os.path.join(directory, weight_file)
             save_weights(self.model, weight_path)
+            remove_other_weights(directory, weight_file)
             print(f"Model weights saved to {weight_path}")
 
     def load(
         self,
         dir_path="data/models/sequenceLabelling/",
-        weight_file=DEFAULT_WEIGHT_FILE_NAME,
+        weight_file=SAFETENSORS_WEIGHT_FILE_NAME,
     ):
         """Load model from disk.
 

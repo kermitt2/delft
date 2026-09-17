@@ -1,10 +1,11 @@
 """
 Weight files of the models, in either of two formats told apart by the file extension:
 
-- a pickled torch state dict (``model_weights.pt``), the format written by default;
-- safetensors (``model.safetensors``), the format for models that are published. It
-  holds tensors and nothing else, where unpickling a file runs whatever code it
-  contains, which is why the Hugging Face Hub flags pickled weights as unsafe.
+- safetensors (``model.safetensors``), the format written by default. It holds tensors
+  and nothing else;
+- a pickled torch state dict (``model_weights.pt``, ``model_weights.pth`` for text
+  classification), the format DeLFT wrote up to 1.1.0. Unpickling a file runs whatever
+  code it contains, which is why the Hugging Face Hub flags such weights as unsafe.
 """
 
 import os
@@ -13,6 +14,9 @@ import torch
 
 SAFETENSORS_WEIGHT_FILE_NAME = "model.safetensors"
 SAFETENSORS_EXTENSION = ".safetensors"
+
+# the names the wrappers give to the weights of a model
+WEIGHT_FILE_NAMES = (SAFETENSORS_WEIGHT_FILE_NAME, "model_weights.pt", "model_weights.pth")
 
 
 def is_safetensors(path):
@@ -29,6 +33,19 @@ def save_weights(model, path):
         save_model(model, str(path))
     else:
         torch.save(model.state_dict(), path)
+
+
+def remove_other_weights(model_path, weight_file):
+    """
+    Remove from the directory ``model_path`` the weights the wrappers saved under another
+    name than ``weight_file``, which was just written. Saving a model again in another
+    format would otherwise leave the weights of the previous training next to the new
+    ones, for whatever reads that file to load without a complaint.
+    """
+    for name in WEIGHT_FILE_NAMES:
+        path = os.path.join(model_path, name)
+        if name != weight_file and os.path.isfile(path):
+            os.remove(path)
 
 
 def load_weights(model, path, device=None):
