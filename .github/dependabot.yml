@@ -1,0 +1,41 @@
+version: 2
+updates:
+  # pyproject.toml, requirements.txt and requirements.dev.txt, and the requirements of
+  # the documentation. Pull requests go to dev, where development happens: without
+  # target-branch they would go to master, the default branch.
+  - package-ecosystem: "pip"
+    directories:
+      - "/"
+      - "/doc"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 5
+    groups:
+      # these constrain each other's versions, and are updated together
+      huggingface:
+        patterns:
+          - "transformers"
+          - "tokenizers"
+          - "huggingface*"
+          - "safetensors"
+          - "accelerate"
+      documentation:
+        patterns:
+          - "mkdocs*"
+          - "mkautodoc"
+    # Minor and patch updates only. This applies to version updates: a security update
+    # is proposed whatever the version that fixes the vulnerability.
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    target-branch: "dev"
+    schedule:
+      interval: "weekly"
+    groups:
+      actions:
+        patterns: ["*"]
