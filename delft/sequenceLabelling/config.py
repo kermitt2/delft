@@ -29,6 +29,7 @@ class ModelConfig(object):
         features_embedding_size=DEFAULT_FEATURES_EMBEDDING_SIZE,
         features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
         transformer_name=None,
+        continuous_features_indices=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -46,6 +47,9 @@ class ModelConfig(object):
         self.features_indices = features_indices
         self.features_embedding_size = features_embedding_size
         self.features_lstm_units = features_lstm_units
+        # Columns of the features that hold numbers, given to the model as numbers scaled
+        # to [0, 1] rather than as categories
+        self.continuous_features_indices = continuous_features_indices
 
         self.max_sequence_length = max_sequence_length
         self.word_embedding_size = word_embedding_size

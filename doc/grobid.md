@@ -11,6 +11,7 @@ usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
                        [--input INPUT] [--incremental]
                        [--input-model INPUT_MODEL]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH]
+                       [--continuous-features-indices CONTINUOUS_FEATURES_INDICES]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
                        [--early-stop EARLY_STOP] [--multi-gpu]
@@ -57,6 +58,11 @@ options:
                         default one.
   --max-sequence-length MAX_SEQUENCE_LENGTH
                         max-sequence-length parameter to be used.
+  --continuous-features-indices CONTINUOUS_FEATURES_INDICES
+                        Columns of the training file that hold numbers, given
+                        to a FEATURES architecture as numbers scaled to [0, 1]
+                        rather than as categories, the token being column 0,
+                        e.g. 20,21.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
   --patience PATIENCE   patience, number of extra epochs to perform after the
@@ -253,6 +259,18 @@ python3 delft/applications/grobidTagger.py citation eval --architecture *name-of
 ### Sequences longer than the model takes
 
 A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
+
+### Features that are numbers
+
+The `*_FEATURES` architectures take the feature columns as categories: every distinct value gets its own embedding, and a column with more than 12 distinct values is left out. A column of numbers (a position, a length, a count) fits badly: with many values it is left out, and as categories `17` and `18` have nothing in common.
+
+`--continuous-features-indices` lists columns to be given to the model as numbers, column 0 being the token:
+
+```sh
+python3 delft/applications/grobidTagger.py table train --architecture BidLSTM_CRF_FEATURES --continuous-features-indices 20,21
+```
+
+Each of these columns is scaled to [0, 1] with the minimum and maximum seen in the training data, and joins the encoded categorical features at the input of the model; it is not used as a category as well. When labelling, a value outside the range seen in training is clipped, and a value that is not a number counts as the minimum. The columns and their ranges are saved with the model. From Python, the option is `Sequence(..., continuous_features_indices=[20, 21])`.
 
 ## Calling DeLFT from GROBID
 

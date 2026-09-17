@@ -92,6 +92,7 @@ class Sequence(object):
         device=None,
         nb_workers: int = None,
         short_model_name: str = None,
+        continuous_features_indices=None,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -163,6 +164,7 @@ class Sequence(object):
             batch_size=batch_size,
             features_indices=features_indices,
             transformer_name=transformer_name,
+            continuous_features_indices=continuous_features_indices,
         )
 
         self.training_config = TrainingConfig(
