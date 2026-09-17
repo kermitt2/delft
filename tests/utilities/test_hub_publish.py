@@ -13,6 +13,8 @@ from delft.utilities.hub_publish import TABLE_END, TABLE_START, prepare_model, p
 
 WORDS = ["Jim", "Henson", "was", "a", "puppeteer", "in", "Mississippi", "today"]
 LABELS = ["B-per", "I-per", "O", "O", "O", "O", "B-loc", "O"]
+# as saved up to DeLFT 1.1.0
+PICKLED = {"weight_file": "model_weights.pt"}
 REPOSITORY = "hf://lfoppiano/grobid-model-date"
 BUCKET = "hf://buckets/lfoppiano/experiments"
 
@@ -29,20 +31,21 @@ def _save(models_dir, model_name, **kwargs):
 
 class TestPrepareModel:
     def test_pickled_weights_are_published_as_safetensors(self, tmp_path):
-        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF")
+        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF", **PICKLED)
+        assert "model_weights.pt" in os.listdir(model_dir)
         published = prepare_model(model_dir, str(tmp_path / "staging"))
         assert published == ["config.json", "model.safetensors", "preprocessor.json"]
         assert sorted(os.listdir(tmp_path / "staging")) == published
 
     def test_pickled_weights_can_be_kept(self, tmp_path):
-        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF")
+        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF", **PICKLED)
         published = prepare_model(model_dir, str(tmp_path / "staging"), safetensors=False)
         assert published == ["config.json", "model_weights.pt", "preprocessor.json"]
 
     def test_safetensors_weights_are_published_alone(self, tmp_path):
-        sequence, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF")
-        sequence.save(str(tmp_path / "models"), weight_file="model.safetensors")
-        assert "model_weights.pt" in os.listdir(model_dir)
+        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF")
+        # save() leaves one format only: both are there when a directory was put together by hand
+        open(os.path.join(model_dir, "model_weights.pt"), "w").close()
         published = prepare_model(model_dir, str(tmp_path / "staging"))
         assert published == ["config.json", "model.safetensors", "preprocessor.json"]
 
@@ -52,7 +55,7 @@ class TestPrepareModel:
         assert SOURCE_FILE_NAME not in prepare_model(model_dir, str(tmp_path / "staging"))
 
     def test_several_pickled_weights_are_ambiguous(self, tmp_path):
-        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF")
+        _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF", **PICKLED)
         open(os.path.join(model_dir, "model_weights0.pt"), "w").close()
         with pytest.raises(ValueError, match="ambiguous"):
             prepare_model(model_dir, str(tmp_path / "staging"))
@@ -60,8 +63,9 @@ class TestPrepareModel:
 
 @pytest.mark.parametrize("location", [REPOSITORY, BUCKET], ids=["repo", "bucket"])
 class TestPushModel:
-    def test_published_model_loads_back_the_same(self, hub, tmp_path, location):
-        saved, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF-potion-base-8M")
+    @pytest.mark.parametrize("saved_as", [PICKLED, {}], ids=["pickled", "safetensors"])
+    def test_published_model_loads_back_the_same(self, hub, tmp_path, location, saved_as):
+        saved, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF-potion-base-8M", **saved_as)
         reference = push_model(model_dir, location)
         assert str(reference) == location + "/grobid-date-BidLSTM_CRF-potion-base-8M"
 
@@ -108,7 +112,7 @@ class TestPushModel:
 
 
 def test_publishing_again_replaces_the_files_of_the_model(hub, tmp_path):
-    _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF")
+    _, model_dir = _save(tmp_path / "models", "grobid-date-BidLSTM_CRF", **PICKLED)
     push_model(model_dir, REPOSITORY, safetensors=False)
     push_model(model_dir, REPOSITORY)
     directory = resolve_model(REPOSITORY + "/grobid-date-BidLSTM_CRF", cache_dir=str(tmp_path / "cache"))

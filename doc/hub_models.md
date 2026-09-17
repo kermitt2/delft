@@ -145,8 +145,8 @@ python -m delft.applications.hub_models push /path/to/grobid-header-BERT_CRF --t
 
 The model is taken from `data/models/sequenceLabelling` unless `--input` names another directory, and published as the folder of its name, replacing the files of a previous version. It goes to the default branch of the repository: the `revision` of the registry is where models are read, often a tag. Publishing needs a token with write access, from `huggingface-cli login`.
 
-Two things are done on the way. Pickled weights are converted to safetensors, unless `--keep-pickle` is given. And the table of the models in the `README.md` of the repository or bucket is brought up to date, from the `config.json` of each model: architecture, embeddings, transformer and suffix. The table sits between two marker comments, and the rest of the README is left as it was written, so scores and notes can be added by hand. From Python: `delft.utilities.hub_publish.push_model`.
+Two things are done on the way. The pickled weights of a model saved by DeLFT 1.1.0 or earlier are converted to safetensors, unless `--keep-pickle` is given. And the table of the models in the `README.md` of the repository or bucket is brought up to date, from the `config.json` of each model: architecture, embeddings, transformer and suffix. The table sits between two marker comments, and the rest of the README is left as it was written, so scores and notes can be added by hand. From Python: `delft.utilities.hub_publish.push_model`.
 
 ## Weights format
 
-Models are published with their weights in the [safetensors](sequence_labeling.md) format, `model.safetensors`, rather than as a pickled state dict: the Hub flags pickled weights as unsafe, since loading them runs whatever code they contain. DeLFT loads either format without being told which.
+Models are saved and published with their weights in the [safetensors](sequence_labeling.md) format, `model.safetensors`, rather than as the pickled state dict DeLFT wrote up to 1.1.0: the Hub flags pickled weights as unsafe, since loading them runs whatever code they contain. DeLFT loads either format without being told which.
