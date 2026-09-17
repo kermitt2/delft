@@ -1,13 +1,17 @@
 """
-List and download the models published on the Hugging Face Hub.
+List, download and publish models on the Hugging Face Hub.
 
     python -m delft.applications.hub_models list header
     python -m delft.applications.hub_models pull header --architecture BidLSTM_CRF_FEATURES
     python -m delft.applications.hub_models pull header --all
     python -m delft.applications.hub_models pull hf://lfoppiano/grobid-model-header@v1.1.0 --match "*potion*"
 
+    python -m delft.applications.hub_models push grobid-header-BidLSTM_CRF_FEATURES-potion-base-8M
+    python -m delft.applications.hub_models push grobid-header-BidLSTM_CRF_FEATURES --bucket
+
 A task such as "header" stands for its repository as the resources registry tells it,
-with --bucket for the models of that task in the bucket of the registry instead.
+with --bucket for the models of that task in the bucket of the registry instead. A model
+is published to the repository of its task, or to the bucket, unless --to names a place.
 """
 
 import argparse
@@ -25,6 +29,7 @@ from delft.utilities.hub_models import (
     resolve_model,
     select_models,
 )
+from delft.utilities.hub_publish import push_location, push_model
 from delft.utilities.model_names import split_model_name
 
 DEFAULT_OUTPUT = "data/models/sequenceLabelling"
@@ -54,19 +59,38 @@ def models_of(location, task=None, architecture=None, suffix=None, match=None):
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="List and download the DeLFT models of the Hugging Face Hub")
-    parser.add_argument("action", choices=["list", "pull"])
-    parser.add_argument("location", help='A task, e.g. "header", or a repository or bucket, e.g. hf://owner/repository')
-    parser.add_argument("--bucket", action="store_true", help="With a task, look in the bucket of the registry")
+    parser = argparse.ArgumentParser(description="List, download and publish DeLFT models on the Hugging Face Hub")
+    parser.add_argument("action", choices=["list", "pull", "push"])
+    parser.add_argument(
+        "location",
+        help='list, pull: a task, e.g. "header", or a repository or bucket, e.g. hf://owner/repository. '
+        "push: the name of a model of --input, or the path of a model directory",
+    )
+    parser.add_argument("--bucket", action="store_true", help="Use the bucket of the registry, not the repository")
     parser.add_argument("--architecture", help="Models of this architecture, with any suffix or none")
     parser.add_argument("--suffix", help='Models with this suffix, "" for the models without one')
     parser.add_argument("--match", help='Models whose name matches this pattern, e.g. "*potion*"')
     parser.add_argument("--all", action="store_true", help="pull: every model, when nothing else selects some")
     parser.add_argument("--output", default=DEFAULT_OUTPUT, help=f"pull: models directory (default: {DEFAULT_OUTPUT})")
     parser.add_argument("--force", action="store_true", help="pull: download again the models already there")
+    parser.add_argument("--input", default=DEFAULT_OUTPUT, help=f"push: models directory (default: {DEFAULT_OUTPUT})")
+    parser.add_argument("--to", help="push: repository or bucket to publish to, e.g. hf://owner/repository")
+    parser.add_argument("--private", action="store_true", help="push: create the repository or bucket as private")
+    parser.add_argument("--keep-pickle", action="store_true", help="push: publish pickled weights as they are")
     args = parser.parse_args(argv)
 
     registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
+
+    if args.action == "push":
+        model_dir = args.location if os.path.isdir(args.location) else os.path.join(args.input, args.location)
+        model_name = os.path.basename(os.path.normpath(model_dir))
+        destination = args.to or push_location(model_name, registry, bucket=args.bucket)
+        reference = push_model(
+            model_dir, destination, private=True if args.private else None, safetensors=not args.keep_pickle
+        )
+        print(reference)
+        return reference
+
     location, task = locate(args.location, registry, bucket=args.bucket)
     selection = {"architecture": args.architecture, "suffix": args.suffix, "match": args.match}
 
