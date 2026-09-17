@@ -251,6 +251,12 @@ annotations = model.tag(texts, "json", features=features, nb_workers=0)
 
 When neither is set, tagging defaults to `nb_workers=0` already — the constructor default (`min(4, cpu_count - 1)`) only applies to training and evaluation, where the worker pool is spawned once and amortised over the whole run. `create_dataloader` additionally caps the requested count by dataset size, so small batches never spawn workers that would sit idle.
 
+### Sequences longer than the model takes
+
+A model labels `max_sequence_length` tokens at most, and a transformer that many sub-tokens, which is fewer words. `tag()` nevertheless returns one label per token whatever the length of a sequence: a sequence that does not fit is labelled window by window, two consecutive windows sharing up to 50 tokens so that no token is labelled from the edge of a window, where the model sees little context. Each shared token takes its label from the window it is deeper in. Sequences that fit, the usual case, take a single pass.
+
+Training and evaluation are unchanged: they still cut a sequence at `max_sequence_length`.
+
 The same applies to text classification, where `Classifier.predict()` accepts `nb_workers` and the equivalent `use_main_thread_only=True`:
 
 ```python
