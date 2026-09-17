@@ -80,24 +80,51 @@ def test_load_of_a_model_that_is_nowhere_tells_where_it_looked(published, tmp_pa
         sequence.load(str(tmp_path / "models"))
 
 
-def test_from_pretrained_takes_a_reference(published, tmp_path):
-    reference = f"hf://{REPOSITORY}/{MODEL_NAME}"
-    sequence = Sequence.from_pretrained(reference, cache_dir=str(tmp_path / "cache"), device="cpu", nb_workers=0)
+def test_load_takes_a_repository_and_looks_for_its_own_name_in_it(published, tmp_path):
+    sequence = Sequence(MODEL_NAME, device="cpu")
+    sequence.load(f"hf://{REPOSITORY}", cache_dir=str(tmp_path / "cache"))
 
     assert os.path.isdir(tmp_path / "cache" / MODEL_NAME)
-    assert sequence.nb_workers == 0
     _assert_same_model(sequence, published)
 
 
-def test_from_pretrained_takes_a_directory_whatever_its_name(tmp_path):
+def test_load_takes_the_reference_of_a_model(published, tmp_path):
+    sequence = Sequence("whatever", device="cpu")
+    sequence.load(f"hf://{REPOSITORY}/{MODEL_NAME}", cache_dir=str(tmp_path / "cache"))
+
+    assert sequence.model_config.model_name == MODEL_NAME
+    _assert_same_model(sequence, published)
+
+
+def test_load_of_a_reference_ignores_the_registry(published, tmp_path):
+    sequence = Sequence("grobid-date-BidLSTM_CRF-unknown", device="cpu")
+    with pytest.raises(HubModelNotFoundError, match="hf://someone/else/grobid-date-BidLSTM_CRF-unknown"):
+        sequence.load("hf://someone/else", cache_dir=str(tmp_path / "cache"))
+
+
+def test_load_takes_the_directory_of_a_model_whatever_its_name(tmp_path):
     saved = _trained("a-model")
     saved.save(str(tmp_path))
     os.rename(tmp_path / "a-model", tmp_path / "renamed")
 
-    sequence = Sequence.from_pretrained(str(tmp_path / "renamed"), device="cpu")
+    sequence = Sequence("whatever", device="cpu")
+    sequence.load(str(tmp_path / "renamed"))
     _assert_same_model(sequence, saved)
 
 
-def test_from_pretrained_of_a_directory_without_a_model(tmp_path):
-    with pytest.raises(FileNotFoundError, match="No DeLFT model"):
-        Sequence.from_pretrained(str(tmp_path), device="cpu")
+def test_load_takes_the_url_of_an_archive(published, tmp_path, http_server):
+    shutil.make_archive(str(http_server.directory / MODEL_NAME), "zip", tmp_path / "hub" / REPOSITORY, MODEL_NAME)
+
+    sequence = Sequence("whatever", device="cpu")
+    sequence.load(f"{http_server.url}/{MODEL_NAME}.zip", cache_dir=str(tmp_path / "cache"))
+
+    assert os.path.isdir(tmp_path / "cache" / MODEL_NAME)
+    _assert_same_model(sequence, published)
+
+
+def test_load_takes_the_url_of_a_folder_and_looks_for_its_own_name_in_it(published, tmp_path, http_server):
+    shutil.make_archive(str(http_server.directory / MODEL_NAME), "zip", tmp_path / "hub" / REPOSITORY, MODEL_NAME)
+
+    sequence = Sequence(MODEL_NAME, device="cpu")
+    sequence.load(http_server.url + "/", cache_dir=str(tmp_path / "cache"))
+    _assert_same_model(sequence, published)

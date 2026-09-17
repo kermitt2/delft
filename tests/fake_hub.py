@@ -2,7 +2,10 @@
 
 import os
 import shutil
+import threading
 from fnmatch import fnmatch
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 
 import httpx
@@ -92,3 +95,20 @@ def hub(tmp_path, monkeypatch):
 @pytest.fixture
 def models_dir(tmp_path):
     return str(tmp_path / "models")
+
+
+class _QuietHandler(SimpleHTTPRequestHandler):
+    def log_message(self, *args):
+        pass
+
+
+@pytest.fixture
+def http_server(tmp_path):
+    """A server of the files of its ``directory``, at ``url``."""
+    directory = tmp_path / "http"
+    directory.mkdir()
+    server = ThreadingHTTPServer(("127.0.0.1", 0), partial(_QuietHandler, directory=str(directory)))
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    yield SimpleNamespace(directory=directory, url=f"http://127.0.0.1:{server.server_address[1]}")
+    server.shutdown()
+    server.server_close()

@@ -38,4 +38,4 @@ def temp_dir(tmpdir):
 
 
 # the Hugging Face Hub played by local directories
-from tests.fake_hub import hub, models_dir  # noqa: E402, F401
+from tests.fake_hub import http_server, hub, models_dir  # noqa: E402, F401

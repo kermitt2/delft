@@ -36,24 +36,43 @@ model.load()  # downloaded to data/models/sequenceLabelling/ if it is not there
 
 This also holds for the `eval` and `tag` actions of the applications, and for GROBID, which loads models this way.
 
-An application embedding DeLFT rather has the place of a model than its name, and no DeLFT directory layout. `from_pretrained` takes a reference, or the path of a model directory, and builds the `Sequence`:
+### From a given place
+
+`load()` also takes the place of the model instead of the models directory, whatever the registry says. This is the way to load a given revision, from a private repository with a `token`, or for an application embedding DeLFT, which has the place of its models and no DeLFT directory layout:
 
 ```python
-model = Sequence.from_pretrained(
-    "hf://lfoppiano/grobid-model-header@v1.1.0/grobid-header-BidLSTM_CRF_FEATURES",
-    cache_dir="~/.cache/my-application/models",
-    nb_workers=0,
-)
+model = Sequence("grobid-header-BidLSTM_CRF_FEATURES", nb_workers=0)
+
+# a repository or a bucket: the model is looked for there under its name
+model.load("hf://lfoppiano/grobid-model-header@v1.1.0", cache_dir="~/.cache/my-application/models")
+
+# the model itself, whatever the name given to the Sequence
+model.load("hf://lfoppiano/grobid-model-header@v1.1.0/grobid-header-BidLSTM_CRF_FEATURES")
+
+# the same, as the address bar of a browser gives it
+model.load("https://huggingface.co/lfoppiano/grobid-model-header/tree/v1.1.0/grobid-header-BidLSTM_CRF_FEATURES")
+
+# an archive of the model directory, anywhere over HTTP
+model.load("https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip")
+
+# the URL of a folder: {name of the model}.zip is looked for there
+model.load("https://example.org/models/")
+
+# the directory of a model, whatever its name
+model.load("/path/to/a/model")
+
 annotations = model.tag(texts, "json", features=features)
 ```
 
-Without `cache_dir`, models go to the directory the `DELFT_MODELS_DIR` environment variable names, else to `~/.cache/delft/models`. `Classifier.from_pretrained` does the same for text classification. Private repositories are read with the token of `huggingface-cli login`, or the `token` argument.
+An archive is a `.zip`, `.tar.gz`, `.tgz` or `.tar` file named after the model, holding the files of the model at its root or in a single folder. `token`, when given, is sent as a bearer token.
+
+What is downloaded goes to `cache_dir`, else to the directory the `DELFT_MODELS_DIR` environment variable names, else to `~/.cache/delft/models`. `Classifier.load` does the same for text classification. Private repositories of the Hub are read with the token of `huggingface-cli login`, or the `token` argument.
 
 ### What is on disk wins, except for another revision
 
 A model that was trained or copied into the models directory is never touched, whatever the Hub holds under that name.
 
-A model that was downloaded records where from, in a `.hub-source` file. It is downloaded again when it is asked from somewhere else, another revision in particular, so that changing a pinned revision does not silently keep the model already there. A reference without a revision follows a branch that moves: use `--force` (below) to get what was published since.
+A model that was downloaded records where from, in a `.hub-source` file. It is downloaded again when it is asked from somewhere else, another revision or another URL in particular, so that changing a pinned revision does not silently keep the model already there. A reference without a revision follows a branch that moves, and a URL a file that can change: use `--force` (below), or `resolve_model(..., force=True)`, to get what was published since.
 
 ## Where DeLFT looks
 

@@ -14,6 +14,16 @@ folder of either
 This is the syntax of the ``hf://`` paths of ``huggingface_hub``. A folder keeps the
 name of the local directory, so getting a model is a copy, with nothing to rename.
 
+A model is also taken over HTTP, from
+
+- the page of a repository of the Hub, as a browser shows it:
+  ``https://huggingface.co/lfoppiano/grobid-model-header/tree/v1.1.0/grobid-header-...``,
+  which stands for the ``hf://`` reference of the same model;
+- anywhere else, an archive of the model directory, named after the model:
+  ``https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip``, a ``.zip``,
+  ``.tar.gz``, ``.tgz`` or ``.tar`` file holding the files of the model, at its root or
+  in a single folder.
+
 Nothing here depends on the working directory, nor reads the DeLFT resources registry
 unless given one: an application embedding DeLFT passes references and a ``cache_dir``
 of its own.
@@ -23,9 +33,12 @@ import fnmatch
 import logging
 import os
 import shutil
+import tarfile
 import tempfile
+import zipfile
 from dataclasses import dataclass
 from typing import List, Optional
+from urllib.parse import quote, unquote, urlparse
 
 from delft.utilities.model_names import split_model_name
 
@@ -33,6 +46,18 @@ LOGGER = logging.getLogger(__name__)
 
 HF_SCHEME = "hf://"
 BUCKETS = "buckets"
+
+HTTP_SCHEMES = ("http://", "https://")
+HUB_HOSTS = ("huggingface.co", "www.huggingface.co")
+# what the Hub serves under the same paths as the model repositories
+HUB_NOT_MODELS = (BUCKETS, "datasets", "spaces")
+
+ARCHIVE_EXTENSIONS = (".zip", ".tar.gz", ".tgz", ".tar")
+# the one of the archive looked for under a URL that names none
+DEFAULT_ARCHIVE_EXTENSION = ".zip"
+
+# the file both wrappers save the configuration of a model in
+CONFIG_FILE_NAME = "config.json"
 
 # section of the resources registry telling where the models are on the Hub
 REGISTRY_SECTION = "models-hub"
@@ -71,6 +96,36 @@ class HubReference:
 
 def is_hub_reference(value):
     return isinstance(value, HubReference) or (isinstance(value, str) and value.startswith(HF_SCHEME))
+
+
+def is_http_url(value):
+    return isinstance(value, str) and value.lower().startswith(HTTP_SCHEMES)
+
+
+def is_remote(value):
+    """Whether ``value`` is a place ``resolve_model`` downloads a model from."""
+    return is_hub_reference(value) or is_http_url(value)
+
+
+def hub_reference_of_url(url):
+    """
+    The reference of ``https://huggingface.co/{owner}/{repository}[/tree/{revision}[/{model}]]``,
+    the page of a model repository, or None for a URL that is not one of the Hub.
+    """
+    parsed = urlparse(url)
+    if parsed.netloc.lower() not in HUB_HOSTS:
+        return None
+
+    parts = [unquote(part) for part in parsed.path.split("/") if part]
+    expected = f"expected https://{HUB_HOSTS[0]}/owner/repository[/tree/revision[/model]]"
+    if len(parts) < 2 or parts[0] in HUB_NOT_MODELS:
+        raise ValueError(f"Invalid URL {url!r}, {expected}: for a bucket, use {HF_SCHEME}{BUCKETS}/owner/bucket")
+    rest = parts[2:]
+    if rest and (rest[0] != "tree" or len(rest) not in (2, 3)):
+        raise ValueError(f"Invalid URL {url!r}, {expected}")
+    revision = rest[1] if rest else None
+    model_name = rest[2] if len(rest) == 3 else None
+    return HubReference(f"{parts[0]}/{parts[1]}", model_name, revision)
 
 
 def parse_reference(reference):
@@ -161,47 +216,36 @@ def downloaded_from(model_path):
         return None
 
 
-def resolve_model(reference, cache_dir=None, token=None, force=False):
+def _install(source, model_name, cache_dir, force, download):
     """
-    Return the local directory of the model ``reference`` points to,
-    ``{cache_dir}/{model name}``, downloading it when it is not there.
-
-    A model on disk is kept, unless it was downloaded from another reference, another
-    revision for instance, or ``force`` is set. A reference without a revision follows a
-    branch that moves: only ``force`` gets what was published since the download.
+    Return ``{cache_dir}/{model_name}``, after ``download(directory)`` has left the model
+    in ``{directory}/{model_name}`` when it is not there, was downloaded from somewhere
+    else than ``source``, or ``force`` is set.
 
     A model is downloaded next to its place and moved there when complete, so that an
     interrupted download never leaves a directory passing for a model.
     """
-    reference = parse_reference(reference)
-    if reference.model_name is None:
-        raise ValueError(f"{reference} names no model, expected {reference}/<model name>")
-
     cache_dir = os.path.abspath(os.path.expanduser(cache_dir)) if cache_dir else default_models_dir()
-    target = os.path.join(cache_dir, reference.model_name)
+    target = os.path.join(cache_dir, model_name)
     if _is_model_directory(target) and not force:
-        source = downloaded_from(target)
-        if source is None or source == str(reference):
+        previous = downloaded_from(target)
+        if previous is None or previous == source:
             return target
-        LOGGER.info("%s was downloaded from %s, replacing it", target, source)
+        LOGGER.info("%s was downloaded from %s, replacing it", target, previous)
 
     os.makedirs(cache_dir, exist_ok=True)
-    download_dir = tempfile.mkdtemp(prefix=f".{reference.model_name}.", dir=cache_dir)
+    download_dir = tempfile.mkdtemp(prefix=f".{model_name}.", dir=cache_dir)
     try:
-        LOGGER.info("downloading %s to %s", reference, target)
-        download = _download_from_bucket if reference.bucket else _download_from_repository
-        try:
-            download(reference, download_dir, token)
-        except _not_found_errors() as e:
-            raise HubModelNotFoundError(f"{reference} not found: {e}") from e
+        LOGGER.info("downloading %s to %s", source, target)
+        download(download_dir)
 
-        downloaded = os.path.join(download_dir, reference.model_name)
+        downloaded = os.path.join(download_dir, model_name)
         if not _is_model_directory(downloaded):
-            # neither source fails on a folder that does not exist: they download nothing
-            raise HubModelNotFoundError(f"{reference} not found: no such model in {reference.for_model(None)}")
+            # no source fails on a folder that does not exist: they download nothing
+            raise HubModelNotFoundError(f"{source} not found: no such model there")
 
         with open(os.path.join(downloaded, SOURCE_FILE_NAME), "w") as f:
-            f.write(str(reference) + "\n")
+            f.write(source + "\n")
 
         if os.path.isdir(target):
             shutil.rmtree(target)
@@ -215,6 +259,129 @@ def resolve_model(reference, cache_dir=None, token=None, force=False):
         shutil.rmtree(download_dir, ignore_errors=True)
 
     return target
+
+
+def resolve_model(reference, cache_dir=None, token=None, force=False, model_name=None):
+    """
+    Return the local directory of the model ``reference`` points to,
+    ``{cache_dir}/{model name}``, downloading it when it is not there. ``reference`` is
+    a ``hf://`` reference, or a URL (see the top of this module). When it is the one of
+    a place holding models, a repository, a bucket or the URL of a folder, the model is
+    the one named ``model_name`` there.
+
+    A model on disk is kept, unless it was downloaded from another reference, another
+    revision for instance, or ``force`` is set. A reference without a revision follows a
+    branch that moves, and a URL a file that can change: only ``force`` gets what was
+    published since the download.
+    """
+    if is_http_url(reference):
+        hub_reference = hub_reference_of_url(reference)
+        if hub_reference is None:
+            return _resolve_archive(reference, model_name, cache_dir, token, force)
+        reference = hub_reference
+
+    reference = parse_reference(reference)
+    if reference.model_name is None and model_name:
+        reference = reference.for_model(model_name)
+    if reference.model_name is None:
+        raise ValueError(f"{reference} names no model, expected {reference}/<model name>")
+
+    def download(directory):
+        download_from = _download_from_bucket if reference.bucket else _download_from_repository
+        try:
+            download_from(reference, directory, token)
+        except _not_found_errors() as e:
+            raise HubModelNotFoundError(f"{reference} not found: {e}") from e
+
+    return _install(str(reference), reference.model_name, cache_dir, force, download)
+
+
+def _archive_extension(url):
+    path = urlparse(url).path.lower()
+    return next((extension for extension in ARCHIVE_EXTENSIONS if path.endswith(extension)), None)
+
+
+def _download_file(url, path, token):
+    import requests
+
+    headers = {"Authorization": f"Bearer {token}"} if token else {}
+    with requests.get(url, stream=True, headers=headers, timeout=(10, 120)) as response:
+        if response.status_code in (404, 410):
+            raise HubModelNotFoundError(f"{url} not found: HTTP {response.status_code}")
+        response.raise_for_status()
+        with open(path, "wb") as f:
+            for chunk in response.iter_content(chunk_size=1024 * 1024):
+                f.write(chunk)
+
+
+def _extract(archive, directory):
+    """Extract a zip or tar archive, refusing the members that would land out of ``directory``."""
+    root = os.path.realpath(directory)
+
+    def check(name):
+        if os.path.commonpath([root, os.path.realpath(os.path.join(root, name))]) != root:
+            raise ValueError(f"{name!r} of the archive would be extracted out of its directory")
+
+    if zipfile.is_zipfile(archive):
+        with zipfile.ZipFile(archive) as zip_file:
+            for name in zip_file.namelist():
+                check(name)
+            zip_file.extractall(directory)
+        return
+
+    with tarfile.open(archive) as tar_file:
+        members = tar_file.getmembers()
+        for member in members:
+            check(member.name)
+            if not (member.isfile() or member.isdir()):
+                raise ValueError(f"{member.name!r} of the archive is neither a file nor a directory")
+        # the filter of Python, where it has one, on top of the checks above
+        filtered = {"filter": "data"} if hasattr(tarfile, "data_filter") else {}
+        tar_file.extractall(directory, members=members, **filtered)
+
+
+def _model_root(directory):
+    """The directory of the model in an extracted archive: the archive itself, or the
+    only folder it holds."""
+    if os.path.isfile(os.path.join(directory, CONFIG_FILE_NAME)):
+        return directory
+    folders = [entry.path for entry in os.scandir(directory) if entry.is_dir()]
+    if len(folders) == 1 and os.path.isfile(os.path.join(folders[0], CONFIG_FILE_NAME)):
+        return folders[0]
+    return None
+
+
+def _resolve_archive(url, model_name, cache_dir, token, force):
+    extension = _archive_extension(url)
+    if extension is not None:
+        # the archive is named after the model, as its directory is
+        file_name = unquote(os.path.basename(urlparse(url).path))
+        model_name = file_name[: -len(extension)]
+    elif model_name:
+        extension = DEFAULT_ARCHIVE_EXTENSION
+        url = url.rstrip("/") + "/" + quote(model_name) + extension
+    if not model_name:
+        raise ValueError(
+            f"{url} names no model, expected the URL of an archive ({', '.join(ARCHIVE_EXTENSIONS)}) "
+            "named after the model"
+        )
+
+    def download(directory):
+        archive = os.path.join(directory, "archive" + extension)
+        extracted = os.path.join(directory, "extracted")
+        _download_file(url, archive, token)
+        try:
+            _extract(archive, extracted)
+        except (zipfile.BadZipFile, tarfile.TarError) as e:
+            raise ValueError(f"{url} is not an archive of a model: {e}") from e
+        model_root = _model_root(extracted)
+        if model_root is None:
+            raise HubModelNotFoundError(
+                f"{url} not found: the archive holds no {CONFIG_FILE_NAME}, at its root or in a single folder"
+            )
+        os.replace(model_root, os.path.join(directory, model_name))
+
+    return _install(url, model_name, cache_dir, force, download)
 
 
 def list_models(location, token=None) -> List[str]:
