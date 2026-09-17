@@ -1,4 +1,5 @@
 import datetime
+import logging
 
 import numpy as np
 import torch
@@ -6,23 +7,11 @@ import torch
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.utilities.Tokenizer import tokenizeAndFilter
 
-# Number of tokens two consecutive windows of a long sequence share. A model sees
-# little context at the edge of a window, so each shared token takes its label from
-# the window where it is further from that edge.
-WINDOW_OVERLAP = 50
+LOGGER = logging.getLogger(__name__)
 
 
 class Tagger(object):
-    def __init__(
-        self,
-        model,
-        model_config,
-        embeddings=None,
-        preprocessor=None,
-        device=None,
-        nb_workers=0,
-        window_overlap=WINDOW_OVERLAP,
-    ):
+    def __init__(self, model, model_config, embeddings=None, preprocessor=None, device=None, nb_workers=0):
         """
         ``device`` is resolved by the caller, once — ``Sequence`` does it in its
         constructor and hands the result down. Resolving it here instead would
@@ -35,10 +24,6 @@ class Tagger(object):
         safe value when DeLFT is embedded in a host process such as GROBID via
         JEP: a DataLoader is built on every tag() call, so any worker > 0 pays
         a process spawn per call and forks the host's interpreter.
-
-        ``window_overlap`` is the number of tokens shared by two consecutive
-        windows when a sequence is too long to be labelled in one pass, see
-        ``_predict``.
         """
         self.model = model
         self.preprocessor = preprocessor
@@ -48,18 +33,33 @@ class Tagger(object):
             device = next(model.parameters(), torch.empty(0)).device
         self.device = device if isinstance(device, torch.device) else torch.device(device)
         self.nb_workers = max(0, nb_workers) if nb_workers is not None else 0
-        self.window_overlap = max(0, window_overlap)
 
     def tag(self, texts, output_format, features=None):
-        """
-        Label ``texts``, either strings (tokenized here) or lists of tokens, with one
-        label per token whatever the length of a text.
-        """
-        to_tokeniz = len(texts) > 0 and isinstance(texts[0], str)
+        if output_format == "json":
+            res = {
+                "software": "DeLFT",
+                "date": datetime.datetime.now().isoformat(),
+                "model": self.model_config.model_name,
+                "texts": [],
+            }
+        else:
+            list_of_tags = []
 
+        to_tokeniz = False
+        if len(texts) > 0 and isinstance(texts[0], str):
+            to_tokeniz = True
+
+        # Create data loader for inference
+        # If texts are strings, we need to tokenize them first?
+        # The create_dataloader expects x_data as list of list of tokens usually for training,
+        # checking create_dataloader implementation...
+        # For inference, if we pass strings, we might need to handle tokenization here or in data_loader.
+
+        # Let's tokenize if needed
         tokenized_texts = []
         all_offsets = []
-        for text in texts:
+
+        for i, text in enumerate(texts):
             if to_tokeniz:
                 tokens, offsets = tokenizeAndFilter(text)
                 tokenized_texts.append(tokens)
@@ -68,130 +68,114 @@ class Tagger(object):
                 tokenized_texts.append(text)
                 all_offsets.append([])  # No offsets if already tokenized
 
-        self.model.eval()
-        all_tags, all_probs = self._predict(tokenized_texts, features)
-
-        if output_format == "json":
-            res = {
-                "software": "DeLFT",
-                "date": datetime.datetime.now().isoformat(),
-                "model": self.model_config.model_name,
-                "texts": [],
-            }
-            for text, tokens, tags, probs, offsets in zip(texts, tokenized_texts, all_tags, all_probs, all_offsets):
-                piece = {}
-                piece["text"] = text
-                piece["entities"] = self._build_json_response(text, tokens, tags, probs, offsets)["entities"]
-                res["texts"].append(piece)
-            return res
-
-        return [list(zip(tokens, tags)) for tokens, tags in zip(tokenized_texts, all_tags)]
-
-    def _predict(self, tokenized_texts, features=None):
-        """
-        Return the labels, and the scores when the model gives some, of every token
-        of every text.
-
-        A model labels ``max_sequence_length`` tokens at most, and a transformer that
-        many sub-tokens, which is fewer words: the data loader cuts what is beyond. A
-        text that was cut is labelled again from ``window_overlap`` tokens before the
-        point its labels stop, until all its tokens have one. Texts that fit, the
-        usual case, take the single pass they always took.
-        """
-        tags = [[] for _ in tokenized_texts]
-        probs = [[] for _ in tokenized_texts]
-        with_probs = True
-        starts = [0] * len(tokenized_texts)
-        pending = list(range(len(tokenized_texts)))
-
-        while pending:
-            windows = [tokenized_texts[d][starts[d] :] for d in pending]
-            window_features = None if features is None else [features[d][starts[d] :] for d in pending]
-            predictions = self._predict_windows(windows, window_features)
-            if len(predictions) != len(pending):
-                raise RuntimeError(f"{len(pending)} sequences to label, {len(predictions)} labelled")
-
-            still_pending = []
-            for d, (window_tags, window_probs) in zip(pending, predictions):
-                nb_tokens = len(tokenized_texts[d])
-                if len(window_tags) == 0 and starts[d] < nb_tokens:
-                    raise RuntimeError(f"no label predicted from token {starts[d]} of sequence {d}")
-
-                # of the tokens this window shares with the previous one, the first
-                # half keeps the label it has and the second half takes the new one
-                keep = starts[d] + (len(tags[d]) - starts[d]) // 2
-                tags[d] = tags[d][:keep] + window_tags[keep - starts[d] :]
-                if window_probs is None:
-                    with_probs = False
-                else:
-                    probs[d] = probs[d][:keep] + window_probs[keep - starts[d] :]
-
-                if len(tags[d]) < nb_tokens:
-                    # sharing half a window at most, the next window always starts
-                    # further than this one
-                    starts[d] = len(tags[d]) - min(self.window_overlap, len(window_tags) // 2)
-                    still_pending.append(d)
-            pending = still_pending
-
-        return tags, probs if with_probs else [None] * len(tokenized_texts)
-
-    def _predict_windows(self, windows, window_features=None):
-        """
-        One pass of the model: return, for each window and in the same order, the
-        labels and the scores (None for a CRF) of the tokens the model could take.
-        """
+        # Create dataloader
+        # Note: y is None for inference
         dataloader = create_dataloader(
-            windows,
+            tokenized_texts,
             None,
             preprocessor=self.preprocessor,
             embeddings=self.embeddings,
             batch_size=self.model_config.batch_size,
-            features=window_features,
+            features=features,
             num_workers=self.nb_workers,
             shuffle=False,
             model_config=self.model_config,
             role="tag",
         )
 
-        predictions = []
+        steps_done = 0
+        truncated = []  # (index, number of tokens, number of labels) of the sequences cut
+        self.model.eval()
 
         # inference_mode rather than no_grad: it additionally skips view and
         # version-counter tracking, which is pure overhead here since nothing
         # leaves this loop but lists of tag indices.
         with torch.inference_mode():
-            for inputs, _ in dataloader:
+            for batch in dataloader:
+                inputs, _ = batch  # dataloader yields (inputs, labels), labels are None or dummies
+
+                # Move inputs to device
                 inputs = {k: v.to(self.device) if isinstance(v, torch.Tensor) else v for k, v in inputs.items()}
 
+                # Run inference
                 if hasattr(self.model, "decode"):
-                    # CRF models: hard decoding, no score per token
-                    rows = self.model.decode(inputs)
-                    rows_probs = None
+                    # For CRF models
+                    tags = self.model.decode(inputs)
+                    # tags is list of list of label indices
+                    probs = None  # standard CRF hard decoding doesn't give element-wise probs easily
                 else:
-                    logits = self.model(inputs)["logits"]
-                    rows_probs, rows = torch.max(torch.sigmoid(logits), dim=-1)
-                    rows_probs = rows_probs.tolist()
+                    # For non-CRF models
+                    outputs = self.model(inputs)
+                    logits = outputs["logits"]
+                    probs, pred_indices = torch.max(torch.sigmoid(logits), dim=-1)
+                    tags = pred_indices.tolist()
+                    probs = probs.tolist()
 
+                # transformers predict one label per sub-token: the data loader marks
+                # the first sub-token of each word, where the label of the word is
                 word_starts = inputs["word_start_mask"].tolist() if "word_start_mask" in inputs else None
-                lengths = inputs["length"].reshape(-1).tolist() if "length" in inputs else None
 
-                for i, row in enumerate(rows):
+                # Process batch results
+                for i in range(len(tags)):
+                    idx = steps_done * self.model_config.batch_size + i
+                    if idx >= len(texts):
+                        break
+
+                    text = texts[idx]
+                    tokens = tokenized_texts[idx]
+                    offsets = all_offsets[idx]
+
+                    pred_tags_indices = tags[i]
+                    current_probs = probs[i] if probs else None
+
                     if word_starts is not None:
-                        # transformers predict one label per sub-token, the label of
-                        # a word being the one of its first sub-token
-                        positions = [p for p, is_start in enumerate(word_starts[i][: len(row)]) if is_start]
+                        positions = [
+                            p for p, is_start in enumerate(word_starts[i][: len(pred_tags_indices)]) if is_start
+                        ]
+                        pred_tags_indices = [pred_tags_indices[p] for p in positions]
+                        if current_probs is not None:
+                            current_probs = [current_probs[p] for p in positions]
+
+                    # Inverse transform tags
+                    pred_tags = self.preprocessor.inverse_transform(pred_tags_indices)
+
+                    # the data loader cuts a sequence at max_sequence_length: the tokens
+                    # after the cut get no label and are left out of the result
+                    if len(pred_tags) < len(tokens):
+                        truncated.append((idx, len(tokens), len(pred_tags)))
+
+                    if output_format == "json":
+                        piece = {}
+                        piece["text"] = text
+                        piece["entities"] = self._build_json_response(text, tokens, pred_tags, current_probs, offsets)[
+                            "entities"
+                        ]
+                        res["texts"].append(piece)
                     else:
-                        # a row is padded to the longest sequence of its batch, and a
-                        # single token sequence is fed as two
-                        nb_tokens = min(len(row), len(windows[len(predictions)]))
-                        if lengths is not None:
-                            nb_tokens = min(nb_tokens, lengths[i])
-                        positions = range(nb_tokens)
+                        the_tags = list(zip(tokens, pred_tags))
+                        list_of_tags.append(the_tags)
 
-                    window_tags = self.preprocessor.inverse_transform([row[p] for p in positions])
-                    window_probs = None if rows_probs is None else [rows_probs[i][p] for p in positions]
-                    predictions.append((window_tags, window_probs))
+                steps_done += 1
 
-        return predictions
+        if truncated:
+            idx, nb_tokens, nb_labels = truncated[0]
+            LOGGER.warning(
+                "%d of %d sequences are longer than the model takes (max_sequence_length=%d%s) and were truncated: "
+                "their last tokens are not labelled, e.g. sequence %d has %d tokens and %d labels. "
+                "Cut long sequences before sending them.",
+                len(truncated),
+                len(texts),
+                self.model_config.max_sequence_length,
+                " sub-tokens" if self.model_config.transformer_name else "",
+                idx,
+                nb_tokens,
+                nb_labels,
+            )
+
+        if output_format == "json":
+            return res
+        else:
+            return list_of_tags
 
     def _build_json_response(self, original_text, tokens, tags, prob, offsets):
         res = {"entities": []}

@@ -133,7 +133,7 @@ class PositionEchoModel(torch.nn.Module):
         return [[self.tag_index[f"P{p}"] for p in range(length)] for _ in range(nb_rows)]
 
 
-def _position_tagger(max_sequence_length, transformer_name=None, **kwargs):
+def _position_tagger(max_sequence_length, transformer_name=None):
     from delft.sequenceLabelling.config import ModelConfig
     from delft.sequenceLabelling.preprocess import Preprocessor
     from delft.sequenceLabelling.tagger import Tagger
@@ -149,7 +149,7 @@ def _position_tagger(max_sequence_length, transformer_name=None, **kwargs):
         batch_size=3,
     )
     model = PositionEchoModel(preprocessor.vocab_tag, "input_ids" if transformer_name else "char_input")
-    return Tagger(model, model_config, preprocessor=preprocessor, device=torch.device("cpu"), **kwargs)
+    return Tagger(model, model_config, preprocessor=preprocessor, device=torch.device("cpu"))
 
 
 def _tags(tagged):
@@ -157,92 +157,32 @@ def _tags(tagged):
 
 
 class TestTaggerLongSequences:
-    """A sequence longer than what the model takes is labelled window by window,
-    rather than returned with its tail unlabelled."""
+    """A sequence longer than the model takes is truncated: that is said, not silent."""
 
-    def test_labels_every_token_beyond_max_sequence_length(self):
-        tagged = _position_tagger(max_sequence_length=5).tag([WORDS], "raw")[0]
-        assert [token for token, _ in tagged] == WORDS
+    def test_warns_that_the_last_tokens_are_not_labelled(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            tagged = _position_tagger(max_sequence_length=5).tag([WORDS[:3], WORDS, WORDS], "raw")
+        assert [[token for token, _ in sequence] for sequence in tagged] == [WORDS[:3], WORDS[:5], WORDS[:5]]
+        assert len(caplog.records) == 1
+        message = caplog.records[0].getMessage()
+        assert "2 of 3 sequences" in message and "max_sequence_length=5)" in message
+        assert "sequence 1 has 8 tokens and 5 labels" in message
 
-    def test_shared_tokens_take_the_label_of_the_window_they_are_deeper_in(self):
-        # windows [0:5] and [3:8] share tokens 3 and 4: token 3 keeps the label of the
-        # first window, token 4 takes the one of the second
-        tagged = _position_tagger(max_sequence_length=5).tag([WORDS], "raw")[0]
-        assert _tags(tagged) == ["P0", "P1", "P2", "P3", "P1", "P2", "P3", "P4"]
+    def test_says_nothing_when_every_sequence_fits(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            tagged = _position_tagger(max_sequence_length=8).tag([WORDS, WORDS[:3]], "raw")
+        assert [len(sequence) for sequence in tagged] == [8, 3]
+        assert caplog.records == []
 
-    def test_windows_follow_each_other_without_overlap(self):
-        tagged = _position_tagger(max_sequence_length=5, window_overlap=0).tag([WORDS], "raw")[0]
-        assert _tags(tagged) == ["P0", "P1", "P2", "P3", "P4", "P0", "P1", "P2"]
-
-    def test_overlap_is_capped_so_that_windows_always_advance(self):
-        tagged = _position_tagger(max_sequence_length=2, window_overlap=50).tag([WORDS], "raw")[0]
-        assert [token for token, _ in tagged] == WORDS
-
-    def test_short_and_long_sequences_of_a_batch_keep_their_order(self):
-        texts = [WORDS, ["one"], WORDS[:5], WORDS[:6], ["two", "tokens"]]
-        tagged = _position_tagger(max_sequence_length=5).tag(texts, "raw")
-        assert [[token for token, _ in sequence] for sequence in tagged] == texts
-
-    def test_sequence_that_fits_takes_a_single_pass(self):
-        tagger = _position_tagger(max_sequence_length=8)
-        with patch.object(tagger, "_predict_windows", wraps=tagger._predict_windows) as predict_windows:
-            tagged = tagger.tag([WORDS], "raw")[0]
-        assert predict_windows.call_count == 1
-        assert _tags(tagged) == [f"P{p}" for p in range(8)]
-
-    def test_features_are_windowed_with_their_tokens(self):
-        tagger = _position_tagger(max_sequence_length=5)
-        features = [[[f"f{p}"] for p in range(len(WORDS))]]
-        with patch.object(tagger, "_predict_windows", wraps=tagger._predict_windows) as predict_windows:
-            tagger.tag([WORDS], "raw", features=features)
-        second_window, second_features = predict_windows.call_args_list[1].args
-        assert second_window == [WORDS[3:]]
-        assert second_features == [features[0][3:]]
-
-    def test_json_output_has_entities_beyond_max_sequence_length(self):
-        from delft.sequenceLabelling.config import ModelConfig
-        from delft.sequenceLabelling.preprocess import Preprocessor
-        from delft.sequenceLabelling.tagger import Tagger
-
-        class EverythingIsAnEntity(torch.nn.Module):
-            def decode(self, inputs):
-                nb_rows, length = inputs["char_input"].shape[:2]
-                return [[1] * length for _ in range(nb_rows)]
-
-        preprocessor = Preprocessor(return_chars=True)
-        preprocessor.fit([WORDS], [["B-x"] * len(WORDS)])
-        model_config = ModelConfig(model_name="test", embeddings_name=None, max_sequence_length=3, batch_size=2)
-        tagger = Tagger(EverythingIsAnEntity(), model_config, preprocessor=preprocessor, device=torch.device("cpu"))
-
-        text = "Jim was a puppeteer in Mississippi"
-        entities = tagger.tag([text], "json")["texts"][0]["entities"]
-        assert [entity["text"] for entity in entities] == text.split(" ")
-
-    @pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF", "BidLSTM"])
-    def test_real_models_label_every_token(self, architecture):
-        from delft.sequenceLabelling.config import ModelConfig
-        from delft.sequenceLabelling.models import get_model
-        from delft.sequenceLabelling.preprocess import Preprocessor
-        from delft.sequenceLabelling.tagger import Tagger
-
-        preprocessor = Preprocessor(return_chars=True)
-        preprocessor.fit([WORDS], [LABELS])
-        model_config = ModelConfig(
-            model_name="test",
-            architecture=architecture,
-            embeddings_name=None,
-            word_embedding_size=0,
-            max_sequence_length=5,
-            batch_size=2,
-        )
-        model_config.char_vocab_size = len(preprocessor.vocab_char)
-        model = get_model(model_config, len(preprocessor.vocab_tag), load_pretrained_weights=False)
-        tagger = Tagger(model, model_config, preprocessor=preprocessor, device=torch.device("cpu"))
-
-        texts = [WORDS, ["one"], WORDS[:5]]
-        tagged = tagger.tag(texts, "raw")
-        assert [[token for token, _ in sequence] for sequence in tagged] == texts
-        assert all(tag in preprocessor.vocab_tag for sequence in tagged for _, tag in sequence)
+    def test_with_a_transformer_the_limit_is_in_sub_tokens(self, caplog, wordpiece_tokenizer):
+        # 8 sub-tokens, [CLS] and [SEP] included, hold "Jim Hensonization was a" only
+        tagger = _position_tagger(max_sequence_length=8, transformer_name="in-memory")
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            with patch("transformers.AutoTokenizer.from_pretrained", return_value=wordpiece_tokenizer):
+                tagged = tagger.tag([WORDS], "raw")[0]
+        assert [token for token, _ in tagged] == WORDS[:4]
+        message = caplog.records[0].getMessage()
+        assert "max_sequence_length=8 sub-tokens" in message and "8 tokens and 4 labels" in message
 
 
 @pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF"])
@@ -312,12 +252,6 @@ class TestTaggerTransformerAlignment:
         assert _tags(tagged[0]) == self.FIRST_SUB_TOKENS[:3]
         assert _tags(tagged[1]) == self.FIRST_SUB_TOKENS
 
-    def test_labels_the_words_cut_by_the_sub_token_limit(self, wordpiece_tokenizer):
-        # 8 sub-tokens, specials included, hold "Jim Hensonization was a" only: the
-        # limit counts sub-tokens, so fewer words fit than max_sequence_length says
-        tagged = self._tag(wordpiece_tokenizer, 8, [WORDS])[0]
-        assert [token for token, _ in tagged] == WORDS
-
 
 class TestTaggerWorkers:
     """DataLoader worker processes at tagging time.
@@ -351,10 +285,7 @@ class TestTaggerWorkers:
     @pytest.mark.parametrize("nb_workers", [0, 3])
     def test_passes_nb_workers_to_the_dataloader(self, nb_workers):
         tagger = self._tagger(nb_workers=nb_workers)
-        tagger.model.decode.return_value = [[1, 1]]
-        tagger.preprocessor.inverse_transform.side_effect = lambda indices: ["O"] * len(indices)
-        batches = [({"length": torch.tensor([2])}, None)]
-        with patch("delft.sequenceLabelling.tagger.create_dataloader", return_value=batches) as create_dataloader:
+        with patch("delft.sequenceLabelling.tagger.create_dataloader", return_value=[]) as create_dataloader:
             tagger.tag([["some", "tokens"]], "raw")
         assert create_dataloader.call_args.kwargs["num_workers"] == nb_workers
 

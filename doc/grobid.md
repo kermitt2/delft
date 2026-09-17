@@ -229,6 +229,10 @@ The evaluation of a model with a specific Grobid data file can be performed usin
 python3 delft/applications/grobidTagger.py citation eval --architecture *name-of-architecture* --input *path-to-the-grobid-data-file-to-be-used-for-evaluation*
 ```
 
+### Sequences longer than the model takes
+
+A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
+
 ## Calling DeLFT from GROBID
 
 GROBID embeds DeLFT in the JVM process through [JEP](https://github.com/ninia/jep): it instantiates a `Sequence`, loads the model once, then calls `tag()` for every sequence to be labelled.
@@ -250,12 +254,6 @@ annotations = model.tag(texts, "json", features=features, nb_workers=0)
 ```
 
 When neither is set, tagging defaults to `nb_workers=0` already — the constructor default (`min(4, cpu_count - 1)`) only applies to training and evaluation, where the worker pool is spawned once and amortised over the whole run. `create_dataloader` additionally caps the requested count by dataset size, so small batches never spawn workers that would sit idle.
-
-### Sequences longer than the model takes
-
-A model labels `max_sequence_length` tokens at most, and a transformer that many sub-tokens, which is fewer words. `tag()` nevertheless returns one label per token whatever the length of a sequence: a sequence that does not fit is labelled window by window, two consecutive windows sharing up to 50 tokens so that no token is labelled from the edge of a window, where the model sees little context. Each shared token takes its label from the window it is deeper in. Sequences that fit, the usual case, take a single pass.
-
-Training and evaluation are unchanged: they still cut a sequence at `max_sequence_length`.
 
 The same applies to text classification, where `Classifier.predict()` accepts `nb_workers` and the equivalent `use_main_thread_only=True`:
 
