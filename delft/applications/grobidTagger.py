@@ -497,6 +497,7 @@ def eval_(
     wandb_run_id=None,
     wandb_project=None,
     suffix=None,
+    input_model_path=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -518,7 +519,10 @@ def eval_(
 
     # load the model
     model = Sequence(model_name)
-    model.load()
+    if input_model_path is not None:
+        model.load(input_model_path)
+    else:
+        model.load()
 
     # Initialize wandb for eval if requested
     if report_to_wandb:
@@ -543,6 +547,7 @@ def annotate_text(
     multi_gpu=False,
     num_workers=None,
     suffix=None,
+    input_model_path=None,
 ):
     annotations = []
 
@@ -550,7 +555,10 @@ def annotate_text(
     model_name = build_model_name(model, architecture, suffix)
 
     model = Sequence(model_name, nb_workers=num_workers)
-    model.load()
+    if input_model_path is not None:
+        model.load(input_model_path)
+    else:
+        model.load()
 
     start_time = time.time()
 
@@ -654,8 +662,11 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--input-model",
-        help="In case of incremental training, path to an existing model to be used "
-        + "to start the training, instead of the default one.",
+        help="Where to take the model from, instead of the default models directory: for eval and tag, the model "
+        "to use, and for incremental training, the one to start from. Either a models directory, the directory "
+        "of the model, a repository or a bucket of the Hugging Face Hub (hf://owner/repository[@revision], "
+        "hf://buckets/owner/bucket), where the model is looked for under its name, or the URL of an archive "
+        "of the model.",
     )
     parser.add_argument(
         "--max-sequence-length",
@@ -811,6 +822,7 @@ if __name__ == "__main__":
             wandb_run_id=wandb_run_id,
             wandb_project=wandb_project,
             suffix=suffix,
+            input_model_path=input_model_path,
         )
 
     if action == Tasks.TRAIN_EVAL:
@@ -885,6 +897,7 @@ if __name__ == "__main__":
                 multi_gpu=multi_gpu,
                 num_workers=num_workers,
                 suffix=suffix,
+                input_model_path=input_model_path,
             )
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:

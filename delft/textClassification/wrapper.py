@@ -13,6 +13,7 @@ from delft.textClassification.preprocess import TextPreprocessor
 from delft.textClassification.trainer import Trainer
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Utilities import pick_device
@@ -558,10 +559,37 @@ class Classifier(object):
         remove_other_weights(directory, weight_file)
         print(f"Model saved to {directory}")
 
-    def load(self, dir_path="data/models/textClassification/"):
-        """Load model from disk, its weights being in either format ``save`` writes."""
-        model_path = os.path.join(dir_path, self.model_config.model_name)
+    def load(self, dir_path="data/models/textClassification/", cache_dir=None, token=None):
+        """Load model from disk, from the Hugging Face Hub or over HTTP, its weights being
+        in either format ``save`` writes.
 
+        ``dir_path`` is either
+
+        - a models directory, the model being the folder of it with the name of the
+          model. When it is not there, it is first downloaded there from the Hub, if the
+          resources registry gives it a place on the Hub. A model trained or copied there
+          is never touched;
+        - the directory of the model itself, whatever its name;
+        - a repository or a bucket of the Hub, ``hf://owner/repository``, the model being
+          the folder of it with the name of the model, or that folder itself,
+          ``hf://owner/repository/model-name``, whatever the name of the model;
+        - the URL of an archive of the model directory, ``https://.../model-name.zip``,
+          or of the folder holding ``{name of the model}.zip``.
+
+        See ``delft.utilities.hub_models`` for the last two, whose model is downloaded
+        to ``cache_dir`` when it is not there yet.
+        """
+        model_name = self.model_config.model_name
+        if is_remote(dir_path):
+            model_path = resolve_model(dir_path, cache_dir=cache_dir, token=token, model_name=model_name)
+        elif os.path.isfile(os.path.join(dir_path, self.config_file)):
+            model_path = dir_path
+        else:
+            model_path = os.path.join(dir_path, model_name)
+            fetch_model(model_name, dir_path, self.registry, token=token)
+        self._load_from_directory(model_path)
+
+    def _load_from_directory(self, model_path):
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
 

@@ -11,8 +11,34 @@ hyper-parameters, which would otherwise overwrite each other.
 """
 
 import re
+from typing import NamedTuple, Optional
 
 GROBID_PREFIX = "grobid-"
+
+# The architectures of delft.sequenceLabelling.models.MODEL_REGISTRY, repeated here so
+# that naming a model does not import the models. They hold no dash, where short names
+# and suffixes do, which is what makes a name splittable.
+ARCHITECTURES = (
+    "BidLSTM",
+    "BidLSTM_CRF",
+    "BidLSTM_ChainCRF",
+    "BidLSTM_CNN",
+    "BidLSTM_CNN_CRF",
+    "BidGRU_CRF",
+    "BidLSTM_CRF_FEATURES",
+    "BidLSTM_ChainCRF_FEATURES",
+    "BidLSTM_CRF_CASING",
+    "BERT",
+    "BERT_CRF",
+    "BERT_ChainCRF",
+    "BERT_FEATURES",
+    "BERT_CRF_FEATURES",
+    "BERT_ChainCRF_FEATURES",
+)
+
+# Not an architecture of DeLFT, which cannot load them: the Wapiti CRF models of GROBID
+# are named and published along the DeLFT ones.
+WAPITI = "wapiti"
 
 # a suffix becomes part of a directory name
 _SUFFIX_PATTERN = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]*")
@@ -38,3 +64,25 @@ def build_model_name(short_name, architecture, suffix=None, prefix=GROBID_PREFIX
     if suffix is not None:
         model_name += "-" + suffix
     return model_name
+
+
+class ModelName(NamedTuple):
+    short_name: str
+    architecture: str
+    suffix: Optional[str]
+    prefix: str
+
+
+def split_model_name(model_name, prefix=GROBID_PREFIX):
+    """
+    Split a name made by ``build_model_name``, or return None when it holds no known
+    architecture. The architecture is the first part between dashes that is one, so a
+    suffix can hold anything. ``prefix`` is dropped when the name starts with it.
+    """
+    found_prefix = prefix if prefix and model_name.startswith(prefix) else ""
+    parts = model_name[len(found_prefix) :].split("-")
+    for i, part in enumerate(parts):
+        if i > 0 and (part in ARCHITECTURES or part == WAPITI):
+            suffix = "-".join(parts[i + 1 :]) or None
+            return ModelName("-".join(parts[:i]), part, suffix, found_prefix)
+    return None
