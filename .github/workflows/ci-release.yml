@@ -19,9 +19,9 @@ jobs:
           sudo rm -rf /opt/ghc || true
           sudo rm -rf "/usr/local/share/boost" || true
           sudo rm -rf "$AGENT_TOOLSDIRECTORY" || true
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python-version }}
           cache: 'pip'
@@ -51,9 +51,9 @@ jobs:
     permissions:
       id-token: write
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v7
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v7
         with:
           python-version: '3.11'
       - name: Install build tools
