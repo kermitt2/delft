@@ -14,6 +14,7 @@ Model architectures implemented:
 - bert: Transformer-based
 """
 
+import inspect
 from typing import Dict, Optional
 
 import numpy as np
@@ -674,6 +675,9 @@ class bert(BaseTextClassifier):
 
         hidden_size = self.transformer.config.hidden_size
 
+        # not every transformer takes segment ids (DistilBERT, ModernBERT)
+        self.accepts_token_type_ids = "token_type_ids" in inspect.signature(self.transformer.forward).parameters
+
         self.dropout = nn.Dropout(0.1)
         self.classifier = nn.Linear(hidden_size, self.nb_classes)
 
@@ -684,9 +688,11 @@ class bert(BaseTextClassifier):
     ) -> Dict[str, torch.Tensor]:
         input_ids = inputs["input_ids"]
         attention_mask = inputs.get("attention_mask", None)
-        token_type_ids = inputs.get("token_type_ids", None)
+        transformer_args = {"attention_mask": attention_mask}
+        if self.accepts_token_type_ids and inputs.get("token_type_ids") is not None:
+            transformer_args["token_type_ids"] = inputs["token_type_ids"]
 
-        outputs = self.transformer(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)
+        outputs = self.transformer(input_ids, **transformer_args)
 
         # Use CLS token representation
         pooled = outputs.last_hidden_state[:, 0, :]
