@@ -1453,6 +1453,8 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         )
         self.dropout = nn.Dropout(config.dropout)
         self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
+        # the CRF takes one score per label: under Keras its wrapper made this projection itself
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
         self.crf = CRF(ntags)
 
     def forward(
@@ -1487,7 +1489,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         x = torch.cat([text_emb, features_encoded], dim=-1)
         lstm_out, _ = self.bilstm(x)
         lstm_out = self.dropout(lstm_out)
-        emissions = torch.tanh(self.dense(lstm_out))
+        emissions = self.dense2(torch.tanh(self.dense(lstm_out)))
 
         result = {"logits": emissions}
 
@@ -1523,7 +1525,6 @@ class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
     ):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
         self.crf = ChainCRF(ntags)
-        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
     def forward(
         self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
