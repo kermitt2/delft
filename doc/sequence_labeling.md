@@ -96,6 +96,14 @@ model.train(x_train, y_train, x_valid=x_dev, y_valid=y_dev)
 model.save("data/models/sequenceLabelling/toto")
 ```
 
+A saved model is a directory holding `config.json`, `preprocessor.json` and the weights. The weights are a pickled torch state dict, `model_weights.pt`, by default. Naming a `.safetensors` file writes them in the [safetensors](https://github.com/huggingface/safetensors) format instead, which holds tensors and nothing else, where unpickling a file runs whatever code it contains. It is the format to publish a model in:
+
+```python
+model.save("data/models/sequenceLabelling/", weight_file="model.safetensors")
+```
+
+`model.load()` takes either format, without having to be told which: when the file it looks for is not in the directory, it loads the weights the directory holds in the other format. `Classifier.save()` and `Classifier.load()` do the same for text classification.
+
 Use the loaders in `delft/sequenceLabelling/reader.py` to read your training data; pick the one matching your file format:
 
 - `load_data_and_labels_conll` — CoNLL-style `token<TAB>label` files

@@ -16,6 +16,7 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Utilities import pick_device
+from delft.utilities.weights import find_weight_file, load_weights, save_weights
 
 
 def split_train_validation(x_train, y_train, split_ratio=0.9):
@@ -525,7 +526,12 @@ class Classifier(object):
         else:
             return result
 
-    def save(self, dir_path="data/models/textClassification/"):
+    def save(self, dir_path="data/models/textClassification/", weight_file=None):
+        """Save model to disk.
+
+        The weights are a pickled state dict, unless ``weight_file`` ends with
+        ``.safetensors`` (see ``delft.utilities.weights``).
+        """
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -538,10 +544,11 @@ class Classifier(object):
             print("Preprocessor saved")
 
         # Save PyTorch model
-        torch.save(self.model.state_dict(), os.path.join(directory, self.weight_file))
+        save_weights(self.model, os.path.join(directory, weight_file or self.weight_file))
         print(f"Model saved to {directory}")
 
     def load(self, dir_path="data/models/textClassification/"):
+        """Load model from disk, its weights being in either format ``save`` writes."""
         model_path = os.path.join(dir_path, self.model_config.model_name)
 
         # Load config
@@ -564,8 +571,8 @@ class Classifier(object):
         self.model = getModel(self.model_config, self.training_config)
 
         # Load weights
-        weight_path = os.path.join(model_path, self.weight_file)
-        self.model.load_state_dict(torch.load(weight_path, map_location=self.device))
+        weight_path = find_weight_file(model_path, self.weight_file)
+        load_weights(self.model, weight_path, device=self.device)
         self.model.to(self.device)
         print(f"Model loaded from {weight_path}")
 
