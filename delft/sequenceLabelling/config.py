@@ -90,6 +90,7 @@ class TrainingConfig(object):
         patience=5,
         max_checkpoints_to_keep=0,
         multiprocessing=True,
+        window_stride=None,
     ):
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
@@ -101,3 +102,6 @@ class TrainingConfig(object):
         self.patience = patience
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
         self.multiprocessing = multiprocessing
+        # When set, a training sequence longer than max_sequence_length is cut into windows
+        # of that length, one every window_stride, instead of losing what follows the cut.
+        self.window_stride = window_stride
