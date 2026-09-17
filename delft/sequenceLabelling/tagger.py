@@ -1,10 +1,13 @@
 import datetime
+import logging
 
 import numpy as np
 import torch
 
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.utilities.Tokenizer import tokenizeAndFilter
+
+LOGGER = logging.getLogger(__name__)
 
 
 class Tagger(object):
@@ -81,6 +84,7 @@ class Tagger(object):
         )
 
         steps_done = 0
+        truncated = []  # (index, number of tokens, number of labels) of the sequences cut
         self.model.eval()
 
         # inference_mode rather than no_grad: it additionally skips view and
@@ -135,6 +139,11 @@ class Tagger(object):
                     # Inverse transform tags
                     pred_tags = self.preprocessor.inverse_transform(pred_tags_indices)
 
+                    # the data loader cuts a sequence at max_sequence_length: the tokens
+                    # after the cut get no label and are left out of the result
+                    if len(pred_tags) < len(tokens):
+                        truncated.append((idx, len(tokens), len(pred_tags)))
+
                     if output_format == "json":
                         piece = {}
                         piece["text"] = text
@@ -147,6 +156,21 @@ class Tagger(object):
                         list_of_tags.append(the_tags)
 
                 steps_done += 1
+
+        if truncated:
+            idx, nb_tokens, nb_labels = truncated[0]
+            LOGGER.warning(
+                "%d of %d sequences are longer than the model takes (max_sequence_length=%d%s) and were truncated: "
+                "their last tokens are not labelled, e.g. sequence %d has %d tokens and %d labels. "
+                "Cut long sequences before sending them.",
+                len(truncated),
+                len(texts),
+                self.model_config.max_sequence_length,
+                " sub-tokens" if self.model_config.transformer_name else "",
+                idx,
+                nb_tokens,
+                nb_labels,
+            )
 
         if output_format == "json":
             return res

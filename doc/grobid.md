@@ -15,7 +15,7 @@ usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
                        [--early-stop EARLY_STOP] [--multi-gpu]
-                       [--num-workers NUM_WORKERS] [--wandb]
+                       [--num-workers NUM_WORKERS] [--suffix SUFFIX] [--wandb]
                        model {train,train_eval,eval,tag}
 
 Trainer for GROBID models using the DeLFT library
@@ -84,12 +84,33 @@ options:
                         Number of DataLoader worker processes (default:
                         min(4, cpu_count - 1) for train/eval, 0 for tagging;
                         use 0 for no multiprocessing at all).
+  --suffix SUFFIX       Suffix appended to the model name, as in
+                        grobid-header-BidLSTM_CRF-<suffix>, to keep several
+                        models of the same task and architecture side by
+                        side, e.g. one per embeddings, transformer or
+                        hyper-parameter setting. Pass the same value to eval
+                        and tag to select that model.
   --wandb               Enable the logging of the training using Weights and
                         Biases.
 ```
 
 
 > Add `--wandb` to any `train` / `train_eval` / `eval` command to log the run to Weights & Biases. See [Experiment tracking (W&B)](wandb.md) for setup, project selection, and resuming a run for evaluation.
+
+## Model names
+
+A model is saved under `data/models/sequenceLabelling/` in a directory named after the task and the architecture, e.g. `grobid-header-BidLSTM_CRF_FEATURES`. That name says nothing about the embeddings, the transformer or the hyper-parameters, so training the `header` model with `BERT_CRF` on two transformers, or with `BidLSTM_CRF_FEATURES` on two static embeddings, writes twice to the same directory.
+
+`--suffix` keeps such models side by side. It is appended to the name as is:
+
+```sh
+python3 delft/applications/grobidTagger.py header train --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased --suffix scibert_scivocab_cased
+python3 delft/applications/grobidTagger.py header train --architecture BERT_CRF --transformer answerdotai/ModernBERT-base --suffix ModernBERT-base
+```
+
+gives `grobid-header-BERT_CRF-scibert_scivocab_cased` and `grobid-header-BERT_CRF-ModernBERT-base`. The same `--suffix` given to `eval` and `tag` selects the model to load. A suffix holds letters, digits, `.`, `_` and `-`. It is a label and is never parsed: what a model was trained with is in its `config.json`.
+
+Without `--suffix` the name is what it always was, which is also the name GROBID builds when it loads a model through DeLFT. To serve a model trained with a suffix from GROBID, copy or link its directory to the name without the suffix.
 
 ## GROBID models
 
@@ -248,6 +269,10 @@ python3 delft/applications/grobidTagger.py fulltext train --architecture BERT_CR
 The whole sequence is then trained on, and the model also sees sequences that start and end in the middle of a field, which is what it receives when the caller cuts long inputs before sending them for labelling. A stride equal to `--max-sequence-length` puts the windows side by side; a smaller one makes them overlap, for more examples per epoch. Only the training set is cut into windows: the validation and evaluation sets are truncated as before, so that scores stay comparable with and without the option.
 
 From Python, the option is `Sequence(..., window_stride=256)`.
+
+### Sequences longer than the model takes
+
+A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
 
 ## Calling DeLFT from GROBID
 

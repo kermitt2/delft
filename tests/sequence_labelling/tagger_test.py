@@ -156,6 +156,35 @@ def _tags(tagged):
     return [tag for _, tag in tagged]
 
 
+class TestTaggerLongSequences:
+    """A sequence longer than the model takes is truncated: that is said, not silent."""
+
+    def test_warns_that_the_last_tokens_are_not_labelled(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            tagged = _position_tagger(max_sequence_length=5).tag([WORDS[:3], WORDS, WORDS], "raw")
+        assert [[token for token, _ in sequence] for sequence in tagged] == [WORDS[:3], WORDS[:5], WORDS[:5]]
+        assert len(caplog.records) == 1
+        message = caplog.records[0].getMessage()
+        assert "2 of 3 sequences" in message and "max_sequence_length=5)" in message
+        assert "sequence 1 has 8 tokens and 5 labels" in message
+
+    def test_says_nothing_when_every_sequence_fits(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            tagged = _position_tagger(max_sequence_length=8).tag([WORDS, WORDS[:3]], "raw")
+        assert [len(sequence) for sequence in tagged] == [8, 3]
+        assert caplog.records == []
+
+    def test_with_a_transformer_the_limit_is_in_sub_tokens(self, caplog, wordpiece_tokenizer):
+        # 8 sub-tokens, [CLS] and [SEP] included, hold "Jim Hensonization was a" only
+        tagger = _position_tagger(max_sequence_length=8, transformer_name="in-memory")
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            with patch("transformers.AutoTokenizer.from_pretrained", return_value=wordpiece_tokenizer):
+                tagged = tagger.tag([WORDS], "raw")[0]
+        assert [token for token, _ in tagged] == WORDS[:4]
+        message = caplog.records[0].getMessage()
+        assert "max_sequence_length=8 sub-tokens" in message and "8 tokens and 4 labels" in message
+
+
 @pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF"])
 def test_tags_with_either_crf_layer(architecture):
     from delft.sequenceLabelling.config import ModelConfig

@@ -11,6 +11,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
+from delft.utilities.model_names import GROBID_PREFIX, build_model_name, validate_suffix
 from delft.utilities.Utilities import longest_row, t_or_f
 
 MODEL_LIST = [
@@ -78,14 +79,13 @@ def configure(
     max_epoch=-1,
     patience=-1,
     early_stop=None,
+    suffix=None,
 ):
     """
     Set up the default parameters based on the model type.
     """
-    if output_path:
-        model_name = model
-    else:
-        model_name = "grobid-" + model
+    # a model saved under --output is named after the task alone
+    model_name = build_model_name(model, architecture, suffix, prefix="" if output_path else GROBID_PREFIX)
 
     multiprocessing = True
     o_early_stop = True
@@ -201,8 +201,6 @@ def configure(
             if batch_size == -1:
                 batch_size = 3
 
-    model_name += "-" + architecture
-
     if batch_size == -1:
         batch_size = 20
 
@@ -254,6 +252,7 @@ def train(
     wandb_project=None,
     num_workers=None,
     window_stride=None,
+    suffix=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -295,6 +294,7 @@ def train(
         max_epoch,
         patience,
         early_stop,
+        suffix,
     )
 
     model = Sequence(
@@ -371,6 +371,7 @@ def train_eval(
     wandb_project=None,
     num_workers=None,
     window_stride=None,
+    suffix=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -415,6 +416,7 @@ def train_eval(
         max_epoch,
         patience,
         early_stop,
+        suffix,
     )
 
     model = Sequence(
@@ -494,6 +496,7 @@ def eval_(
     report_to_wandb=False,
     wandb_run_id=None,
     wandb_project=None,
+    suffix=None,
 ):
     print("Loading data...")
     if input_path is None:
@@ -509,8 +512,7 @@ def eval_(
 
     print("max evaluation sequence length:", str(longest_row(x_all)))
 
-    model_name = "grobid-" + model
-    model_name += "-" + architecture
+    model_name = build_model_name(model, architecture, suffix)
 
     start_time = time.time()
 
@@ -540,12 +542,12 @@ def annotate_text(
     features=None,
     multi_gpu=False,
     num_workers=None,
+    suffix=None,
 ):
     annotations = []
 
     # load model
-    model_name = "grobid-" + model
-    model_name += "-" + architecture
+    model_name = build_model_name(model, architecture, suffix)
 
     model = Sequence(model_name, nb_workers=num_workers)
     model.load()
@@ -719,6 +721,14 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--suffix",
+        default=None,
+        help="Suffix appended to the model name, as in grobid-header-BidLSTM_CRF-<suffix>, to keep several "
+        "models of the same task and architecture side by side, e.g. one per embeddings, transformer or "
+        "hyper-parameter setting. Pass the same value to eval and tag to select that model.",
+    )
+
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=None,
@@ -749,6 +759,7 @@ if __name__ == "__main__":
     wandb_run_id = args.wandb_run_id
     wandb_project = args.wandb_project
     num_workers = args.num_workers
+    suffix = validate_suffix(args.suffix)
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
@@ -778,6 +789,7 @@ if __name__ == "__main__":
             wandb_project=wandb_project,
             num_workers=num_workers,
             window_stride=args.window_stride,
+            suffix=suffix,
         )
 
     if action == Tasks.EVAL:
@@ -797,6 +809,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_run_id=wandb_run_id,
             wandb_project=wandb_project,
+            suffix=suffix,
         )
 
     if action == Tasks.TRAIN_EVAL:
@@ -823,6 +836,7 @@ if __name__ == "__main__":
             wandb_project=wandb_project,
             num_workers=num_workers,
             window_stride=args.window_stride,
+            suffix=suffix,
         )
 
     if action == Tasks.TAG:
@@ -869,6 +883,7 @@ if __name__ == "__main__":
                 architecture=architecture,
                 multi_gpu=multi_gpu,
                 num_workers=num_workers,
+                suffix=suffix,
             )
             print(json.dumps(result, sort_keys=False, indent=4, ensure_ascii=False))
         else:
