@@ -266,7 +266,7 @@ A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens wi
 
 ### Choosing the feature columns
 
-The `*_FEATURES` architectures take the columns of the GROBID training file as categorical features, column 0 being the token. By default every column with at most 12 distinct values is used, which leaves out the lexical columns (token, prefixes, suffixes) and keeps the layout ones. The columns used, and those left out, are printed when the training starts:
+The `*_FEATURES` architectures take the columns of the GROBID training file as categorical features, column 0 being the token. By default every column with at most 12 distinct values is used. This leaves out the lexical columns (token, prefixes, suffixes), and also any other column above the limit: in the current GROBID training files, the numeric columns 20 and 21 of _table_ (18 and 19 values), column 25 of _segmentation_ (79 values) and the word shape of _affiliation-address_ (column 19, 133 values). The columns used, and those left out, are printed when the training starts:
 
 ```text
 Features: using columns [9, 10, 11, 12, 13, 14, 15]
