@@ -254,6 +254,10 @@ python3 delft/applications/grobidTagger.py citation eval --architecture *name-of
 
 A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
 
+### Training files
+
+The training files are CRF matrices, one token per line: the token, its features, and its label, which any run of spaces and tabs separates, as for Wapiti and CRF++. A model trained with features (a `*_FEATURES` architecture) needs them to evaluate and to label too: doing so without them is an error.
+
 ## Calling DeLFT from GROBID
 
 GROBID embeds DeLFT in the JVM process through [JEP](https://github.com/ninia/jep): it instantiates a `Sequence`, loads the model once, then calls `tag()` for every sequence to be labelled.

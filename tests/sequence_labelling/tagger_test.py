@@ -253,6 +253,37 @@ class TestTaggerTransformerAlignment:
         assert _tags(tagged[1]) == self.FIRST_SUB_TOKENS
 
 
+class TestTaggerScores:
+    """The score of a label is its probability among the labels."""
+
+    def test_json_scores_are_softmax_probabilities(self):
+        from delft.sequenceLabelling.config import ModelConfig
+        from delft.sequenceLabelling.preprocess import Preprocessor
+        from delft.sequenceLabelling.tagger import Tagger
+
+        preprocessor = Preprocessor(return_chars=True)
+        preprocessor.fit([["Jim", "was"]], [["B-per", "O"]])
+        nb_tags = len(preprocessor.vocab_tag)
+        per = preprocessor.vocab_tag["B-per"]
+
+        class OneLabelModel(torch.nn.Module):
+            def forward(self, inputs):
+                nb_rows, length = inputs["char_input"].shape[:2]
+                logits = torch.zeros(nb_rows, length, nb_tags)
+                logits[:, :, per] = 2.0
+                return {"logits": logits}
+
+        model_config = ModelConfig(model_name="test", architecture="BidLSTM", embeddings_name=None, batch_size=2)
+        tagger = Tagger(OneLabelModel(), model_config, preprocessor=preprocessor, device=torch.device("cpu"))
+        entities = tagger.tag(["Jim"], "json")["texts"][0]["entities"]
+
+        expected = torch.softmax(torch.tensor([2.0] + [0.0] * (nb_tags - 1)), dim=-1)[0].item()
+        assert [entity["class"] for entity in entities] == ["per"]
+        assert entities[0]["score"] == pytest.approx(expected)
+        # what it was: the sigmoid of the logit, which is no probability among the labels
+        assert entities[0]["score"] != pytest.approx(torch.sigmoid(torch.tensor(2.0)).item())
+
+
 class TestTaggerWorkers:
     """DataLoader worker processes at tagging time.
 

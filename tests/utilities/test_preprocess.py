@@ -235,3 +235,19 @@ class TestBERTPreprocessor:
 
         bp = BERTPreprocessor(mock)
         assert bp.is_BPE_SP is False
+
+
+def test_cardinality_of_features_given_as_an_array():
+    """Sequences of the same length, a file with a single one for instance, come from the
+    readers as one array: its rows have no truth value, which the width check asked for."""
+    import numpy as np
+
+    from delft.utilities.preprocess import calculate_cardinality
+
+    features = np.array([[["a", "UP"], ["b", "LOW"]], [["c", "UP"], ["d", "UP"]]], dtype=object)
+    assert features.ndim == 3
+    assert [(index, sorted(values)) for index, values in calculate_cardinality(features)] == [
+        (0, ["a", "b", "c", "d"]),
+        (1, ["LOW", "UP"]),
+    ]
+    assert FeaturesPreprocessor(features_indices=[1]).fit(features).features_indices == [1]
