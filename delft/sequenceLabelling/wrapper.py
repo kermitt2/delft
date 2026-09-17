@@ -725,7 +725,7 @@ class Sequence(object):
 
     @classmethod
     def from_pretrained(
-        cls, path_or_reference, cache_dir=None, token=None, weight_file=DEFAULT_WEIGHT_FILE_NAME, **kwargs
+        cls, path_or_reference, cache_dir=None, token=None, weight_file=SAFETENSORS_WEIGHT_FILE_NAME, **kwargs
     ):
         """
         Load a model from its directory, or from the Hugging Face Hub given a reference
@@ -800,7 +800,7 @@ class Sequence(object):
         fetch_model(self.model_config.model_name, dir_path, self.registry)
         self._load_from_directory(model_path, weight_file)
 
-    def _load_from_directory(self, model_path, weight_file=DEFAULT_WEIGHT_FILE_NAME):
+    def _load_from_directory(self, model_path, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
         if self.model_config.embeddings_name is not None:
