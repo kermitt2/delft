@@ -182,24 +182,6 @@ def test_tags_with_either_crf_layer(architecture):
     assert all(tag in preprocessor.vocab_tag for _, tag in tagged)
 
 
-@pytest.fixture
-def wordpiece_tokenizer():
-    """A BERT-like tokenizer built in memory, so that no model is downloaded."""
-    from tokenizers import Tokenizer, models, pre_tokenizers, processors
-    from transformers import PreTrainedTokenizerFast
-
-    vocabulary = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "Jim", "He", "##nson", "##ization", "was", "a"]
-    vocabulary += ["puppet", "##eer", "in", "Mississippi", "today"]
-    tokenizer = Tokenizer(models.WordPiece({token: i for i, token in enumerate(vocabulary)}, unk_token="[UNK]"))
-    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
-    tokenizer.post_processor = processors.TemplateProcessing(
-        single="[CLS] $A [SEP]", special_tokens=[("[CLS]", 2), ("[SEP]", 3)]
-    )
-    return PreTrainedTokenizerFast(
-        tokenizer_object=tokenizer, pad_token="[PAD]", unk_token="[UNK]", cls_token="[CLS]", sep_token="[SEP]"
-    )
-
-
 class TestTaggerTransformerAlignment:
     """A transformer predicts one label per sub-token: a word takes the label predicted
     at its first sub-token, not the one at the position of the word."""

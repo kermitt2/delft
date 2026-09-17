@@ -253,6 +253,7 @@ def train(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    window_stride=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -314,6 +315,7 @@ def train(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        window_stride=window_stride,
     )
 
     if incremental:
@@ -368,6 +370,7 @@ def train_eval(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    window_stride=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -433,6 +436,7 @@ def train_eval(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        window_stride=window_stride,
     )
 
     if incremental:
@@ -657,6 +661,14 @@ if __name__ == "__main__":
         default=-1,
         help="max-sequence-length parameter to be used.",
     )
+    parser.add_argument(
+        "--window-stride",
+        type=int,
+        default=None,
+        help="Cut the training sequences longer than max-sequence-length into windows of that length, one every "
+        + "window-stride (in tokens, or in sub-tokens with a transformer), instead of truncating them. A stride "
+        + "smaller than max-sequence-length makes the windows overlap.",
+    )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
@@ -765,6 +777,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
+            window_stride=args.window_stride,
         )
 
     if action == Tasks.EVAL:
@@ -809,6 +822,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
+            window_stride=args.window_stride,
         )
 
     if action == Tasks.TAG:

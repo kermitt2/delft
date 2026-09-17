@@ -91,6 +91,7 @@ class Sequence(object):
         device=None,
         nb_workers: int = None,
         short_model_name: str = None,
+        window_stride: int = None,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -175,6 +176,7 @@ class Sequence(object):
             patience,
             max_checkpoints_to_keep,
             multiprocessing,
+            window_stride=window_stride,
         )
 
         if report_to_wandb:
@@ -406,6 +408,7 @@ class Sequence(object):
             num_workers=self.nb_workers,
             distributed=distributed,
             role="train",
+            window_stride=self.training_config.window_stride,
         )
 
         valid_loader = None
@@ -509,6 +512,7 @@ class Sequence(object):
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{fold_id}-train",
+                window_stride=self.training_config.window_stride,
             )
             valid_loader = create_dataloader(
                 fold_x_valid,
