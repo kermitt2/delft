@@ -197,3 +197,22 @@ class TestChainCRF:
         emissions, _ = _emissions_and_tags()
         decoded = chain_crf.decode(emissions)
         assert torch.as_tensor(decoded).shape == (BATCH_SIZE, SEQUENCE_LENGTH)
+
+    def test_decode_returns_lists_of_tag_indices_like_the_crf_layer(self):
+        """A tensor element is not the integer it holds: looked up in an index-to-tag
+        mapping it is a KeyError, which is how tagging with a ChainCRF model failed."""
+        chain_crf = ChainCRF(NUM_TAGS)
+        emissions, _ = _emissions_and_tags()
+        for decoded in (chain_crf.decode(emissions), chain_crf(emissions)):
+            assert isinstance(decoded, list)
+            assert all(isinstance(tags, list) and all(type(tag) is int for tag in tags) for tags in decoded)
+            assert [len(tags) for tags in decoded] == [SEQUENCE_LENGTH] * BATCH_SIZE
+
+    def test_masked_positions_decode_to_the_padding_tag(self):
+        chain_crf = ChainCRF(NUM_TAGS)
+        emissions, _ = _emissions_and_tags()
+        mask = torch.ones(BATCH_SIZE, SEQUENCE_LENGTH)
+        mask[0, 2:] = 0
+        decoded = chain_crf.decode(emissions, mask=mask)
+        assert decoded[0][2:] == [0] * (SEQUENCE_LENGTH - 2)
+        assert len(decoded[0]) == SEQUENCE_LENGTH

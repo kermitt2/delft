@@ -115,6 +115,36 @@ def test_get_entities_with_offsets():
     #     assert text == original_string[char_start: char_end + 1]
 
 
+WORDS = ["Jim", "Hensonization", "was", "a", "puppeteer", "in", "Mississippi", "today"]
+LABELS = ["B-per", "I-per", "O", "O", "O", "O", "B-loc", "O"]
+
+
+@pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF"])
+def test_tags_with_either_crf_layer(architecture):
+    from delft.sequenceLabelling.config import ModelConfig
+    from delft.sequenceLabelling.models import get_model
+    from delft.sequenceLabelling.preprocess import Preprocessor
+    from delft.sequenceLabelling.tagger import Tagger
+
+    preprocessor = Preprocessor(return_chars=True)
+    preprocessor.fit([WORDS], [LABELS])
+    model_config = ModelConfig(
+        model_name="test",
+        architecture=architecture,
+        embeddings_name=None,
+        word_embedding_size=0,
+        max_sequence_length=30,
+        batch_size=2,
+    )
+    model_config.char_vocab_size = len(preprocessor.vocab_char)
+    model = get_model(model_config, len(preprocessor.vocab_tag), load_pretrained_weights=False)
+    tagger = Tagger(model, model_config, preprocessor=preprocessor, device=torch.device("cpu"))
+
+    tagged = tagger.tag([WORDS], "raw")[0]
+    assert [token for token, _ in tagged] == WORDS
+    assert all(tag in preprocessor.vocab_tag for _, tag in tagged)
+
+
 class TestTaggerWorkers:
     """DataLoader worker processes at tagging time.
 

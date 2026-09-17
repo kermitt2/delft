@@ -1,3 +1,5 @@
+import typing
+
 import pytest
 import torch
 import torch.nn as nn
@@ -304,4 +306,28 @@ class TestTokenMaskedArchitectures:
     def test_should_decode_one_tag_per_position(self, architecture, word_input):
         model = _get_masked_model(architecture)
         predictions = model.decode(_get_inputs(architecture, word_input, CHAR_INPUT))
+        assert [len(tags) for tags in predictions] == [CHAR_INPUT.shape[1]] * CHAR_INPUT.shape[0]
+
+
+class TestDecodeContract:
+    """decode() returns the tag indices of each sequence as lists of integers, whatever
+    the architecture, so that no caller has to tell a tensor from a list."""
+
+    @pytest.mark.parametrize("architecture", sorted(MODEL_REGISTRY))
+    def test_every_architecture_declares_lists_of_tag_indices(self, architecture):
+        assert typing.get_type_hints(MODEL_REGISTRY[architecture].decode)["return"] == typing.List[typing.List[int]]
+
+    @pytest.mark.parametrize(
+        "architecture", sorted(name for name in MODEL_REGISTRY if not name.startswith("BERT") and "CNN" not in name)
+    )
+    def test_decode_returns_lists_of_tag_indices(self, architecture, word_input):
+        model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
+        model.eval()
+        inputs = _get_inputs(architecture, word_input, CHAR_INPUT)
+        if architecture.endswith("_FEATURES"):
+            inputs["features_input"] = torch.ones(*CHAR_INPUT.shape[:2], 1, dtype=torch.long)
+
+        predictions = model.decode(inputs)
+        assert isinstance(predictions, list)
+        assert all(isinstance(tags, list) and all(type(tag) is int for tag in tags) for tags in predictions)
         assert [len(tags) for tags in predictions] == [CHAR_INPUT.shape[1]] * CHAR_INPUT.shape[0]

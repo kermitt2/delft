@@ -393,9 +393,6 @@ class Trainer:
                     predictions = outputs["logits"].argmax(dim=-1).tolist()
 
                 # Collect predictions and labels
-                if isinstance(predictions, torch.Tensor):
-                    predictions = predictions.tolist()
-
                 if labels is not None:
                     labels_list = labels.tolist()
 
@@ -533,9 +530,6 @@ class Scorer:
                 else:
                     outputs = model(inputs)
                     predictions = outputs["logits"].argmax(dim=-1).tolist()
-
-                if isinstance(predictions, torch.Tensor):
-                    predictions = predictions.tolist()
 
                 if labels is not None:
                     labels_list = labels.tolist()

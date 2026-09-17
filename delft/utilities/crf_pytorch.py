@@ -10,7 +10,7 @@ References:
 - pytorch-crf: https://github.com/kmkurn/pytorch-crf
 """
 
-from typing import List, Optional
+from typing import List, Optional, Union
 
 import numpy as np
 import torch
@@ -434,7 +434,7 @@ class ChainCRF(nn.Module):
         emissions: torch.Tensor,
         tags: Optional[torch.Tensor] = None,
         mask: Optional[torch.Tensor] = None,
-    ) -> torch.Tensor:
+    ) -> Union[torch.Tensor, List[List[int]]]:
         """
         Forward pass.
 
@@ -445,7 +445,7 @@ class ChainCRF(nn.Module):
 
         Returns:
             During training (tags provided): CRF loss
-            During inference: Best tag sequence [batch_size, seq_len]
+            During inference: Best tag sequences, see ``decode``
         """
         if not self._built:
             self.build(emissions.size(-1), device=emissions.device, dtype=emissions.dtype)
@@ -488,7 +488,7 @@ class ChainCRF(nn.Module):
 
         return nll.mean()
 
-    def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """
         Viterbi decoding to find best tag sequence.
 
@@ -497,7 +497,9 @@ class ChainCRF(nn.Module):
             mask: Mask tensor [batch_size, seq_len]
 
         Returns:
-            Best tag sequence [batch_size, seq_len]
+            Best tag sequence of each sequence of the batch, as lists like ``CRF.decode``
+            so that the two layers can stand for each other. Every list has seq_len
+            tags: the positions a mask leaves out hold the tag 0.
         """
         batch_size, seq_len, num_tags = emissions.shape
         device = emissions.device
@@ -538,7 +540,7 @@ class ChainCRF(nn.Module):
         if mask is not None:
             best_paths = best_paths * mask.long()
 
-        return best_paths
+        return best_paths.tolist()
 
     def _add_boundary_energy(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
         """Add start and end boundary energies to emission scores."""
