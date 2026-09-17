@@ -830,6 +830,19 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True,
     if embeddings is None:
         return np.zeros((maxlen, 0), dtype=np.float32)
 
+    components = getattr(embeddings, "components", None)
+    if components:
+        # stacked embeddings: each of them is used the way it is when alone
+        # (number normalization for the static ones, none for the contextual
+        # ones), and the vectors are concatenated
+        return np.concatenate(
+            [
+                to_vector_single(tokens, component, maxlen, lowercase, num_norm, tokens_per_position)
+                for component in components
+            ],
+            axis=-1,
+        )
+
     if tokens_per_position > 1:
         return _to_concatenated_vectors(tokens, embeddings, maxlen, lowercase, num_norm, tokens_per_position)
 

@@ -124,6 +124,36 @@ python3 delft/applications/grobidTagger.py citation train --architecture BidLSTM
 - `batch-size`: number of windows sent to the transformer at once (default 32).
 - `cache`: set to `false` to keep the vectors in memory only, and `cache-path` to store the cache somewhere else.
 
+## Stacked embeddings
+
+Several embeddings can be used together, the vector of a word being the concatenation of the vectors given by each of them. The typical usage is a static embedding next to a contextual one, the way ELMo was used together with glove in the past: the static vector brings what is known about the word whatever the sentence, the contextual one brings the reading of the word in this sentence.
+
+The embeddings to stack are given in the embedding name, separated by `+`:
+
+```sh
+python3 delft/applications/grobidTagger.py citation train --architecture BidLSTM_CRF --embedding glove-840B+scibert-contextual
+```
+
+Each part is anything that is accepted as an embedding name: a name of the registry, the hub identifier or the path of a static embedding model, or a transformer with the `contextual:` prefix (`glove-840B+contextual:michiyasunaga/LinkBERT-base`). There can be more than two of them, and the vectors are concatenated in the order of the name. The size of the RNN input layer is the sum of the sizes, e.g. 300 + 768 for the example above.
+
+Each embedding keeps the behaviour it has when used alone:
+
+- tokens are looked up with number normalization in the static embeddings, and given as they are written to the transformer,
+- each one keeps its own LMDB database or cache. In particular, the cache of contextual embeddings is the same whether they are used alone or in a stack: training with `glove-840B+scibert-contextual` after `scibert-contextual` on the same corpus does not embed the corpus again.
+
+A stack can also be given a name in the embeddings registry:
+
+```json
+{
+    "name": "glove-scibert",
+    "format": "stacked",
+    "embeddings": ["glove-840B", "scibert-contextual"],
+    "lang": "en"
+}
+```
+
+A stack cannot be a part of another stack: list all the embeddings instead. The name of the embeddings is saved with the model, and the same embeddings are needed to use it.
+
 ## Upgrading LMDB caches from 0.3.x to 0.4.x
 
 Starting with DeLFT 0.4.x, embedding vectors are stored in LMDB as raw `float32` bytes instead of the legacy serialized-object format used in 0.3.x. This makes the cache directly readable from other languages (used by [GROBID](https://github.com/kermitt2/grobid) via JEP) and improves load performance.
