@@ -1,4 +1,10 @@
 {
+    "models-hub": {
+        "repo": "lfoppiano/grobid-model-{short_name}",
+        "revision": null,
+        "bucket": null,
+        "overrides": {}
+    },
     "embedding-lmdb-path": "data/db",
     "embedding-download-path": "data/download",
     "embeddings": [

@@ -33,6 +33,7 @@ from delft.sequenceLabelling.trainer import (
 )
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.hub_models import fetch_model, is_hub_reference, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
 from delft.utilities.Utilities import pick_device
@@ -722,6 +723,32 @@ class Sequence(object):
         )
         return self._tagger
 
+    @classmethod
+    def from_pretrained(
+        cls, path_or_reference, cache_dir=None, token=None, weight_file=DEFAULT_WEIGHT_FILE_NAME, **kwargs
+    ):
+        """
+        Load a model from its directory, or from the Hugging Face Hub given a reference
+        such as ``hf://lfoppiano/grobid-model-header/grobid-header-BidLSTM_CRF_FEATURES``
+        (see ``delft.utilities.hub_models``), downloaded to ``cache_dir`` when it is not
+        there yet. ``cache_dir`` defaults to the directory the ``DELFT_MODELS_DIR``
+        environment variable names, else to ``~/.cache/delft/models``.
+
+        Unlike ``load()``, this takes the place of a model rather than its name, and
+        builds the ``Sequence`` too. ``kwargs`` are the ones of the constructor, such as
+        ``nb_workers=0`` for an application embedding DeLFT.
+        """
+        if is_hub_reference(path_or_reference):
+            model_path = resolve_model(path_or_reference, cache_dir=cache_dir, token=token)
+        else:
+            model_path = os.path.abspath(os.path.expanduser(path_or_reference))
+        if not os.path.isfile(os.path.join(model_path, CONFIG_FILE_NAME)):
+            raise FileNotFoundError(f"No DeLFT model in {model_path}: it holds no {CONFIG_FILE_NAME}")
+
+        sequence = cls(os.path.basename(os.path.normpath(model_path)), **kwargs)
+        sequence._load_from_directory(model_path, weight_file)
+        return sequence
+
     def save(
         self,
         dir_path="data/models/sequenceLabelling/",
@@ -761,10 +788,19 @@ class Sequence(object):
     ):
         """Load model from disk.
 
+        A model that is not in ``dir_path`` is first downloaded there from the Hugging
+        Face Hub, when the resources registry gives it a place on the Hub (see
+        ``delft.utilities.hub_models``). A model trained or copied there is never
+        touched.
+
         When ``weight_file`` is not in the model directory, the weights it holds in the
         other format (pickled state dict or safetensors) are loaded instead.
         """
         model_path = os.path.join(dir_path, self.model_config.model_name)
+        fetch_model(self.model_config.model_name, dir_path, self.registry)
+        self._load_from_directory(model_path, weight_file)
+
+    def _load_from_directory(self, model_path, weight_file=DEFAULT_WEIGHT_FILE_NAME):
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
         if self.model_config.embeddings_name is not None:

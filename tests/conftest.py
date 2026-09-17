@@ -35,3 +35,7 @@ def patch_magicmock():
 def temp_dir(tmpdir):
     # convert to standard Path
     return Path(str(tmpdir))
+
+
+# the Hugging Face Hub played by local directories
+from tests.fake_hub import hub, models_dir  # noqa: E402, F401

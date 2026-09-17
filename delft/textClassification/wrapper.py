@@ -13,6 +13,7 @@ from delft.textClassification.preprocess import TextPreprocessor
 from delft.textClassification.trainer import Trainer
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.hub_models import fetch_model, is_hub_reference, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.Utilities import pick_device
@@ -559,9 +560,37 @@ class Classifier(object):
         print(f"Model saved to {directory}")
 
     def load(self, dir_path="data/models/textClassification/"):
-        """Load model from disk, its weights being in either format ``save`` writes."""
-        model_path = os.path.join(dir_path, self.model_config.model_name)
+        """Load model from disk, its weights being in either format ``save`` writes.
 
+        A model that is not in ``dir_path`` is first downloaded there from the Hugging
+        Face Hub, when the resources registry gives it a place on the Hub (see
+        ``delft.utilities.hub_models``). A model trained or copied there is never
+        touched.
+        """
+        model_path = os.path.join(dir_path, self.model_config.model_name)
+        fetch_model(self.model_config.model_name, dir_path, self.registry)
+        self._load_from_directory(model_path)
+
+    @classmethod
+    def from_pretrained(cls, path_or_reference, cache_dir=None, token=None, **kwargs):
+        """
+        Load a model from its directory, or from the Hugging Face Hub given a reference
+        such as ``hf://owner/repository/model-name`` (see ``delft.utilities.hub_models``),
+        downloaded to ``cache_dir`` when it is not there yet. ``kwargs`` are the ones of
+        the constructor.
+        """
+        if is_hub_reference(path_or_reference):
+            model_path = resolve_model(path_or_reference, cache_dir=cache_dir, token=token)
+        else:
+            model_path = os.path.abspath(os.path.expanduser(path_or_reference))
+        if not os.path.isfile(os.path.join(model_path, cls.config_file)):
+            raise FileNotFoundError(f"No DeLFT model in {model_path}: it holds no {cls.config_file}")
+
+        classifier = cls(os.path.basename(os.path.normpath(model_path)), **kwargs)
+        classifier._load_from_directory(model_path)
+        return classifier
+
+    def _load_from_directory(self, model_path):
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
 
