@@ -33,6 +33,7 @@ from delft.sequenceLabelling.trainer import (
 )
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
+from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
 from delft.utilities.Utilities import pick_device
@@ -758,13 +759,44 @@ class Sequence(object):
         self,
         dir_path="data/models/sequenceLabelling/",
         weight_file=SAFETENSORS_WEIGHT_FILE_NAME,
+        cache_dir=None,
+        token=None,
     ):
-        """Load model from disk.
+        """Load model from disk, from the Hugging Face Hub or over HTTP.
+
+        ``dir_path`` is either
+
+        - a models directory, the model being the folder of it with the name of the
+          model. When it is not there, it is first downloaded there from the Hub, if the
+          resources registry gives it a place on the Hub. A model trained or copied there
+          is never touched;
+        - the directory of the model itself, whatever its name;
+        - a repository or a bucket of the Hub, ``hf://lfoppiano/grobid-model-header`` or
+          ``hf://lfoppiano/grobid-model-header@v1.1.0``, the model being the folder of it
+          with the name of the model, or that folder itself,
+          ``hf://owner/repository/model-name``, whatever the name of the model;
+        - the URL of an archive of the model directory, ``https://.../model-name.zip``,
+          or of the folder holding ``{name of the model}.zip``.
+
+        See ``delft.utilities.hub_models`` for the last two, whose model is downloaded
+        to ``cache_dir`` when it is not there yet. ``cache_dir`` defaults to the directory
+        the ``DELFT_MODELS_DIR`` environment variable names, else to
+        ``~/.cache/delft/models``. ``token`` gives access to what is private.
 
         When ``weight_file`` is not in the model directory, the weights it holds in the
         other format (pickled state dict or safetensors) are loaded instead.
         """
-        model_path = os.path.join(dir_path, self.model_config.model_name)
+        model_name = self.model_config.model_name
+        if is_remote(dir_path):
+            model_path = resolve_model(dir_path, cache_dir=cache_dir, token=token, model_name=model_name)
+        elif os.path.isfile(os.path.join(dir_path, CONFIG_FILE_NAME)):
+            model_path = dir_path
+        else:
+            model_path = os.path.join(dir_path, model_name)
+            fetch_model(model_name, dir_path, self.registry, token=token)
+        self._load_from_directory(model_path, weight_file)
+
+    def _load_from_directory(self, model_path, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
         if self.model_config.embeddings_name is not None:

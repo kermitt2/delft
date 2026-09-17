@@ -47,6 +47,7 @@ dependencies = [
     "pandas==2.3.3",
     "transformers==5.17.0",
     "safetensors>=0.4.3",
+    "huggingface_hub>=1.5.0",
     "torch==2.11.0",
     "pytorch-crf>=0.7.2",
     "sentencepiece",

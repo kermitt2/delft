@@ -43,3 +43,24 @@ class TestLoadingActions:
             sequence.return_value = MagicMock()
             grobidTagger.eval_("date", input_path="some.data", architecture="BidLSTM_CRF", suffix="v2")
         assert sequence.call_args.args[0] == "grobid-date-BidLSTM_CRF-v2"
+
+    def test_tag_loads_the_model_from_the_default_directory(self):
+        with patch.object(grobidTagger, "Sequence") as sequence:
+            sequence.return_value.tag.return_value = {}
+            grobidTagger.annotate_text(["a text"], "date", "json")
+        sequence.return_value.load.assert_called_once_with()
+
+    def test_tag_loads_the_model_from_where_it_is_told(self):
+        with patch.object(grobidTagger, "Sequence") as sequence:
+            sequence.return_value.tag.return_value = {}
+            grobidTagger.annotate_text(["a text"], "date", "json", input_model_path="hf://buckets/owner/bucket")
+        sequence.return_value.load.assert_called_once_with("hf://buckets/owner/bucket")
+
+    def test_eval_loads_the_model_from_where_it_is_told(self):
+        data = ([["a"]], [["O"]], [[["f"]]])
+        with (
+            patch.object(grobidTagger, "Sequence") as sequence,
+            patch.object(grobidTagger, "load_data_and_labels_crf_file", return_value=data),
+        ):
+            grobidTagger.eval_("date", input_path="some.data", input_model_path="hf://owner/repository@v1")
+        sequence.return_value.load.assert_called_once_with("hf://owner/repository@v1")
