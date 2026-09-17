@@ -159,6 +159,28 @@
             "format": "static-transformer",
             "lang": "multi",
             "item": "word"
+        },
+        {
+            "name": "scibert-contextual",
+            "model": "allenai/scibert_scivocab_cased",
+            "type": "contextual-embedding",
+            "format": "contextual-transformer",
+            "layers": [-4, -3, -2, -1],
+            "layer-pooling": "mean",
+            "subword-pooling": "first",
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "bert-base-cased-contextual",
+            "model": "google-bert/bert-base-cased",
+            "type": "contextual-embedding",
+            "format": "contextual-transformer",
+            "layers": [-4, -3, -2, -1],
+            "layer-pooling": "mean",
+            "subword-pooling": "first",
+            "lang": "en",
+            "item": "word"
         }
     ],
     "transformers": [
