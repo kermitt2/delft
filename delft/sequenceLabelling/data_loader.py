@@ -24,14 +24,9 @@ from delft.utilities.dataloader_utils import (
     safe_multiprocessing_context as _safe_multiprocessing_context,
 )
 from delft.utilities.numpy import shuffle_triple_with_view
+from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
-
-# label the transformer preprocessor aligns on special tokens, continuation sub-tokens
-# and padding
-PAD_LABEL = "<PAD>"
-# placeholder label aligned at inference, where only the word boundaries matter
-WORD_START_LABEL = "O"
 
 
 def _worker_init_fn(worker_id):
@@ -331,9 +326,10 @@ class TransformerDataset(Dataset):
             sub_f = None
 
         # Tokenize and align for transformer. The aligned labels are also what tells
-        # the first sub-token of a word from everything else, so placeholder labels
-        # are aligned when there are none (inference).
-        alignment_labels = y_item if y_item is not None else [[WORD_START_LABEL] * len(x_tokens[0])]
+        # the first sub-token of a word from everything else: PAD is aligned on special
+        # tokens, continuation sub-tokens and padding. With no labels (inference),
+        # placeholders are aligned, which are only ever compared to PAD.
+        alignment_labels = y_item if y_item is not None else [["O"] * len(x_tokens[0])]
         (
             input_ids,
             token_type_ids,
@@ -352,7 +348,7 @@ class TransformerDataset(Dataset):
         # 1 on the first sub-token of each word, 0 on special tokens, continuation
         # sub-tokens and padding. A model predicts one label per sub-token; the
         # label of a word is the one predicted at its first sub-token.
-        word_start_mask = [0 if label == PAD_LABEL else 1 for label in input_labels[0][:actual_len]]
+        word_start_mask = [0 if label == PAD else 1 for label in input_labels[0][:actual_len]]
 
         # Process labels
         if y_item is not None:
