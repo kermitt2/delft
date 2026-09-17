@@ -36,6 +36,13 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
 from delft.utilities.Utilities import pick_device
+from delft.utilities.weights import (
+    SAFETENSORS_WEIGHT_FILE_NAME,
+    find_weight_file,
+    load_weights,
+    remove_other_weights,
+    save_weights,
+)
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
@@ -721,9 +728,16 @@ class Sequence(object):
     def save(
         self,
         dir_path="data/models/sequenceLabelling/",
-        weight_file=DEFAULT_WEIGHT_FILE_NAME,
+        weight_file=SAFETENSORS_WEIGHT_FILE_NAME,
     ):
-        """Save model to disk."""
+        """Save model to disk.
+
+        The weights are saved as safetensors, or as a pickled state dict when
+        ``weight_file`` does not end with ``.safetensors``, as in
+        ``DEFAULT_WEIGHT_FILE_NAME``, the format written up to DeLFT 1.1.0 (see
+        ``delft.utilities.weights``). Weights the directory holds in the other format,
+        from a previous training, are removed.
+        """
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -739,15 +753,20 @@ class Sequence(object):
         else:
             # Save PyTorch model
             weight_path = os.path.join(directory, weight_file)
-            torch.save(self.model.state_dict(), weight_path)
+            save_weights(self.model, weight_path)
+            remove_other_weights(directory, weight_file)
             print(f"Model weights saved to {weight_path}")
 
     def load(
         self,
         dir_path="data/models/sequenceLabelling/",
-        weight_file=DEFAULT_WEIGHT_FILE_NAME,
+        weight_file=SAFETENSORS_WEIGHT_FILE_NAME,
     ):
-        """Load model from disk."""
+        """Load model from disk.
+
+        When ``weight_file`` is not in the model directory, the weights it holds in the
+        other format (pickled state dict or safetensors) are loaded instead.
+        """
         model_path = os.path.join(dir_path, self.model_config.model_name)
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
 
@@ -771,9 +790,9 @@ class Sequence(object):
             local_path=model_path,
         )
 
-        weight_path = os.path.join(model_path, weight_file)
+        weight_path = find_weight_file(model_path, weight_file)
         print(f"Loading weights from {weight_path}")
-        self.model.load_state_dict(torch.load(weight_path, map_location=self.device))
+        load_weights(self.model, weight_path, device=self.device)
         self.model.to(self.device)
 
         print(f"Model loaded: {self.model_config.architecture}")
