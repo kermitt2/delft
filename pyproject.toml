@@ -45,7 +45,7 @@ dependencies = [
     "truecase",
     "requests>=2.20",
     "pandas==2.3.3",
-    "transformers==5.7.0",
+    "transformers==5.17.0",
     "safetensors>=0.4.3",
     "torch==2.11.0",
     "pytorch-crf>=0.7.2",
