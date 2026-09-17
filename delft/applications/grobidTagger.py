@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.model_names import GROBID_PREFIX, build_model_name, validate_suffix
-from delft.utilities.Utilities import longest_row, t_or_f
+from delft.utilities.Utilities import longest_row, parse_number_ranges, t_or_f
 
 MODEL_LIST = [
     "affiliation-address",
@@ -239,6 +239,7 @@ def train(
     input_path=None,
     output_path=None,
     features_indices=None,
+    features_vocabulary_size=None,
     max_sequence_length=-1,
     batch_size=-1,
     max_epoch=-1,
@@ -305,6 +306,7 @@ def train(
         batch_size=batch_size,
         max_sequence_length=max_sequence_length,
         features_indices=features_indices,
+        features_vocabulary_size=features_vocabulary_size,
         max_epoch=max_epoch,
         multiprocessing=multiprocessing,
         early_stop=early_stop,
@@ -356,6 +358,7 @@ def train_eval(
     output_path=None,
     fold_count=1,
     features_indices=None,
+    features_vocabulary_size=None,
     max_sequence_length=-1,
     batch_size=-1,
     max_epoch=-1,
@@ -430,6 +433,7 @@ def train_eval(
         fold_number=fold_count,
         multiprocessing=multiprocessing,
         features_indices=features_indices,
+        features_vocabulary_size=features_vocabulary_size,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
         wandb_project=wandb_project,
@@ -670,6 +674,19 @@ if __name__ == "__main__":
         default=-1,
         help="max-sequence-length parameter to be used.",
     )
+    parser.add_argument(
+        "--features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file to use as features with a FEATURES architecture, the token being column "
+        + "0, e.g. 9-25,28. Default: every column with at most features-vocabulary-size distinct values.",
+    )
+    parser.add_argument(
+        "--features-vocabulary-size",
+        type=int,
+        default=None,
+        help="Maximum number of distinct values of a feature column (default: 12).",
+    )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
@@ -781,6 +798,8 @@ if __name__ == "__main__":
             transformer=transformer,
             input_path=input_path,
             output_path=output,
+            features_indices=args.features_indices,
+            features_vocabulary_size=args.features_vocabulary_size,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             incremental=incremental,
@@ -828,6 +847,8 @@ if __name__ == "__main__":
             input_path=input_path,
             output_path=output,
             fold_count=args.fold_count,
+            features_indices=args.features_indices,
+            features_vocabulary_size=args.features_vocabulary_size,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             incremental=incremental,

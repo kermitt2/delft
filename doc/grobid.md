@@ -11,6 +11,8 @@ usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
                        [--input INPUT] [--incremental]
                        [--input-model INPUT_MODEL]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH]
+                       [--features-indices FEATURES_INDICES]
+                       [--features-vocabulary-size FEATURES_VOCABULARY_SIZE]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
                        [--early-stop EARLY_STOP] [--multi-gpu]
@@ -57,6 +59,14 @@ options:
                         default one.
   --max-sequence-length MAX_SEQUENCE_LENGTH
                         max-sequence-length parameter to be used.
+  --features-indices FEATURES_INDICES
+                        Columns of the training file to use as features with
+                        a FEATURES architecture, the token being column 0,
+                        e.g. 9-25,28. Default: every column with at most
+                        features-vocabulary-size distinct values.
+  --features-vocabulary-size FEATURES_VOCABULARY_SIZE
+                        Maximum number of distinct values of a feature column
+                        (default: 12).
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
   --patience PATIENCE   patience, number of extra epochs to perform after the
@@ -253,6 +263,23 @@ python3 delft/applications/grobidTagger.py citation eval --architecture *name-of
 ### Sequences longer than the model takes
 
 A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
+
+### Choosing the feature columns
+
+The `*_FEATURES` architectures take the columns of the GROBID training file as categorical features, column 0 being the token. By default every column with at most 12 distinct values is used, which leaves out the lexical columns (token, prefixes, suffixes) and keeps the layout ones. The columns used, and those left out, are printed when the training starts:
+
+```text
+Features: using columns [9, 10, 11, 12, 13, 14, 15]
+Features: left out columns [0, 1, 2, 3, 4, 5, 6, 7, 8], which have more than 12 distinct values (features_vocabulary_size)
+```
+
+To choose the columns, give them with `--features-indices`, as numbers and ranges:
+
+```sh
+python3 delft/applications/grobidTagger.py header train --architecture BidLSTM_CRF_FEATURES --features-indices 9-25,28
+```
+
+Exactly these columns are then used. If one of them has more distinct values than the limit, the training stops with an error naming it, rather than going on without the column; raise the limit with `--features-vocabulary-size` to keep it. From Python, these are `Sequence(..., features_indices=[...], features_vocabulary_size=...)`.
 
 ## Calling DeLFT from GROBID
 

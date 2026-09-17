@@ -408,12 +408,34 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
         self.features_map_to_index = features_map_to_index
 
     def fit(self, X):
-        """Build feature vocabulary from data."""
-        if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
-        else:
-            indexes, mapping = reduce_features_to_indexes(
-                X, self.features_vocabulary_size, indices=self.features_indices
+        """
+        Build feature vocabulary from data.
+
+        A column takes part when it has at most ``features_vocabulary_size`` distinct
+        values. Without ``features_indices`` every such column is used, which leaves out
+        the lexical ones (token, prefixes, suffixes). With ``features_indices`` exactly
+        those columns are used, and one with too many values is an error rather than a
+        column silently left out.
+        """
+        requested = sorted(set(self.features_indices)) if self.features_indices else None
+        cardinality = calculate_cardinality(X, indices=requested)
+        too_large = [
+            (index, len(values)) for index, values in cardinality if len(values) > self.features_vocabulary_size
+        ]
+        if requested and too_large:
+            raise ValueError(
+                "features_indices asks for columns with more distinct values than features_vocabulary_size "
+                f"({self.features_vocabulary_size}): "
+                + ", ".join(f"column {index} has {size}" for index, size in too_large)
+                + ". Raise features_vocabulary_size or leave these columns out."
+            )
+
+        indexes, mapping = cardinality_to_index_map(cardinality, self.features_vocabulary_size)
+        print(f"Features: using columns {indexes}")
+        if too_large:
+            print(
+                f"Features: left out columns {[index for index, _ in too_large]}, which have more than "
+                f"{self.features_vocabulary_size} distinct values (features_vocabulary_size)"
             )
 
         self.features_map_to_index = mapping
