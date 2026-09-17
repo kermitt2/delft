@@ -2,8 +2,10 @@ name: Build
 
 on: [ push ]
 
+# One group per branch: a push cancels the run it supersedes on the same branch, and
+# leaves the builds of the other branches alone.
 concurrency:
-  group: build
+  group: ci-${{ github.ref }}
   cancel-in-progress: true
 
 
