@@ -23,6 +23,7 @@ try:
 except ImportError:
     fasttext_support = False
 
+from delft.utilities.ContextualEmbeddings import ContextualEmbeddings
 from delft.utilities.StaticEmbeddings import (
     StaticTransformerEmbeddings,
     looks_like_static_embedding_reference,
@@ -38,6 +39,27 @@ map_size = 100 * 1024 * 1024 * 1024
 # delft/utilities/StaticEmbeddings.py
 STATIC_TRANSFORMER_FORMAT = "static-transformer"
 STATIC_TRANSFORMER_FORMATS = (STATIC_TRANSFORMER_FORMAT, "hf")
+
+# contextual embeddings are the hidden states of a frozen transformer, pooled
+# per word and cached per sentence, see delft/utilities/ContextualEmbeddings.py
+CONTEXTUAL_TRANSFORMER_FORMAT = "contextual-transformer"
+
+# formats that are not a vector file compiled into a LMDB database of words
+MODEL_BACKED_FORMATS = (STATIC_TRANSFORMER_FORMAT, CONTEXTUAL_TRANSFORMER_FORMAT)
+
+# a transformer that is not in the embeddings registry can be used by prefixing
+# its hub identifier or its path, e.g. contextual:allenai/scibert_scivocab_cased
+CONTEXTUAL_NAME_PREFIX = "contextual:"
+
+# sub-directory of the embeddings LMDB path holding the contextual embeddings caches
+CONTEXTUAL_CACHE_DIRECTORY = "contextual"
+
+
+def is_contextual_transformer_description(description):
+    """Whether an embeddings registry entry describes contextual embeddings from a frozen transformer."""
+    if not isinstance(description, dict):
+        return False
+    return CONTEXTUAL_TRANSFORMER_FORMAT in (description.get("format"), description.get("type"))
 
 
 def is_static_transformer_description(description):
@@ -170,10 +192,10 @@ class Embeddings(object):
 
     def lmdb_env_path(self):
         """Path of the LMDB database backing these embeddings, or None."""
-        if self.extension == STATIC_TRANSFORMER_FORMAT:
+        if self.extension in MODEL_BACKED_FORMATS:
             # a static embedding model is never compiled into LMDB, and its
             # name may be a path, which os.path.join below would take as the
-            # database directory
+            # database directory. Contextual embeddings manage their own cache.
             return None
         if not self.embedding_lmdb_path:
             return None
@@ -195,6 +217,10 @@ class Embeddings(object):
         calls this in the same worker, the database is reopened once and they
         all get the same handle.
         """
+        if self.extension == CONTEXTUAL_TRANSFORMER_FORMAT:
+            # the cache of sentence vectors is an LMDB database of its own
+            self.model.reopen_lmdb()
+            return
         if not self.has_lmdb_env():
             return
         self.env, _ = open_lmdb_env(
@@ -373,12 +399,53 @@ class Embeddings(object):
             "dimensions",
         )
 
+    def make_contextual_transformer_embeddings(self, name, description):
+        """
+        Use the hidden states of a frozen transformer, described in the
+        embeddings registry, as word embeddings. The vectors are cached per
+        sentence under the embeddings LMDB path, unless the registry entry
+        sets "cache" to false or gives its own "cache-path".
+        """
+        model_reference = description.get("model") or description.get("path") or name
+        self.lang = description.get("lang", self.lang)
+        self.extension = CONTEXTUAL_TRANSFORMER_FORMAT
+
+        cache_path = None
+        if description.get("cache", True):
+            cache_path = description.get("cache-path")
+            if cache_path is None and self.embedding_lmdb_path and self.embedding_lmdb_path != "None":
+                cache_path = os.path.join(self.embedding_lmdb_path, CONTEXTUAL_CACHE_DIRECTORY)
+
+        options = {}
+        for option, key in (
+            ("layers", "layers"),
+            ("layer_pooling", "layer-pooling"),
+            ("subword_pooling", "subword-pooling"),
+            ("window", "window"),
+            ("stride", "stride"),
+            ("batch_size", "batch-size"),
+        ):
+            if description.get(key) is not None:
+                options[option] = description[key]
+
+        self.model = ContextualEmbeddings(model_reference, cache_path=cache_path, lang=self.lang, **options)
+        self.embed_size = self.model.embed_size
+        print("contextual embeddings from", model_reference, "with", self.embed_size, "dimensions")
+
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
         if description is not None:
             self.extension = description.get("format", self.extension)
 
-        if is_static_transformer_description(description) or (
+        if description is None and isinstance(name, str) and name.startswith(CONTEXTUAL_NAME_PREFIX):
+            description = {"model": name[len(CONTEXTUAL_NAME_PREFIX) :], "format": CONTEXTUAL_TRANSFORMER_FORMAT}
+
+        if is_contextual_transformer_description(description):
+            # nothing to compile into LMDB either: the vectors depend on the
+            # sentence, they are computed and cached per sentence
+            self.make_contextual_transformer_embeddings(name, description)
+
+        elif is_static_transformer_description(description) or (
             description is None and looks_like_static_embedding_reference(name)
         ):
             # a static embedding model is used as it is, there is nothing to
@@ -502,7 +569,7 @@ class Embeddings(object):
         """
         Get static embeddings (e.g. glove) for a given token
         """
-        if self.extension == STATIC_TRANSFORMER_FORMAT:
+        if self.extension in MODEL_BACKED_FORMATS:
             return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
@@ -558,7 +625,7 @@ class Embeddings(object):
             return env
 
     def get_word_vector_in_memory(self, word):
-        if self.extension == STATIC_TRANSFORMER_FORMAT:
+        if self.extension in MODEL_BACKED_FORMATS:
             return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased

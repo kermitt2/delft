@@ -559,6 +559,21 @@ def create_dataloader(
     if windowing:
         x, y, features, window_bounds = _split_into_windows(x, y, features, max_sequence_length, window_stride, role)
 
+    if embeddings is not None and hasattr(embeddings, "precompute"):
+        # contextual embeddings come from a frozen transformer: the sequences
+        # (the windows, when cut above, since they are what the dataset reads)
+        # are embedded here, once, in the process owning the GPU, and the
+        # dataset (possibly in worker processes) only reads the result. The
+        # vectors of a labelled corpus are kept in the cache on disk, those of
+        # texts to be tagged are forgotten with the next call.
+        embeddings.precompute(
+            x,
+            max_sequence_length=model_config.max_sequence_length if model_config else None,
+            persist=y is not None,
+            verbose=y is not None,
+            distributed=distributed,
+        )
+
     dataset = SequenceLabelingDataset(
         x,
         y,
