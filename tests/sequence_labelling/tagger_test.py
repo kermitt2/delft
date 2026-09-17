@@ -119,6 +119,43 @@ WORDS = ["Jim", "Hensonization", "was", "a", "puppeteer", "in", "Mississippi", "
 LABELS = ["B-per", "I-per", "O", "O", "O", "O", "B-loc", "O"]
 
 
+class PositionEchoModel(torch.nn.Module):
+    """Answers position p of its input with the tag "P<p>", so that the tag a token
+    comes back with names the position its label was read from."""
+
+    def __init__(self, tag_index, key):
+        super().__init__()
+        self.tag_index = tag_index
+        self.key = key
+
+    def decode(self, inputs):
+        nb_rows, length = inputs[self.key].shape[:2]
+        return [[self.tag_index[f"P{p}"] for p in range(length)] for _ in range(nb_rows)]
+
+
+def _position_tagger(max_sequence_length, transformer_name=None):
+    from delft.sequenceLabelling.config import ModelConfig
+    from delft.sequenceLabelling.preprocess import Preprocessor
+    from delft.sequenceLabelling.tagger import Tagger
+
+    preprocessor = Preprocessor(return_chars=transformer_name is None)
+    preprocessor.fit([WORDS], [[f"P{p}" for p in range(32)]])
+    model_config = ModelConfig(
+        model_name="test",
+        architecture="BERT" if transformer_name else "BidLSTM_CRF",
+        embeddings_name=None,
+        transformer_name=transformer_name,
+        max_sequence_length=max_sequence_length,
+        batch_size=3,
+    )
+    model = PositionEchoModel(preprocessor.vocab_tag, "input_ids" if transformer_name else "char_input")
+    return Tagger(model, model_config, preprocessor=preprocessor, device=torch.device("cpu"))
+
+
+def _tags(tagged):
+    return [tag for _, tag in tagged]
+
+
 @pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF"])
 def test_tags_with_either_crf_layer(architecture):
     from delft.sequenceLabelling.config import ModelConfig
@@ -143,6 +180,48 @@ def test_tags_with_either_crf_layer(architecture):
     tagged = tagger.tag([WORDS], "raw")[0]
     assert [token for token, _ in tagged] == WORDS
     assert all(tag in preprocessor.vocab_tag for _, tag in tagged)
+
+
+@pytest.fixture
+def wordpiece_tokenizer():
+    """A BERT-like tokenizer built in memory, so that no model is downloaded."""
+    from tokenizers import Tokenizer, models, pre_tokenizers, processors
+    from transformers import PreTrainedTokenizerFast
+
+    vocabulary = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "Jim", "He", "##nson", "##ization", "was", "a"]
+    vocabulary += ["puppet", "##eer", "in", "Mississippi", "today"]
+    tokenizer = Tokenizer(models.WordPiece({token: i for i, token in enumerate(vocabulary)}, unk_token="[UNK]"))
+    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
+    tokenizer.post_processor = processors.TemplateProcessing(
+        single="[CLS] $A [SEP]", special_tokens=[("[CLS]", 2), ("[SEP]", 3)]
+    )
+    return PreTrainedTokenizerFast(
+        tokenizer_object=tokenizer, pad_token="[PAD]", unk_token="[UNK]", cls_token="[CLS]", sep_token="[SEP]"
+    )
+
+
+class TestTaggerTransformerAlignment:
+    """A transformer predicts one label per sub-token: a word takes the label predicted
+    at its first sub-token, not the one at the position of the word."""
+
+    # [CLS] Jim He ##nson ##ization was a puppet ##eer in Mississippi today [SEP]
+    FIRST_SUB_TOKENS = ["P1", "P2", "P5", "P6", "P7", "P9", "P10", "P11"]
+
+    @staticmethod
+    def _tag(tokenizer, max_sequence_length, texts):
+        tagger = _position_tagger(max_sequence_length=max_sequence_length, transformer_name="in-memory")
+        with patch("transformers.AutoTokenizer.from_pretrained", return_value=tokenizer):
+            return tagger.tag(texts, "raw")
+
+    def test_word_takes_the_label_of_its_first_sub_token(self, wordpiece_tokenizer):
+        tagged = self._tag(wordpiece_tokenizer, 32, [WORDS])[0]
+        assert [token for token, _ in tagged] == WORDS
+        assert _tags(tagged) == self.FIRST_SUB_TOKENS
+
+    def test_alignment_holds_in_a_padded_batch(self, wordpiece_tokenizer):
+        tagged = self._tag(wordpiece_tokenizer, 32, [WORDS[:3], WORDS])
+        assert _tags(tagged[0]) == self.FIRST_SUB_TOKENS[:3]
+        assert _tags(tagged[1]) == self.FIRST_SUB_TOKENS
 
 
 class TestTaggerWorkers:
