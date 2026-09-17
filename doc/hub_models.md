@@ -64,6 +64,13 @@ model.load("/path/to/a/model")
 annotations = model.tag(texts, "json", features=features)
 ```
 
+The `eval` and `tag` actions of the applications take the same places with `--input-model`, for instance to evaluate a model of an experiment that is in a bucket:
+
+```sh
+python -m delft.applications.grobidTagger header eval --architecture BidLSTM_CRF --suffix my-experiment \
+    --input data/header.train --input-model hf://buckets/lfoppiano/delft-models
+```
+
 An archive is a `.zip`, `.tar.gz`, `.tgz` or `.tar` file named after the model, holding the files of the model at its root or in a single folder. `token`, when given, is sent as a bearer token.
 
 What is downloaded goes to `cache_dir`, else to the directory the `DELFT_MODELS_DIR` environment variable names, else to `~/.cache/delft/models`. `Classifier.load` does the same for text classification. Private repositories of the Hub are read with the token of `huggingface-cli login`, or the `token` argument.
