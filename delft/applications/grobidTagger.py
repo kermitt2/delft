@@ -764,9 +764,9 @@ if __name__ == "__main__":
         raise ValueError("A model architecture has to be specified: " + str(architectures))
 
     if action in (Tasks.TRAIN, Tasks.TRAIN_EVAL):
-        if transformer is None and embeddings_name is None:
-            # No transformer and no word embeddings: train character-only (issue #216).
-            print("No --transformer and no --embedding given: training without word embeddings (char-only).")
+        if embeddings_name is None and not (architecture and "BERT" in architecture):
+            # No word embeddings, and no transformer inside the architecture: train character-only (issue #216).
+            print("No --embedding given: training without word embeddings (char-only).")
     elif transformer is not None or embeddings_name is not None:
         print(
             f"Warning: --transformer and --embedding are ignored by {action}, which uses what the "

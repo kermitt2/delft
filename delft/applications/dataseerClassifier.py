@@ -822,6 +822,12 @@ if __name__ == "__main__":
         # default word embeddings
         embeddings_name = "glove-840B"
 
+    if args.action == "classify" and (args.embedding is not None or args.transformer is not None):
+        print(
+            "Warning: --transformer and --embedding are ignored by classify, which uses what the "
+            "configuration of the model says: the ones it was trained with."
+        )
+
     wandb = args.wandb
     wandb_project = args.wandb_project
     num_workers = args.num_workers
