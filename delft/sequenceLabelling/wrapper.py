@@ -97,6 +97,7 @@ class Sequence(object):
         short_model_name: str = None,
         window_stride: int = None,
         text_features_indices=None,
+        continuous_features_indices=None,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -172,6 +173,7 @@ class Sequence(object):
             transformer_name=transformer_name,
             window_stride=window_stride,
             text_features_indices=text_features_indices,
+            continuous_features_indices=continuous_features_indices,
         )
         self.window_stride = window_stride
 

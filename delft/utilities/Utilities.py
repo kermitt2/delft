@@ -626,6 +626,24 @@ def set_random_seed(seed):
         torch.cuda.manual_seed_all(seed)
 
 
+def parse_number_ranges(arg):
+    """
+    The numbers of a list such as "9-12,15,20-22", for a command line argument:
+    [9, 10, 11, 12, 15, 20, 21, 22].
+    """
+    numbers = []
+    for part in str(arg).split(","):
+        bounds = part.strip().split("-")
+        try:
+            first, last = int(bounds[0]), int(bounds[-1])
+        except ValueError:
+            first, last = 0, -1
+        if len(bounds) > 2 or last < first:
+            raise argparse.ArgumentTypeError(f"Expected numbers and ranges such as 9-12,15, got: {arg}")
+        numbers.extend(range(first, last + 1))
+    return numbers
+
+
 def t_or_f(arg):
     ua = str(arg).upper()
     if "TRUE".startswith(ua):

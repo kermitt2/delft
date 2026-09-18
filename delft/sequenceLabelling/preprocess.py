@@ -703,6 +703,13 @@ class Preprocessor(BaseEstimator, TransformerMixin):
     def transform_features(self, features_batch, extend=False):
         return self.feature_preprocessor.transform(features_batch, extend=extend)
 
+    @property
+    def return_continuous_features(self):
+        return bool(getattr(self.feature_preprocessor, "continuous_features_indices", None))
+
+    def transform_continuous_features(self, features_batch, extend=False):
+        return self.feature_preprocessor.transform_continuous(features_batch, extend=extend)
+
     def inverse_transform(self, y):
         """
         send back original label string from label index
@@ -789,6 +796,7 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
         feature_preprocessor = FeaturesPreprocessor(
             features_indices=model_config.features_indices,
             features_vocabulary_size=model_config.features_vocabulary_size,
+            continuous_features_indices=getattr(model_config, "continuous_features_indices", None),
         )
 
     preprocessor = Preprocessor(

@@ -247,6 +247,13 @@ class SequenceLabelingDataset(Dataset):
         if self.preprocessor.return_features:
             inputs["features_input"] = torch.from_numpy(features).long()
 
+        if self.preprocessor.return_continuous_features:
+            if f_item is not None:
+                continuous = self.preprocessor.transform_continuous_features([f_item], extend=extend)[0]
+            else:
+                continuous = [[0.0] * len(self.preprocessor.feature_preprocessor.continuous_features_indices)] * seq_len
+            inputs["continuous_features_input"] = torch.tensor(continuous, dtype=torch.float32)
+
         if labels is not None:
             labels = torch.from_numpy(labels).long()
 
@@ -388,6 +395,11 @@ class TransformerDataset(Dataset):
         if self.preprocessor.return_features:
             inputs["features_input"] = torch.tensor(input_features[0][:actual_len], dtype=torch.long)
 
+        if self.preprocessor.return_continuous_features:
+            inputs["continuous_features_input"] = self._aligned_continuous_features(
+                f_item, input_ids[0][:actual_len], word_start_mask
+            )
+
         if self.output_input_offsets:
             inputs["input_offsets"] = input_offsets[0][:actual_len]
 
@@ -395,6 +407,27 @@ class TransformerDataset(Dataset):
             labels = torch.from_numpy(labels).long()
 
         return inputs, labels
+
+    def _aligned_continuous_features(self, f_item, input_ids, word_start_mask) -> torch.Tensor:
+        """
+        The numbers of each word on all of its sub-tokens, as the categorical features are,
+        and zeros on the special tokens.
+        """
+        nb_columns = len(self.preprocessor.feature_preprocessor.continuous_features_indices)
+        zeros = [0.0] * nb_columns
+        if f_item is None:
+            return torch.zeros((len(input_ids), nb_columns), dtype=torch.float32)
+
+        per_word = self.preprocessor.transform_continuous_features(f_item)[0]
+        special_ids = set(self.bert_preprocessor.tokenizer.all_special_ids)
+        aligned = []
+        word = -1
+        for input_id, is_word_start in zip(input_ids, word_start_mask):
+            if is_word_start:
+                word += 1
+            is_word = input_id not in special_ids and 0 <= word < len(per_word)
+            aligned.append(per_word[word] if is_word else zeros)
+        return torch.tensor(aligned, dtype=torch.float32).reshape(len(aligned), nb_columns)
 
 
 def _split_into_windows(x, y, features, max_length, stride, role, token_costs=None):

@@ -256,6 +256,7 @@ def train(
     suffix=None,
     window_stride=None,
     text_features_indices=None,
+    continuous_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -322,6 +323,7 @@ def train(
         short_model_name=short_model_name,
         window_stride=window_stride,
         text_features_indices=text_features_indices,
+        continuous_features_indices=continuous_features_indices,
     )
 
     if incremental:
@@ -381,6 +383,7 @@ def train_eval(
     suffix=None,
     window_stride=None,
     text_features_indices=None,
+    continuous_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -451,6 +454,7 @@ def train_eval(
         short_model_name=short_model_name,
         window_stride=window_stride,
         text_features_indices=text_features_indices,
+        continuous_features_indices=continuous_features_indices,
     )
 
     if incremental:
@@ -722,6 +726,13 @@ if __name__ == "__main__":
         help="Columns of the training file the text of a token is taken from, the token being column 0. For the "
         + "models that label lines, 0,1 reads the first two tokens of a line rather than the first one.",
     )
+    parser.add_argument(
+        "--continuous-features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file that hold numbers, given to a FEATURES architecture as numbers scaled "
+        + "to [0, 1] rather than as categories, the token being column 0, e.g. 20,21.",
+    )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
@@ -851,6 +862,7 @@ if __name__ == "__main__":
             suffix=suffix,
             window_stride=args.window_stride,
             text_features_indices=args.text_features_indices,
+            continuous_features_indices=args.continuous_features_indices,
         )
 
     if action == Tasks.EVAL:
@@ -903,6 +915,7 @@ if __name__ == "__main__":
             suffix=suffix,
             window_stride=args.window_stride,
             text_features_indices=args.text_features_indices,
+            continuous_features_indices=args.continuous_features_indices,
         )
 
     if action == Tasks.TAG:
