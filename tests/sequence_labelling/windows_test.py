@@ -1,4 +1,4 @@
-"""Training sequences longer than the model takes are cut into windows, not truncated."""
+"""Sequences longer than the model takes are cut into windows, not truncated."""
 
 from unittest.mock import patch
 
@@ -9,6 +9,8 @@ from delft.sequenceLabelling.config import ModelConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.preprocess import Preprocessor
 from delft.sequenceLabelling.windows import (
+    cut_into_windows,
+    join_overlapping_windows,
     join_scored_windows,
     join_windows,
     split_into_windows,
@@ -111,6 +113,43 @@ class TestJoinWindows:
     def test_scores_are_left_alone_when_only_a_part_of_the_windows_was_seen(self):
         loader, _ = _loader(5, window_stride=5)
         assert join_scored_windows(loader, [[1, 1], [2]], [[4, 4], [5]]) == ([[1, 1], [2]], [[4, 4], [5]])
+
+
+class TestJoinOverlappingWindows:
+    def test_an_overlap_changes_hands_in_its_middle(self):
+        # windows of positions 0-4 and 3-7: 3 is further from the edge of the first, 4 of the second
+        windows = [[f"a{p}" for p in range(5)], [f"b{p}" for p in range(5)]]
+        assert join_overlapping_windows(windows, [[(0, 5), (3, 8)]]) == [
+            ["a0", "a1", "a2", "a3", "b1", "b2", "b3", "b4"]
+        ]
+
+    @pytest.mark.parametrize(
+        "nb_tokens, max_length, stride", [(0, 3, 1), (4, 5, 2), (8, 5, 3), (13, 5, 5), (13, 5, 1), (40, 7, 4)]
+    )
+    def test_puts_every_position_back_once_and_in_order(self, nb_tokens, max_length, stride):
+        tokens = list(range(nb_tokens))
+        windows, _, _, bounds = cut_into_windows([tokens, tokens[:2]], None, None, max_length, stride)
+        assert join_overlapping_windows(windows, bounds) == [tokens, tokens[:2]]
+
+    @pytest.mark.parametrize("nb_tokens", [3, 10, 11])
+    def test_windows_side_by_side_are_put_end_to_end(self, nb_tokens):
+        windows, _, _, bounds = cut_into_windows([list(range(nb_tokens))], None, None, 5, 5)
+        counts = [len(sequence_bounds) for sequence_bounds in bounds]
+        assert join_overlapping_windows(windows, bounds) == join_windows(windows, counts)
+
+    def test_bounds_are_the_ones_of_the_windows_cut(self):
+        x, y, _, bounds = cut_into_windows([WORDS], [LABELS], [[[w] for w in WORDS]], 5, 3)
+        assert bounds == [[(0, 5), (3, 8)]]
+        assert x == [WORDS[0:5], WORDS[3:8]] and y == [LABELS[0:5], LABELS[3:8]]
+        assert split_into_windows([WORDS], [LABELS], None, 5, 3)[3] == [2]
+
+    def test_rejects_windows_that_do_not_match_the_bounds(self):
+        with pytest.raises(ValueError, match="do not match"):
+            join_overlapping_windows([["a"]], [[(0, 5), (3, 8)]])
+
+    def test_rejects_a_window_shorter_than_its_bounds(self):
+        with pytest.raises(ValueError, match="positions 0 to 5 has 4 items"):
+            join_overlapping_windows([["a"] * 4, ["b"] * 5], [[(0, 5), (3, 8)]])
 
 
 def _labels_seen(loader, preprocessor):

@@ -1,5 +1,6 @@
 """
-Sliding windows over the sequences of a training, validation or evaluation set.
+Sliding windows over the sequences of a training, validation or evaluation set,
+and over the sequences to label.
 
 A model takes at most ``max_sequence_length`` tokens, and a longer training
 sequence is cut there: what follows the cut is never trained on, and the model
@@ -10,7 +11,9 @@ including windows that start and end in the middle of a labelled field, which is
 what a model receives when its caller cuts long inputs before sending them.
 
 To score a model on whole sequences, they are cut into windows side by side and
-the predictions of the windows of a sequence are put back together.
+the predictions of the windows of a sequence are put back together. To label a
+sequence longer than the model takes, it is cut into windows that may overlap, and
+a position in an overlap is labelled by the window it is further from the edge of.
 
 Lengths are counted in the unit ``max_sequence_length`` is counted in: tokens for
 the RNN architectures, sub-tokens for the transformer ones. The ``costs`` of a
@@ -73,7 +76,24 @@ def split_into_windows(
     ``token_costs`` gives the length of each token of a sequence (see
     ``subtoken_costs``); without it every token counts for one.
     """
-    window_counts = []
+    x, y, features, bounds = cut_into_windows(x, y, features, max_length, stride, token_costs=token_costs)
+    return x, y, features, [len(sequence_bounds) for sequence_bounds in bounds]
+
+
+def cut_into_windows(
+    x: Sequence,
+    y: Optional[Sequence],
+    features: Optional[Sequence],
+    max_length: int,
+    stride: int,
+    token_costs: Optional[Callable[[Sequence[str]], Sequence[int]]] = None,
+) -> Tuple[List, Optional[List], Optional[List], List[List[Tuple[int, int]]]]:
+    """
+    ``split_into_windows``, returning the ``(start, end)`` positions of the windows of
+    each sequence rather than how many there are, which ``join_overlapping_windows``
+    takes to put windows that overlap back together.
+    """
+    bounds_per_sequence = []
     windowed_x = []
     windowed_y = None if y is None else []
     windowed_features = None if features is None else []
@@ -81,7 +101,7 @@ def split_into_windows(
     for i, tokens in enumerate(x):
         costs = token_costs(tokens) if token_costs is not None else [1] * len(tokens)
         bounds = window_bounds(costs, max_length, stride)
-        window_counts.append(len(bounds))
+        bounds_per_sequence.append(bounds)
         for start, end in bounds:
             windowed_x.append(tokens[start:end])
             if windowed_y is not None:
@@ -89,7 +109,7 @@ def split_into_windows(
             if windowed_features is not None:
                 windowed_features.append(features[i][start:end])
 
-    return windowed_x, windowed_y, windowed_features, window_counts
+    return windowed_x, windowed_y, windowed_features, bounds_per_sequence
 
 
 def join_windows(windows: Sequence[Sequence], window_counts: Sequence[int]) -> List[List]:
@@ -105,6 +125,38 @@ def join_windows(windows: Sequence[Sequence], window_counts: Sequence[int]) -> L
     for count in window_counts:
         joined.append([item for window in windows[position : position + count] for item in window])
         position += count
+    return joined
+
+
+def join_overlapping_windows(windows: Sequence[Sequence], bounds: Sequence[Sequence[Tuple[int, int]]]) -> List[List]:
+    """
+    Put the windows of each sequence back together, whatever their overlap: the
+    reverse of ``cut_into_windows`` given the ``(start, end)`` positions of the windows
+    of each sequence, the windows in their original order.
+
+    Where two windows overlap, the position that is in the middle of the overlap
+    changes hands: the positions before it are taken from the window that ends in the
+    overlap, the others from the window that starts there. Each position is so taken
+    from the window it is further from the edge of, where the window saw more of what
+    surrounds it. Windows side by side are put end to end, as ``join_windows`` does.
+    """
+    if sum(len(sequence_bounds) for sequence_bounds in bounds) != len(windows):
+        raise ValueError(f"{len(windows)} windows do not match the expected {sum(len(b) for b in bounds)}")
+
+    joined = []
+    position = 0
+    for sequence_bounds in bounds:
+        items = []
+        for k, (start, end) in enumerate(sequence_bounds):
+            window = windows[position + k]
+            # where this window takes over from the previous one, and hands over to the next
+            first = start if k == 0 else (start + sequence_bounds[k - 1][1]) // 2
+            last = end if k == len(sequence_bounds) - 1 else (sequence_bounds[k + 1][0] + end) // 2
+            if len(window) < end - start:
+                raise ValueError(f"A window of positions {start} to {end} has {len(window)} items")
+            items.extend(window[first - start : last - start])
+        joined.append(items)
+        position += len(sequence_bounds)
     return joined
 
 

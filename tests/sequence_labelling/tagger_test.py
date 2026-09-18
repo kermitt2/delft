@@ -133,7 +133,7 @@ class PositionEchoModel(torch.nn.Module):
         return [[self.tag_index[f"P{p}"] for p in range(length)] for _ in range(nb_rows)]
 
 
-def _position_tagger(max_sequence_length, transformer_name=None):
+def _position_tagger(max_sequence_length, transformer_name=None, window_stride=None):
     from delft.sequenceLabelling.config import ModelConfig
     from delft.sequenceLabelling.preprocess import Preprocessor
     from delft.sequenceLabelling.tagger import Tagger
@@ -147,6 +147,7 @@ def _position_tagger(max_sequence_length, transformer_name=None):
         transformer_name=transformer_name,
         max_sequence_length=max_sequence_length,
         batch_size=3,
+        window_stride=window_stride,
     )
     model = PositionEchoModel(preprocessor.vocab_tag, "input_ids" if transformer_name else "char_input")
     return Tagger(model, model_config, preprocessor=preprocessor, device=torch.device("cpu"))
@@ -183,6 +184,86 @@ class TestTaggerLongSequences:
         assert [token for token, _ in tagged] == WORDS[:4]
         message = caplog.records[0].getMessage()
         assert "max_sequence_length=8 sub-tokens" in message and "8 tokens and 4 labels" in message
+
+
+class TestTaggerWindows:
+    """With a window stride, a sequence longer than the model takes is labelled whole."""
+
+    def test_an_overlap_is_labelled_by_the_window_a_token_is_further_from_the_edge_of(self, caplog):
+        # windows of the tokens 0-4 and 3-7, whose overlap changes hands at token 4; with a
+        # batch of 3, the 5 windows of the 3 sequences are labelled in two batches
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            tagged = _position_tagger(max_sequence_length=5).tag([WORDS, WORDS[:3], WORDS], "raw", window_stride=3)
+        assert [[token for token, _ in sequence] for sequence in tagged] == [WORDS, WORDS[:3], WORDS]
+        assert _tags(tagged[0]) == ["P0", "P1", "P2", "P3", "P1", "P2", "P3", "P4"]
+        assert _tags(tagged[1]) == ["P0", "P1", "P2"]
+        assert _tags(tagged[2]) == _tags(tagged[0])
+        assert caplog.records == []
+
+    def test_windows_side_by_side(self):
+        tagged = _position_tagger(max_sequence_length=5).tag([WORDS], "raw", window_stride=5)[0]
+        assert _tags(tagged) == ["P0", "P1", "P2", "P3", "P4", "P0", "P1", "P2"]
+
+    def test_the_stride_defaults_to_the_one_the_model_was_trained_with(self, caplog):
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            tagged = _position_tagger(max_sequence_length=5, window_stride=3).tag([WORDS], "raw")[0]
+        assert _tags(tagged) == ["P0", "P1", "P2", "P3", "P1", "P2", "P3", "P4"]
+        assert caplog.records == []
+
+    def test_a_stride_given_wins_over_the_saved_one(self):
+        tagged = _position_tagger(max_sequence_length=5, window_stride=3).tag([WORDS], "raw", window_stride=5)[0]
+        assert _tags(tagged) == ["P0", "P1", "P2", "P3", "P4", "P0", "P1", "P2"]
+
+    def test_the_saved_stride_is_no_longer_than_windows_made_shorter(self):
+        # trained with windows of 8 every 7, labelled with windows of 5: side by side
+        tagged = _position_tagger(max_sequence_length=5, window_stride=7).tag([WORDS], "raw")[0]
+        assert _tags(tagged) == ["P0", "P1", "P2", "P3", "P4", "P0", "P1", "P2"]
+
+    def test_a_stride_given_that_is_longer_than_the_windows_is_an_error(self):
+        with pytest.raises(ValueError, match="window_stride must be between 1 and max_sequence_length"):
+            _position_tagger(max_sequence_length=5).tag([WORDS], "raw", window_stride=7)
+
+    def test_with_a_transformer_the_windows_are_in_sub_tokens(self, caplog, wordpiece_tokenizer):
+        # 6 sub-tokens besides [CLS] and [SEP]: the words 0-3, 2-6 and 5-7, handing over at
+        # the words 3 and 6; a word is labelled at its first sub-token, [CLS] being P0
+        tagger = _position_tagger(max_sequence_length=8, transformer_name="in-memory")
+        with caplog.at_level(logging.WARNING, logger="delft.sequenceLabelling.tagger"):
+            with patch("transformers.AutoTokenizer.from_pretrained", return_value=wordpiece_tokenizer):
+                tagged = tagger.tag([WORDS], "raw", window_stride=3)[0]
+        assert [token for token, _ in tagged] == WORDS
+        assert _tags(tagged) == ["P1", "P2", "P5", "P2", "P3", "P5", "P2", "P3"]
+        assert caplog.records == []
+
+    def test_json_offsets_and_scores_span_the_windows(self):
+        from delft.sequenceLabelling.config import ModelConfig
+        from delft.sequenceLabelling.preprocess import Preprocessor
+        from delft.sequenceLabelling.tagger import Tagger
+
+        preprocessor = Preprocessor(return_chars=True)
+        preprocessor.fit([["Jim", "was"]], [["B-per", "O"]])
+        per = preprocessor.vocab_tag["B-per"]
+
+        class PerModel(torch.nn.Module):
+            def forward(self, inputs):
+                nb_rows, length = inputs["char_input"].shape[:2]
+                logits = torch.zeros(nb_rows, length, len(preprocessor.vocab_tag))
+                logits[:, :, per] = 2.0
+                return {"logits": logits}
+
+        model_config = ModelConfig(
+            model_name="test", architecture="BidLSTM", embeddings_name=None, max_sequence_length=2, batch_size=2
+        )
+        tagger = Tagger(PerModel(), model_config, preprocessor=preprocessor, device=torch.device("cpu"))
+        entities = tagger.tag(["Jim was Jim"], "json", window_stride=1)["texts"][0]["entities"]
+
+        assert [(entity["text"], entity["beginOffset"]) for entity in entities] == [("Jim", 0), ("was", 4), ("Jim", 8)]
+        assert len({entity["score"] for entity in entities}) == 1
+
+    def test_the_sequence_passes_the_stride_to_the_tagger(self):
+        sequence = TestSequenceTagWorkers._sequence(nb_workers=0, explicit=True)
+        with patch("delft.sequenceLabelling.tagger.Tagger") as tagger_class:
+            sequence.tag([["some", "tokens"]], "raw", window_stride=3)
+        assert tagger_class.return_value.tag.call_args.kwargs["window_stride"] == 3
 
 
 @pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF"])
@@ -280,6 +361,7 @@ class TestTaggerWorkers:
 
         model_config = MagicMock()
         model_config.batch_size = 20
+        model_config.window_stride = None
         return Tagger(
             MagicMock(),
             model_config,
