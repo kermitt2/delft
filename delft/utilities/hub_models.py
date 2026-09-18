@@ -22,7 +22,11 @@ A model is also taken over HTTP, from
 - anywhere else, an archive of the model directory, named after the model:
   ``https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip``, a ``.zip``,
   ``.tar.gz``, ``.tgz`` or ``.tar`` file holding the files of the model, at its root or
-  in a single folder.
+  in a single folder;
+- or the model directory itself, as a folder of files: the URL of the folder, or of
+  the folder holding it under the name of the model, the way a local directory is
+  either. HTTP cannot list a folder, so a model folder is known by its configuration,
+  and its other files are looked for under the names DeLFT gives them.
 
 Nothing here depends on the working directory, nor reads the DeLFT resources registry
 unless given one: an application embedding DeLFT passes references and a ``cache_dir``
@@ -30,6 +34,7 @@ of its own.
 """
 
 import fnmatch
+import json
 import logging
 import os
 import shutil
@@ -37,6 +42,7 @@ import tarfile
 import tempfile
 import zipfile
 from dataclasses import dataclass
+from functools import partial
 from typing import List, Optional
 from urllib.parse import quote, unquote, urlparse
 
@@ -58,6 +64,12 @@ DEFAULT_ARCHIVE_EXTENSION = ".zip"
 
 # the file both wrappers save the configuration of a model in
 CONFIG_FILE_NAME = "config.json"
+
+# Besides its configuration, the files of a model taken from a folder over HTTP: the
+# first of each list that is there. The last names are the ones DeLFT gave them before
+# PyTorch, which it does not read any more but the applications embedding it may.
+PREPROCESSOR_FILE_NAMES = ("preprocessor.json", "preprocessor.pkl")
+LEGACY_WEIGHT_FILE_NAMES = ("model_weights.hdf5",)
 
 # section of the resources registry telling where the models are on the Hub
 REGISTRY_SECTION = "models-hub"
@@ -163,6 +175,10 @@ def default_models_dir():
     return os.path.expanduser(os.environ.get(MODELS_DIR_VARIABLE) or DEFAULT_MODELS_DIR)
 
 
+def _models_dir(cache_dir):
+    return os.path.abspath(os.path.expanduser(cache_dir)) if cache_dir else default_models_dir()
+
+
 def _not_found_errors():
     from huggingface_hub import errors
 
@@ -225,7 +241,7 @@ def _install(source, model_name, cache_dir, force, download):
     A model is downloaded next to its place and moved there when complete, so that an
     interrupted download never leaves a directory passing for a model.
     """
-    cache_dir = os.path.abspath(os.path.expanduser(cache_dir)) if cache_dir else default_models_dir()
+    cache_dir = _models_dir(cache_dir)
     target = os.path.join(cache_dir, model_name)
     if _is_model_directory(target) and not force:
         previous = downloaded_from(target)
@@ -266,8 +282,8 @@ def resolve_model(reference, cache_dir=None, token=None, force=False, model_name
     Return the local directory of the model ``reference`` points to,
     ``{cache_dir}/{model name}``, downloading it when it is not there. ``reference`` is
     a ``hf://`` reference, or a URL (see the top of this module). When it is the one of
-    a place holding models, a repository, a bucket or the URL of a folder, the model is
-    the one named ``model_name`` there.
+    a place holding models, a repository, a bucket or the URL of a folder that is not a
+    model itself, the model is the one named ``model_name`` there.
 
     A model on disk is kept, unless it was downloaded from another reference, another
     revision for instance, or ``force`` is set. A reference without a revision follows a
@@ -277,7 +293,7 @@ def resolve_model(reference, cache_dir=None, token=None, force=False, model_name
     if is_http_url(reference):
         hub_reference = hub_reference_of_url(reference)
         if hub_reference is None:
-            return _resolve_archive(reference, model_name, cache_dir, token, force)
+            return _resolve_url(reference, model_name, cache_dir, token, force)
         reference = hub_reference
 
     reference = parse_reference(reference)
@@ -301,17 +317,30 @@ def _archive_extension(url):
     return next((extension for extension in ARCHIVE_EXTENSIONS if path.endswith(extension)), None)
 
 
-def _download_file(url, path, token):
+def _get(url, token):
     import requests
 
     headers = {"Authorization": f"Bearer {token}"} if token else {}
-    with requests.get(url, stream=True, headers=headers, timeout=(10, 120)) as response:
+    return requests.get(url, stream=True, headers=headers, timeout=(10, 120))
+
+
+def _download_file(url, path, token):
+    with _get(url, token) as response:
         if response.status_code in (404, 410):
             raise HubModelNotFoundError(f"{url} not found: HTTP {response.status_code}")
         response.raise_for_status()
         with open(path, "wb") as f:
             for chunk in response.iter_content(chunk_size=1024 * 1024):
                 f.write(chunk)
+
+
+def _is_there(url, token):
+    """Whether ``url`` is a file the server gives, which only asking it for the file tells."""
+    with _get(url, token) as response:
+        if response.status_code in (404, 410):
+            return False
+        response.raise_for_status()
+        return True
 
 
 def _extract(archive, directory):
@@ -351,21 +380,107 @@ def _model_root(directory):
     return None
 
 
-def _resolve_archive(url, model_name, cache_dir, token, force):
+def _resolve_url(url, model_name, cache_dir, token, force):
+    """
+    The model at ``url``, a URL of somewhere else than the Hub: the archive it is the
+    URL of, else the first of
+
+    - the folder it is the URL of, when that folder holds a model;
+    - its folder named ``model_name``, when that one does;
+    - its archive ``{model_name}.zip``.
+
+    Looking in the folder itself first is what ``Sequence.load`` does with a local
+    directory. A model downloaded before from any of them is taken without asking the
+    server, so that a model once downloaded loads when the server is out of reach.
+    """
     extension = _archive_extension(url)
     if extension is not None:
         # the archive is named after the model, as its directory is
         file_name = unquote(os.path.basename(urlparse(url).path))
-        model_name = file_name[: -len(extension)]
-    elif model_name:
-        extension = DEFAULT_ARCHIVE_EXTENSION
-        url = url.rstrip("/") + "/" + quote(model_name) + extension
-    if not model_name:
+        return _resolve_archive(url, file_name[: -len(extension)], extension, cache_dir, token, force)
+
+    base = url.rstrip("/")
+    folders = []
+    # a folder is named after its last segment, as a model directory is
+    folder_name = unquote(os.path.basename(urlparse(base).path)) or model_name
+    if folder_name:
+        folders.append((base + "/", folder_name))
+    if model_name:
+        folders.append((f"{base}/{quote(model_name)}/", model_name))
+    archive = f"{base}/{quote(model_name)}{DEFAULT_ARCHIVE_EXTENSION}" if model_name else None
+
+    if not force:
+        places = folders + ([(archive, model_name)] if archive else [])
+        for source, name in places:
+            target = os.path.join(_models_dir(cache_dir), name)
+            if _is_model_directory(target) and downloaded_from(target) == source:
+                return target
+
+    for folder, name in folders:
+        if _is_there(folder + CONFIG_FILE_NAME, token):
+            return _install(folder, name, cache_dir, force, partial(_download_folder, folder, name, token))
+
+    if archive is None:
         raise ValueError(
-            f"{url} names no model, expected the URL of an archive ({', '.join(ARCHIVE_EXTENSIONS)}) "
-            "named after the model"
+            f"{url} names no model: it is neither the URL of an archive ({', '.join(ARCHIVE_EXTENSIONS)}) "
+            f"nor the one of a folder holding {CONFIG_FILE_NAME}. Give the name of the model to look for there."
+        )
+    looked_at = ", ".join(folder + CONFIG_FILE_NAME for folder, _ in folders)
+    try:
+        return _resolve_archive(archive, model_name, DEFAULT_ARCHIVE_EXTENSION, cache_dir, token, force)
+    except HubModelNotFoundError as e:
+        raise HubModelNotFoundError(f"No model {model_name} at {url}: no {looked_at}, and {e}") from e
+
+
+def _download_folder(folder, model_name, token, directory):
+    """
+    Download the model of ``folder`` to ``{directory}/{model_name}``: its configuration,
+    and the first of each list of names that the folder holds, a preprocessor and the
+    weights. A text classifier may have no preprocessor, and every model has weights.
+    """
+    from delft.utilities.weights import WEIGHT_FILE_NAMES
+
+    model_dir = os.path.join(directory, model_name)
+    os.makedirs(model_dir)
+    _download_file(folder + CONFIG_FILE_NAME, os.path.join(model_dir, CONFIG_FILE_NAME), token)
+    _check_folder_config(folder, os.path.join(model_dir, CONFIG_FILE_NAME))
+
+    def download_first(names):
+        for name in names:
+            try:
+                _download_file(folder + quote(name), os.path.join(model_dir, name), token)
+                return name
+            except HubModelNotFoundError:
+                pass
+        return None
+
+    download_first(PREPROCESSOR_FILE_NAMES)
+    weight_file_names = WEIGHT_FILE_NAMES + LEGACY_WEIGHT_FILE_NAMES
+    if download_first(weight_file_names) is None:
+        raise HubModelNotFoundError(f"{folder} not found: no weights there, none of {', '.join(weight_file_names)}")
+
+
+def _check_folder_config(folder, config_path):
+    """
+    Refuse what is not the configuration of a model, a page a server gives for any URL
+    for instance, and the models with a transformer: their tokenizer is a folder of
+    files named after the tokenizer, which cannot be found where nothing can be listed.
+    """
+    try:
+        with open(config_path) as f:
+            config = json.load(f)
+    except ValueError as e:
+        raise ValueError(f"{folder}{CONFIG_FILE_NAME} is not the configuration of a model: {e}") from e
+    if not isinstance(config, dict):
+        raise ValueError(f"{folder}{CONFIG_FILE_NAME} is not the configuration of a model")
+    if config.get("transformer_name"):
+        raise ValueError(
+            f"{folder} holds a model with a transformer, {config['transformer_name']}, which cannot be taken "
+            "from a folder over HTTP: take it from an archive of the model, or from the Hub"
         )
 
+
+def _resolve_archive(url, model_name, extension, cache_dir, token, force):
     def download(directory):
         archive = os.path.join(directory, "archive" + extension)
         extracted = os.path.join(directory, "extracted")
