@@ -310,6 +310,20 @@ class TestConcurrentCaches:
         assert reader._model is None
         assert reader.precompute([SENTENCE, LONG_SENTENCE], verbose=False) == 0
 
+    def test_instances_of_a_process_share_the_open_shards(self, tiny_bert, tmp_path):
+        # py-lmdb 2 refuses to open an environment twice in a process: a second
+        # instance reads the shards the first one opened, rather than embedding again
+        first = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        first.precompute([SENTENCE], verbose=False)
+        first.release_model()
+        expected = first.get_sentence_vectors(SENTENCE)
+
+        second = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        np.testing.assert_array_equal(second.get_sentence_vectors(SENTENCE), expected)
+        assert first._model is None and second._model is None
+        assert len(second._shards) == 1
+        assert all(second._shards[name] is first._shards[name] for name in second._shards)
+
     def test_same_sentences_embedded_twice_stay_readable(self, tiny_bert, tmp_path):
         first = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
         second = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
