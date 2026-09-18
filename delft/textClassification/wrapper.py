@@ -573,8 +573,9 @@ class Classifier(object):
         - a repository or a bucket of the Hub, ``hf://owner/repository``, the model being
           the folder of it with the name of the model, or that folder itself,
           ``hf://owner/repository/model-name``, whatever the name of the model;
-        - the URL of an archive of the model directory, ``https://.../model-name.zip``,
-          or of the folder holding ``{name of the model}.zip``.
+        - the URL of an archive of the model directory, ``https://.../model-name.zip``;
+          or of the model directory as a folder of files, or of the folder holding it
+          under the name of the model, or else ``{name of the model}.zip``.
 
         See ``delft.utilities.hub_models`` for the last two, whose model is downloaded
         to ``cache_dir`` when it is not there yet.

@@ -55,7 +55,10 @@ model.load("https://huggingface.co/lfoppiano/grobid-model-header/tree/v1.1.0/gro
 # an archive of the model directory, anywhere over HTTP
 model.load("https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip")
 
-# the URL of a folder: {name of the model}.zip is looked for there
+# the model directory as a folder of files, served as they are
+model.load("https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES/")
+
+# the URL of a folder: the model is its folder with the name of the model, else {name of the model}.zip
 model.load("https://example.org/models/")
 
 # the directory of a model, whatever its name
@@ -72,6 +75,8 @@ python -m delft.applications.grobidTagger header eval --architecture BidLSTM_CRF
 ```
 
 An archive is a `.zip`, `.tar.gz`, `.tgz` or `.tar` file named after the model, holding the files of the model at its root or in a single folder. `token`, when given, is sent as a bearer token.
+
+A URL that is not the one of an archive is looked at as a local directory is: the model directory itself when it holds `config.json`, else its folder with the name of the model, else the archive `{name of the model}.zip` in it. HTTP cannot list what a folder holds, so the files of a model are asked for by their names: `config.json`, then the first of `preprocessor.json` and `preprocessor.pkl` that is there, and the first of `model.safetensors`, `model_weights.pt`, `model_weights.pth` and `model_weights.hdf5`. The `.pkl` and `.hdf5` files are the ones of the models saved before PyTorch, as GROBID serves them: DeLFT does not read them, but applications embedding it may. A model with a transformer is refused from a folder, as its tokenizer is a folder of files named after the tokenizer: take it from an archive or from the Hub.
 
 What is downloaded goes to `cache_dir`, else to the directory the `DELFT_MODELS_DIR` environment variable names, else to `~/.cache/delft/models`. `Classifier.load` does the same for text classification. Private repositories of the Hub are read with the token of `huggingface-cli login`, or the `token` argument.
 
