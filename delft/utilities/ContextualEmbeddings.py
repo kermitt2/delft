@@ -442,19 +442,27 @@ class ContextualEmbeddings:
         )
 
     def _close_shards(self):
-        # handles inherited through fork() are closed too: they are unusable,
-        # but they still prevent the shards from being opened in this process
-        for env in self._shards.values():
-            try:
-                env.close()
-            except Exception:
-                pass
+        # The environments are shared by every instance of the process (see
+        # _open_shards), so they are only forgotten here, not closed: another
+        # instance may be reading them. A handle inherited through fork() is
+        # closed by open_lmdb_env when the shard is opened again.
         self._shards = {}
         self._shards_pid = None
 
     def _open_shards(self):
-        """Open the shards that are not open yet, returns whether there were some."""
+        """
+        Open the shards that are not open yet, returns whether there were some.
+
+        py-lmdb 2 (the pinned 2.3.0) refuses to open an environment twice in a
+        process, and several instances can read the same cache: two copies of
+        the embeddings (one unpickled, say), or a training followed by a tagging.
+        The environments are therefore taken from the process-wide registry of
+        delft.utilities.Embeddings, which hands back the one already open.
+        """
         import lmdb
+
+        # imported here: delft.utilities.Embeddings imports this module
+        from delft.utilities.Embeddings import open_lmdb_env
 
         if self._shards_pid != os.getpid():
             self._close_shards()
@@ -465,7 +473,7 @@ class ContextualEmbeddings:
             if name in self._shards:
                 continue
             try:
-                self._shards[name] = lmdb.open(
+                self._shards[name], _ = open_lmdb_env(
                     os.path.join(path, name), readonly=True, lock=False, max_readers=2048, max_spare_txns=2
                 )
                 opened = True
