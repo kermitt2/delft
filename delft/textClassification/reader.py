@@ -1,5 +1,6 @@
 import gzip
 import json
+import os
 
 import numpy as np
 import pandas as pd
@@ -7,7 +8,102 @@ import pandas as pd
 from delft.utilities.numpy import shuffle_triple_with_view
 
 
-def load_texts_and_classes(filepath):
+class TextsOnDisk:
+    """
+    The texts of a tab-separated data file, read from the file when they are asked for
+    rather than held in memory, for a data set too big for it (see issue #27). Only the
+    byte offsets of the lines are kept: 8 bytes per text.
+
+    It is a sequence, as the arrays of texts the readers return are: ``len``, an
+    integer index for the text of a line, a slice or a sequence of indices (or a
+    boolean mask) for the ``TextsOnDisk`` of those lines, so that shuffling and
+    splitting leave the texts on disk, and iteration reads the lines one after the
+    other. The dataset of a ``DataLoader`` reads one text at a time from it, in the
+    worker processes as well: the file is opened again in every process.
+    """
+
+    def __init__(self, filepath, offsets, column=1, encoding="utf-8"):
+        self.filepath = filepath
+        self.offsets = np.asarray(offsets, dtype=np.int64)
+        self.column = column
+        self.encoding = encoding
+        self._handle = None
+        self._pid = None
+
+    @classmethod
+    def index(cls, filepath, column=1, encoding="utf-8"):
+        """
+        Read ``filepath`` once, and return the ``TextsOnDisk`` of its non-empty lines and
+        the list of the fields of every line after ``column`` (the classes).
+        """
+        offsets = []
+        classes = []
+        with open(filepath, "rb") as f:
+            while True:
+                offset = f.tell()
+                raw = f.readline()
+                if not raw:
+                    break
+                line = raw.decode(encoding).strip()
+                if len(line) == 0:
+                    continue
+                pieces = line.split("\t")
+                if len(pieces) < column + 2:
+                    print("Warning: number of fields in the data file too low for line:", line)
+                offsets.append(offset)
+                classes.append(pieces[column + 1 :])
+        return cls(filepath, offsets, column=column, encoding=encoding), classes
+
+    @property
+    def shape(self):
+        return (len(self.offsets),)
+
+    def __len__(self):
+        return len(self.offsets)
+
+    def _file(self):
+        # a handle is not shared with the workers of a DataLoader: each opens its own
+        if self._handle is None or self._pid != os.getpid():
+            self._handle = open(self.filepath, "rb")
+            self._pid = os.getpid()
+        return self._handle
+
+    def _read(self, offset):
+        f = self._file()
+        f.seek(int(offset))
+        line = f.readline().decode(self.encoding).strip()
+        pieces = line.split("\t")
+        return pieces[self.column] if self.column < len(pieces) else ""
+
+    def __getitem__(self, key):
+        if isinstance(key, (int, np.integer)):
+            return self._read(self.offsets[key])
+        if isinstance(key, slice):
+            return TextsOnDisk(self.filepath, self.offsets[key], column=self.column, encoding=self.encoding)
+        indices = np.asarray(key)
+        return TextsOnDisk(self.filepath, self.offsets[indices], column=self.column, encoding=self.encoding)
+
+    def __iter__(self):
+        for offset in self.offsets:
+            yield self._read(offset)
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        state["_handle"] = None
+        state["_pid"] = None
+        return state
+
+    def __repr__(self):
+        return f"TextsOnDisk({self.filepath!r}, {len(self)} texts)"
+
+    def close(self):
+        if self._handle is not None and self._pid == os.getpid():
+            self._handle.close()
+        self._handle = None
+        self._pid = None
+
+
+def load_texts_and_classes(filepath, in_memory=True):
     """
     Load texts and classes from a file in the following simple tab-separated format:
 
@@ -18,10 +114,18 @@ def load_texts_and_classes(filepath):
 
     text has no EOF and no tab
 
+    With ``in_memory=False`` the texts are not loaded: a ``TextsOnDisk`` reads them from
+    the file when they are asked for, for a data set too big for memory (issue #27).
+    It is used like the array of texts: the classes are still returned as an array.
+
     Returns:
         tuple(numpy array, numpy array): texts and classes
 
     """
+    if not in_memory:
+        texts, classes = TextsOnDisk.index(filepath)
+        return texts, np.asarray(classes)
+
     texts = []
     classes = []
 
