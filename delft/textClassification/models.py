@@ -15,12 +15,14 @@ Model architectures implemented:
 """
 
 import inspect
-from typing import Dict, Optional
+from typing import Dict, Optional, Tuple, Union
 
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+
+from delft.textClassification.features import features_size, features_vocabulary
 
 
 class BaseTextClassifier(nn.Module):
@@ -60,6 +62,16 @@ class BaseTextClassifier(nn.Module):
         else:
             self.embedding = None
 
+        # Features channel (see delft.textClassification.features): the embeddings of the
+        # categorical values of a text and its continuous values, concatenated to its
+        # pooled representation before the classifier, which takes features_size more
+        self.features_size = features_size(model_config)
+        self.features_embedding = None
+        if self.features_size:
+            self.features_embedding = nn.Embedding(
+                features_vocabulary(model_config), model_config.features_embedding_size, padding_idx=0
+            )
+
     def set_embedding_weights(self, weights: np.ndarray):
         """
         Set pretrained embedding weights.
@@ -70,6 +82,35 @@ class BaseTextClassifier(nn.Module):
         if self.embedding is not None:
             with torch.no_grad():
                 self.embedding.weight.copy_(torch.from_numpy(weights))
+
+    def split_inputs(self, inputs) -> Tuple[Union[torch.Tensor, Dict[str, torch.Tensor]], Optional[Dict]]:
+        """
+        The inputs of the text and, when the batch holds some, its features: the dataset
+        gives the features under ``features`` and ``continuous_features``, next to the
+        text under ``text`` for a model reading vectors or indices, next to the keys of
+        the tokenizer for a transformer.
+        """
+        if not isinstance(inputs, dict) or not ("features" in inputs or "continuous_features" in inputs):
+            return inputs, None
+        features = {key: inputs[key] for key in ("features", "continuous_features") if key in inputs}
+        text_inputs = {key: value for key, value in inputs.items() if key not in features}
+        if list(text_inputs) == ["text"]:
+            text_inputs = text_inputs["text"]
+        return text_inputs, features
+
+    def join_features(self, pooled: torch.Tensor, features: Optional[Dict[str, torch.Tensor]]) -> torch.Tensor:
+        """The pooled representation of the text with its features, when the model takes some."""
+        if not self.features_size:
+            return pooled
+        if not features:
+            raise ValueError(f"The model {self.name} takes features, which the batch does not hold")
+        parts = [pooled]
+        if "features" in features:
+            embedded = self.features_embedding(features["features"])  # [batch, columns, size]
+            parts.append(embedded.reshape(embedded.size(0), -1))
+        if "continuous_features" in features:
+            parts.append(features["continuous_features"].to(pooled.dtype))
+        return torch.cat(parts, dim=1)
 
     def embed_inputs(self, inputs: torch.Tensor) -> torch.Tensor:
         """
@@ -142,12 +183,13 @@ class lstm(BaseTextClassifier):
             dropout=self.dropout_rate,
         )
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.dense1 = nn.Linear(self.recurrent_units * 2, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units * 2 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.lstm(x)
         x = self.dropout(x)
@@ -157,6 +199,7 @@ class lstm(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         x = self.dropout(x)
         logits = self.dense2(x)
@@ -190,12 +233,13 @@ class bidLstm_simple(BaseTextClassifier):
             dropout=self.dropout_rate,
         )
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.dense1 = nn.Linear(recurrent_units * 4, self.dense_size)
+        self.dense1 = nn.Linear(recurrent_units * 4 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.bilstm(x)
         x = self.dropout(x)
@@ -204,6 +248,7 @@ class bidLstm_simple(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         x = self.dropout(x)
         logits = self.dense2(x)
@@ -231,13 +276,14 @@ class cnn(BaseTextClassifier):
         self.conv3 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.pool = nn.MaxPool1d(2)
         self.gru = nn.GRU(self.recurrent_units, self.recurrent_units, batch_first=True)
-        self.dense1 = nn.Linear(self.recurrent_units, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
         # Embed inputs if needed, then transpose for conv
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x = x.transpose(1, 2)
         x = self.dropout(x)
@@ -255,6 +301,7 @@ class cnn(BaseTextClassifier):
         x = hidden.squeeze(0)
 
         x = self.dropout(x)
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         logits = self.dense2(x)
 
@@ -285,12 +332,13 @@ class cnn2(BaseTextClassifier):
             batch_first=True,
             dropout=self.dropout_rate,
         )
-        self.dense1 = nn.Linear(self.recurrent_units, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x = x.transpose(1, 2)
         x = self.dropout(x)
@@ -303,6 +351,7 @@ class cnn2(BaseTextClassifier):
         _, hidden = self.gru(x)
         x = hidden.squeeze(0)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         logits = self.dense2(x)
 
@@ -333,12 +382,13 @@ class cnn3(BaseTextClassifier):
         self.conv2 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.conv3 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.pool = nn.MaxPool1d(2)
-        self.dense1 = nn.Linear(self.recurrent_units * 2, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units * 2 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.gru(x)
 
@@ -355,6 +405,7 @@ class cnn3(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         logits = self.dense2(x)
 
@@ -384,12 +435,13 @@ class lstm_cnn(BaseTextClassifier):
         self.dropout = nn.Dropout(self.dropout_rate)
         self.conv1 = nn.Conv1d(self.recurrent_units, self.recurrent_units, kernel_size=2, padding="same")
         self.conv2 = nn.Conv1d(self.recurrent_units, 300, kernel_size=5, padding="valid")
-        self.dense1 = nn.Linear(300 * 2, self.dense_size)
+        self.dense1 = nn.Linear(300 * 2 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.lstm(x)
         x = self.dropout(x)
@@ -403,6 +455,7 @@ class lstm_cnn(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         x = self.dropout(x)
         logits = self.dense2(x)
@@ -439,12 +492,13 @@ class gru(BaseTextClassifier):
             dropout=self.dropout_rate,
         )
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.dense1 = nn.Linear(self.recurrent_units * 4, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units * 4 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.bigru1(x)
         x = self.dropout(x)
@@ -454,6 +508,7 @@ class gru(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         logits = self.dense2(x)
 
@@ -481,12 +536,13 @@ class gru_simple(BaseTextClassifier):
             bidirectional=True,
             dropout=self.dropout_rate,
         )
-        self.dense1 = nn.Linear(self.recurrent_units * 4, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units * 4 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.bigru(x)
 
@@ -494,6 +550,7 @@ class gru_simple(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         logits = self.dense2(x)
 
@@ -529,12 +586,13 @@ class gru_lstm(BaseTextClassifier):
             dropout=self.dropout_rate,
         )
         self.dropout = nn.Dropout(self.dropout_rate)
-        self.dense1 = nn.Linear(self.recurrent_units * 4, self.dense_size)
+        self.dense1 = nn.Linear(self.recurrent_units * 4 + self.features_size, self.dense_size)
         self.dense2 = nn.Linear(self.dense_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x, _ = self.bigru(x)
         x = self.dropout(x)
@@ -544,6 +602,7 @@ class gru_lstm(BaseTextClassifier):
         x_avg = x.mean(dim=1)
         x = torch.cat([x_max, x_avg], dim=1)
 
+        x = self.join_features(x, features)
         x = F.relu(self.dense1(x))
         logits = self.dense2(x)
 
@@ -601,11 +660,12 @@ class dpcnn(BaseTextClassifier):
 
         self.pool = nn.MaxPool1d(3, stride=2)
         self.adaptive_pool = nn.AdaptiveMaxPool1d(1)
-        self.dense = nn.Linear(self.recurrent_units, self.nb_classes)
+        self.dense = nn.Linear(self.recurrent_units + self.features_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(self, inputs: torch.Tensor, labels: Optional[torch.Tensor] = None) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         x = self.embed_inputs(inputs)
         x = x.transpose(1, 2)
         x = self.initial_conv(x)
@@ -634,6 +694,7 @@ class dpcnn(BaseTextClassifier):
 
         x = self.adaptive_pool(x)
         x = x.squeeze(-1)
+        x = self.join_features(x, features)
         logits = self.dense(x)
 
         outputs = {"logits": logits}
@@ -679,13 +740,14 @@ class bert(BaseTextClassifier):
         self.accepts_token_type_ids = "token_type_ids" in inspect.signature(self.transformer.forward).parameters
 
         self.dropout = nn.Dropout(0.1)
-        self.classifier = nn.Linear(hidden_size, self.nb_classes)
+        self.classifier = nn.Linear(hidden_size + self.features_size, self.nb_classes)
 
         self.loss_fn = nn.BCEWithLogitsLoss()
 
     def forward(
         self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
     ) -> Dict[str, torch.Tensor]:
+        inputs, features = self.split_inputs(inputs)
         input_ids = inputs["input_ids"]
         attention_mask = inputs.get("attention_mask", None)
         transformer_args = {"attention_mask": attention_mask}
@@ -697,6 +759,7 @@ class bert(BaseTextClassifier):
         # Use CLS token representation
         pooled = outputs.last_hidden_state[:, 0, :]
         pooled = self.dropout(pooled)
+        pooled = self.join_features(pooled, features)
         logits = self.classifier(pooled)
 
         result = {"logits": logits}

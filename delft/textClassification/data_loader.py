@@ -44,6 +44,8 @@ class TextClassificationDataset(Dataset):
         embeddings=None,
         transformer_tokenizer=None,
         preprocessor=None,
+        features=None,
+        continuous_features=None,
     ):
         """
         Initialize the dataset.
@@ -55,9 +57,16 @@ class TextClassificationDataset(Dataset):
             embeddings: Embeddings instance (legacy mode)
             transformer_tokenizer: transformer tokenizer (BERT mode)
             preprocessor: TextPreprocessor instance (new mode)
+            features: the indices of the categorical features of every text, [texts, columns],
+                and continuous_features its scaled numbers, [texts, columns], as
+                delft.textClassification.features.encode_features gives them. With either,
+                an item is a dict: the text under "text" (or the keys of the tokenizer)
+                and the features under "features" and "continuous_features".
         """
         self.x = x
         self.y = y
+        self.features = features
+        self.continuous_features = continuous_features
         self.model_config = model_config
         self.embeddings = embeddings
         self.transformer_tokenizer = transformer_tokenizer
@@ -98,6 +107,13 @@ class TextClassificationDataset(Dataset):
             vector = to_vector_single(text, self.embeddings, self.maxlen)
             inputs = torch.tensor(vector, dtype=torch.float32)
 
+        if self.features is not None or self.continuous_features is not None:
+            inputs = inputs if isinstance(inputs, dict) else {"text": inputs}
+            if self.features is not None:
+                inputs["features"] = torch.as_tensor(self.features[idx], dtype=torch.long)
+            if self.continuous_features is not None:
+                inputs["continuous_features"] = torch.as_tensor(self.continuous_features[idx], dtype=torch.float32)
+
         # Prepare Label
         if self.y is not None:
             label = self.y[idx]
@@ -120,6 +136,8 @@ def create_dataloader(
     num_workers=0,
     pin_memory=True,
     role="loader",
+    features=None,
+    continuous_features=None,
 ):
     """
     Create a DataLoader for text classification.
@@ -147,6 +165,8 @@ def create_dataloader(
         embeddings=embeddings,
         transformer_tokenizer=transformer_tokenizer,
         preprocessor=preprocessor,
+        features=features,
+        continuous_features=continuous_features,
     )
 
     effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
