@@ -251,3 +251,34 @@ def test_cardinality_of_features_given_as_an_array():
         (1, ["LOW", "UP"]),
     ]
     assert FeaturesPreprocessor(features_indices=[1]).fit(features).features_indices == [1]
+
+
+def _documents(nb_tokens=20):
+    """Column 0 is the token (as many values as tokens), column 1 has 2 values, column 2 has 5."""
+    return [[[f"token{i}", "AB"[i % 2], "VWXYZ"[i % 5]] for i in range(nb_tokens)]]
+
+
+class TestFeaturesPreprocessorColumns:
+    def test_without_indices_the_columns_with_too_many_values_are_left_out(self, capsys):
+        fp = FeaturesPreprocessor(features_vocabulary_size=4).fit(_documents())
+        assert fp.features_indices == [1]
+        output = capsys.readouterr().out
+        assert "using columns [1]" in output
+        assert "left out columns [0, 2]" in output and "more than 4 distinct values" in output
+
+    def test_requested_columns_are_the_ones_used(self, capsys):
+        fp = FeaturesPreprocessor(features_indices=[2], features_vocabulary_size=5).fit(_documents())
+        assert fp.features_indices == [2]
+        assert "left out" not in capsys.readouterr().out
+        assert fp.transform(_documents(3)).tolist() == [[[1], [2], [3]]]
+
+    def test_a_requested_column_with_too_many_values_is_an_error(self):
+        with pytest.raises(ValueError, match="column 2 has 5") as error:
+            FeaturesPreprocessor(features_indices=[1, 2], features_vocabulary_size=4).fit(_documents())
+        assert "features_vocabulary_size (4)" in str(error.value)
+        assert "column 1" not in str(error.value)
+
+    def test_a_larger_vocabulary_keeps_the_values_of_each_column_apart(self):
+        fp = FeaturesPreprocessor(features_indices=[1, 2], features_vocabulary_size=5).fit(_documents())
+        indices = [index for mapping in fp.features_map_to_index.values() for index in mapping.values()]
+        assert sorted(indices) == [1, 2, 6, 7, 8, 9, 10]

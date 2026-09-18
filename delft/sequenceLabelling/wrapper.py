@@ -86,6 +86,7 @@ class Sequence(object):
         fold_number=1,
         multiprocessing=True,
         features_indices=None,
+        features_vocabulary_size: int = None,
         transformer_name: str = None,
         report_to_wandb=False,
         wandb_project: str = None,
@@ -162,6 +163,7 @@ class Sequence(object):
             fold_number=fold_number,
             batch_size=batch_size,
             features_indices=features_indices,
+            features_vocabulary_size=features_vocabulary_size or ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
             transformer_name=transformer_name,
         )
 

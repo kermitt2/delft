@@ -6,6 +6,7 @@ sequenceLabelling and textClassification modules.
 """
 
 import logging
+import math
 import re
 from abc import ABC, abstractmethod
 from typing import Dict, Iterable
@@ -188,6 +189,23 @@ def _map_feature_row(value_list, lookups):
     """
     width = len(value_list)
     return [mapping.get(value_list[index], 0) for index, mapping in lookups if index < width]
+
+
+def to_number(value):
+    """The number a feature value holds, None when it does not hold one."""
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) else None
+
+
+def scale_number(value, low, high):
+    """``value`` scaled from [low, high] to [0, 1], clipped; 0 when it is not a number."""
+    number = to_number(value)
+    if number is None or high <= low:
+        return 0.0
+    return min(1.0, max(0.0, (number - low) / (high - low)))
 
 
 def calculate_cardinality(feature_vector, indices=None):
@@ -401,25 +419,98 @@ class FeaturesPreprocessor(BaseEstimator, TransformerMixin):
         features_indices: Iterable[int] = None,
         features_vocabulary_size: int = DEFAULT_FEATURES_VOCABULARY_SIZE,
         features_map_to_index: Dict = None,
+        continuous_features_indices: Iterable[int] = None,
     ):
         if features_map_to_index is None:
             features_map_to_index = {}
         self.features_vocabulary_size = features_vocabulary_size
         self.features_indices = features_indices
         self.features_map_to_index = features_map_to_index
+        # columns that hold numbers, and the [minimum, maximum] seen in each when fitting
+        self.continuous_features_indices = sorted(set(continuous_features_indices or []))
+        self.continuous_features_ranges = []
 
     def fit(self, X):
-        """Build feature vocabulary from data."""
-        if not self.features_indices:
-            indexes, mapping = reduce_features_to_indexes(X, self.features_vocabulary_size)
-        else:
-            indexes, mapping = reduce_features_to_indexes(
-                X, self.features_vocabulary_size, indices=self.features_indices
+        """
+        Build feature vocabulary from data.
+
+        A column takes part when it has at most ``features_vocabulary_size`` distinct
+        values. Without ``features_indices`` every such column is used, which leaves out
+        the lexical ones (token, prefixes, suffixes). With ``features_indices`` exactly
+        those columns are used, and one with too many values is an error rather than a
+        column silently left out. The columns of ``continuous_features_indices`` are
+        numbers, and not categories as well.
+        """
+        continuous = set(self.continuous_features_indices)
+        if continuous & set(self.features_indices or ()):
+            raise ValueError(
+                f"Columns {sorted(continuous & set(self.features_indices))} are asked for both as categories "
+                "(features_indices) and as numbers (continuous_features_indices)"
             )
+
+        requested = sorted(set(self.features_indices)) if self.features_indices else None
+        cardinality = calculate_cardinality(X, indices=requested)
+        # a column of numbers is not a category as well
+        cardinality = [(index, values) for index, values in cardinality if index not in continuous]
+        too_large = [
+            (index, len(values)) for index, values in cardinality if len(values) > self.features_vocabulary_size
+        ]
+        if requested and too_large:
+            raise ValueError(
+                "features_indices asks for columns with more distinct values than features_vocabulary_size "
+                f"({self.features_vocabulary_size}): "
+                + ", ".join(f"column {index} has {size}" for index, size in too_large)
+                + ". Raise features_vocabulary_size or leave these columns out."
+            )
+
+        indexes, mapping = cardinality_to_index_map(cardinality, self.features_vocabulary_size)
+        print(f"Features: using columns {indexes}")
+        if too_large:
+            print(
+                f"Features: left out columns {[index for index, _ in too_large]}, which have more than "
+                f"{self.features_vocabulary_size} distinct values (features_vocabulary_size)"
+            )
+        if continuous:
+            print(f"Features: columns {sorted(continuous)} are used as numbers")
 
         self.features_map_to_index = mapping
         self.features_indices = indexes
+        self.continuous_features_ranges = self._fit_continuous(X)
         return self
+
+    def _fit_continuous(self, X):
+        ranges = []
+        for index in self.continuous_features_indices:
+            numbers = [
+                number
+                for document in X
+                for row in document
+                if index < len(row) and (number := to_number(row[index])) is not None
+            ]
+            if not numbers:
+                raise ValueError(f"continuous_features_indices: column {index} holds no number")
+            ranges.append([min(numbers), max(numbers)])
+        return ranges
+
+    def transform_continuous(self, X, extend=False):
+        """
+        The columns ``continuous_features_indices`` of every token as numbers scaled to
+        [0, 1] with the range seen when fitting. A value outside that range is clipped,
+        and one that is not a number counts as the minimum.
+        """
+        vectors = []
+        for document in X:
+            rows = [
+                [
+                    scale_number(row[index] if index < len(row) else None, low, high)
+                    for index, (low, high) in zip(self.continuous_features_indices, self.continuous_features_ranges)
+                ]
+                for row in document
+            ]
+            if extend:
+                rows.append([0.0] * len(self.continuous_features_indices))
+            vectors.append(rows)
+        return vectors
 
     def transform(self, X, extend=False):
         """
