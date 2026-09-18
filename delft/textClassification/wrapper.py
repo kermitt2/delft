@@ -10,6 +10,7 @@ from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.data_loader import create_dataloader
 from delft.textClassification.models import getModel
 from delft.textClassification.preprocess import TextPreprocessor
+from delft.textClassification.reader import TextsOnDisk
 from delft.textClassification.trainer import Trainer
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
@@ -38,7 +39,9 @@ def split_train_validation(x_train, y_train, split_ratio=0.9):
     Returns:
         (x_train, y_train, x_valid, y_valid)
     """
-    x_train, y_train, _ = shuffle_triple_with_view(np.asarray(x_train), np.asarray(y_train))
+    if not isinstance(x_train, TextsOnDisk):  # np.asarray would read every text into memory
+        x_train = np.asarray(x_train)
+    x_train, y_train, _ = shuffle_triple_with_view(x_train, np.asarray(y_train))
     split_idx = int(len(x_train) * split_ratio)
     return (
         x_train[:split_idx],
