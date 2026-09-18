@@ -8,6 +8,12 @@ from sklearn.metrics import f1_score, precision_recall_fscore_support
 from delft import DELFT_PROJECT_DIR
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.data_loader import create_dataloader
+from delft.textClassification.features import (
+    check_features,
+    encode_features,
+    features_preprocessor_from_config,
+    fit_features_preprocessor,
+)
 from delft.textClassification.models import getModel
 from delft.textClassification.preprocess import TextPreprocessor
 from delft.textClassification.trainer import Trainer
@@ -26,7 +32,7 @@ from delft.utilities.weights import (
 )
 
 
-def split_train_validation(x_train, y_train, split_ratio=0.9):
+def split_train_validation(x_train, y_train, split_ratio=0.9, features=None):
     """
     Carve a validation set off the end of the training data.
 
@@ -36,15 +42,21 @@ def split_train_validation(x_train, y_train, split_ratio=0.9):
     delft.textClassification.trainer.compute_roc_auc).
 
     Returns:
-        (x_train, y_train, x_valid, y_valid)
+        (x_train, y_train, x_valid, y_valid), or with ``features``, one row per text,
+        (x_train, y_train, f_train, x_valid, y_valid, f_valid)
     """
-    x_train, y_train, _ = shuffle_triple_with_view(np.asarray(x_train), np.asarray(y_train))
+    features = np.asarray(features, dtype=object) if features is not None else None
+    x_train, y_train, features = shuffle_triple_with_view(np.asarray(x_train), np.asarray(y_train), features)
     split_idx = int(len(x_train) * split_ratio)
+    if features is None:
+        return x_train[:split_idx], y_train[:split_idx], x_train[split_idx:], y_train[split_idx:]
     return (
         x_train[:split_idx],
         y_train[:split_idx],
+        features[:split_idx],
         x_train[split_idx:],
         y_train[split_idx:],
+        features[split_idx:],
     )
 
 
@@ -87,7 +99,16 @@ class Classifier(object):
         wandb_project: str = None,
         nb_workers: int = None,
         short_model_name: str = None,
+        features_indices=None,
+        features_vocabulary_size=12,
+        features_embedding_size=4,
+        continuous_features_indices=None,
     ):
+        """
+        ``features_indices``, ``features_vocabulary_size``, ``features_embedding_size`` and
+        ``continuous_features_indices`` set up the features channel, used when the
+        training data comes with features: see ``delft.textClassification.features``.
+        """
         self.short_model_name = short_model_name
         self.model_config = ModelConfig(
             model_name=model_name,
@@ -102,6 +123,10 @@ class Classifier(object):
             fold_number=fold_number,
             batch_size=batch_size,
             transformer_name=transformer_name,
+            features_indices=features_indices,
+            features_vocabulary_size=features_vocabulary_size,
+            features_embedding_size=features_embedding_size,
+            continuous_features_indices=continuous_features_indices,
         )
 
         self.training_config = TrainingConfig(
@@ -122,6 +147,8 @@ class Classifier(object):
         self.models = None
         self.embeddings = None
         self.preprocessor = None
+        # the preprocessor of the features channel, when the model takes features
+        self.features_preprocessor = None
         self.report_to_wandb = report_to_wandb
         self.wandb_project = wandb_project
         self.wandb = None
@@ -229,22 +256,38 @@ class Classifier(object):
             print("Warning: wandb not available")
             self.report_to_wandb = False
 
-    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
+    def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None, features=None):
+        """
+        Train on the texts ``x_train`` with the labels ``y_train``. ``features`` gives
+        every text a row of values, which the model then takes along with the text: see
+        ``delft.textClassification.features``.
+        """
         if self.model_config.fold_number == 1:
-            self.train_single(x_train, y_train, vocab_init, incremental, callbacks)
+            self.train_single(x_train, y_train, vocab_init, incremental, callbacks, features=features)
         else:
             self.train_nfold(x_train, y_train, vocab_init, incremental, callbacks)
 
-    def train_single(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
+    def train_single(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None, features=None):
         # Create Data Loaders
         # Note: We need to handle validation split here if not n-fold
         # For simplicity, let's take last 10% as validation if early_stop is True and no folds
 
         x_valid = None
         y_valid = None
+        f_valid = None
+
+        if features is not None:
+            if len(features) != len(x_train):
+                raise ValueError(f"{len(x_train)} texts but features for {len(features)}")
+            self.features_preprocessor = fit_features_preprocessor(features, self.model_config)
 
         if self.training_config.early_stop:
-            x_train, y_train, x_valid, y_valid = split_train_validation(x_train, y_train)
+            if features is None:
+                x_train, y_train, x_valid, y_valid = split_train_validation(x_train, y_train)
+            else:
+                x_train, y_train, features, x_valid, y_valid, f_valid = split_train_validation(
+                    x_train, y_train, features=features
+                )
 
         # Init model
         self.model = getModel(self.model_config, self.training_config)
@@ -272,6 +315,7 @@ class Classifier(object):
             shuffle=True,
             num_workers=self.nb_workers,
             role="train",
+            **self._encoded_features(features),
         )
 
         valid_loader = None
@@ -286,6 +330,7 @@ class Classifier(object):
                 shuffle=False,
                 num_workers=self.nb_workers,
                 role="valid",
+                **self._encoded_features(f_valid),
             )
 
         # Ensure model output directory exists for checkpoints
@@ -305,12 +350,28 @@ class Classifier(object):
     def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
         pass  # To implement if needed, following logic in wrapper.py
 
-    def eval(self, x_test, y_test):
+    def _encoded_features(self, features, what="train"):
+        """
+        The ``features`` and ``continuous_features`` arguments of ``create_dataloader``
+        for the rows ``features``, encoded with the preprocessor of the model, which is
+        rebuilt from the model config when it was loaded. An error when the model takes
+        features and none are given, or the other way round.
+        """
+        check_features(self.model_config, features, what=what)
+        if features is None:
+            return {}
+        if self.features_preprocessor is None:
+            self.features_preprocessor = features_preprocessor_from_config(self.model_config)
+        indices, continuous = encode_features(self.features_preprocessor, features)
+        return {"features": indices, "continuous_features": continuous}
+
+    def eval(self, x_test, y_test, features=None):
         """Evaluate model on test data.
 
         Args:
             x_test: Test texts
             y_test: Test labels (numpy array with shape [n_samples, n_classes])
+            features: the row of values of every text, for a model trained with features
         """
         print_parameters(self.model_config, self.training_config)
 
@@ -338,6 +399,7 @@ class Classifier(object):
             shuffle=False,
             num_workers=self.nb_workers,
             role="eval",
+            **self._encoded_features(features, what="eval"),
         )
 
         all_preds = []
@@ -445,8 +507,11 @@ class Classifier(object):
 
         return evaluation
 
-    def predict(self, texts, output_format="json", use_main_thread_only=False, batch_size=None, nb_workers=None):
-        """Classify texts with the model.
+    def predict(
+        self, texts, output_format="json", use_main_thread_only=False, batch_size=None, nb_workers=None, features=None
+    ):
+        """Classify texts with the model, with the row of values of every text in
+        ``features`` for a model trained with features.
 
         ``nb_workers`` is the number of DataLoader worker processes to use for
         this call. It falls back to the value given to the constructor, and to
@@ -495,6 +560,7 @@ class Classifier(object):
             shuffle=False,
             num_workers=nb_workers,
             role="predict",
+            **self._encoded_features(features, what="predict"),
         )
 
         all_preds = []
@@ -593,6 +659,7 @@ class Classifier(object):
     def _load_from_directory(self, model_path):
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
+        self.features_preprocessor = features_preprocessor_from_config(self.model_config)
 
         # Load preprocessor if present
         preprocessor_path = os.path.join(model_path, PREPROCESSOR_FILE)

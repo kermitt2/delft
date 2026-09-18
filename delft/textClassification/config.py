@@ -19,6 +19,10 @@ class ModelConfig(object):
         batch_size=64,
         dense_size=32,
         transformer_name=None,
+        features_indices=None,
+        features_vocabulary_size=12,
+        features_embedding_size=4,
+        continuous_features_indices=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -40,6 +44,16 @@ class ModelConfig(object):
         self.batch_size = batch_size  # this is the batch size for test and prediction
 
         self.transformer_name = transformer_name
+
+        # the features channel, see delft.textClassification.features: use_features is set
+        # when training with features, and the maps are what the preprocessor learned then
+        self.use_features = False
+        self.features_indices = features_indices
+        self.features_vocabulary_size = features_vocabulary_size
+        self.features_embedding_size = features_embedding_size
+        self.features_map_to_index = None
+        self.continuous_features_indices = continuous_features_indices
+        self.continuous_features_ranges = None
 
     def save(self, file):
         with open(file, "w") as f:
