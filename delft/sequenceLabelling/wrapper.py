@@ -691,8 +691,15 @@ class Sequence(object):
         # Set best model as main model
         self.model = self.models[best_index]
 
-    def tag(self, texts, output_format, features=None, batch_size=None, multi_gpu=False, nb_workers=None):
+    def tag(
+        self, texts, output_format, features=None, batch_size=None, multi_gpu=False, nb_workers=None, window_stride=None
+    ):
         """Tag texts with the model.
+
+        ``window_stride``: a text longer than ``max_sequence_length`` is labelled whole,
+        in windows of that length, one every ``window_stride``, rather than truncated.
+        It defaults to the stride the model was trained with, and a model trained
+        without windows truncates (see ``Tagger.tag``).
 
         ``nb_workers`` is the number of DataLoader worker processes to use for
         this call. It falls back to the value given to the constructor, and to
@@ -714,7 +721,9 @@ class Sequence(object):
         self.model.eval()
         start_time = time.time()
 
-        annotations = self._get_tagger(nb_workers).tag(texts, output_format, features=features)
+        annotations = self._get_tagger(nb_workers).tag(
+            texts, output_format, features=features, window_stride=window_stride
+        )
 
         runtime = round(time.time() - start_time, 3)
         if output_format == "json":

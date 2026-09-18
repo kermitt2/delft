@@ -4,6 +4,7 @@ PyTorch Dataset and DataLoader for DeLFT sequence labeling models.
 Replaces the Keras data generators with PyTorch equivalents.
 """
 
+import logging
 from typing import List, Optional, Tuple
 
 import numpy as np
@@ -18,7 +19,7 @@ from delft.sequenceLabelling.preprocess import (
     to_vector_single,
 )
 from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position, words_and_positions
-from delft.sequenceLabelling.windows import split_into_windows, subtoken_costs
+from delft.sequenceLabelling.windows import cut_into_windows, subtoken_costs
 from delft.utilities.dataloader_utils import (
     effective_num_workers as _effective_num_workers,
 )
@@ -29,6 +30,8 @@ from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import truncate_batch_values
+
+LOGGER = logging.getLogger(__name__)
 
 
 def _worker_init_fn(worker_id):
@@ -432,9 +435,21 @@ class TransformerDataset(Dataset):
 
 def _split_into_windows(x, y, features, max_length, stride, role, token_costs=None):
     nb_sequences = len(x)
-    x, y, features, window_counts = split_into_windows(x, y, features, max_length, stride, token_costs=token_costs)
-    print(f"[{role}] window stride {stride}: {nb_sequences} sequences make {len(x)} windows of at most {max_length}")
-    return x, y, features, window_counts
+    x, y, features, bounds = cut_into_windows(x, y, features, max_length, stride, token_costs=token_costs)
+    message = f"[{role}] window stride {stride}: {nb_sequences} sequences make {len(x)} windows of at most {max_length}"
+    if role == "tag":
+        # tagging is called once per document by the applications embedding DeLFT
+        LOGGER.debug(message)
+    else:
+        print(message)
+    return x, y, features, bounds
+
+
+def _set_windows(dataset, bounds):
+    """Tell the windows of each sequence, to put their predictions back together."""
+    # (start, end) of the windows of each sequence, and how many there are
+    dataset.window_bounds = bounds
+    dataset.window_counts = None if bounds is None else [len(sequence_bounds) for sequence_bounds in bounds]
 
 
 def create_dataloader(
@@ -461,7 +476,8 @@ def create_dataloader(
         window_stride: If set, a sequence longer than ``max_sequence_length`` is cut into
             windows of that length, one every ``window_stride``, instead of being truncated
             (see ``delft.sequenceLabelling.windows``). Both are counted in tokens, or in
-            sub-tokens with a transformer.
+            sub-tokens with a transformer. The dataset then holds the ``window_bounds`` and
+            ``window_counts`` of each sequence, to put the predictions back together.
     """
     if features is None and getattr(preprocessor, "return_features", False) is True:
         # they were replaced by zeros, of another shape than the features the model was
@@ -477,7 +493,7 @@ def create_dataloader(
             f"window_stride must be between 1 and max_sequence_length ({max_sequence_length}), got {window_stride}"
         )
     windowing = bool(window_stride and max_sequence_length)
-    window_counts = None  # how many windows each sequence was cut into, to put them back together
+    window_bounds = None  # the windows each sequence was cut into, to put them back together
     # the text of a token may come from columns of its features rather than from x
     x = text_from_features(x, features, getattr(model_config, "text_features_indices", None))
 
@@ -495,7 +511,7 @@ def create_dataloader(
         if windowing:
             # the special tokens the tokenizer adds count in max_sequence_length
             room = max(1, max_sequence_length - tokenizer.num_special_tokens_to_add(pair=False))
-            x, y, features, window_counts = _split_into_windows(
+            x, y, features, window_bounds = _split_into_windows(
                 x, y, features, room, min(window_stride, room), role, token_costs=subtoken_costs(tokenizer)
             )
 
@@ -510,7 +526,7 @@ def create_dataloader(
             use_chain_crf=model_config.use_crf if model_config else False,
             tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
         )
-        dataset.window_counts = window_counts
+        _set_windows(dataset, window_bounds)
 
         # Scale workers down for tiny datasets where spawn cost dominates.
         effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
@@ -541,7 +557,7 @@ def create_dataloader(
     # TODO: Add TransformerDataset logic if needed by checking model_config
 
     if windowing:
-        x, y, features, window_counts = _split_into_windows(x, y, features, max_sequence_length, window_stride, role)
+        x, y, features, window_bounds = _split_into_windows(x, y, features, max_sequence_length, window_stride, role)
 
     dataset = SequenceLabelingDataset(
         x,
@@ -553,7 +569,7 @@ def create_dataloader(
         use_chain_crf=model_config.use_crf if model_config else False,
         tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
     )
-    dataset.window_counts = window_counts
+    _set_windows(dataset, window_bounds)
 
     effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
     effective_pin_memory = pin_memory and torch.cuda.is_available()

@@ -5,6 +5,7 @@ import numpy as np
 import torch
 
 from delft.sequenceLabelling.data_loader import create_dataloader
+from delft.sequenceLabelling.windows import join_overlapping_windows
 from delft.utilities.Tokenizer import tokenizeAndFilter
 
 LOGGER = logging.getLogger(__name__)
@@ -34,7 +35,18 @@ class Tagger(object):
         self.device = device if isinstance(device, torch.device) else torch.device(device)
         self.nb_workers = max(0, nb_workers) if nb_workers is not None else 0
 
-    def tag(self, texts, output_format, features=None):
+    def tag(self, texts, output_format, features=None, window_stride=None):
+        """
+        Label ``texts``. A sequence longer than ``max_sequence_length`` is cut into
+        windows of that length, one every ``window_stride`` (in tokens, or in sub-tokens
+        with a transformer), and labelled whole. Where windows overlap, a token takes
+        the label of the window it is further from the edge of (see
+        ``delft.sequenceLabelling.windows.join_overlapping_windows``).
+
+        ``window_stride`` defaults to the one the model was trained with, saved in its
+        configuration. A model trained without has none, and a sequence longer than it
+        takes is truncated then, its last tokens left without a label.
+        """
         if output_format == "json":
             res = {
                 "software": "DeLFT",
@@ -68,6 +80,9 @@ class Tagger(object):
                 tokenized_texts.append(text)
                 all_offsets.append([])  # No offsets if already tokenized
 
+        if window_stride is None:
+            window_stride = self._saved_window_stride()
+
         # Create dataloader
         # Note: y is None for inference
         dataloader = create_dataloader(
@@ -81,10 +96,13 @@ class Tagger(object):
             shuffle=False,
             model_config=self.model_config,
             role="tag",
+            window_stride=window_stride,
         )
 
-        steps_done = 0
-        truncated = []  # (index, number of tokens, number of labels) of the sequences cut
+        # the label indices, and scores, of every example of the loader, in its order: a
+        # sequence, or a window of one
+        example_tags = []
+        example_probs = []
         self.model.eval()
 
         # inference_mode rather than no_grad: it additionally skips view and
@@ -117,17 +135,8 @@ class Tagger(object):
                 # the first sub-token of each word, where the label of the word is
                 word_starts = inputs["word_start_mask"].tolist() if "word_start_mask" in inputs else None
 
-                # Process batch results
                 for i in range(len(tags)):
-                    idx = steps_done * self.model_config.batch_size + i
-                    if idx >= len(texts):
-                        break
-
-                    text = texts[idx]
-                    tokens = tokenized_texts[idx]
-                    offsets = all_offsets[idx]
-
-                    pred_tags_indices = tags[i]
+                    pred_tags_indices = list(tags[i])
                     current_probs = probs[i] if probs else None
 
                     if word_starts is not None:
@@ -138,33 +147,47 @@ class Tagger(object):
                         if current_probs is not None:
                             current_probs = [current_probs[p] for p in positions]
 
-                    # Inverse transform tags
-                    pred_tags = self.preprocessor.inverse_transform(pred_tags_indices)
+                    example_tags.append(pred_tags_indices)
+                    example_probs.append(current_probs)
 
-                    # the data loader cuts a sequence at max_sequence_length: the tokens
-                    # after the cut get no label and are left out of the result
-                    if len(pred_tags) < len(tokens):
-                        truncated.append((idx, len(tokens), len(pred_tags)))
+        window_bounds = getattr(getattr(dataloader, "dataset", None), "window_bounds", None)
+        if window_bounds is not None:
+            # the windows of a sequence are labelled apart: put them back together, a
+            # word of a transformer being a position as a token is
+            example_tags = join_overlapping_windows(example_tags, window_bounds)
+            if all(current_probs is not None for current_probs in example_probs):
+                example_probs = join_overlapping_windows(example_probs, window_bounds)
+            else:
+                example_probs = [None] * len(example_tags)
 
-                    if output_format == "json":
-                        piece = {}
-                        piece["text"] = text
-                        piece["entities"] = self._build_json_response(text, tokens, pred_tags, current_probs, offsets)[
-                            "entities"
-                        ]
-                        res["texts"].append(piece)
-                    else:
-                        the_tags = list(zip(tokens, pred_tags))
-                        list_of_tags.append(the_tags)
+        truncated = []  # (index, number of tokens, number of labels) of the sequences cut
+        for idx, (text, pred_tags_indices, current_probs) in enumerate(zip(texts, example_tags, example_probs)):
+            tokens = tokenized_texts[idx]
+            offsets = all_offsets[idx]
+            pred_tags = self.preprocessor.inverse_transform(pred_tags_indices)
 
-                steps_done += 1
+            # without windows, the data loader cuts a sequence at max_sequence_length:
+            # the tokens after the cut get no label and are left out of the result
+            if len(pred_tags) < len(tokens):
+                truncated.append((idx, len(tokens), len(pred_tags)))
+
+            if output_format == "json":
+                piece = {}
+                piece["text"] = text
+                piece["entities"] = self._build_json_response(text, tokens, pred_tags, current_probs, offsets)[
+                    "entities"
+                ]
+                res["texts"].append(piece)
+            else:
+                the_tags = list(zip(tokens, pred_tags))
+                list_of_tags.append(the_tags)
 
         if truncated:
             idx, nb_tokens, nb_labels = truncated[0]
             LOGGER.warning(
                 "%d of %d sequences are longer than the model takes (max_sequence_length=%d%s) and were truncated: "
                 "their last tokens are not labelled, e.g. sequence %d has %d tokens and %d labels. "
-                "Cut long sequences before sending them.",
+                "Give a window_stride to label them whole, or cut long sequences before sending them.",
                 len(truncated),
                 len(texts),
                 self.model_config.max_sequence_length,
@@ -178,6 +201,18 @@ class Tagger(object):
             return res
         else:
             return list_of_tags
+
+    def _saved_window_stride(self):
+        """
+        The stride the model was trained with, no longer than the windows: the caller
+        may have made ``max_sequence_length`` shorter than the model was trained with,
+        which a stride it did not ask for should not make an error.
+        """
+        window_stride = getattr(self.model_config, "window_stride", None)
+        max_sequence_length = self.model_config.max_sequence_length
+        if window_stride and max_sequence_length:
+            return min(window_stride, max_sequence_length)
+        return window_stride
 
     def _build_json_response(self, original_text, tokens, tags, prob, offsets):
         res = {"entities": []}

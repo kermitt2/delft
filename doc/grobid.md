@@ -324,6 +324,14 @@ The whole sequence is then trained on, and the model also sees sequences that st
 
 The validation and evaluation sets are then cut into windows too, but always side by side, and the windows of a sequence are put back together before scoring: each token is scored once, a field that spans two windows counts as one, and the scores cover the whole of every sequence rather than its beginning. The stride is saved with the model, so that the `eval` action evaluates a model the way it was trained. Scores obtained with and without the option are not comparable: they are not measured on the same tokens.
 
+When labelling, a sequence longer than the model takes is cut into windows of `max_sequence_length` too, one every `window_stride`, and labelled whole. The stride is the one the model was trained with, or the one given to `Sequence.tag`:
+
+```python
+model.tag(texts, "json", features=features, window_stride=1800)
+```
+
+Where two windows overlap, a token takes the label of the window it is further from the edge of: the overlap changes hands in its middle. Near its edges a window has seen little of what surrounds a token, which the other window has. A model trained without `--window-stride`, and given no stride, truncates a longer sequence as before: its last tokens are left without a label, which a warning says.
+
 From Python, the option is `Sequence(..., window_stride=256)`.
 
 ### Models that label lines: reading more than the first token
