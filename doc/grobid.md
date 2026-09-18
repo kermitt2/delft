@@ -13,6 +13,7 @@ usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH]
                        [--features-indices FEATURES_INDICES]
                        [--features-vocabulary-size FEATURES_VOCABULARY_SIZE]
+                       [--window-stride WINDOW_STRIDE]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
                        [--early-stop EARLY_STOP] [--multi-gpu]
@@ -71,6 +72,14 @@ options:
   --features-vocabulary-size FEATURES_VOCABULARY_SIZE
                         Maximum number of distinct values of a feature column
                         (default: 12).
+  --window-stride WINDOW_STRIDE
+                        Cut the training sequences longer than
+                        max-sequence-length into windows of that length, one
+                        every window-stride (in tokens, or in sub-tokens with
+                        a transformer), instead of truncating them. A stride
+                        smaller than max-sequence-length makes the windows
+                        overlap. The validation and evaluation sets are
+                        then scored on whole sequences too.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
   --patience PATIENCE   patience, number of extra epochs to perform after the
@@ -290,6 +299,20 @@ python3 delft/applications/grobidTagger.py header train --architecture BidLSTM_C
 ```
 
 Exactly these columns are then used. If one of them has more distinct values than the limit, the training stops with an error naming it, rather than going on without the column; raise the limit with `--features-vocabulary-size` to keep it. From Python, these are `Sequence(..., features_indices=[...], features_vocabulary_size=...)`.
+
+### Training sequences longer than `--max-sequence-length`
+
+A model takes at most `--max-sequence-length` tokens (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). By default a longer training sequence is cut there and what follows is not trained on. With `--window-stride`, it is cut into windows of `--max-sequence-length` instead, one every `--window-stride`, and each window is a training example:
+
+```sh
+python3 delft/applications/grobidTagger.py fulltext train --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased --max-sequence-length 512 --window-stride 256
+```
+
+The whole sequence is then trained on, and the model also sees sequences that start and end in the middle of a field, which is what it receives when the caller cuts long inputs before sending them for labelling. A stride equal to `--max-sequence-length` puts the windows side by side; a smaller one makes them overlap, for more examples per epoch.
+
+The validation and evaluation sets are then cut into windows too, but always side by side, and the windows of a sequence are put back together before scoring: each token is scored once, a field that spans two windows counts as one, and the scores cover the whole of every sequence rather than its beginning. The stride is saved with the model, so that the `eval` action evaluates a model the way it was trained. Scores obtained with and without the option are not comparable: they are not measured on the same tokens.
+
+From Python, the option is `Sequence(..., window_stride=256)`.
 
 ## Calling DeLFT from GROBID
 

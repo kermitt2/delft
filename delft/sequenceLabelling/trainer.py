@@ -20,6 +20,7 @@ from tqdm import tqdm
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.preprocess import Preprocessor
+from delft.sequenceLabelling.windows import join_scored_windows
 from delft.utilities.Utilities import pick_device
 
 # Default file names
@@ -466,6 +467,8 @@ class Trainer:
                         all_predictions.append(valid_pred)
                         all_labels.append(valid_label)
 
+        all_predictions, all_labels = join_scored_windows(data_loader, all_predictions, all_labels)
+
         # Convert indices back to labels
         if self.preprocessor:
             idx_to_label = {idx: label for label, idx in self.preprocessor.vocab_tag.items()}
@@ -602,6 +605,8 @@ class Scorer:
                                 valid_label.append(l)
                         all_predictions.append(valid_pred)
                         all_labels.append(valid_label)
+
+        all_predictions, all_labels = join_scored_windows(self.valid_loader, all_predictions, all_labels)
 
         # Convert to labels and compute metrics
         if self.preprocessor:

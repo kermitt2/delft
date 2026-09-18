@@ -254,6 +254,7 @@ def train(
     wandb_project=None,
     num_workers=None,
     suffix=None,
+    window_stride=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -318,6 +319,7 @@ def train(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        window_stride=window_stride,
     )
 
     if incremental:
@@ -375,6 +377,7 @@ def train_eval(
     wandb_project=None,
     num_workers=None,
     suffix=None,
+    window_stride=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -443,6 +446,7 @@ def train_eval(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        window_stride=window_stride,
     )
 
     if incremental:
@@ -698,6 +702,15 @@ if __name__ == "__main__":
         default=None,
         help="Maximum number of distinct values of a feature column (default: 12).",
     )
+    parser.add_argument(
+        "--window-stride",
+        type=int,
+        default=None,
+        help="Cut the training sequences longer than max-sequence-length into windows of that length, one every "
+        + "window-stride (in tokens, or in sub-tokens with a transformer), instead of truncating them. A stride "
+        + "smaller than max-sequence-length makes the windows overlap. The validation and evaluation sets are then "
+        + "scored on whole sequences too.",
+    )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
@@ -825,6 +838,7 @@ if __name__ == "__main__":
             wandb_project=wandb_project,
             num_workers=num_workers,
             suffix=suffix,
+            window_stride=args.window_stride,
         )
 
     if action == Tasks.EVAL:
@@ -875,6 +889,7 @@ if __name__ == "__main__":
             wandb_project=wandb_project,
             num_workers=num_workers,
             suffix=suffix,
+            window_stride=args.window_stride,
         )
 
     if action == Tasks.TAG:
