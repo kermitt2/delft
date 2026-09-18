@@ -83,8 +83,8 @@ class TrainingConfig(object):
         learning_rate,
         batch_size=20,
         optimizer="adam",
-        lr_decay=0.9,
-        clip_gradients=5.0,
+        lr_decay=0.5,
+        clip_gradients=1.0,
         max_epoch=50,
         early_stop=True,
         patience=5,
@@ -94,10 +94,13 @@ class TrainingConfig(object):
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
         self.learning_rate = learning_rate
+        # factor the learning rate is multiplied by when the validation F1 stops improving
         self.lr_decay = lr_decay
+        # maximum norm of the gradients, 0 or None for no clipping
         self.clip_gradients = clip_gradients
         self.max_epoch = max_epoch
         self.early_stop = early_stop
         self.patience = patience
+        # above 0, the weights of the last epochs are kept in the checkpoint directory
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
         self.multiprocessing = multiprocessing

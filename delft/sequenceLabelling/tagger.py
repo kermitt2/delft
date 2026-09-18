@@ -107,7 +107,9 @@ class Tagger(object):
                     # For non-CRF models
                     outputs = self.model(inputs)
                     logits = outputs["logits"]
-                    probs, pred_indices = torch.max(torch.sigmoid(logits), dim=-1)
+                    # these models are trained with a softmax over the labels: the score of a
+                    # label is its probability among them, which the sigmoid of its logit is not
+                    probs, pred_indices = torch.max(torch.softmax(logits, dim=-1), dim=-1)
                     tags = pred_indices.tolist()
                     probs = probs.tolist()
 

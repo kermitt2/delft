@@ -76,8 +76,8 @@ class Sequence(object):
         batch_size=20,
         optimizer="adam",
         learning_rate=None,
-        lr_decay=0.9,
-        clip_gradients=5.0,
+        lr_decay=0.5,
+        clip_gradients=1.0,
         max_epoch=50,
         early_stop=True,
         patience=5,
@@ -360,17 +360,9 @@ class Sequence(object):
             from delft.utilities.distributed import is_main_process
 
         # Concatenate all data for vocabulary building
-        if x_valid is not None:
-            x_all = np.concatenate((x_train, x_valid), axis=0)
-        else:
-            x_all = x_train
-
-        if y_valid is not None:
-            y_all = np.concatenate((y_train, y_valid), axis=0)
-        else:
-            y_all = y_train
-
-        features_all = concatenate_or_none((f_train, f_valid), axis=0)
+        x_all = concatenate_or_none((x_train, x_valid))
+        y_all = concatenate_or_none((y_train, y_valid))
+        features_all = concatenate_or_none((f_train, f_valid))
 
         if incremental:
             if self.model is None and self.models is None:
@@ -463,9 +455,9 @@ class Sequence(object):
         multi_gpu=False,
     ):
         """Train with n-fold cross validation."""
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
-        features_all = concatenate_or_none((f_train, f_valid), axis=0)
+        x_all = concatenate_or_none((x_train, x_valid))
+        y_all = concatenate_or_none((y_train, y_valid))
+        features_all = concatenate_or_none((f_train, f_valid))
 
         # Use model output directory for checkpoints
         model_output_dir = os.path.join("data/models/sequenceLabelling/", self.model_config.model_name)
@@ -487,10 +479,14 @@ class Sequence(object):
             fold_start = fold_size * fold_id
             fold_end = fold_start + fold_size if fold_id < fold_count - 1 else len(x_train)
 
-            fold_x_train = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
-            fold_y_train = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
+            fold_x_train = concatenate_or_none([x_train[:fold_start], x_train[fold_end:]])
+            fold_y_train = concatenate_or_none([y_train[:fold_start], y_train[fold_end:]])
             fold_x_valid = x_train[fold_start:fold_end]
             fold_y_valid = y_train[fold_start:fold_end]
+            fold_f_train = fold_f_valid = None
+            if f_train is not None:
+                fold_f_train = concatenate_or_none([f_train[:fold_start], f_train[fold_end:]])
+                fold_f_valid = f_train[fold_start:fold_end]
 
             # Create model for this fold
             fold_model = get_model(self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True)
@@ -506,6 +502,7 @@ class Sequence(object):
                 preprocessor=self.p,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
+                features=fold_f_train,
                 shuffle=True,
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
@@ -517,6 +514,7 @@ class Sequence(object):
                 preprocessor=self.p,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
+                features=fold_f_valid,
                 shuffle=False,
                 model_config=self.model_config,
                 num_workers=self.nb_workers,

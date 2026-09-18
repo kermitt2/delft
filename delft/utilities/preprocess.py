@@ -214,7 +214,8 @@ def calculate_cardinality(feature_vector, indices=None):
     # has the same width as the first row of the first document — a property
     # that does not hold when training data mixes GROBID feature-schema
     # versions (e.g. table training files combining 25- and 26-wide rows).
-    row_widths = [len(row) for doc in feature_vector for row in doc if row]
+    # len(): a row can be an array, which has no truth value
+    row_widths = [len(row) for doc in feature_vector for row in doc if len(row) > 0]
     if not row_widths:
         return []
     min_width = min(row_widths)
@@ -229,7 +230,7 @@ def calculate_cardinality(feature_vector, indices=None):
         if min_width < required_width:
             for d, doc in enumerate(feature_vector):
                 for r, row in enumerate(doc):
-                    if row and len(row) < required_width:
+                    if 0 < len(row) < required_width:
                         raise ValueError(
                             f"Feature width mismatch: features_indices requires at "
                             f"least {required_width} columns per row, but document "

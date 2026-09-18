@@ -11,9 +11,29 @@ https://github.com/elifesciences/sciencebeam-trainer-delft/blob/develop/scienceb
 
 
 def concatenate_or_none(arrays: List[np.array], **kwargs) -> np.array:
-    if arrays[0] is None:
+    """
+    The sequences of several sets one after the other, None when there is none. A set
+    may be missing (no validation set), and may be a list as well as an array: sequences
+    have different lengths, which np.concatenate does not take from lists.
+    """
+    arrays = [array for array in arrays if array is not None]
+    if not arrays:
         return None
-    return np.concatenate(arrays, **kwargs)
+    if len(arrays) == 1:
+        return arrays[0]
+    if all(isinstance(array, np.ndarray) for array in arrays):
+        try:
+            return np.concatenate(arrays, **kwargs)
+        except ValueError:
+            # a set whose sequences all have the same length is a matrix, another one is not
+            pass
+    concatenated = np.empty(sum(len(array) for array in arrays), dtype=object)
+    position = 0
+    for array in arrays:
+        for item in array:
+            concatenated[position] = item
+            position += 1
+    return concatenated
 
 
 # https://stackoverflow.com/a/51526109/8676953

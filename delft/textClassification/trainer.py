@@ -5,7 +5,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import r2_score, roc_auc_score
 
-from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint
+from delft.sequenceLabelling.trainer import EarlyStopping, ModelCheckpoint, remove_file, unique_checkpoint_path
 
 
 def restore_best_weights(model, checkpoint_filepath, device="cpu"):
@@ -96,6 +96,7 @@ class Trainer(object):
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
 
         self.criterion = nn.BCEWithLogitsLoss()
+        self._apply_class_weights()
 
         # Metric driving both checkpointing and early stopping: ROC-AUC when
         # use_roc_auc is set (higher is better), validation loss otherwise.
@@ -104,14 +105,37 @@ class Trainer(object):
 
         self.early_stopping = EarlyStopping(patience=training_config.patience, min_delta=0, mode=monitor_mode)
 
-        # Model checkpoint with model-specific filename
-        checkpoint_filename = f"{model_config.model_name}_best_model.pth"
-        checkpoint_filepath = (
-            os.path.join(checkpoint_path, checkpoint_filename) if checkpoint_path else checkpoint_filename
-        )
-        self.model_checkpoint = ModelCheckpoint(checkpoint_filepath, monitor=self.monitor, mode=monitor_mode)
+        # The file of the best weights is created by train(), one for each training
+        self.model_checkpoint = ModelCheckpoint(None, monitor=self.monitor, mode=monitor_mode)
+
+    def _apply_class_weights(self):
+        """
+        ``class_weights`` gives a weight to classes by their index, as in {0: 1.5, 1: 1.0}:
+        the loss of a class is multiplied by its weight, 1 when it has none.
+        """
+        class_weights = self.training_config.class_weights
+        if not class_weights or not hasattr(self.model, "loss_fn"):
+            return
+        nb_classes = len(self.model_config.list_classes)
+        weights = torch.ones(nb_classes, dtype=torch.float32)
+        for index, weight in class_weights.items():
+            if not 0 <= int(index) < nb_classes:
+                raise ValueError(f"class_weights: no class {index}, the model has {nb_classes} classes")
+            weights[int(index)] = float(weight)
+        self.model.loss_fn = nn.BCEWithLogitsLoss(weight=weights.to(self.device))
 
     def train(self, train_loader, valid_loader=None):
+        # a file of its own for the best weights of this training, removed at its end
+        if valid_loader is not None:
+            self.model_checkpoint.filepath = unique_checkpoint_path(
+                self.checkpoint_path, self.model_config.model_name, "best_model.pth"
+            )
+        try:
+            self._run_epochs(train_loader, valid_loader)
+        finally:
+            remove_file(self.model_checkpoint.filepath)
+
+    def _run_epochs(self, train_loader, valid_loader=None):
         for epoch in range(self.training_config.max_epoch):
             # Training
             self.model.train()
@@ -134,6 +158,8 @@ class Trainer(object):
                 outputs = self.model(inputs, labels=labels)
                 loss = outputs["loss"]
                 loss.backward()
+                if self.training_config.clip_gradients:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.training_config.clip_gradients)
                 self.optimizer.step()
 
                 train_loss += loss.item() * (labels.size(0) if labels is not None else 1)
@@ -159,7 +185,9 @@ class Trainer(object):
         # Training ends on the last epoch, which - with early stopping - is
         # `patience` epochs past the best one. Put the best weights back before
         # the wrapper saves the model, as the sequence labelling trainer does.
-        if restore_best_weights(self.model, self.model_checkpoint.filepath, self.device):
+        if self.model_checkpoint.best_score is not None and restore_best_weights(
+            self.model, self.model_checkpoint.filepath, self.device
+        ):
             print(f"Restored best weights from {self.model_checkpoint.filepath}")
 
     def evaluate(self, dataloader):

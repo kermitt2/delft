@@ -406,6 +406,14 @@ def create_dataloader(
     Args:
         distributed: If True, use DistributedSampler for multi-GPU training
     """
+    if features is None and getattr(preprocessor, "return_features", False) is True:
+        # they were replaced by zeros, of another shape than the features the model was
+        # trained with: it labelled without a complaint, from an input that meant nothing
+        raise ValueError(
+            "This model was trained with features (layout features of GROBID, for instance): it cannot "
+            "train, evaluate or label without them. Give them with the features argument."
+        )
+
     if model_config and model_config.transformer_name:
         from transformers import AutoTokenizer
 
