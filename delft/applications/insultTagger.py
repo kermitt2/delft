@@ -231,9 +231,15 @@ if __name__ == "__main__":
     wandb_project = args.wandb_project
     num_workers = args.num_workers
 
-    if transformer is None and embeddings_name is None:
-        # No transformer and no word embeddings: train character-only (issue #216).
-        print("No --transformer and no --embedding given: training without word embeddings (char-only).")
+    if args.action == "train":
+        if embeddings_name is None and not (architecture and "BERT" in architecture):
+            # No word embeddings, and no transformer inside the architecture: train character-only (issue #216).
+            print("No --embedding given: training without word embeddings (char-only).")
+    elif transformer is not None or embeddings_name is not None:
+        print(
+            f"Warning: --transformer and --embedding are ignored by {args.action}, which uses what the "
+            "configuration of the model says: the ones it was trained with."
+        )
 
     if args.action == "train":
         train(

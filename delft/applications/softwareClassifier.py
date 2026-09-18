@@ -149,14 +149,8 @@ def train_and_eval(
 
 # classify a list of texts
 def classify(texts, output_format, embeddings_name=None, architecture="gru", transformer=None):
-    # load model
-    model = Classifier(
-        "software_use_" + architecture,
-        architecture=architecture,
-        list_classes=list_classes,
-        embeddings_name=embeddings_name,
-        transformer_name=transformer,
-    )
+    # load model: its configuration tells its architecture, classes and embeddings
+    model = Classifier("software_use_" + architecture)
     model.load()
     start_time = time.time()
     result = model.predict(texts, output_format)
@@ -241,6 +235,12 @@ if __name__ == "__main__":
     if transformer is None and embeddings_name is None:
         # default word embeddings
         embeddings_name = "glove-840B"
+
+    if args.action == "classify" and (args.embedding is not None or args.transformer is not None):
+        print(
+            "Warning: --transformer and --embedding are ignored by classify, which uses what the "
+            "configuration of the model says: the ones it was trained with."
+        )
 
     wandb = args.wandb
     wandb_project = args.wandb_project

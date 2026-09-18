@@ -614,6 +614,13 @@ class Classifier(object):
         load_weights(self.model, weight_path, device=self.device)
         self.model.to(self.device)
         print(f"Model loaded from {weight_path}")
+        # what the model was trained with, which its configuration tells, not the command line
+        if self.model_config.transformer_name is not None:
+            print(f"Transformer: {self.model_config.transformer_name}")
+        elif self.model_config.embeddings_name is not None:
+            print(f"Word embeddings: {self.model_config.embeddings_name}")
+        else:
+            print("Word embeddings: none")
 
     def _get_model_dir(self):
         return os.path.join("data/models/textClassification/", self.model_config.model_name)
