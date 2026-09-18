@@ -8,7 +8,7 @@ import pytest
 import torch
 
 from delft.sequenceLabelling.trainer import unique_checkpoint_path
-from delft.sequenceLabelling.wrapper import Sequence
+from delft.sequenceLabelling.wrapper import Sequence, summarize_fold_scores
 from delft.utilities.Utilities import set_random_seed
 
 WORDS = ["Jim", "Henson", "was", "a", "puppeteer", "in", "Mississippi", "today"]
@@ -141,6 +141,31 @@ class TestDataSets:
         sequence = _sequence(tmp_path, monkeypatch, "BidLSTM_CRF_FEATURES", fold_number=2, max_epoch=1)
         sequence.train_nfold(X_ARRAY, Y_ARRAY, f_train=FEATURES_ARRAY)
         assert len(sequence.models) == 2
+
+
+class TestNFoldEvaluation:
+    def test_the_scores_of_every_fold_are_summarized_with_their_mean_and_std(self):
+        scores = [
+            {"precision": 0.5, "recall": 0.5, "f1": 0.5},
+            {"precision": 0.7, "recall": 0.9, "f1": 0.8},
+            {"precision": 0.6, "recall": 0.4, "f1": 0.5},
+        ]
+        summary = summarize_fold_scores(scores)
+        assert summary["folds"] == scores
+        assert summary["mean"] == pytest.approx({"precision": 0.6, "recall": 0.6, "f1": 0.6})
+        assert summary["std"] == pytest.approx({"precision": 0.0816497, "recall": 0.2160247, "f1": 0.1414214})
+        assert summary["best_fold"] == 1
+
+    def test_eval_reports_the_mean_and_the_std_over_the_folds(self, tmp_path, monkeypatch, capsys):
+        """eval_nfold gave the best and the average f1 alone, see issue #18."""
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(X_ARRAY, Y_ARRAY)
+        summary = sequence.eval(X_ARRAY, Y_ARRAY)
+        assert len(summary["folds"]) == 2
+        assert set(summary["mean"]) == set(summary["std"]) == {"precision", "recall", "f1"}
+        assert summary["std"]["f1"] >= 0
+        assert sequence.model is sequence.models[summary["best_fold"]]
+        assert "std" in capsys.readouterr().out
 
 
 class TestSeed:

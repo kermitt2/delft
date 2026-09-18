@@ -50,6 +50,24 @@ from delft.utilities.weights import (
 transformers.logging.set_verbosity(transformers.logging.ERROR)
 
 
+def summarize_fold_scores(scores):
+    """
+    The mean and the population standard deviation, over the folds, of the scores of
+    an n-fold evaluation, given as one dict of ``precision``, ``recall`` and ``f1``
+    per fold, and the index of the fold with the best f1 (the first one on a tie).
+    """
+    if not scores:
+        raise ValueError("No fold scores to summarize")
+    keys = ("precision", "recall", "f1")
+    values = {key: np.array([score[key] for score in scores], dtype=float) for key in keys}
+    return {
+        "folds": [dict(score) for score in scores],
+        "mean": {key: float(values[key].mean()) for key in keys},
+        "std": {key: float(values[key].std()) for key in keys},
+        "best_fold": int(np.argmax(values["f1"])),
+    }
+
+
 class Sequence(object):
     """
     PyTorch-based sequence labeling wrapper.
@@ -563,9 +581,8 @@ class Sequence(object):
     def eval(self, x_test, y_test, features=None):
         """Evaluate the model."""
         if self.model_config.fold_number > 1:
-            self.eval_nfold(x_test, y_test, features=features)
-        else:
-            self.eval_single(x_test, y_test, features=features)
+            return self.eval_nfold(x_test, y_test, features=features)
+        return self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
         """Evaluate single model."""
@@ -648,14 +665,20 @@ class Sequence(object):
         return metrics
 
     def eval_nfold(self, x_test, y_test, features=None):
-        """Evaluate n-fold models."""
+        """
+        Evaluate the models of every fold on the test set, and report the mean and the
+        standard deviation of their scores.
+
+        Returns a dict with the micro precision, recall and f1 of every fold under
+        ``"folds"``, and their ``"mean"`` and ``"std"`` (population standard deviation)
+        over the folds, plus ``"best_fold"``. The model of the best fold becomes the
+        model of the wrapper.
+        """
         if self.models is None:
             raise OSError("No fold models found.")
 
         reports = []
-        total_f1 = 0
-        best_f1 = 0
-        best_index = 0
+        scores = []
 
         for i, model in enumerate(self.models):
             print(f"\n------------------------ fold {i} --------------------------------------")
@@ -676,20 +699,44 @@ class Sequence(object):
 
             scorer = Scorer(test_loader, self.p, evaluation=True)
             metrics = scorer.on_epoch_end(model, self.device)
-
-            f1 = metrics["f1"]
-            total_f1 += f1
-            if f1 > best_f1:
-                best_f1 = f1
-                best_index = i
+            scores.append({key: float(metrics[key]) for key in ("precision", "recall", "f1")})
             reports.append(scorer.report)
 
+        summary = summarize_fold_scores(scores)
+        best_index = summary["best_fold"]
+
         print("\n----------------------------------------------------------------------")
-        print(f"\nBest model: fold {best_index} with F1={best_f1:.4f}")
-        print(f"Average F1: {total_f1 / len(self.models):.4f}")
+        print(f"\nBest model: fold {best_index} with F1={scores[best_index]['f1']:.4f}")
+        print(f"\n{'fold':>6}  {'precision':>12}  {'recall':>12}  {'f-score':>12}")
+        for i, score in enumerate(scores):
+            print(f"{i:>6}  {score['precision']:>12.4f}  {score['recall']:>12.4f}  {score['f1']:>12.4f}")
+        mean, std = summary["mean"], summary["std"]
+        print(f"{'mean':>6}  {mean['precision']:>12.4f}  {mean['recall']:>12.4f}  {mean['f1']:>12.4f}")
+        print(f"{'std':>6}  {std['precision']:>12.4f}  {std['recall']:>12.4f}  {std['f1']:>12.4f}")
+        print(f"\nAverage F1: {mean['f1']:.4f} (std {std['f1']:.4f}) over {len(scores)} folds")
+
+        if self.report_to_wandb and hasattr(self, "wandb"):
+            self.wandb.log(
+                {
+                    "eval_f1_mean": mean["f1"],
+                    "eval_f1_std": std["f1"],
+                    "eval_precision_mean": mean["precision"],
+                    "eval_precision_std": std["precision"],
+                    "eval_recall_mean": mean["recall"],
+                    "eval_recall_std": std["recall"],
+                    "eval_best_fold": best_index,
+                }
+            )
+            columns = ["fold", "precision", "recall", "f1"]
+            data = [[i, s["precision"], s["recall"], s["f1"]] for i, s in enumerate(scores)]
+            data.append(["mean", mean["precision"], mean["recall"], mean["f1"]])
+            data.append(["std", std["precision"], std["recall"], std["f1"]])
+            self.wandb.log({"Fold scores": self.wandb.Table(columns=columns, data=data)})
 
         # Set best model as main model
         self.model = self.models[best_index]
+
+        return summary
 
     def tag(
         self, texts, output_format, features=None, batch_size=None, multi_gpu=False, nb_workers=None, window_stride=None
