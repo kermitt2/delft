@@ -825,6 +825,13 @@ class Sequence(object):
         self.model.to(self.device)
 
         print(f"Model loaded: {self.model_config.architecture}")
+        # what the model was trained with, which its configuration tells, not the command line
+        if self.model_config.transformer_name is not None:
+            print(f"Transformer: {self.model_config.transformer_name}")
+        elif self.model_config.embeddings_name is not None:
+            print(f"Word embeddings: {self.model_config.embeddings_name}")
+        else:
+            print("Word embeddings: none (char-only)")
         print(f"Parameters: {sum(p.numel() for p in self.model.parameters()):,}")
 
 
