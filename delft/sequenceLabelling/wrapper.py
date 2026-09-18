@@ -109,6 +109,8 @@ class Sequence(object):
 
         self.model = None
         self.models = None
+        # the preprocessor of every fold model of an n-fold training, see train_nfold
+        self.fold_preprocessors = None
         self.p: Preprocessor = None
         self._tagger = None  # built lazily and reused across tag() calls
         self.log_dir = log_dir
@@ -481,10 +483,14 @@ class Sequence(object):
         os.makedirs(model_output_dir, exist_ok=True)
 
         if not incremental:
+            # The labels and the feature columns of the models come from the whole set, so
+            # that every fold model has the same outputs and inputs. The characters and the
+            # feature values a fold model knows are those of its own training data, as the
+            # ones of a model trained on the whole set are: see issue #102.
             self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-            self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
             self.models = []
+            self.fold_preprocessors = []
 
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
@@ -505,8 +511,15 @@ class Sequence(object):
                 fold_f_train = concatenate_or_none([f_train[:fold_start], f_train[fold_end:]])
                 fold_f_valid = f_train[fold_start:fold_end]
 
+            if incremental:
+                fold_preprocessor = self.p
+            else:
+                fold_preprocessor = self._fold_preprocessor(fold_x_train, y_all, fold_f_train)
+            self.fold_preprocessors.append(fold_preprocessor)
+            self._configure_for_preprocessor(fold_preprocessor)
+
             # Create model for this fold
-            fold_model = get_model(self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True)
+            fold_model = get_model(self.model_config, len(fold_preprocessor.vocab_tag), load_pretrained_weights=True)
             fold_model.to(self.device)
 
             if fold_id == 0:
@@ -516,7 +529,7 @@ class Sequence(object):
             train_loader = create_dataloader(
                 fold_x_train,
                 fold_y_train,
-                preprocessor=self.p,
+                preprocessor=fold_preprocessor,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
                 features=fold_f_train,
@@ -529,7 +542,7 @@ class Sequence(object):
             valid_loader = create_dataloader(
                 fold_x_valid,
                 fold_y_valid,
-                preprocessor=self.p,
+                preprocessor=fold_preprocessor,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
                 features=fold_f_valid,
@@ -544,13 +557,34 @@ class Sequence(object):
                 fold_model,
                 self.model_config,
                 self.training_config,
-                preprocessor=self.p,
+                preprocessor=fold_preprocessor,
                 device=str(self.device),
                 checkpoint_path=model_output_dir,
             )
             trainer.train(train_loader, valid_loader)
 
             self.models.append(fold_model)
+
+    def _fold_preprocessor(self, x_train, y_all, f_train):
+        """
+        The preprocessor of a fold model: its characters and feature values are those of
+        the training data of the fold, its labels those of the whole set, and its feature
+        columns those the preprocessor of the whole set chose, which the model config
+        holds by now.
+        """
+        x_train = text_from_features(x_train, f_train, self.model_config.text_features_indices)
+        return prepare_preprocessor(x_train, y_all, features=f_train, model_config=self.model_config)
+
+    def _configure_for_preprocessor(self, preprocessor):
+        """
+        Set in the model config what depends on ``preprocessor``: the sizes of the
+        vocabularies of the model built with it, and the map of the feature values.
+        """
+        self.model_config.char_vocab_size = len(preprocessor.vocab_char)
+        self.model_config.case_vocab_size = len(preprocessor.vocab_case)
+        if preprocessor.feature_preprocessor is not None:
+            self.model_config.features_indices = preprocessor.feature_preprocessor.features_indices
+            self.model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
 
     def _scoring_window_stride(self):
         """
@@ -659,11 +693,12 @@ class Sequence(object):
 
         for i, model in enumerate(self.models):
             print(f"\n------------------------ fold {i} --------------------------------------")
+            preprocessor = self.fold_preprocessors[i] if self.fold_preprocessors else self.p
 
             test_loader = create_dataloader(
                 x_test,
                 y_test,
-                preprocessor=self.p,
+                preprocessor=preprocessor,
                 embeddings=self.embeddings,
                 batch_size=self.model_config.batch_size,
                 features=features,
@@ -674,7 +709,7 @@ class Sequence(object):
                 window_stride=self._scoring_window_stride(),
             )
 
-            scorer = Scorer(test_loader, self.p, evaluation=True)
+            scorer = Scorer(test_loader, preprocessor, evaluation=True)
             metrics = scorer.on_epoch_end(model, self.device)
 
             f1 = metrics["f1"]
@@ -688,8 +723,11 @@ class Sequence(object):
         print(f"\nBest model: fold {best_index} with F1={best_f1:.4f}")
         print(f"Average F1: {total_f1 / len(self.models):.4f}")
 
-        # Set best model as main model
+        # Set best model as main model, with the preprocessor it was trained with
         self.model = self.models[best_index]
+        if self.fold_preprocessors:
+            self.p = self.fold_preprocessors[best_index]
+            self._configure_for_preprocessor(self.p)
 
     def tag(
         self, texts, output_format, features=None, batch_size=None, multi_gpu=False, nb_workers=None, window_stride=None
