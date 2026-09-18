@@ -3,6 +3,12 @@
 #
 # Usage: train_distributed_array.sh {train|train-eval|bert|bert-eval|header} [EMBEDDING]
 #
+# EMBEDDING can also name contextual embeddings from a frozen transformer (e.g. scibert-contextual,
+# see doc/embeddings.md). Their vectors are computed once per corpus and cached: tasks running at
+# the same time on the same corpus would each compute them. To avoid that, submit the first
+# architecture of every model first, then the whole matrix once these tasks are done, e.g.
+#   ARRAY_SPEC=0-43:4 train_distributed_array.sh train scibert-contextual
+#
 # Environment overrides:
 #   MAX_PARALLEL_JOBS  maximum number of array tasks running at once (default: 4)
 #   ARRAY_SPEC         SLURM array index spec, e.g. "3,7,12-15" to re-run a few failed
@@ -10,6 +16,8 @@
 #   DRY_RUN            when "true", print every task command instead of submitting
 #   LOG_DIR            log directory (default: ~/slurm_logs/<profile>_array_<timestamp>)
 #   PYTHON_BIN         interpreter to use (default: .venv/bin/python)
+#   CONTAINER_WORKDIR  checkout the tasks run from, e.g. a git worktree of another branch
+#                      (default: /netscratch/lfoppiano/delft/delft-pytorch2)
 #   LEARNING_RATE      header profile only (default: 1e-3)
 
 set -euo pipefail
@@ -19,6 +27,7 @@ EMBEDDING=${2:-glove-840B}
 MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 DRY_RUN=${DRY_RUN:-false}
 PYTHON_BIN=${PYTHON_BIN:-.venv/bin/python}
+CONTAINER_WORKDIR=${CONTAINER_WORKDIR:-/netscratch/lfoppiano/delft/delft-pytorch2}
 PYTHON_CMD=("$PYTHON_BIN" -m delft.applications.grobidTagger)
 
 ARCHITECTURES=(
@@ -176,7 +185,7 @@ mkdir -p "$LOG_DIR"
 
 job_id=$(sbatch \
     --container-mounts="/netscratch:/netscratch,$HOME:$HOME" \
-    --container-workdir=/netscratch/lfoppiano/delft/delft-pytorch2 \
+    --container-workdir="$CONTAINER_WORKDIR" \
     --container-image=/netscratch/lfoppiano/enroot/delft-pytorch.sqsh \
     --export=ALL \
     --mem=100G \
