@@ -43,3 +43,21 @@ def test_pull_without_a_selection_is_refused(hub, models_dir):
     with pytest.raises(SystemExit):
         application.main(["pull", "header", "--output", models_dir])
     assert not os.path.exists(models_dir)
+
+
+def test_push_a_model_to_the_repository_of_its_task(hub, tmp_path):
+    from tests.utilities.test_hub_publish import _save
+
+    _save(tmp_path / "models", "grobid-figure-BidLSTM_CRF-v2")
+    reference = application.main(["push", "grobid-figure-BidLSTM_CRF-v2", "--input", str(tmp_path / "models")])
+    assert str(reference) == "hf://lfoppiano/grobid-model-figure/grobid-figure-BidLSTM_CRF-v2"
+    assert application.main(["list", "figure"]) == ["grobid-figure-BidLSTM_CRF-v2"]
+
+
+def test_push_a_directory_to_a_given_place(hub, tmp_path):
+    from tests.utilities.test_hub_publish import _save
+
+    _, model_dir = _save(tmp_path / "models", "grobid-figure-BidLSTM_CRF")
+    reference = application.main(["push", model_dir, "--to", "hf://buckets/someone/scratch", "--private"])
+    assert str(reference) == "hf://buckets/someone/scratch/grobid-figure-BidLSTM_CRF"
+    assert hub.created == [("someone/scratch", True)]
