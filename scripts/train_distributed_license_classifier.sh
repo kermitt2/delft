@@ -18,6 +18,7 @@ SBATCH_OPTS="--container-mounts=/netscratch:/netscratch,$HOME:$HOME \
 --time=3-00:00"
 
 PYTHON_CMD=".venv/bin/python -m delft.applications.licenseClassifier"
+EMBEDDING=${1:-glove-840B}
 
 # Training parameters
 ARCHITECTURE="gru"
@@ -45,7 +46,7 @@ job_id=$(sbatch $SBATCH_OPTS \
     --job-name="$JOB_NAME" \
     --output="$LOG_FILE" \
     --error="$LOG_FILE" \
-    --wrap="$PYTHON_CMD train --architecture $ARCHITECTURE" 2>&1 | grep -oP '\d+')
+    --wrap="$PYTHON_CMD train --architecture $ARCHITECTURE --embedding $EMBEDDING" 2>&1 | grep -oP '\d+')
 
 if [[ -n "$job_id" ]]; then
     JOB_IDS+=("$job_id")
