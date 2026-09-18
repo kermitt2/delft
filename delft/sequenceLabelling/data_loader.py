@@ -27,7 +27,6 @@ from delft.utilities.dataloader_utils import (
     safe_multiprocessing_context as _safe_multiprocessing_context,
 )
 from delft.utilities.numpy import shuffle_triple_with_view
-from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
 from delft.utilities.Utilities import truncate_batch_values
 
@@ -360,6 +359,7 @@ class TransformerDataset(Dataset):
             attention_mask,
             input_chars,
             input_features,
+            input_word_starts,
             input_labels,
             input_offsets,
         ) = self.bert_preprocessor.tokenize_and_align_features_and_labels(
@@ -372,10 +372,12 @@ class TransformerDataset(Dataset):
         # padding was found, and every sequence kept the full max_sequence_length
         actual_len = int(sum(attention_mask[0]))
 
-        # 1 on the first sub-token of each word, 0 on special tokens, continuation
-        # sub-tokens and padding. A model predicts one label per sub-token; the
-        # label of a word is the one predicted at its first sub-token.
-        word_start_mask = [0 if label == PAD else 1 for label in input_labels[0][:actual_len]]
+        # the number of words starting on each sub-token: 1 on the first sub-token of a
+        # word, 0 on special tokens, continuation sub-tokens and padding, and more on a
+        # sub-token spanning several words (whole text tokenization). A model predicts
+        # one label per sub-token; the label of a word is the one predicted at its first
+        # sub-token, which the words a sub-token spans share.
+        word_start_mask = input_word_starts[0][:actual_len]
 
         # Process labels
         if y_item is not None:
@@ -425,9 +427,8 @@ class TransformerDataset(Dataset):
         special_ids = set(self.bert_preprocessor.tokenizer.all_special_ids)
         aligned = []
         word = -1
-        for input_id, is_word_start in zip(input_ids, word_start_mask):
-            if is_word_start:
-                word += 1
+        for input_id, nb_started in zip(input_ids, word_start_mask):
+            word += nb_started
             is_word = input_id not in special_ids and 0 <= word < len(per_word)
             aligned.append(per_word[word] if is_word else zeros)
         return torch.tensor(aligned, dtype=torch.float32).reshape(len(aligned), nb_columns)
@@ -506,13 +507,20 @@ def create_dataloader(
         # Without it no sub-token carries that mark, and the alignment of the labels, which
         # relies on it for these tokenizers, drops the first sub-token of every word.
         tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name, add_prefix_space=True)
-        bert_preprocessor = BERTPreprocessor(tokenizer)
+        whole_text = bool(getattr(model_config, "whole_text_tokenization", False))
+        bert_preprocessor = BERTPreprocessor(tokenizer, whole_text=whole_text)
 
         if windowing:
             # the special tokens the tokenizer adds count in max_sequence_length
             room = max(1, max_sequence_length - tokenizer.num_special_tokens_to_add(pair=False))
             x, y, features, window_bounds = _split_into_windows(
-                x, y, features, room, min(window_stride, room), role, token_costs=subtoken_costs(tokenizer)
+                x,
+                y,
+                features,
+                room,
+                min(window_stride, room),
+                role,
+                token_costs=subtoken_costs(tokenizer, whole_text=whole_text),
             )
 
         dataset = TransformerDataset(
