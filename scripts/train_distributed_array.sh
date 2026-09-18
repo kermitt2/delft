@@ -4,7 +4,7 @@
 # Usage: train_distributed_array.sh {train|train-eval|bert|bert-eval|header} [EMBEDDING]
 #
 # EMBEDDING can also name contextual embeddings from a frozen transformer (e.g. scibert-contextual,
-# see doc/embeddings.md). Their vectors are computed once per corpus and cached: tasks running at
+# see doc/embeddings.md), alone or stacked with static embeddings (glove-840B+scibert-contextual). Their vectors are computed once per corpus and cached: tasks running at
 # the same time on the same corpus would each compute them. To avoid that, submit the first
 # architecture of every model first, then the whole matrix once these tasks are done, e.g.
 #   ARRAY_SPEC=0-43:4 train_distributed_array.sh train scibert-contextual
