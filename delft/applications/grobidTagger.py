@@ -12,7 +12,7 @@ from sklearn.model_selection import train_test_split
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.model_names import GROBID_PREFIX, build_model_name, validate_suffix
-from delft.utilities.Utilities import longest_row, t_or_f
+from delft.utilities.Utilities import longest_row, parse_number_ranges, set_random_seed, t_or_f
 
 MODEL_LIST = [
     "affiliation-address",
@@ -239,6 +239,7 @@ def train(
     input_path=None,
     output_path=None,
     features_indices=None,
+    features_vocabulary_size=None,
     max_sequence_length=-1,
     batch_size=-1,
     max_epoch=-1,
@@ -247,11 +248,15 @@ def train(
     patience=-1,
     learning_rate=None,
     early_stop=None,
+    seed=None,
     multi_gpu=False,
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
     suffix=None,
+    window_stride=None,
+    text_features_indices=None,
+    continuous_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -264,8 +269,9 @@ def train(
 
     print(len(x_all), "total sequences")
 
+    set_random_seed(seed)
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(
-        x_all, y_all, f_all, test_size=0.1, shuffle=True
+        x_all, y_all, f_all, test_size=0.1, shuffle=True, random_state=seed
     )
 
     print(len(x_train), "train sequences")
@@ -305,6 +311,7 @@ def train(
         batch_size=batch_size,
         max_sequence_length=max_sequence_length,
         features_indices=features_indices,
+        features_vocabulary_size=features_vocabulary_size,
         max_epoch=max_epoch,
         multiprocessing=multiprocessing,
         early_stop=early_stop,
@@ -314,6 +321,9 @@ def train(
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        window_stride=window_stride,
+        text_features_indices=text_features_indices,
+        continuous_features_indices=continuous_features_indices,
     )
 
     if incremental:
@@ -356,6 +366,7 @@ def train_eval(
     output_path=None,
     fold_count=1,
     features_indices=None,
+    features_vocabulary_size=None,
     max_sequence_length=-1,
     batch_size=-1,
     max_epoch=-1,
@@ -364,11 +375,15 @@ def train_eval(
     patience=-1,
     learning_rate=None,
     early_stop=None,
+    seed=None,
     multi_gpu=False,
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
     suffix=None,
+    window_stride=None,
+    text_features_indices=None,
+    continuous_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -379,11 +394,12 @@ def train_eval(
         print(f"Using latest training file: {input_path}")
     x_all, y_all, f_all = load_data_and_labels_crf_file(input_path)
 
+    set_random_seed(seed)
     x_train_all, x_eval, y_train_all, y_eval, f_train_all, f_eval = train_test_split(
-        x_all, y_all, f_all, test_size=0.1, shuffle=True
+        x_all, y_all, f_all, test_size=0.1, shuffle=True, random_state=seed
     )
     x_train, x_valid, y_train, y_valid, f_train, f_valid = train_test_split(
-        x_train_all, y_train_all, f_train_all, test_size=0.1
+        x_train_all, y_train_all, f_train_all, test_size=0.1, random_state=seed
     )
 
     print(len(x_train), "train sequences")
@@ -430,11 +446,15 @@ def train_eval(
         fold_number=fold_count,
         multiprocessing=multiprocessing,
         features_indices=features_indices,
+        features_vocabulary_size=features_vocabulary_size,
         transformer_name=transformer,
         report_to_wandb=report_to_wandb,
         wandb_project=wandb_project,
         nb_workers=num_workers,
         short_model_name=short_model_name,
+        window_stride=window_stride,
+        text_features_indices=text_features_indices,
+        continuous_features_indices=continuous_features_indices,
     )
 
     if incremental:
@@ -621,6 +641,13 @@ if __name__ == "__main__":
         help="Number of fold to use when evaluating with n-fold cross validation.",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
+    parser.add_argument(
         "--architecture",
         help="Type of model architecture to be used, one of " + str(architectures),
     )
@@ -669,6 +696,42 @@ if __name__ == "__main__":
         type=int,
         default=-1,
         help="max-sequence-length parameter to be used.",
+    )
+    parser.add_argument(
+        "--features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file to use as features with a FEATURES architecture, the token being column "
+        + "0, e.g. 9-25,28. Default: every column with at most features-vocabulary-size distinct values.",
+    )
+    parser.add_argument(
+        "--features-vocabulary-size",
+        type=int,
+        default=None,
+        help="Maximum number of distinct values of a feature column (default: 12).",
+    )
+    parser.add_argument(
+        "--window-stride",
+        type=int,
+        default=None,
+        help="Cut the training sequences longer than max-sequence-length into windows of that length, one every "
+        + "window-stride (in tokens, or in sub-tokens with a transformer), instead of truncating them. A stride "
+        + "smaller than max-sequence-length makes the windows overlap. The validation and evaluation sets are then "
+        + "scored on whole sequences too.",
+    )
+    parser.add_argument(
+        "--text-features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file the text of a token is taken from, the token being column 0. For the "
+        + "models that label lines, 0,1 reads the first two tokens of a line rather than the first one.",
+    )
+    parser.add_argument(
+        "--continuous-features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file that hold numbers, given to a FEATURES architecture as numbers scaled "
+        + "to [0, 1] rather than as categories, the token being column 0, e.g. 20,21.",
     )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
@@ -781,6 +844,8 @@ if __name__ == "__main__":
             transformer=transformer,
             input_path=input_path,
             output_path=output,
+            features_indices=args.features_indices,
+            features_vocabulary_size=args.features_vocabulary_size,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             incremental=incremental,
@@ -789,11 +854,15 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
+            seed=args.seed,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
             suffix=suffix,
+            window_stride=args.window_stride,
+            text_features_indices=args.text_features_indices,
+            continuous_features_indices=args.continuous_features_indices,
         )
 
     if action == Tasks.EVAL:
@@ -828,6 +897,8 @@ if __name__ == "__main__":
             input_path=input_path,
             output_path=output,
             fold_count=args.fold_count,
+            features_indices=args.features_indices,
+            features_vocabulary_size=args.features_vocabulary_size,
             max_sequence_length=max_sequence_length,
             batch_size=batch_size,
             incremental=incremental,
@@ -836,11 +907,15 @@ if __name__ == "__main__":
             learning_rate=learning_rate,
             max_epoch=max_epoch,
             early_stop=early_stop,
+            seed=args.seed,
             multi_gpu=multi_gpu,
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
             suffix=suffix,
+            window_stride=args.window_stride,
+            text_features_indices=args.text_features_indices,
+            continuous_features_indices=args.continuous_features_indices,
         )
 
     if action == Tasks.TAG:

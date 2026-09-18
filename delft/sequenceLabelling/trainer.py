@@ -7,7 +7,8 @@ Provides training loop, evaluation, and callbacks for PyTorch models.
 import json
 import logging
 import os
-from typing import Any, Callable, Dict, List
+import tempfile
+from typing import Any, Callable, Dict, List, Optional
 
 import torch
 import torch.nn as nn
@@ -19,6 +20,7 @@ from tqdm import tqdm
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.preprocess import Preprocessor
+from delft.sequenceLabelling.windows import join_scored_windows
 from delft.utilities.Utilities import pick_device
 
 # Default file names
@@ -112,6 +114,30 @@ class ModelCheckpoint:
             state_dict = model.state_dict()
         torch.save(state_dict, self.filepath)
         logger.info(f"Model saved to {self.filepath}")
+
+
+def unique_checkpoint_path(directory: str, model_name: str, suffix: str) -> str:
+    """
+    A file of its own for the best weights of one training, in ``directory``.
+
+    Named after the model alone, the file was shared by the trainings of a same model
+    running at the same time from a same directory, a sweep over hyper-parameters for
+    instance: each wrote over the weights of the others, and at its end loaded back
+    whatever was there, from another training as likely as not, then deleted it.
+    """
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+    handle, path = tempfile.mkstemp(prefix=f"{model_name}_", suffix=f"_{suffix}", dir=directory or ".")
+    os.close(handle)
+    return path
+
+
+def remove_file(path: Optional[str]):
+    if path:
+        try:
+            os.remove(path)
+        except OSError:
+            pass
 
 
 class Trainer:
@@ -208,7 +234,9 @@ class Trainer:
         # Learning rate scheduler
         # num_training_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
 
-        self.scheduler = ReduceLROnPlateau(self.optimizer, mode="max", factor=0.5, patience=2)
+        # lr_decay is the factor the learning rate is multiplied by when the validation F1
+        # has not improved for two epochs
+        self.scheduler = ReduceLROnPlateau(self.optimizer, mode="max", factor=self.training_config.lr_decay, patience=2)
 
     def train(self, train_loader, valid_loader=None, callbacks: List[Callable] = None) -> Dict[str, Any]:
         """
@@ -217,7 +245,9 @@ class Trainer:
         Args:
             train_loader: Training data loader
             valid_loader: Validation data loader (optional)
-            callbacks: List of callback functions
+            callbacks: functions called at the end of every epoch as ``callback(epoch, logs)``,
+                with the number of the epoch, from 1, and its metrics: "loss", and with a
+                validation set "val_loss", "f1", "precision", "recall" and "learning_rate"
 
         Returns:
             Training history dictionary
@@ -230,16 +260,30 @@ class Trainer:
         )
         self.compile_model(train_size)
 
-        # Set up callbacks
         early_stopping = EarlyStopping(patience=self.training_config.patience)
 
-        # Use model-specific checkpoint filename to avoid conflicts between architectures
-        checkpoint_filename = f"{self.config.model_name}_{DEFAULT_WEIGHT_FILE_NAME}"
-        checkpoint_filepath = (
-            os.path.join(self.checkpoint_path, checkpoint_filename) if self.checkpoint_path else checkpoint_filename
-        )
+        # files are written by the main process only
+        is_main = True
+        if self.distributed:
+            from delft.utilities.distributed import is_main_process
+
+            is_main = is_main_process()
+
+        checkpoint_filepath = None
+        if is_main and valid_loader is not None:
+            checkpoint_filepath = unique_checkpoint_path(
+                self.checkpoint_path, self.config.model_name, DEFAULT_WEIGHT_FILE_NAME
+            )
         checkpoint = ModelCheckpoint(checkpoint_filepath)
 
+        try:
+            return self._run_epochs(train_loader, valid_loader, callbacks or [], early_stopping, checkpoint, is_main)
+        finally:
+            # the best weights are a temporary file: the wrapper saves the model
+            remove_file(checkpoint_filepath)
+
+    def _run_epochs(self, train_loader, valid_loader, callbacks, early_stopping, checkpoint, is_main):
+        checkpoint_filepath = checkpoint.filepath
         history = {"loss": [], "val_loss": [], "f1": [], "precision": [], "recall": []}
 
         best_f1 = 0.0
@@ -269,7 +313,8 @@ class Trainer:
                 loss.backward()
 
                 # Gradient clipping
-                torch.nn.utils.clip_grad_norm_(self.model.parameters(), 1.0)
+                if self.training_config.clip_gradients:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.training_config.clip_gradients)
 
                 self.optimizer.step()
 
@@ -300,20 +345,8 @@ class Trainer:
                 self.scheduler.step(val_metrics["f1"])
 
                 # Model checkpoint - only on main process
-                should_save = True
-                if self.distributed:
-                    from delft.utilities.distributed import is_main_process
-
-                    should_save = is_main_process()
-
-                if should_save and checkpoint(self._unwrapped_model, val_metrics["f1"]):
+                if is_main and checkpoint(self._unwrapped_model, val_metrics["f1"]):
                     best_f1 = val_metrics["f1"]
-                    pass
-
-                # Early stopping
-                if self.training_config.early_stop and early_stopping(val_metrics["f1"]):
-                    print(f"Early stopping at epoch {epoch + 1}")
-                    break
 
                 # Log to wandb
                 if self.enable_wandb:
@@ -331,28 +364,55 @@ class Trainer:
             else:
                 print(f"Epoch {epoch + 1}: loss={avg_train_loss:.4f}")
 
-        # Load best model from model-specific checkpoint and cleanup (only on main process)
-        best_model_path = checkpoint_filepath
-        should_load = True
-        if self.distributed:
-            from delft.utilities.distributed import barrier, is_main_process
+            logs = {"loss": avg_train_loss}
+            if valid_loader is not None:
+                logs.update(
+                    val_loss=val_metrics.get("loss", 0),
+                    f1=val_metrics["f1"],
+                    precision=val_metrics["precision"],
+                    recall=val_metrics["recall"],
+                    learning_rate=self.optimizer.param_groups[0]["lr"],
+                )
+            if is_main:
+                self._keep_epoch_checkpoint(epoch + 1)
+            for callback in callbacks:
+                callback(epoch + 1, logs)
 
-            should_load = is_main_process()
+            # Early stopping
+            if valid_loader is not None and self.training_config.early_stop and early_stopping(val_metrics["f1"]):
+                print(f"Early stopping at epoch {epoch + 1}")
+                break
 
-        if should_load and os.path.exists(best_model_path):
-            self._unwrapped_model.load_state_dict(torch.load(best_model_path, map_location=self.device))
-            # Remove checkpoint file - the wrapper will save the final model
-            try:
-                os.remove(best_model_path)
-                logger.info(f"Removed temporary checkpoint: {best_model_path}")
-            except OSError:
-                pass  # Ignore if file can't be removed
+        # Load the best weights back (only on main process); train() removes the file.
+        # It is empty when no epoch was validated.
+        if is_main and checkpoint.best_score is not None and os.path.getsize(checkpoint_filepath) > 0:
+            self._unwrapped_model.load_state_dict(torch.load(checkpoint_filepath, map_location=self.device))
 
         # Synchronize all processes after loading
         if self.distributed:
+            from delft.utilities.distributed import barrier
+
             barrier()
 
         return history
+
+    def _keep_epoch_checkpoint(self, epoch: int):
+        """
+        With ``max_checkpoints_to_keep`` above 0, save the weights of every epoch in the
+        checkpoint directory as ``<model name>-epoch<N>.pt`` and keep those of the last
+        epochs only. They stay there after the training.
+        """
+        nb_to_keep = self.training_config.max_checkpoints_to_keep or 0
+        if nb_to_keep <= 0:
+            return
+        directory = self.checkpoint_path or "."
+        os.makedirs(directory, exist_ok=True)
+
+        def path(n):
+            return os.path.join(directory, f"{self.config.model_name}-epoch{n}.pt")
+
+        torch.save(self._unwrapped_model.state_dict(), path(epoch))
+        remove_file(path(epoch - nb_to_keep) if epoch > nb_to_keep else None)
 
     def evaluate(self, data_loader) -> Dict[str, float]:
         """
@@ -406,6 +466,8 @@ class Trainer:
                                 valid_label.append(l)
                         all_predictions.append(valid_pred)
                         all_labels.append(valid_label)
+
+        all_predictions, all_labels = join_scored_windows(data_loader, all_predictions, all_labels)
 
         # Convert indices back to labels
         if self.preprocessor:
@@ -543,6 +605,8 @@ class Scorer:
                                 valid_label.append(l)
                         all_predictions.append(valid_pred)
                         all_labels.append(valid_label)
+
+        all_predictions, all_labels = join_scored_windows(self.valid_loader, all_predictions, all_labels)
 
         # Convert to labels and compute metrics
         if self.preprocessor:

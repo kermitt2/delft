@@ -211,24 +211,6 @@ def test_tags_with_either_crf_layer(architecture):
     assert all(tag in preprocessor.vocab_tag for _, tag in tagged)
 
 
-@pytest.fixture
-def wordpiece_tokenizer():
-    """A BERT-like tokenizer built in memory, so that no model is downloaded."""
-    from tokenizers import Tokenizer, models, pre_tokenizers, processors
-    from transformers import PreTrainedTokenizerFast
-
-    vocabulary = ["[PAD]", "[UNK]", "[CLS]", "[SEP]", "Jim", "He", "##nson", "##ization", "was", "a"]
-    vocabulary += ["puppet", "##eer", "in", "Mississippi", "today"]
-    tokenizer = Tokenizer(models.WordPiece({token: i for i, token in enumerate(vocabulary)}, unk_token="[UNK]"))
-    tokenizer.pre_tokenizer = pre_tokenizers.Whitespace()
-    tokenizer.post_processor = processors.TemplateProcessing(
-        single="[CLS] $A [SEP]", special_tokens=[("[CLS]", 2), ("[SEP]", 3)]
-    )
-    return PreTrainedTokenizerFast(
-        tokenizer_object=tokenizer, pad_token="[PAD]", unk_token="[UNK]", cls_token="[CLS]", sep_token="[SEP]"
-    )
-
-
 class TestTaggerTransformerAlignment:
     """A transformer predicts one label per sub-token: a word takes the label predicted
     at its first sub-token, not the one at the position of the word."""
@@ -251,6 +233,37 @@ class TestTaggerTransformerAlignment:
         tagged = self._tag(wordpiece_tokenizer, 32, [WORDS[:3], WORDS])
         assert _tags(tagged[0]) == self.FIRST_SUB_TOKENS[:3]
         assert _tags(tagged[1]) == self.FIRST_SUB_TOKENS
+
+
+class TestTaggerScores:
+    """The score of a label is its probability among the labels."""
+
+    def test_json_scores_are_softmax_probabilities(self):
+        from delft.sequenceLabelling.config import ModelConfig
+        from delft.sequenceLabelling.preprocess import Preprocessor
+        from delft.sequenceLabelling.tagger import Tagger
+
+        preprocessor = Preprocessor(return_chars=True)
+        preprocessor.fit([["Jim", "was"]], [["B-per", "O"]])
+        nb_tags = len(preprocessor.vocab_tag)
+        per = preprocessor.vocab_tag["B-per"]
+
+        class OneLabelModel(torch.nn.Module):
+            def forward(self, inputs):
+                nb_rows, length = inputs["char_input"].shape[:2]
+                logits = torch.zeros(nb_rows, length, nb_tags)
+                logits[:, :, per] = 2.0
+                return {"logits": logits}
+
+        model_config = ModelConfig(model_name="test", architecture="BidLSTM", embeddings_name=None, batch_size=2)
+        tagger = Tagger(OneLabelModel(), model_config, preprocessor=preprocessor, device=torch.device("cpu"))
+        entities = tagger.tag(["Jim"], "json")["texts"][0]["entities"]
+
+        expected = torch.softmax(torch.tensor([2.0] + [0.0] * (nb_tags - 1)), dim=-1)[0].item()
+        assert [entity["class"] for entity in entities] == ["per"]
+        assert entities[0]["score"] == pytest.approx(expected)
+        # what it was: the sigmoid of the logit, which is no probability among the labels
+        assert entities[0]["score"] != pytest.approx(torch.sigmoid(torch.tensor(2.0)).item())
 
 
 class TestTaggerWorkers:

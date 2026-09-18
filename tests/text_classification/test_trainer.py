@@ -200,3 +200,74 @@ class TestRestoreBestWeights:
         wrapped = _Wrapper(_TinyModel(value=9.0))
         assert restore_best_weights(wrapped, checkpoint) is True
         assert torch.allclose(wrapped.module.linear.weight, torch.ones_like(wrapped.module.linear.weight))
+
+
+class _LossFnClassifier(_StubClassifier):
+    """As the DeLFT classifiers: the loss function is an attribute of the model."""
+
+    def __init__(self):
+        super().__init__()
+        self.loss_fn = nn.BCEWithLogitsLoss()
+
+    def forward(self, inputs, labels=None):
+        logits = self.linear(inputs)
+        return {"loss": self.loss_fn(logits, labels) if labels is not None else None, "logits": logits}
+
+
+def _configured_trainer(tmp_path, model=None, **training_options):
+    model_config = ModelConfig(model_name="test-config", architecture="gru", list_classes=["a", "b"])
+    training_config = TrainingConfig(learning_rate=1e-3, max_epoch=1, **training_options)
+    return Trainer(
+        model or _LossFnClassifier(), model_config, training_config, device="cpu", checkpoint_path=str(tmp_path)
+    )
+
+
+class TestTrainingConfiguration:
+    """clip_gradients and class_weights were accepted and had no effect."""
+
+    def test_gradients_are_clipped_at_the_value_of_the_configuration(self, tmp_path, monkeypatch):
+        calls = []
+        monkeypatch.setattr(torch.nn.utils, "clip_grad_norm_", lambda parameters, max_norm: calls.append(max_norm))
+        _configured_trainer(tmp_path, clip_gradients=2.5).train(_loader())
+        assert calls == [2.5, 2.5]
+
+    def test_no_clipping_when_the_configuration_says_so(self, tmp_path, monkeypatch):
+        calls = []
+        monkeypatch.setattr(torch.nn.utils, "clip_grad_norm_", lambda parameters, max_norm: calls.append(max_norm))
+        _configured_trainer(tmp_path, clip_gradients=0).train(_loader())
+        assert calls == []
+
+    def test_class_weights_weigh_the_loss_of_each_class(self, tmp_path):
+        trainer = _configured_trainer(tmp_path, class_weights={0: 1.5, 1: 1.0})
+        assert trainer.model.loss_fn.weight.tolist() == [1.5, 1.0]
+
+        logits, labels = torch.zeros(1, 2), torch.tensor([[1.0, 1.0]])
+        unweighted = nn.BCEWithLogitsLoss()(logits, labels)
+        assert torch.isclose(trainer.model.loss_fn(logits, labels), unweighted * 1.25)
+
+    def test_a_class_without_a_weight_counts_for_one(self, tmp_path):
+        assert _configured_trainer(tmp_path, class_weights={1: 3.0}).model.loss_fn.weight.tolist() == [1.0, 3.0]
+
+    def test_a_weight_for_a_class_the_model_does_not_have(self, tmp_path):
+        import pytest
+
+        with pytest.raises(ValueError, match="no class 2"):
+            _configured_trainer(tmp_path, class_weights={2: 3.0})
+
+    def test_no_weights_leave_the_loss_as_it_is(self, tmp_path):
+        assert _configured_trainer(tmp_path).model.loss_fn.weight is None
+
+
+class TestCheckpointFile:
+    def test_nothing_is_left_behind(self, tmp_path):
+        loader = _loader()
+        _configured_trainer(tmp_path).train(loader, valid_loader=loader)
+        assert os.listdir(tmp_path) == []
+
+    def test_the_best_weights_of_another_training_are_not_loaded(self, tmp_path):
+        """The file was named after the model: two trainings of a same model shared it."""
+        stale = tmp_path / "test-config_best_model.pth"
+        torch.save({"not": "the weights of this model"}, stale)
+        loader = _loader()
+        _configured_trainer(tmp_path).train(loader, valid_loader=loader)
+        assert os.listdir(tmp_path) == [stale.name]

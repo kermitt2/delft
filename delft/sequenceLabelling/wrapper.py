@@ -24,6 +24,7 @@ from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
+from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position
 from delft.sequenceLabelling.trainer import (
     CONFIG_FILE_NAME,
     DEFAULT_WEIGHT_FILE_NAME,
@@ -31,6 +32,7 @@ from delft.sequenceLabelling.trainer import (
     Scorer,
     Trainer,
 )
+from delft.sequenceLabelling.windows import join_scored_windows
 from delft.utilities.cuda_setup import configure_cudnn_for_device, validate_device_arch_compatibility
 from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
@@ -76,8 +78,8 @@ class Sequence(object):
         batch_size=20,
         optimizer="adam",
         learning_rate=None,
-        lr_decay=0.9,
-        clip_gradients=5.0,
+        lr_decay=0.5,
+        clip_gradients=1.0,
         max_epoch=50,
         early_stop=True,
         patience=5,
@@ -86,12 +88,16 @@ class Sequence(object):
         fold_number=1,
         multiprocessing=True,
         features_indices=None,
+        features_vocabulary_size: int = None,
         transformer_name: str = None,
         report_to_wandb=False,
         wandb_project: str = None,
         device=None,
         nb_workers: int = None,
         short_model_name: str = None,
+        window_stride: int = None,
+        text_features_indices=None,
+        continuous_features_indices=None,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -136,7 +142,8 @@ class Sequence(object):
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
-            word_emb_size = self.embeddings.embed_size
+            # one vector per column the text of a token is taken from
+            word_emb_size = self.embeddings.embed_size * tokens_per_position(text_features_indices)
         else:
             self.embeddings = None
             word_emb_size = 0
@@ -162,8 +169,13 @@ class Sequence(object):
             fold_number=fold_number,
             batch_size=batch_size,
             features_indices=features_indices,
+            features_vocabulary_size=features_vocabulary_size or ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
             transformer_name=transformer_name,
+            window_stride=window_stride,
+            text_features_indices=text_features_indices,
+            continuous_features_indices=continuous_features_indices,
         )
+        self.window_stride = window_stride
 
         self.training_config = TrainingConfig(
             learning_rate,
@@ -360,17 +372,11 @@ class Sequence(object):
             from delft.utilities.distributed import is_main_process
 
         # Concatenate all data for vocabulary building
-        if x_valid is not None:
-            x_all = np.concatenate((x_train, x_valid), axis=0)
-        else:
-            x_all = x_train
-
-        if y_valid is not None:
-            y_all = np.concatenate((y_train, y_valid), axis=0)
-        else:
-            y_all = y_train
-
-        features_all = concatenate_or_none((f_train, f_valid), axis=0)
+        x_all = concatenate_or_none((x_train, x_valid))
+        y_all = concatenate_or_none((y_train, y_valid))
+        features_all = concatenate_or_none((f_train, f_valid))
+        # the characters are those of the text the model reads, which may come from the features
+        x_all = text_from_features(x_all, features_all, self.model_config.text_features_indices)
 
         if incremental:
             if self.model is None and self.models is None:
@@ -407,6 +413,7 @@ class Sequence(object):
             num_workers=self.nb_workers,
             distributed=distributed,
             role="train",
+            window_stride=self.model_config.window_stride,
         )
 
         valid_loader = None
@@ -423,6 +430,7 @@ class Sequence(object):
                 num_workers=self.nb_workers,
                 distributed=distributed,
                 role="valid",
+                window_stride=self._scoring_window_stride(),
             )
 
         # Use model output directory for checkpoints to keep files organized
@@ -463,9 +471,10 @@ class Sequence(object):
         multi_gpu=False,
     ):
         """Train with n-fold cross validation."""
-        x_all = np.concatenate((x_train, x_valid), axis=0) if x_valid is not None else x_train
-        y_all = np.concatenate((y_train, y_valid), axis=0) if y_valid is not None else y_train
-        features_all = concatenate_or_none((f_train, f_valid), axis=0)
+        x_all = concatenate_or_none((x_train, x_valid))
+        y_all = concatenate_or_none((y_train, y_valid))
+        features_all = concatenate_or_none((f_train, f_valid))
+        x_all = text_from_features(x_all, features_all, self.model_config.text_features_indices)
 
         # Use model output directory for checkpoints
         model_output_dir = os.path.join("data/models/sequenceLabelling/", self.model_config.model_name)
@@ -487,10 +496,14 @@ class Sequence(object):
             fold_start = fold_size * fold_id
             fold_end = fold_start + fold_size if fold_id < fold_count - 1 else len(x_train)
 
-            fold_x_train = np.concatenate([x_train[:fold_start], x_train[fold_end:]])
-            fold_y_train = np.concatenate([y_train[:fold_start], y_train[fold_end:]])
+            fold_x_train = concatenate_or_none([x_train[:fold_start], x_train[fold_end:]])
+            fold_y_train = concatenate_or_none([y_train[:fold_start], y_train[fold_end:]])
             fold_x_valid = x_train[fold_start:fold_end]
             fold_y_valid = y_train[fold_start:fold_end]
+            fold_f_train = fold_f_valid = None
+            if f_train is not None:
+                fold_f_train = concatenate_or_none([f_train[:fold_start], f_train[fold_end:]])
+                fold_f_valid = f_train[fold_start:fold_end]
 
             # Create model for this fold
             fold_model = get_model(self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True)
@@ -506,10 +519,12 @@ class Sequence(object):
                 preprocessor=self.p,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
+                features=fold_f_train,
                 shuffle=True,
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{fold_id}-train",
+                window_stride=self.model_config.window_stride,
             )
             valid_loader = create_dataloader(
                 fold_x_valid,
@@ -517,10 +532,12 @@ class Sequence(object):
                 preprocessor=self.p,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
+                features=fold_f_valid,
                 shuffle=False,
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{fold_id}-valid",
+                window_stride=self._scoring_window_stride(),
             )
 
             trainer = Trainer(
@@ -534,6 +551,14 @@ class Sequence(object):
             trainer.train(train_loader, valid_loader)
 
             self.models.append(fold_model)
+
+    def _scoring_window_stride(self):
+        """
+        The validation and evaluation sets are cut into windows when the training set is,
+        but side by side: each token is then scored once, and the windows of a sequence
+        are put back together before scoring.
+        """
+        return self.model_config.max_sequence_length if self.model_config.window_stride else None
 
     def eval(self, x_test, y_test, features=None):
         """Evaluate the model."""
@@ -561,6 +586,7 @@ class Sequence(object):
             model_config=self.model_config,
             num_workers=self.nb_workers,
             role="eval",
+            window_stride=self._scoring_window_stride(),
         )
 
         # Evaluate
@@ -589,6 +615,8 @@ class Sequence(object):
                             valid_label.append(l)
                     all_predictions.append(valid_pred)
                     all_labels.append(valid_label)
+
+        all_predictions, all_labels = join_scored_windows(test_loader, all_predictions, all_labels)
 
         # Convert to labels
         idx_to_label = {idx: label for label, idx in self.p.vocab_tag.items()}
@@ -643,6 +671,7 @@ class Sequence(object):
                 model_config=self.model_config,
                 num_workers=self.nb_workers,
                 role=f"fold{i}-eval",
+                window_stride=self._scoring_window_stride(),
             )
 
             scorer = Scorer(test_loader, self.p, evaluation=True)
@@ -798,6 +827,8 @@ class Sequence(object):
 
     def _load_from_directory(self, model_path, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
+        if self.window_stride is not None:
+            self.model_config.window_stride = self.window_stride
 
         if self.model_config.embeddings_name is not None:
             self.embeddings = Embeddings(
@@ -805,7 +836,9 @@ class Sequence(object):
                 resource_registry=self.registry,
                 use_cache=False,
             )
-            self.model_config.word_embedding_size = self.embeddings.embed_size
+            self.model_config.word_embedding_size = self.embeddings.embed_size * tokens_per_position(
+                self.model_config.text_features_indices
+            )
         else:
             self.embeddings = None
             self.model_config.word_embedding_size = 0

@@ -499,13 +499,17 @@ def truecase_sentence(tokens):
 
 def download_file(url, path, filename=None):
     """
-    Download with Python requests which handle well compression
+    Download with Python requests which handle well compression.
+
+    Returns the path of the downloaded file, None when the download failed. The file is
+    written under another name and renamed when complete, so that a download that fails
+    half-way leaves nothing that could be taken for the file.
     """
     # check path
     if path is None or not os.path.isdir(path):
         print("Invalid destination directory:", path)
+        return None
     HEADERS = {"""User-Agent""": """Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:81.0) Gecko/20100101 Firefox/81.0"""}
-    result = "fail"
     print("downloading", url)
 
     if filename is None:
@@ -513,35 +517,36 @@ def download_file(url, path, filename=None):
         a = urlparse(url)
         filename = os.path.basename(a.path)
     destination = os.path.join(path, filename)
+    partial = destination + ".part"
     try:
         resp = requests.get(url, stream=True, allow_redirects=True, headers=HEADERS)
-        total_length = resp.headers.get("content-length")
+        if resp.status_code != 200:
+            print("Download failed for {0}: HTTP status {1}".format(url, resp.status_code))
+            return None
 
-        if total_length is None and resp.status_code == 200:
-            # no content length header available, can't have a progress bar :(
-            with open(destination, "wb") as f_out:
-                f_out.write(resp.content)
-        elif resp.status_code == 200:
-            total = int(total_length)
-            with (
-                open(destination, "wb") as f_out,
-                tqdm(
-                    desc=destination,
-                    total=total,
-                    unit="iB",
-                    unit_scale=True,
-                    unit_divisor=1024,
-                ) as bar,
-            ):
-                for data in resp.iter_content(chunk_size=1024):
-                    size = f_out.write(data)
-                    bar.update(size)
-            result = "success"
+        # without a content length header there is no total for the progress bar
+        total_length = resp.headers.get("content-length")
+        with (
+            open(partial, "wb") as f_out,
+            tqdm(
+                desc=destination,
+                total=int(total_length) if total_length is not None else None,
+                unit="iB",
+                unit_scale=True,
+                unit_divisor=1024,
+            ) as bar,
+        ):
+            for data in resp.iter_content(chunk_size=1024 * 64):
+                size = f_out.write(data)
+                bar.update(size)
+        os.replace(partial, destination)
+        return destination
     except Exception as e:
         print("Download failed for {0} with requests".format(url), "\nError:", e)
-    if result == "success":
-        return destination
-    else:
+        try:
+            os.remove(partial)
+        except OSError:
+            pass
         return None
 
 
@@ -597,6 +602,46 @@ if __name__ == "__main__":
         convert_conll2012_to_iob2(data_path, output_path)
     elif dataset_type == "ontonotes":
         ontonotes_conll2012_names(data_path, output_path)
+
+
+def set_random_seed(seed):
+    """
+    Seed the random number generators a training draws from (Python, NumPy, PyTorch), so
+    that it can be run again with the same split of the data, the same initial weights
+    and the same order of the batches. None leaves them as they are.
+
+    Two runs are then the same on a same machine; some GPU operations stay
+    non-deterministic, and results differ between devices.
+    """
+    if seed is None:
+        return
+    import random
+
+    import torch
+
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(seed)
+
+
+def parse_number_ranges(arg):
+    """
+    The numbers of a list such as "9-12,15,20-22", for a command line argument:
+    [9, 10, 11, 12, 15, 20, 21, 22].
+    """
+    numbers = []
+    for part in str(arg).split(","):
+        bounds = part.strip().split("-")
+        try:
+            first, last = int(bounds[0]), int(bounds[-1])
+        except ValueError:
+            first, last = 0, -1
+        if len(bounds) > 2 or last < first:
+            raise argparse.ArgumentTypeError(f"Expected numbers and ranges such as 9-12,15, got: {arg}")
+        numbers.extend(range(first, last + 1))
+    return numbers
 
 
 def t_or_f(arg):

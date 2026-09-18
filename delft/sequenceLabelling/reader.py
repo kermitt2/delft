@@ -313,6 +313,19 @@ def load_data_crf_file(filepath):
     return np.asarray(sents, dtype=object), np.asarray(featureSets, dtype=object)
 
 
+_FIELD_SEPARATOR = re.compile(r"[ \t]+")
+
+
+def split_fields(line):
+    """
+    The fields of a line of a CRF matrix file, which any run of spaces and tabs separates,
+    as for CRF++ and Wapiti. Splitting on every single space gave an empty field for each
+    extra one: the lines of GROBID files whose fields are two spaces apart were read with
+    up to twice their columns, every feature ending up in another one.
+    """
+    return _FIELD_SEPARATOR.split(line.strip())
+
+
 def load_data_and_labels_crf_file(filepath):
     """
     Load data, features and label from a CRF matrix file path in CRF++ or Wapiti supported format.
@@ -378,7 +391,7 @@ def load_data_and_labels_crf_content(the_file):
                 featureSets.append(features)
                 tokens, tags, features = [], [], []
         else:
-            pieces = re.split(" |\t", line)
+            pieces = split_fields(line)
             token = pieces[0]
             tag = pieces[len(pieces) - 1]
             localFeatures = pieces[1 : len(pieces) - 1]
@@ -411,7 +424,7 @@ def load_data_crf_content(the_file):
                 featureSets.append(features)
                 tokens, features = [], []
         else:
-            pieces = re.split(" |\t", line)
+            pieces = split_fields(line)
             token = pieces[0]
             localFeatures = pieces[1 : len(pieces)]
             tokens.append(token)
@@ -457,7 +470,7 @@ def load_data_and_labels_crf_string(crfString):
                 tokens, tags, features = [], [], []
         else:
             # pieces = line.split('\t')
-            pieces = re.split(" |\t", line)
+            pieces = split_fields(line)
             token = pieces[0]
             tag = pieces[len(pieces) - 1]
             localFeatures = pieces[1 : len(pieces) - 1]
@@ -500,7 +513,7 @@ def load_data_crf_string(crfString):
                 featureSets.append(features)
                 tokens, features = [], []
         else:
-            pieces = re.split(" |\t", line)
+            pieces = split_fields(line)
             token = pieces[0]
             localFeatures = pieces[1 : len(pieces)]
             tokens.append(token)

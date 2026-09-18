@@ -17,6 +17,8 @@ from delft.sequenceLabelling.preprocess import (
     to_casing_single,
     to_vector_single,
 )
+from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position, words_and_positions
+from delft.sequenceLabelling.windows import split_into_windows, subtoken_costs
 from delft.utilities.dataloader_utils import (
     effective_num_workers as _effective_num_workers,
 )
@@ -26,7 +28,7 @@ from delft.utilities.dataloader_utils import (
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
-from delft.utilities.Utilities import len_until_first_pad, truncate_batch_values
+from delft.utilities.Utilities import truncate_batch_values
 
 
 def _worker_init_fn(worker_id):
@@ -147,10 +149,12 @@ class SequenceLabelingDataset(Dataset):
         tokenize: bool = False,
         features: Optional[List] = None,
         use_chain_crf: bool = False,
+        tokens_per_position: int = 1,
     ):
         self.x = x
         self.y = y
         self.features = features
+        self.tokens_per_position = tokens_per_position
         self.preprocessor = preprocessor
         self.embeddings = embeddings
         self.char_embed_size = char_embed_size
@@ -198,7 +202,7 @@ class SequenceLabelingDataset(Dataset):
             seq_len = 2
 
         # Get word embeddings
-        word_emb = to_vector_single(x_tokens, self.embeddings, seq_len)
+        word_emb = to_vector_single(x_tokens, self.embeddings, seq_len, tokens_per_position=self.tokens_per_position)
 
         # Get character indices. Preprocessor.transform returns [chars_padded, lengths]
         # for a list of sentences; we pass a single sentence and take element [0][0].
@@ -243,6 +247,13 @@ class SequenceLabelingDataset(Dataset):
         if self.preprocessor.return_features:
             inputs["features_input"] = torch.from_numpy(features).long()
 
+        if self.preprocessor.return_continuous_features:
+            if f_item is not None:
+                continuous = self.preprocessor.transform_continuous_features([f_item], extend=extend)[0]
+            else:
+                continuous = [[0.0] * len(self.preprocessor.feature_preprocessor.continuous_features_indices)] * seq_len
+            inputs["continuous_features_input"] = torch.tensor(continuous, dtype=torch.float32)
+
         if labels is not None:
             labels = torch.from_numpy(labels).long()
 
@@ -278,7 +289,9 @@ class TransformerDataset(Dataset):
         features: Optional[List] = None,
         use_chain_crf: bool = False,
         output_input_offsets: bool = False,
+        tokens_per_position: int = 1,
     ):
+        self.tokens_per_position = tokens_per_position
         self.x = x
         self.y = y
         self.features = features
@@ -305,7 +318,9 @@ class TransformerDataset(Dataset):
         if self.tokenize:
             x_tokens = [tokenizeAndFilterSimple(x_item)]
         else:
-            x_tokens = [x_item]
+            # a list, which the tokenizer asks for: sequences of the same length (a file with
+            # a single one, for instance) come from the readers as the rows of an array
+            x_tokens = [list(x_item)]
 
         # Truncate if needed
         seq_len = len(x_tokens[0])
@@ -330,6 +345,12 @@ class TransformerDataset(Dataset):
         # tokens, continuation sub-tokens and padding. With no labels (inference),
         # placeholders are aligned, which are only ever compared to PAD.
         alignment_labels = y_item if y_item is not None else [["O"] * len(x_tokens[0])]
+
+        # a position that holds several words is sub-tokenized word by word
+        words, word_positions = x_tokens, None
+        if self.tokens_per_position > 1:
+            sequence_words, positions = words_and_positions(x_tokens[0])
+            words, word_positions = [sequence_words], [positions]
         (
             input_ids,
             token_type_ids,
@@ -339,11 +360,14 @@ class TransformerDataset(Dataset):
             input_labels,
             input_offsets,
         ) = self.bert_preprocessor.tokenize_and_align_features_and_labels(
-            x_tokens, batch_c, sub_f, alignment_labels, maxlen=self.max_sequence_length
+            words, batch_c, sub_f, alignment_labels, maxlen=self.max_sequence_length, word_positions=word_positions
         )
 
         # Get actual length
-        actual_len = len_until_first_pad(input_ids[0], 0)
+        # from the attention mask rather than from the padding id, which is only 0 for some
+        # tokenizers (BERT, DeBERTa): with another one (RoBERTa: 1, ModernBERT: 50283) no
+        # padding was found, and every sequence kept the full max_sequence_length
+        actual_len = int(sum(attention_mask[0]))
 
         # 1 on the first sub-token of each word, 0 on special tokens, continuation
         # sub-tokens and padding. A model predicts one label per sub-token; the
@@ -371,6 +395,11 @@ class TransformerDataset(Dataset):
         if self.preprocessor.return_features:
             inputs["features_input"] = torch.tensor(input_features[0][:actual_len], dtype=torch.long)
 
+        if self.preprocessor.return_continuous_features:
+            inputs["continuous_features_input"] = self._aligned_continuous_features(
+                f_item, input_ids[0][:actual_len], word_start_mask
+            )
+
         if self.output_input_offsets:
             inputs["input_offsets"] = input_offsets[0][:actual_len]
 
@@ -378,6 +407,34 @@ class TransformerDataset(Dataset):
             labels = torch.from_numpy(labels).long()
 
         return inputs, labels
+
+    def _aligned_continuous_features(self, f_item, input_ids, word_start_mask) -> torch.Tensor:
+        """
+        The numbers of each word on all of its sub-tokens, as the categorical features are,
+        and zeros on the special tokens.
+        """
+        nb_columns = len(self.preprocessor.feature_preprocessor.continuous_features_indices)
+        zeros = [0.0] * nb_columns
+        if f_item is None:
+            return torch.zeros((len(input_ids), nb_columns), dtype=torch.float32)
+
+        per_word = self.preprocessor.transform_continuous_features(f_item)[0]
+        special_ids = set(self.bert_preprocessor.tokenizer.all_special_ids)
+        aligned = []
+        word = -1
+        for input_id, is_word_start in zip(input_ids, word_start_mask):
+            if is_word_start:
+                word += 1
+            is_word = input_id not in special_ids and 0 <= word < len(per_word)
+            aligned.append(per_word[word] if is_word else zeros)
+        return torch.tensor(aligned, dtype=torch.float32).reshape(len(aligned), nb_columns)
+
+
+def _split_into_windows(x, y, features, max_length, stride, role, token_costs=None):
+    nb_sequences = len(x)
+    x, y, features, window_counts = split_into_windows(x, y, features, max_length, stride, token_costs=token_costs)
+    print(f"[{role}] window stride {stride}: {nb_sequences} sequences make {len(x)} windows of at most {max_length}")
+    return x, y, features, window_counts
 
 
 def create_dataloader(
@@ -393,6 +450,7 @@ def create_dataloader(
     pin_memory: bool = True,
     distributed: bool = False,
     role: str = "loader",
+    window_stride: Optional[int] = None,
 ) -> DataLoader:
     """
     Create a DataLoader for a DeLFT dataset.
@@ -400,24 +458,59 @@ def create_dataloader(
 
     Args:
         distributed: If True, use DistributedSampler for multi-GPU training
+        window_stride: If set, a sequence longer than ``max_sequence_length`` is cut into
+            windows of that length, one every ``window_stride``, instead of being truncated
+            (see ``delft.sequenceLabelling.windows``). Both are counted in tokens, or in
+            sub-tokens with a transformer.
     """
+    if features is None and getattr(preprocessor, "return_features", False) is True:
+        # they were replaced by zeros, of another shape than the features the model was
+        # trained with: it labelled without a complaint, from an input that meant nothing
+        raise ValueError(
+            "This model was trained with features (layout features of GROBID, for instance): it cannot "
+            "train, evaluate or label without them. Give them with the features argument."
+        )
+
+    max_sequence_length = model_config.max_sequence_length if model_config else None
+    if window_stride and max_sequence_length and not 1 <= window_stride <= max_sequence_length:
+        raise ValueError(
+            f"window_stride must be between 1 and max_sequence_length ({max_sequence_length}), got {window_stride}"
+        )
+    windowing = bool(window_stride and max_sequence_length)
+    window_counts = None  # how many windows each sequence was cut into, to put them back together
+    # the text of a token may come from columns of its features rather than from x
+    x = text_from_features(x, features, getattr(model_config, "text_features_indices", None))
+
     if model_config and model_config.transformer_name:
         from transformers import AutoTokenizer
 
         # Initialize BERT/Transformer preprocessor
-        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name)
+        # add_prefix_space: the sequences are already split into words, and the byte-level BPE
+        # tokenizers (RoBERTa, GPT2...) only mark the start of a word with a leading space.
+        # Without it no sub-token carries that mark, and the alignment of the labels, which
+        # relies on it for these tokenizers, drops the first sub-token of every word.
+        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name, add_prefix_space=True)
         bert_preprocessor = BERTPreprocessor(tokenizer)
+
+        if windowing:
+            # the special tokens the tokenizer adds count in max_sequence_length
+            room = max(1, max_sequence_length - tokenizer.num_special_tokens_to_add(pair=False))
+            x, y, features, window_counts = _split_into_windows(
+                x, y, features, room, min(window_stride, room), role, token_costs=subtoken_costs(tokenizer)
+            )
 
         dataset = TransformerDataset(
             x,
             y,
             preprocessor=preprocessor,
             bert_preprocessor=bert_preprocessor,
-            max_sequence_length=model_config.max_sequence_length,
+            max_sequence_length=max_sequence_length,
             tokenize=False,  # Input x is usually already tokenized in DeLFT list-of-lists format
             features=features,
             use_chain_crf=model_config.use_crf if model_config else False,
+            tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
         )
+        dataset.window_counts = window_counts
 
         # Scale workers down for tiny datasets where spawn cost dominates.
         effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
@@ -447,6 +540,9 @@ def create_dataloader(
     # Default to SequenceLabelingDataset for now which covers RNNs
     # TODO: Add TransformerDataset logic if needed by checking model_config
 
+    if windowing:
+        x, y, features, window_counts = _split_into_windows(x, y, features, max_sequence_length, window_stride, role)
+
     dataset = SequenceLabelingDataset(
         x,
         y,
@@ -455,7 +551,9 @@ def create_dataloader(
         features=features,
         max_sequence_length=model_config.max_sequence_length if model_config else None,
         use_chain_crf=model_config.use_crf if model_config else False,
+        tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
     )
+    dataset.window_counts = window_counts
 
     effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
     effective_pin_memory = pin_memory and torch.cuda.is_available()

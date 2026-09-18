@@ -5,12 +5,17 @@
 ## General command line for training GROBID models in DeLFT
 
 ```
-usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT]
+usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
                        [--architecture ARCHITECTURE] [--output OUTPUT]
                        [--embedding EMBEDDING] [--transformer TRANSFORMER]
                        [--input INPUT] [--incremental]
                        [--input-model INPUT_MODEL]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH]
+                       [--features-indices FEATURES_INDICES]
+                       [--features-vocabulary-size FEATURES_VOCABULARY_SIZE]
+                       [--window-stride WINDOW_STRIDE]
+                       [--text-features-indices TEXT_FEATURES_INDICES]
+                       [--continuous-features-indices CONTINUOUS_FEATURES_INDICES]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
                        [--early-stop EARLY_STOP] [--multi-gpu]
@@ -27,6 +32,10 @@ options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
                         Number of fold to use when evaluating with n-fold cross validation.
+  --seed SEED           Seed of the random number generators, to run a training
+                        again with the same split of the data, the same
+                        initial weights and the same order of the batches.
+                        Default: not seeded, every run differs.
   --architecture ARCHITECTURE
                         Type of model architecture to be used, one of
                         ['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF',
@@ -57,6 +66,32 @@ options:
                         default one.
   --max-sequence-length MAX_SEQUENCE_LENGTH
                         max-sequence-length parameter to be used.
+  --features-indices FEATURES_INDICES
+                        Columns of the training file to use as features with
+                        a FEATURES architecture, the token being column 0,
+                        e.g. 9-25,28. Default: every column with at most
+                        features-vocabulary-size distinct values.
+  --features-vocabulary-size FEATURES_VOCABULARY_SIZE
+                        Maximum number of distinct values of a feature column
+                        (default: 12).
+  --window-stride WINDOW_STRIDE
+                        Cut the training sequences longer than
+                        max-sequence-length into windows of that length, one
+                        every window-stride (in tokens, or in sub-tokens with
+                        a transformer), instead of truncating them. A stride
+                        smaller than max-sequence-length makes the windows
+                        overlap. The validation and evaluation sets are
+                        then scored on whole sequences too.
+  --text-features-indices TEXT_FEATURES_INDICES
+                        Columns of the training file the text of a token is
+                        taken from, the token being column 0. For the models
+                        that label lines, 0,1 reads the first two tokens of a
+                        line rather than the first one.
+  --continuous-features-indices CONTINUOUS_FEATURES_INDICES
+                        Columns of the training file that hold numbers, given
+                        to a FEATURES architecture as numbers scaled to [0, 1]
+                        rather than as categories, the token being column 0,
+                        e.g. 20,21.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
   --patience PATIENCE   patience, number of extra epochs to perform after the
@@ -86,6 +121,8 @@ options:
                         Biases.
 ```
 
+
+> Add `--seed 42` to a `train` / `train_eval` command to make it reproducible: the split of the data, the initial weights and the order of the batches are then the same from a run to the next, and so are the scores on a same machine. Without it every run draws its own, and two runs cannot be compared on the same evaluation set.
 
 > Add `--wandb` to any `train` / `train_eval` / `eval` command to log the run to Weights & Biases. See [Experiment tracking (W&B)](wandb.md) for setup, project selection, and resuming a run for evaluation.
 
@@ -253,6 +290,67 @@ python3 delft/applications/grobidTagger.py citation eval --architecture *name-of
 ### Sequences longer than the model takes
 
 A model labels at most `max_sequence_length` tokens of a sequence (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). A longer sequence is truncated when it is labelled: the tokens after the cut are left out of the result, and a warning is logged. It is up to the caller to cut long sequences before sending them.
+
+### Training files
+
+The training files are CRF matrices, one token per line: the token, its features, and its label, which any run of spaces and tabs separates, as for Wapiti and CRF++. A model trained with features (a `*_FEATURES` architecture) needs them to evaluate and to label too: doing so without them is an error.
+
+### Choosing the feature columns
+
+The `*_FEATURES` architectures take the columns of the GROBID training file as categorical features, column 0 being the token. By default every column with at most 12 distinct values is used. This leaves out the lexical columns (token, prefixes, suffixes), and also any other column above the limit: in the current GROBID training files, column 25 of _segmentation_ (79 values) and the word shape of _affiliation-address_ (column 19, 133 values). The columns used, and those left out, are printed when the training starts:
+
+```text
+Features: using columns [9, 10, 11, 12, 13, 14, 15]
+Features: left out columns [0, 1, 2, 3, 4, 5, 6, 7, 8], which have more than 12 distinct values (features_vocabulary_size)
+```
+
+To choose the columns, give them with `--features-indices`, as numbers and ranges:
+
+```sh
+python3 delft/applications/grobidTagger.py header train --architecture BidLSTM_CRF_FEATURES --features-indices 9-25,28
+```
+
+Exactly these columns are then used. If one of them has more distinct values than the limit, the training stops with an error naming it, rather than going on without the column; raise the limit with `--features-vocabulary-size` to keep it. From Python, these are `Sequence(..., features_indices=[...], features_vocabulary_size=...)`.
+
+### Training sequences longer than `--max-sequence-length`
+
+A model takes at most `--max-sequence-length` tokens (sub-tokens with a transformer, where 512 sub-tokens can be less than 300 words). By default a longer training sequence is cut there and what follows is not trained on. With `--window-stride`, it is cut into windows of `--max-sequence-length` instead, one every `--window-stride`, and each window is a training example:
+
+```sh
+python3 delft/applications/grobidTagger.py fulltext train --architecture BERT_CRF --transformer allenai/scibert_scivocab_cased --max-sequence-length 512 --window-stride 256
+```
+
+The whole sequence is then trained on, and the model also sees sequences that start and end in the middle of a field, which is what it receives when the caller cuts long inputs before sending them for labelling. A stride equal to `--max-sequence-length` puts the windows side by side; a smaller one makes them overlap, for more examples per epoch.
+
+The validation and evaluation sets are then cut into windows too, but always side by side, and the windows of a sequence are put back together before scoring: each token is scored once, a field that spans two windows counts as one, and the scores cover the whole of every sequence rather than its beginning. The stride is saved with the model, so that the `eval` action evaluates a model the way it was trained. Scores obtained with and without the option are not comparable: they are not measured on the same tokens.
+
+From Python, the option is `Sequence(..., window_stride=256)`.
+
+### Models that label lines: reading more than the first token
+
+In the _segmentation_ and _reference-segmenter_ models a position of a sequence is a line, not a token. GROBID gives the first two tokens of the line in the first two columns of the training file, and by default DeLFT takes the text of a position from the first column only: the model reads one word per line.
+
+`--text-features-indices` lists the columns the text is taken from, column 0 being the token:
+
+```sh
+python3 delft/applications/grobidTagger.py segmentation train --architecture BidLSTM_CRF_FEATURES --text-features-indices 0,1
+```
+
+The text of a line is then its first two tokens: the characters of both are encoded, the word embeddings of the two are concatenated (the input of the model grows accordingly), and a transformer sub-tokenizes both, the label of the line staying on its first sub-token. The columns are saved with the model, so nothing is to be given to evaluate or to tag, except the features themselves, which `tag()` then requires. The tokens returned by `tag()` are the ones it was given.
+
+Two tokens are longer than one: consider a higher `max_char_length` (30 by default) when creating the `Sequence`. From Python, the option is `Sequence(..., text_features_indices=[0, 1])`.
+
+### Features that are numbers
+
+The `*_FEATURES` architectures take the feature columns as categories: every distinct value gets its own embedding, and a column with more than 12 distinct values is left out. A column of numbers (a position, a length, a count) fits badly: with many values it is left out, and as categories `17` and `18` have nothing in common.
+
+`--continuous-features-indices` lists columns to be given to the model as numbers, column 0 being the token:
+
+```sh
+python3 delft/applications/grobidTagger.py table train --architecture BidLSTM_CRF_FEATURES --continuous-features-indices 20,21
+```
+
+Each of these columns is scaled to [0, 1] with the minimum and maximum seen in the training data, and joins the encoded categorical features at the input of the model; it is not used as a category as well. When labelling, a value outside the range seen in training is clipped, and a value that is not a number counts as the minimum. The columns and their ranges are saved with the model. From Python, the option is `Sequence(..., continuous_features_indices=[20, 21])`.
 
 ## Calling DeLFT from GROBID
 

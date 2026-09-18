@@ -35,3 +35,42 @@ excitingly excitingly e ex exc exci y ly gly ngly NOCAPS NODIGIT 0 NOPUNCT excit
     assert x[3][1] == "replacing"
 
     assert x[4][0] == "Meanwhile"
+
+
+# the fields of the second line are two spaces apart, as in some GROBID training files,
+# and those of the third a tab apart
+SPACED = "Table table T BLOCKSTART I-<content>\n1  1  1  BLOCKIN  <content>\n:\t:\t:\tBLOCKIN\t<content>\n\n"
+
+
+class TestFieldSeparators:
+    """Splitting on every single space gave an empty field for each extra one."""
+
+    def test_split_fields(self):
+        assert reader.split_fields("a  b \t c\n") == ["a", "b", "c"]
+        assert reader.split_fields("a b") == ["a", "b"]
+
+    def test_with_labels_from_a_string(self):
+        x, y, f = reader.load_data_and_labels_crf_string(SPACED)
+        assert [list(tokens) for tokens in x] == [["Table", "1", ":"]]
+        assert [list(row) for row in f[0]] == [
+            ["table", "T", "BLOCKSTART"],
+            ["1", "1", "BLOCKIN"],
+            [":", ":", "BLOCKIN"],
+        ]
+        assert list(y[0]) == ["B-<content>", "I-<content>", "I-<content>"]
+
+    def test_with_labels_from_a_file(self, tmp_path):
+        path = tmp_path / "spaced.train"
+        path.write_text(SPACED + SPACED.replace("Table", "Figure"))
+        x, y, f = reader.load_data_and_labels_crf_file(str(path))
+        assert {len(row) for document in f for row in document} == {3}
+        assert [tokens[0] for tokens in x] == ["Table", "Figure"]
+
+    def test_without_labels(self, tmp_path):
+        unlabelled = "Table table T BLOCKSTART\n1  1  1  BLOCKIN\n\n"
+        x, f = reader.load_data_crf_string(unlabelled)
+        assert {len(row) for document in f for row in document} == {len(f[0][0])}
+        path = tmp_path / "spaced.data"
+        path.write_text(unlabelled)
+        x_file, f_file = reader.load_data_crf_file(str(path))
+        assert [list(row) for row in f_file[0]] == [list(row) for row in f[0]]

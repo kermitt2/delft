@@ -87,7 +87,7 @@ def create_single_input_bert(text, maxlen=512, transformer_tokenizer=None):
     """
 
     # TBD: exception if tokenizer is not valid/None
-    encoded_tokens = transformer_tokenizer.encode_plus(
+    encoded_tokens = transformer_tokenizer(
         text,
         truncation=True,
         add_special_tokens=True,
@@ -97,7 +97,8 @@ def create_single_input_bert(text, maxlen=512, transformer_tokenizer=None):
     # note: [CLS] and [SEP] are added by the tokenizer
 
     ids = encoded_tokens["input_ids"]
-    masks = encoded_tokens["token_type_ids"]
+    # not every tokenizer gives segment ids (RoBERTa, DistilBERT)
+    masks = encoded_tokens.get("token_type_ids")
     segments = encoded_tokens["attention_mask"]
 
     return ids, masks, segments
@@ -109,7 +110,7 @@ def create_batch_input_bert(texts, maxlen=512, transformer_tokenizer=None):
     if isinstance(texts, np.ndarray):
         texts = texts.tolist()
 
-    encoded_tokens = transformer_tokenizer.batch_encode_plus(
+    encoded_tokens = transformer_tokenizer(
         texts,
         add_special_tokens=True,
         truncation=True,
@@ -120,7 +121,8 @@ def create_batch_input_bert(texts, maxlen=512, transformer_tokenizer=None):
     # note: special tokens like [CLS] and [SEP] are added by the tokenizer
 
     ids = encoded_tokens["input_ids"]
-    masks = encoded_tokens["token_type_ids"]
+    # not every tokenizer gives segment ids (RoBERTa, DistilBERT)
+    masks = encoded_tokens.get("token_type_ids")
     segments = encoded_tokens["attention_mask"]
 
     return ids, masks, segments

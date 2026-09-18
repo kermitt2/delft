@@ -186,6 +186,19 @@ class CharacterCNNEncoder(nn.Module):
         return output
 
 
+def nb_continuous_features(config: ModelConfig) -> int:
+    """How many numbers a token comes with besides its categorical features."""
+    return len(getattr(config, "continuous_features_indices", None) or ())
+
+
+def with_continuous_features(features_encoded: torch.Tensor, inputs: Dict[str, torch.Tensor]) -> torch.Tensor:
+    """The encoded categorical features of each token, followed by its numbers when it has some."""
+    continuous = inputs.get("continuous_features_input")
+    if continuous is None:
+        return features_encoded
+    return torch.cat([features_encoded, continuous.to(features_encoded.dtype)], dim=-1)
+
+
 class BaseSequenceLabeler(nn.Module):
     """
     Base class for DeLFT PyTorch sequence labeling models.
@@ -785,7 +798,12 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         )
 
         # Input size
-        input_size = config.word_embedding_size + self.char_encoder.output_size + config.features_lstm_units * 2
+        input_size = (
+            config.word_embedding_size
+            + self.char_encoder.output_size
+            + config.features_lstm_units * 2
+            + nb_continuous_features(config)
+        )
 
         # Main BiLSTM
         self.bilstm = nn.LSTM(
@@ -836,6 +854,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
             features_encoded = features_emb.view(batch_size, seq_len, -1)
 
         features_encoded = self.dropout(features_encoded)
+        features_encoded = with_continuous_features(features_encoded, inputs)
 
         # Concatenate all inputs
         x = torch.cat([word_emb, char_encoded, features_encoded], dim=-1)
@@ -908,6 +927,7 @@ class BidLSTM_ChainCRF_FEATURES(BidLSTM_CRF_FEATURES):
             features_encoded = features_emb.view(batch_size, seq_len, -1)
 
         features_encoded = self.dropout(features_encoded)
+        features_encoded = with_continuous_features(features_encoded, inputs)
 
         # Concatenate
         x = torch.cat([word_emb, char_encoded, features_encoded], dim=-1)
@@ -1328,7 +1348,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
         )
 
         # Combined processing
-        combined_size = hidden_size + config.features_lstm_units * 2
+        combined_size = hidden_size + config.features_lstm_units * 2 + nb_continuous_features(config)
 
         self.bilstm = nn.LSTM(
             combined_size,
@@ -1372,6 +1392,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
             features_encoded = features_emb.view(batch_size, seq_len, -1)
 
         features_encoded = self.dropout(features_encoded)
+        features_encoded = with_continuous_features(features_encoded, inputs)
 
         # Combine
         x = torch.cat([text_emb, features_encoded], dim=-1)
@@ -1443,7 +1464,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
             bidirectional=True,
         )
 
-        combined_size = hidden_size + config.features_lstm_units * 2
+        combined_size = hidden_size + config.features_lstm_units * 2 + nb_continuous_features(config)
 
         self.bilstm = nn.LSTM(
             combined_size,
@@ -1453,6 +1474,8 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         )
         self.dropout = nn.Dropout(config.dropout)
         self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
+        # the CRF takes one score per label: under Keras its wrapper made this projection itself
+        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
         self.crf = CRF(ntags)
 
     def forward(
@@ -1482,12 +1505,13 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         else:
             features_encoded = features_emb.view(batch_size, seq_len, -1)
         features_encoded = self.dropout(features_encoded)
+        features_encoded = with_continuous_features(features_encoded, inputs)
 
         # Combine
         x = torch.cat([text_emb, features_encoded], dim=-1)
         lstm_out, _ = self.bilstm(x)
         lstm_out = self.dropout(lstm_out)
-        emissions = torch.tanh(self.dense(lstm_out))
+        emissions = self.dense2(torch.tanh(self.dense(lstm_out)))
 
         result = {"logits": emissions}
 
@@ -1523,7 +1547,6 @@ class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
     ):
         super().__init__(config, ntags, load_pretrained_weights, local_path)
         self.crf = ChainCRF(ntags)
-        self.dense2 = nn.Linear(config.num_word_lstm_units, ntags)
 
     def forward(
         self, inputs: Dict[str, torch.Tensor], labels: Optional[torch.Tensor] = None
@@ -1549,6 +1572,7 @@ class BERT_ChainCRF_FEATURES(BERT_CRF_FEATURES):
         else:
             features_encoded = features_emb.view(batch_size, seq_len, -1)
         features_encoded = self.dropout(features_encoded)
+        features_encoded = with_continuous_features(features_encoded, inputs)
 
         x = torch.cat([text_emb, features_encoded], dim=-1)
         lstm_out, _ = self.bilstm(x)

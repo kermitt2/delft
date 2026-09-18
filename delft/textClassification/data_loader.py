@@ -78,7 +78,8 @@ class TextClassificationDataset(Dataset):
         # Prepare Input
         if self.bert_data:
             # BERT mode: use transformer tokenizer
-            inputs = self.transformer_tokenizer.encode_plus(
+            # the tokenizer is called: encode_plus is gone from transformers 5
+            inputs = self.transformer_tokenizer(
                 text,
                 add_special_tokens=True,
                 max_length=self.maxlen,
