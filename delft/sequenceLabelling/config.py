@@ -30,6 +30,7 @@ class ModelConfig(object):
         features_lstm_units=DEFAULT_FEATURES_EMBEDDING_SIZE,
         transformer_name=None,
         window_stride=None,
+        text_features_indices=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -68,6 +69,9 @@ class ModelConfig(object):
         # training set, side by side for the validation and evaluation sets. Saved with the
         # model so that it is evaluated the way it was trained.
         self.window_stride = window_stride
+        # Columns of the features the text of a token is taken from, column 0 being the
+        # token itself; None for the token alone. See delft.sequenceLabelling.text_features.
+        self.text_features_indices = text_features_indices
 
     def save(self, file):
         with open(file, "w") as f:

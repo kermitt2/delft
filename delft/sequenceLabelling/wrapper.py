@@ -24,6 +24,7 @@ from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
 from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
+from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position
 from delft.sequenceLabelling.trainer import (
     CONFIG_FILE_NAME,
     DEFAULT_WEIGHT_FILE_NAME,
@@ -95,6 +96,7 @@ class Sequence(object):
         nb_workers: int = None,
         short_model_name: str = None,
         window_stride: int = None,
+        text_features_indices=None,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -139,7 +141,8 @@ class Sequence(object):
 
         if self.embeddings_name is not None:
             self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
-            word_emb_size = self.embeddings.embed_size
+            # one vector per column the text of a token is taken from
+            word_emb_size = self.embeddings.embed_size * tokens_per_position(text_features_indices)
         else:
             self.embeddings = None
             word_emb_size = 0
@@ -168,6 +171,7 @@ class Sequence(object):
             features_vocabulary_size=features_vocabulary_size or ModelConfig.DEFAULT_FEATURES_VOCABULARY_SIZE,
             transformer_name=transformer_name,
             window_stride=window_stride,
+            text_features_indices=text_features_indices,
         )
         self.window_stride = window_stride
 
@@ -369,6 +373,8 @@ class Sequence(object):
         x_all = concatenate_or_none((x_train, x_valid))
         y_all = concatenate_or_none((y_train, y_valid))
         features_all = concatenate_or_none((f_train, f_valid))
+        # the characters are those of the text the model reads, which may come from the features
+        x_all = text_from_features(x_all, features_all, self.model_config.text_features_indices)
 
         if incremental:
             if self.model is None and self.models is None:
@@ -466,6 +472,7 @@ class Sequence(object):
         x_all = concatenate_or_none((x_train, x_valid))
         y_all = concatenate_or_none((y_train, y_valid))
         features_all = concatenate_or_none((f_train, f_valid))
+        x_all = text_from_features(x_all, features_all, self.model_config.text_features_indices)
 
         # Use model output directory for checkpoints
         model_output_dir = os.path.join("data/models/sequenceLabelling/", self.model_config.model_name)
@@ -827,7 +834,9 @@ class Sequence(object):
                 resource_registry=self.registry,
                 use_cache=False,
             )
-            self.model_config.word_embedding_size = self.embeddings.embed_size
+            self.model_config.word_embedding_size = self.embeddings.embed_size * tokens_per_position(
+                self.model_config.text_features_indices
+            )
         else:
             self.embeddings = None
             self.model_config.word_embedding_size = 0

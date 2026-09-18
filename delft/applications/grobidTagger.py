@@ -255,6 +255,7 @@ def train(
     num_workers=None,
     suffix=None,
     window_stride=None,
+    text_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -320,6 +321,7 @@ def train(
         nb_workers=num_workers,
         short_model_name=short_model_name,
         window_stride=window_stride,
+        text_features_indices=text_features_indices,
     )
 
     if incremental:
@@ -378,6 +380,7 @@ def train_eval(
     num_workers=None,
     suffix=None,
     window_stride=None,
+    text_features_indices=None,
 ):
     short_model_name = model
     print("Loading data...")
@@ -447,6 +450,7 @@ def train_eval(
         nb_workers=num_workers,
         short_model_name=short_model_name,
         window_stride=window_stride,
+        text_features_indices=text_features_indices,
     )
 
     if incremental:
@@ -711,6 +715,13 @@ if __name__ == "__main__":
         + "smaller than max-sequence-length makes the windows overlap. The validation and evaluation sets are then "
         + "scored on whole sequences too.",
     )
+    parser.add_argument(
+        "--text-features-indices",
+        type=parse_number_ranges,
+        default=None,
+        help="Columns of the training file the text of a token is taken from, the token being column 0. For the "
+        + "models that label lines, 0,1 reads the first two tokens of a line rather than the first one.",
+    )
     parser.add_argument("--batch-size", type=int, default=-1, help="batch-size parameter to be used.")
     parser.add_argument(
         "--patience",
@@ -839,6 +850,7 @@ if __name__ == "__main__":
             num_workers=num_workers,
             suffix=suffix,
             window_stride=args.window_stride,
+            text_features_indices=args.text_features_indices,
         )
 
     if action == Tasks.EVAL:
@@ -890,6 +902,7 @@ if __name__ == "__main__":
             num_workers=num_workers,
             suffix=suffix,
             window_stride=args.window_stride,
+            text_features_indices=args.text_features_indices,
         )
 
     if action == Tasks.TAG:
