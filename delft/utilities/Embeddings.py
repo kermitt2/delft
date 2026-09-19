@@ -10,6 +10,7 @@ import shutil
 import struct
 import sys
 import threading
+import time
 import zipfile
 from urllib.parse import unquote, urlparse
 
@@ -33,6 +34,17 @@ from delft.utilities.Utilities import download_file
 
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
+
+# A database is compiled in a directory of its own next to its final path, then renamed
+# into place: a reader never sees a half-written database, whether the compilation is
+# still running or crashed. One process compiles at a time, the others wait on a lock
+# directory, which mkdir creates atomically on a network filesystem as well, where the
+# lock of LMDB itself does not hold across nodes. A lock left by a process that died is
+# ignored after STALE_BUILD_LOCK_SECONDS.
+BUILD_DIRECTORY_SUFFIX = ".building"
+BUILD_LOCK_SUFFIX = ".lock"
+STALE_BUILD_LOCK_SECONDS = 12 * 3600
+BUILD_WAIT_SECONDS = 30
 
 # modern static embeddings (sentence-transformers static embeddings, Model2Vec
 # potion models) are not a vector file to be compiled into LMDB, they are a
@@ -492,73 +504,112 @@ class Embeddings(object):
 
         else:
             # if the path to the lmdb database files does not exist, we create it
-            if not os.path.isdir(self.embedding_lmdb_path):
-                # conservative check (likely very useless)
-                if not os.path.exists(self.embedding_lmdb_path):
-                    os.makedirs(self.embedding_lmdb_path, exist_ok=True)
+            os.makedirs(self.embedding_lmdb_path, exist_ok=True)
+            description = self.get_description(name)
+            if description is not None:
+                self.lang = description["lang"]
 
-            # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
-            load_db = True
-            if os.path.isdir(envFilePath):
-                description = self.get_description(name)
-                if description is not None:
-                    self.lang = description["lang"]
+            if self._open_valid_lmdb(envFilePath):
+                return
 
-                # open the database in read mode, or reuse the environment
-                # already open on this path in the current process
-                self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
-                if self.env:
+            # no usable database: compile it, or wait for the process compiling it
+            lock_path = envFilePath + BUILD_LOCK_SUFFIX
+            while True:
+                if _acquire_build_lock(lock_path):
                     try:
-                        # we need to set self.embed_size and self.vocab_size
-                        with self.env.begin() as txn:
-                            stats = txn.stat()
-                            size = stats["entries"]
-                            self.vocab_size = size
+                        self._compile_lmdb(name, envFilePath)
+                    finally:
+                        _release_build_lock(lock_path)
+                    if self._open_valid_lmdb(envFilePath, just_compiled=True):
+                        return
+                    raise ValueError(f"The embeddings {name} could not be compiled into {envFilePath}")
 
-                        with self.env.begin() as txn:
-                            cursor = txn.cursor()
-                            for key, value in cursor:
-                                _check_lmdb_format(value)
-                                vector = _deserialize_float32(value)
-                                self.embed_size = vector.shape[0]
-                                break
-                            cursor.close()
-                    except Exception:
-                        # never leave an environment behind on the way out: the
-                        # real cause (a legacy-format database, say) would then
-                        # be masked by "already open in this process" on the
-                        # next attempt
-                        if opened:
-                            close_lmdb_env(envFilePath)
-                            self.env = None
-                        raise
+                print(f"Another process is compiling the embeddings {name}, waiting for it...")
+                while os.path.isdir(lock_path) and not _build_lock_is_stale(lock_path):
+                    time.sleep(BUILD_WAIT_SECONDS)
+                if self._open_valid_lmdb(envFilePath):
+                    return
 
-                    if self.vocab_size > 100 and self.embed_size > 10:
-                        # lmdb database exists and looks valid
-                        load_db = False
+    def _open_valid_lmdb(self, envFilePath, just_compiled=False):
+        """
+        Open the database at ``envFilePath`` for reading, when it is there and holds
+        vectors: set ``env``, ``vocab_size`` and ``embed_size`` and return True. A
+        database that is missing, half-written or damaged gives False, to be compiled
+        again; one in the legacy format raises, see ``_check_lmdb_format``.
 
-                        if opened:
-                            # no idea why, but we need to close and reopen the environment to avoid
-                            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-                            # when opening new transaction !
-                            # Only for an environment we opened ourselves: a reused
-                            # one already went through this and is read by others.
-                            close_lmdb_env(envFilePath)
-                            self.env, _ = open_lmdb_env(
-                                envFilePath,
-                                readonly=True,
-                                max_readers=2048,
-                                max_spare_txns=2,
-                            )
-
-            if load_db:
-                # create and load the database in write mode. The check above may
-                # have left a read-only environment open on this path, and write
-                # mode needs an exclusive open.
+        A database found on disk has to look like real embeddings, over a hundred
+        words of over ten dimensions, to be trusted; one this process
+        ``just_compiled`` holds whatever the embeddings file held.
+        """
+        if not os.path.isdir(envFilePath):
+            return False
+        # open the database in read mode, or reuse the environment already open on
+        # this path in the current process
+        try:
+            self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+        except lmdb.Error as e:
+            print(f"The embeddings database {envFilePath} cannot be opened ({e}): compiling it again")
+            self.env = None
+            return False
+        try:
+            with self.env.begin() as txn:
+                self.vocab_size = txn.stat()["entries"]
+            with self.env.begin() as txn:
+                cursor = txn.cursor()
+                for _key, value in cursor:
+                    _check_lmdb_format(value)
+                    self.embed_size = _deserialize_float32(value).shape[0]
+                    break
+                cursor.close()
+        except lmdb.Error as e:
+            # damaged, by a compilation that crashed or ran twice at once
+            print(f"The embeddings database {envFilePath} is damaged ({e}): compiling it again")
+            close_lmdb_env(envFilePath)
+            self.env = None
+            return False
+        except Exception:
+            # never leave an environment behind on the way out: the real cause (a
+            # legacy-format database, say) would then be masked by "already open in
+            # this process" on the next attempt
+            if opened:
                 close_lmdb_env(envFilePath)
-                self.env, _ = open_lmdb_env(envFilePath, map_size=map_size)
-                self.make_embeddings_lmdb(name)
+                self.env = None
+            raise
+
+        usable = self.vocab_size > 0 if just_compiled else (self.vocab_size > 100 and self.embed_size > 10)
+        if not usable:
+            close_lmdb_env(envFilePath)
+            self.env = None
+            return False
+
+        if opened:
+            # no idea why, but we need to close and reopen the environment to avoid
+            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+            # when opening new transaction !
+            # Only for an environment we opened ourselves: a reused
+            # one already went through this and is read by others.
+            close_lmdb_env(envFilePath)
+            self.env, _ = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
+        return True
+
+    def _compile_lmdb(self, name, envFilePath):
+        """
+        Compile the embeddings ``name`` into a database next to ``envFilePath``, and
+        move it there once complete, over whatever unusable database was there.
+        """
+        build_path = envFilePath + BUILD_DIRECTORY_SUFFIX
+        close_lmdb_env(build_path)
+        shutil.rmtree(build_path, ignore_errors=True)
+        self.env, _ = open_lmdb_env(build_path, map_size=map_size)
+        try:
+            self.make_embeddings_lmdb(name)
+        finally:
+            close_lmdb_env(build_path)
+            self.env = None
+        close_lmdb_env(envFilePath)
+        shutil.rmtree(envFilePath, ignore_errors=True)
+        os.rename(build_path, envFilePath)
 
     def get_description(self, name):
         for emb in self.registry["embeddings"]:
@@ -691,6 +742,30 @@ class Embeddings(object):
                     description["name"],
                 )
         return embeddings_path
+
+
+def _acquire_build_lock(lock_path):
+    """Take the lock of a compilation, a directory; False when another process holds it."""
+    try:
+        os.mkdir(lock_path)
+        return True
+    except FileExistsError:
+        if _build_lock_is_stale(lock_path):
+            print(f"Ignoring the compilation lock {lock_path}, left by a process that is gone")
+            shutil.rmtree(lock_path, ignore_errors=True)
+            return _acquire_build_lock(lock_path)
+        return False
+
+
+def _release_build_lock(lock_path):
+    shutil.rmtree(lock_path, ignore_errors=True)
+
+
+def _build_lock_is_stale(lock_path):
+    try:
+        return time.time() - os.path.getmtime(lock_path) > STALE_BUILD_LOCK_SECONDS
+    except OSError:
+        return False
 
 
 def _serialize_byteio(array):
