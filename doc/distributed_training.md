@@ -36,7 +36,9 @@ The script is both the submitter and the payload of the array: on the login node
 the matrix and calls `sbatch` once, with the array index range and the concurrency throttle;
 in each array task it maps `SLURM_ARRAY_TASK_ID` back onto one experiment and `exec`s the
 training. Every task gets one GPU. Set `DRY_RUN=true` to print the command of every task,
-with its index, instead of submitting anything.
+with its index, instead of submitting anything: what it prints is exactly what the tasks
+run, since the submitter hands them the settings it resolved (models, embedding, suffix,
+sweep flags) as arguments rather than through the environment.
 
 ### Standard profiles
 
