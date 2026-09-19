@@ -5,6 +5,7 @@
 # Usage:
 #   train_distributed_array.sh {train|train-eval|bert|bert-eval|license} [EMBEDDING]
 #   train_distributed_array.sh sweep MODEL [--flag value[,value...] ...]
+#   train_distributed_array.sh __task ...   (what sbatch runs in every array task)
 #
 # The standard profiles run a matrix of GROBID models by architectures (or transformers)
 # with grobidTagger; `license` runs the license classifier. EMBEDDING defaults to glove-840B;
@@ -67,14 +68,41 @@ USAGE
     exit 2
 }
 
-ORIGINAL_ARGS=("$@")  # forwarded to the array tasks as they are
 # the lists given in the environment, read before the arrays of the same names are set
 ENV_MODELS=${MODELS:-}
 ENV_ARCHITECTURES=${ARCHITECTURES:-}
 ENV_TRANSFORMERS=${TRANSFORMERS:-}
-PROFILE=${1:-}
-[[ -n "$PROFILE" ]] || usage
-shift
+
+# An array task is started with `__task` and the settings the submitter resolved, as
+# arguments: what a task runs does not depend on the environment reaching it.
+TASK_MODE=false
+TASK_ARGS=()
+if [[ "${1:-}" == __task ]]; then
+    TASK_MODE=true
+    shift
+    while (($# > 0)); do
+        case "$1" in
+            --profile) PROFILE=$2 ;;
+            --embedding) EMBEDDING=$2 ;;
+            --models) read -r -a MODELS <<<"$2" ;;
+            --items) read -r -a ITEMS <<<"$2" ;;
+            --model) MODEL=$2 ;;
+            --action) ACTION=$2 ;;
+            --wandb) WANDB=$2 ;;
+            --suffix) SUFFIX=$2 ;;
+            --incremental) INCREMENTAL=$2 ;;
+            --python-bin) PYTHON_BIN=$2 ;;
+            --) shift; TASK_ARGS=("$@"); break ;;
+            *) echo "Unknown task setting: $1" >&2; exit 2 ;;
+        esac
+        shift 2
+    done
+    set -- "${TASK_ARGS[@]}"
+else
+    PROFILE=${1:-}
+    [[ -n "$PROFILE" ]] || usage
+    shift
+fi
 
 DEFAULT_ARCHITECTURES=(BidLSTM_CRF BidLSTM_CRF_FEATURES BidLSTM_ChainCRF BidLSTM_ChainCRF_FEATURES)
 DEFAULT_TRANSFORMERS=(
@@ -126,12 +154,34 @@ join_suffix() {
     printf '%s' "$joined"
 }
 
-EMBEDDING=glove-840B
-MODEL=""
+EMBEDDING=${EMBEDDING:-glove-840B}
+MODEL=${MODEL:-}
 SWEEP_FLAGS=()             # the flags of the sweep, in the order given
 declare -A SWEEP_VALUES=() # flag -> its values, comma-separated ("" for a boolean flag)
 SWEEP_DIMENSIONS=()        # the flags with several values
 
+# The flags of a sweep, from the arguments after the model name.
+parse_sweep_flags() {
+    local flag value
+    while (($# > 0)); do
+        flag=$1
+        [[ "$flag" == --* ]] || { echo "Expected a --flag, got '$flag'" >&2; usage; }
+        shift
+        value=""
+        if (($# > 0)) && [[ "$1" != --* ]]; then
+            value=$1
+            shift
+        fi
+        [[ -z "${SWEEP_VALUES[$flag]+set}" ]] || { echo "Flag $flag given twice" >&2; exit 2; }
+        SWEEP_FLAGS+=("$flag")
+        SWEEP_VALUES[$flag]=$value
+        [[ "$value" != *,* ]] || SWEEP_DIMENSIONS+=("$flag")
+    done
+}
+
+if [[ "$TASK_MODE" == true ]]; then
+    [[ "$PROFILE" != sweep ]] || parse_sweep_flags "$@"
+else
 case "$PROFILE" in
     train)
         MODELS=(affiliation-address citation date funding-acknowledgement header name-citation
@@ -162,25 +212,22 @@ case "$PROFILE" in
         MODEL=${1:-}
         [[ -n "$MODEL" && "$MODEL" != --* ]] || usage
         shift
-        while (($# > 0)); do
-            flag=$1
-            [[ "$flag" == --* ]] || { echo "Expected a --flag, got '$flag'" >&2; usage; }
-            shift
-            value=""
-            if (($# > 0)) && [[ "$1" != --* ]]; then
-                value=$1
-                shift
-            fi
-            [[ -z "${SWEEP_VALUES[$flag]+set}" ]] || { echo "Flag $flag given twice" >&2; exit 2; }
-            SWEEP_FLAGS+=("$flag")
-            SWEEP_VALUES[$flag]=$value
-            [[ "$value" != *,* ]] || SWEEP_DIMENSIONS+=("$flag")
-        done
+        parse_sweep_flags "$@"
         ;;
     *)
         usage
         ;;
 esac
+if [[ "$PROFILE" != sweep ]]; then
+    [[ $# -le 1 ]] || usage
+    EMBEDDING=${1:-$EMBEDDING}
+    ITEMS=("${LIST[@]}")
+    if [[ "$PROFILE" != license ]]; then
+        list_from_env "$ENV_MODELS" "${MODELS[@]}"
+        MODELS=("${LIST[@]}")
+    fi
+fi
+fi
 
 if [[ "$PROFILE" == sweep ]]; then
     TOTAL_TASKS=1
@@ -189,13 +236,6 @@ if [[ "$PROFILE" == sweep ]]; then
         TOTAL_TASKS=$((TOTAL_TASKS * ${#values[@]}))
     done
 else
-    [[ $# -le 1 ]] || usage
-    EMBEDDING=${1:-$EMBEDDING}
-    ITEMS=("${LIST[@]}")
-    if [[ "$PROFILE" != license ]]; then
-        list_from_env "$ENV_MODELS" "${MODELS[@]}"
-        MODELS=("${LIST[@]}")
-    fi
     TOTAL_TASKS=$((${#MODELS[@]} * ${#ITEMS[@]}))
 fi
 
@@ -335,7 +375,19 @@ SBATCH_OPTS+=(--export=ALL
               --error="$LOG_DIR/%A_%a.log"
               $SBATCH_EXTRA)
 
-job_id=$(sbatch --parsable "${SBATCH_OPTS[@]}" "$(readlink -f "$0")" "${ORIGINAL_ARGS[@]}" | cut -d';' -f1)
+# the settings of the tasks, resolved here once: a task reads nothing from the environment
+TASK_ARGS=(--profile "$PROFILE" --suffix "$SUFFIX" --python-bin "$PYTHON_BIN")
+if [[ "$PROFILE" == sweep ]]; then
+    TASK_ARGS+=(--model "$MODEL" --action "$ACTION" --wandb "$WANDB" --)
+    for flag in "${SWEEP_FLAGS[@]}"; do
+        TASK_ARGS+=("$flag")
+        [[ -z "${SWEEP_VALUES[$flag]}" ]] || TASK_ARGS+=("${SWEEP_VALUES[$flag]}")
+    done
+else
+    TASK_ARGS+=(--embedding "$EMBEDDING" --models "${MODELS[*]}" --items "${ITEMS[*]}" --incremental "$INCREMENTAL")
+fi
+
+job_id=$(sbatch --parsable "${SBATCH_OPTS[@]}" "$(readlink -f "$0")" __task "${TASK_ARGS[@]}" | cut -d';' -f1)
 
 echo "Submitted array $job_id: tasks $ARRAY_SPEC of $TOTAL_TASKS (max $MAX_PARALLEL_JOBS concurrent)"
 echo "Logs:    $LOG_DIR"
