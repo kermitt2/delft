@@ -15,7 +15,7 @@
             "format": "vec", 
             "lang": "en",
             "item": "word",
-            "url": "https://huggingface.co/stanfordnlp/glove/resolve/main/glove.840B.300d.zip"
+            "url": "hf://stanfordnlp/glove/glove.840B.300d.zip"
         },
         {
             "name": "fasttext-crawl",
@@ -51,7 +51,7 @@
             "format": "vec", 
             "lang": "en",
             "item": "word",
-            "url": "https://science-miner.s3-us-west-2.amazonaws.com/embeddings/GoogleNews-vectors-negative300.vec.gz"
+            "url": "hf://datasets/sciencialab/word2vec-google-news-negative-300/GoogleNews-vectors-negative300.vec.gz"
         },
         {
             "name": "word2vec-pmc",
