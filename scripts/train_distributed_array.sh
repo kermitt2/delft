@@ -33,7 +33,7 @@
 #
 # Cluster settings, overridable the same way:
 #   CONTAINER_IMAGE    enroot image; empty to run without the --container-* options
-#   CONTAINER_WORKDIR  DeLFT checkout, the working directory of the tasks
+#   CONTAINER_WORKDIR  working directory of the tasks (default: the checkout of this script)
 #   CONTAINER_MOUNTS   host paths mounted into the container
 #   PARTITIONS         comma-separated partitions
 #   CPUS_PER_TASK      CPU cores per task, for the data loading workers (default: 6)
@@ -44,7 +44,8 @@
 set -euo pipefail
 
 CONTAINER_IMAGE=${CONTAINER_IMAGE-/netscratch/lfoppiano/enroot/delft-pytorch.sqsh}
-CONTAINER_WORKDIR=${CONTAINER_WORKDIR:-/netscratch/lfoppiano/delft/delft-pytorch2}
+# the tasks run in the checkout this script is part of, unless told otherwise
+CONTAINER_WORKDIR=${CONTAINER_WORKDIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}
 CONTAINER_MOUNTS=${CONTAINER_MOUNTS:-"/netscratch:/netscratch,$HOME:$HOME"}
 PARTITIONS=${PARTITIONS:-RTX3090,RTXA6000,RTXB6000,L40S}
 CPUS_PER_TASK=${CPUS_PER_TASK:-6}
