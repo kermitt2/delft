@@ -53,8 +53,9 @@ ModernBERT, DeBERTa-v3 and LinkBERT, all with the `BERT_CRF` architecture.
 | `license` | license classifier × `gru` | 1 | `licenseClassifier train` |
 
 The static-embedding profiles (`train`, `train-eval`, `license`) take an optional embedding
-name after the profile and default to `glove-840B`. The `header` and `citation` models get
-`--num-workers 6`, plus `--max-sequence-length 3000` in the `train` profile.
+name after the profile and default to `glove-840B`; `none` trains without word embeddings,
+on the character features alone. The `header` and `citation` models get `--num-workers 6`,
+plus `--max-sequence-length 3000` in the `train` profile.
 
 The models of the `bert` profiles are named after their transformer, with `--suffix`:
 `grobid-header-BERT_CRF-scibert_scivocab_cased`, `grobid-header-BERT_CRF-ModernBERT-base`
@@ -92,7 +93,8 @@ Each task names its model with a `--suffix` built from its swept values, so that
 overwrite each other and the models can be told apart afterwards:
 
 - a swept `--transformer` contributes the last part of its name (`ModernBERT-base`), a swept
-  `--embedding` its value;
+  `--embedding` its value, or `no-embedding` for the value `none`, which trains that task
+  without word embeddings;
 - any other swept flag contributes the flag without dashes followed by the value:
   `batchsize8`, `maxepoch50`, `patience10`, `learningrate1e-5`, `earlystopfalse`;
 - a swept `--architecture` contributes nothing, the architecture being part of the model
@@ -134,6 +136,10 @@ Drop `DRY_RUN=true` to submit. The same `--suffix` given to `grobidTagger <model
 # The same with another embedding, 8 jobs at a time, without overwriting the glove models
 MAX_PARALLEL_JOBS=8 SUFFIX=fasttext ./scripts/train_distributed_array.sh train fasttext-crawl
 
+# Train and evaluate every model without word embeddings, then with glove, to compare
+SUFFIX=char-only ./scripts/train_distributed_array.sh train-eval none
+./scripts/train_distributed_array.sh train-eval glove-840B
+
 # Train and evaluate the citation model alone, with the four architectures
 MODELS=citation ./scripts/train_distributed_array.sh train-eval
 
@@ -148,6 +154,10 @@ ARRAY_SPEC=3,7,12-15 ./scripts/train_distributed_array.sh bert-eval
 
 # The license classifier with two architectures
 ARCHITECTURES="gru lstm" ./scripts/train_distributed_array.sh license
+
+# Compare no embeddings, glove and potion on the citation model
+./scripts/train_distributed_array.sh sweep citation --architecture BidLSTM_CRF_FEATURES \
+    --embedding none,glove-840B,potion-base-8M --num-workers 6
 
 # Sweep the batch size and the learning rate of the date model
 ./scripts/train_distributed_array.sh sweep date --architecture BidLSTM_CRF \
