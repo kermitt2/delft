@@ -11,6 +11,7 @@ import struct
 import sys
 import threading
 import zipfile
+from urllib.parse import unquote, urlparse
 
 import lmdb
 import numpy as np
@@ -23,10 +24,32 @@ try:
 except ImportError:
     fasttext_support = False
 
+from delft.utilities.hub_models import BUCKETS, HF_SCHEME, HUB_HOSTS
+from delft.utilities.StaticEmbeddings import (
+    StaticTransformerEmbeddings,
+    looks_like_static_embedding_reference,
+)
 from delft.utilities.Utilities import download_file
 
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
+
+# modern static embeddings (sentence-transformers static embeddings, Model2Vec
+# potion models) are not a vector file to be compiled into LMDB, they are a
+# tokenizer plus an embedding matrix loaded from the HuggingFace hub, see
+# delft/utilities/StaticEmbeddings.py
+STATIC_TRANSFORMER_FORMAT = "static-transformer"
+STATIC_TRANSFORMER_FORMATS = (STATIC_TRANSFORMER_FORMAT, "hf")
+
+
+def is_static_transformer_description(description):
+    """Whether an embeddings registry entry describes a modern static embedding model."""
+    if not isinstance(description, dict):
+        return False
+    return (
+        description.get("format") in STATIC_TRANSFORMER_FORMATS or description.get("type") in STATIC_TRANSFORMER_FORMATS
+    )
+
 
 # Since py-lmdb 1.0, opening the same environment twice in a process raises
 #   lmdb.Error: The environment '<path>' is already open in this process.
@@ -94,6 +117,78 @@ def current_lmdb_env(path):
     return cached[1]
 
 
+# the repositories of the Hub other than the models are named after their kind,
+# in the hf:// references as in the URLs
+HUB_REPO_TYPES = {"datasets": "dataset", "spaces": "space"}
+
+
+def hub_file_of(url):
+    """
+    Where the file of the Hugging Face Hub an embeddings registry ``url`` points
+    to is, as the arguments of ``huggingface_hub.hf_hub_download``, or None when
+    ``url`` is not one of the Hub. A file of the Hub is given
+
+    - as a ``hf://`` reference, the revision being optional:
+      ``hf://stanfordnlp/glove/glove.840B.300d.zip``,
+      ``hf://datasets/sciencialab/word2vec-google-news-negative-300@main/GoogleNews-vectors-negative300.vec.gz``;
+    - or as the URL the Hub serves it at, or shows it at:
+      ``https://huggingface.co/stanfordnlp/glove/resolve/main/glove.840B.300d.zip``.
+    """
+    if not isinstance(url, str):
+        return None
+    if url.startswith(HF_SCHEME):
+        return _hub_file_of_reference(url)
+
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https") or parsed.netloc.lower() not in HUB_HOSTS:
+        return None
+    parts = [unquote(part) for part in parsed.path.split("/") if part]
+    repo_type = HUB_REPO_TYPES.get(parts[0]) if parts else None
+    if repo_type:
+        parts = parts[1:]
+    # owner/repository/resolve/revision/file: another page of the Hub is no file
+    if len(parts) < 5 or parts[2] not in ("resolve", "blob"):
+        return None
+    return _hub_file(parts[0] + "/" + parts[1], "/".join(parts[4:]), repo_type, parts[3])
+
+
+def _hub_file_of_reference(reference):
+    expected = f"expected {HF_SCHEME}[datasets/]owner/repository[@revision]/file"
+    parts = reference[len(HF_SCHEME) :].strip("/").split("/")
+    if parts[0] == BUCKETS:
+        raise ValueError(f"Invalid reference {reference!r}, {expected}: embeddings are not read from a bucket")
+    repo_type = HUB_REPO_TYPES.get(parts[0])
+    if repo_type:
+        parts = parts[1:]
+    if len(parts) < 3 or not all(parts):
+        raise ValueError(f"Invalid reference {reference!r}, {expected}")
+    name, _, revision = parts[1].partition("@")
+    if not name:
+        raise ValueError(f"Invalid reference {reference!r}: no repository name")
+    # a revision with a slash is quoted, as in hf://owner/repository@refs%2Fpr%2F1/file
+    return _hub_file(parts[0] + "/" + name, "/".join(parts[2:]), repo_type, unquote(revision) or None)
+
+
+def _hub_file(repo_id, filename, repo_type, revision):
+    return {"repo_id": repo_id, "filename": filename, "repo_type": repo_type, "revision": revision}
+
+
+def download_hub_file(url, token=None):
+    """
+    Local path of the file of the Hub ``url`` points to (see hub_file_of), taken
+    the way the transformers are: downloaded once into the cache of the Hub
+    (HF_HOME), with the access token of the environment (HF_ACCESS_TOKEN, as for
+    the transformers, else the one of huggingface_hub), and from the cache alone
+    when HF_HUB_OFFLINE is set.
+    """
+    from huggingface_hub import hf_hub_download
+
+    location = hub_file_of(url)
+    if location is None:
+        raise ValueError(f"Not a file of the Hugging Face Hub: {url!r}")
+    return hf_hub_download(**location, token=token or os.getenv("HF_ACCESS_TOKEN") or None)
+
+
 class Embeddings(object):
     def __init__(
         self,
@@ -149,6 +244,11 @@ class Embeddings(object):
 
     def lmdb_env_path(self):
         """Path of the LMDB database backing these embeddings, or None."""
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            # a static embedding model is never compiled into LMDB, and its
+            # name may be a path, which os.path.join below would take as the
+            # database directory
+            return None
         if not self.embedding_lmdb_path:
             return None
         return os.path.join(self.embedding_lmdb_path, self.name)
@@ -317,12 +417,50 @@ class Embeddings(object):
                 except Exception as e:
                     print("Failed to delete %s. Reason: %s" % (file_path, e))
 
+    def make_static_transformer_embeddings(self, name, description=None):
+        """
+        Load a modern static embedding model (sentence-transformers static
+        embeddings, Model2Vec potion models), either described in the
+        embeddings registry or given directly as a HuggingFace hub identifier
+        or as a path to a local copy of such a model.
+        """
+        if description is None:
+            description = {}
+        model_reference = description.get("model") or description.get("path") or name
+        self.lang = description.get("lang", self.lang)
+        self.extension = STATIC_TRANSFORMER_FORMAT
+
+        print("loading static embedding model", model_reference, "...")
+        self.model = StaticTransformerEmbeddings(
+            model_reference,
+            dimensions=description.get("dimensions"),
+            normalize=description.get("normalize"),
+            lang=self.lang,
+        )
+        self.embed_size = self.model.embed_size
+        self.vocab_size = self.model.vocab_size
+        print(
+            "embeddings loaded for",
+            self.vocab_size,
+            "sub-word units and",
+            self.embed_size,
+            "dimensions",
+        )
+
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
         if description is not None:
-            self.extension = description["format"]
+            self.extension = description.get("format", self.extension)
 
-        if self.extension == "bin":
+        if is_static_transformer_description(description) or (
+            description is None and looks_like_static_embedding_reference(name)
+        ):
+            # a static embedding model is used as it is, there is nothing to
+            # compile into LMDB: the vocabulary is made of sub-word units and
+            # word vectors are pooled on the fly
+            self.make_static_transformer_embeddings(name, description)
+
+        elif self.extension == "bin":
             if fasttext_support:
                 print("embeddings are of .bin format, so they will be loaded in memory...")
                 self.make_embeddings_simple_in_memory(name)
@@ -438,6 +576,8 @@ class Embeddings(object):
         """
         Get static embeddings (e.g. glove) for a given token
         """
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
@@ -492,6 +632,8 @@ class Embeddings(object):
             return env
 
     def get_word_vector_in_memory(self, word):
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
@@ -518,20 +660,29 @@ class Embeddings(object):
             )
             if "url" in description and len(description["url"]) > 0:
                 url = description["url"]
-                download_path = self.registry["embedding-download-path"]
-                # if the download path does not exist, we create it
-                if not os.path.isdir(download_path):
-                    try:
-                        os.mkdir(download_path)
-                    except OSError:
-                        print(
-                            "Creation of the download directory",
-                            download_path,
-                            "failed",
-                        )
-
                 print("Downloading resource file for", description["name"], "...")
-                embeddings_path = download_file(url, download_path)
+                if hub_file_of(url) is not None:
+                    # kept in the cache of the Hub, as the transformers are, and not
+                    # in embedding-download-path, which is emptied once compiled
+                    try:
+                        embeddings_path = download_hub_file(url)
+                    except Exception as e:
+                        print("Download failed for", url, "\nError:", e)
+                        embeddings_path = None
+                else:
+                    download_path = self.registry["embedding-download-path"]
+                    # if the download path does not exist, we create it
+                    if not os.path.isdir(download_path):
+                        try:
+                            os.mkdir(download_path)
+                        except OSError:
+                            print(
+                                "Creation of the download directory",
+                                download_path,
+                                "failed",
+                            )
+
+                    embeddings_path = download_file(url, download_path)
                 if embeddings_path is not None and os.path.isfile(embeddings_path):
                     print("Download sucessful:", embeddings_path)
             else:
