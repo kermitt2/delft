@@ -16,6 +16,20 @@ class TiedModel(torch.nn.Module):
         self.output.weight = self.embedding.weight
 
 
+def _flatten_like_cudnn(lstm):
+    """
+    Make every weight of ``lstm`` a view into one buffer, as cuDNN's flatten_parameters
+    does on a GPU: the tensors share a storage that none of them covers whole.
+    """
+    params = list(lstm.parameters())
+    buffer = torch.cat([p.detach().flatten() for p in params])
+    offset = 0
+    for p in params:
+        p.data = buffer[offset : offset + p.numel()].view_as(p)
+        offset += p.numel()
+    assert params[0].untyped_storage().data_ptr() == params[1].untyped_storage().data_ptr()
+
+
 def _assert_same_weights(model, other):
     state, other_state = model.state_dict(), other.state_dict()
     assert state.keys() == other_state.keys()
@@ -37,6 +51,36 @@ class TestSaveAndLoad:
         load_weights(other, tmp_path / weight_file)
         _assert_same_weights(model, other)
         assert other.output.weight is other.embedding.weight
+
+    def test_round_trip_of_an_lstm_flattened_by_cudnn(self, tmp_path, weight_file):
+        """Saving as safetensors failed on every model trained on a GPU, after the training."""
+        model, other = torch.nn.LSTM(3, 5, bidirectional=True), torch.nn.LSTM(3, 5, bidirectional=True)
+        _flatten_like_cudnn(model)
+        save_weights(model, tmp_path / weight_file)
+        load_weights(other, tmp_path / weight_file, device=torch.device("cpu"))
+        _assert_same_weights(model, other)
+
+
+def test_a_file_that_holds_a_tied_parameter_once_loads(tmp_path):
+    """What safetensors' save_model wrote, up to now, for the tied parameters."""
+    from safetensors.torch import save_model
+
+    model, other = TiedModel(), TiedModel()
+    save_model(model, str(tmp_path / SAFETENSORS_WEIGHT_FILE_NAME))
+    load_weights(other, tmp_path / SAFETENSORS_WEIGHT_FILE_NAME)
+    _assert_same_weights(model, other)
+
+
+def test_a_file_with_weights_missing_or_unexpected_is_refused(tmp_path):
+    from safetensors.torch import save_file
+
+    path = tmp_path / SAFETENSORS_WEIGHT_FILE_NAME
+    save_file({"bias": torch.zeros(3)}, str(path))
+    with pytest.raises(RuntimeError, match="Missing.*weight"):
+        load_weights(torch.nn.Linear(2, 3), path)
+    save_file({"bias": torch.zeros(3), "weight": torch.zeros(3, 2), "extra": torch.zeros(1)}, str(path))
+    with pytest.raises(RuntimeError, match="Unexpected.*extra"):
+        load_weights(torch.nn.Linear(2, 3), path)
 
 
 def test_safetensors_file_holds_no_pickle(tmp_path):
