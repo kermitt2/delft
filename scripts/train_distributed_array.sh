@@ -35,6 +35,7 @@
 #   CONTAINER_WORKDIR  DeLFT checkout, the working directory of the tasks
 #   CONTAINER_MOUNTS   host paths mounted into the container
 #   PARTITIONS         comma-separated partitions
+#   CPUS_PER_TASK      CPU cores per task, for the data loading workers (default: 6)
 #   MEMORY             host memory per task (default: 100G)
 #   TIME_LIMIT         wall-clock limit per task (default: 3-00:00)
 #   SBATCH_EXTRA       any further sbatch options, as one string
@@ -45,6 +46,7 @@ CONTAINER_IMAGE=${CONTAINER_IMAGE-/netscratch/lfoppiano/enroot/delft-pytorch.sqs
 CONTAINER_WORKDIR=${CONTAINER_WORKDIR:-/netscratch/lfoppiano/delft/delft-pytorch2}
 CONTAINER_MOUNTS=${CONTAINER_MOUNTS:-"/netscratch:/netscratch,$HOME:$HOME"}
 PARTITIONS=${PARTITIONS:-RTX3090,RTXA6000,RTXB6000,L40S}
+CPUS_PER_TASK=${CPUS_PER_TASK:-6}
 MEMORY=${MEMORY:-100G}
 TIME_LIMIT=${TIME_LIMIT:-3-00:00}
 SBATCH_EXTRA=${SBATCH_EXTRA:-}
@@ -321,6 +323,7 @@ if [[ -n "$CONTAINER_IMAGE" ]]; then
 fi
 # shellcheck disable=SC2206  # SBATCH_EXTRA is a string of options to split on spaces
 SBATCH_OPTS+=(--export=ALL
+              --cpus-per-task="$CPUS_PER_TASK"
               --mem="$MEMORY"
               -p "$PARTITIONS"
               --gpus=1
