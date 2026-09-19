@@ -7,7 +7,8 @@
 #   train_distributed_array.sh sweep MODEL [--flag value[,value...] ...]
 #
 # The standard profiles run a matrix of GROBID models by architectures (or transformers)
-# with grobidTagger; `license` runs the license classifier. `sweep` runs one model over the
+# with grobidTagger; `license` runs the license classifier. EMBEDDING defaults to glove-840B;
+# `none` trains without word embeddings (character features only). `sweep` runs one model over the
 # cartesian product of every flag given several comma-separated values, the other flags
 # being passed as they are; each task gets a --suffix built from its swept values so that
 # the saved models do not overwrite each other. A boolean flag of the tagger (--wandb,
@@ -103,6 +104,13 @@ sanitize_suffix() {
         value=${value:1}
     done
     printf '%s' "$value"
+}
+
+# The --embedding option of a task, none for the embedding `none`.
+embedding_option() {
+    local embedding=$1
+    EMBEDDING_OPTION=()
+    [[ "$embedding" == none ]] || EMBEDDING_OPTION=(--embedding "$embedding")
 }
 
 # The suffix components of a task, joined with '-', $SUFFIX last.
@@ -208,9 +216,10 @@ build_task_command() {
     local extra_args=()
     [[ "$INCREMENTAL" != true ]] || extra_args+=(--incremental)
 
+    embedding_option "$EMBEDDING"
     if [[ "$PROFILE" == license ]]; then
         CMD=("$PYTHON_BIN" -m delft.applications.licenseClassifier train
-             --architecture "$item" --embedding "$EMBEDDING" "${extra_args[@]}")
+             --architecture "$item" "${EMBEDDING_OPTION[@]}" "${extra_args[@]}")
         return
     fi
 
@@ -235,7 +244,7 @@ build_task_command() {
         CMD+=(--architecture BERT_CRF --transformer "$item")
     else
         suffix=$(join_suffix)
-        CMD+=(--architecture "$item" --embedding "$EMBEDDING")
+        CMD+=(--architecture "$item" "${EMBEDDING_OPTION[@]}")
     fi
     [[ -z "$suffix" ]] || CMD+=(--suffix "$suffix")
     CMD+=("${extra_args[@]}")
@@ -262,12 +271,14 @@ build_sweep_command() {
             case "$flag" in
                 --architecture) ;; # already in the model name
                 --transformer) suffix_parts+=("${value##*/}") ;;
-                --embedding) suffix_parts+=("$value") ;;
+                --embedding) suffix_parts+=("$([[ "$value" == none ]] && echo no-embedding || echo "$value")") ;;
                 *) suffix_parts+=("${flag//-/}$value") ;;
             esac
         else
             value=${SWEEP_VALUES[$flag]}
         fi
+        # no --embedding at all trains without word embeddings
+        [[ "$flag" == --embedding && "$value" == none ]] && continue
         CMD+=("$flag")
         [[ -z "$value" ]] || CMD+=("$value")
     done
