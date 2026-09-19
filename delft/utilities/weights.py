@@ -26,11 +26,16 @@ def is_safetensors(path):
 def save_weights(model, path):
     """Save the weights of ``model`` in the format the extension of ``path`` tells."""
     if is_safetensors(path):
-        # save_model rather than save_file(state_dict): it deals with the tensors that
-        # several parameters share, such as tied embeddings, which save_file refuses
-        from safetensors.torch import save_model
+        from safetensors.torch import save_file
 
-        save_model(model, str(path))
+        # Every tensor is written from a storage of its own. safetensors refuses tensors
+        # that share a storage unless one of them covers it whole, and on a GPU cuDNN
+        # flattens all the weights of an LSTM into one buffer that none of them covers:
+        # save_model raised on every model trained there, after the training. Tied
+        # parameters (embeddings shared with an output layer) are written twice and load
+        # back into the same tensor.
+        state = {name: tensor.detach().clone().cpu() for name, tensor in model.state_dict().items()}
+        save_file(state, str(path), metadata={"format": "pt"})
     else:
         torch.save(model.state_dict(), path)
 
@@ -51,9 +56,24 @@ def remove_other_weights(model_path, weight_file):
 def load_weights(model, path, device=None):
     """Load into ``model`` the weights saved at ``path`` by ``save_weights``."""
     if is_safetensors(path):
-        from safetensors.torch import load_model
+        from safetensors.torch import load_file
 
-        load_model(model, str(path), device="cpu" if device is None else str(device))
+        # not load_model: it refuses a tied parameter written under both its names, as
+        # save_weights does, and inspects the shared storages of the model, which raises
+        # on an LSTM flattened by cuDNN
+        state = load_file(str(path), device="cpu" if device is None else str(device))
+        missing, unexpected = model.load_state_dict(state, strict=False)
+        # a file written by safetensors' save_model holds a tied parameter under one
+        # name only: the other names are not missing when their tensor was loaded
+        model_state = model.state_dict()
+        loaded = {model_state[name].data_ptr() for name in state if name in model_state}
+        missing = [name for name in missing if model_state[name].data_ptr() not in loaded]
+        if missing or unexpected:
+            raise RuntimeError(
+                f"Error(s) in loading the weights of {model.__class__.__name__} from {path}:"
+                + (f"\n    Missing key(s): {sorted(missing)}" if missing else "")
+                + (f"\n    Unexpected key(s): {sorted(unexpected)}" if unexpected else "")
+            )
     else:
         model.load_state_dict(torch.load(path, map_location=device))
 
