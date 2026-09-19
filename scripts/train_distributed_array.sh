@@ -38,7 +38,7 @@
 #   PARTITIONS         comma-separated partitions
 #   CPUS_PER_TASK      CPU cores per task, for the data loading workers (default: 6)
 #   MEMORY             host memory per task (default: 100G)
-#   TIME_LIMIT         wall-clock limit per task (default: 3-00:00)
+#   TIME_LIMIT         wall-clock limit per task (default: 1-00:00)
 #   SBATCH_EXTRA       any further sbatch options, as one string
 
 set -euo pipefail
@@ -50,7 +50,7 @@ CONTAINER_MOUNTS=${CONTAINER_MOUNTS:-"/netscratch:/netscratch,$HOME:$HOME"}
 PARTITIONS=${PARTITIONS:-RTX3090,RTXA6000,RTXB6000,L40S}
 CPUS_PER_TASK=${CPUS_PER_TASK:-6}
 MEMORY=${MEMORY:-100G}
-TIME_LIMIT=${TIME_LIMIT:-3-00:00}
+TIME_LIMIT=${TIME_LIMIT:-1-00:00}
 SBATCH_EXTRA=${SBATCH_EXTRA:-}
 
 MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
