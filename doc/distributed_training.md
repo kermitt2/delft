@@ -20,8 +20,8 @@ The submitter assumes an [enroot](https://github.com/NVIDIA/enroot)/Pyxis contai
 
 - An enroot image containing the PyTorch runtime, by default at
   `/netscratch/lfoppiano/enroot/delft-pytorch.sqsh`.
-- A checkout of DeLFT, by default at `/netscratch/lfoppiano/delft/delft-pytorch2`, with a
-  virtual environment in `.venv/` (so the entrypoint is `.venv/bin/python`).
+- A checkout of DeLFT, the one you submit from, with a virtual environment in `.venv/` (so
+  the entrypoint is `.venv/bin/python`).
 - The training data laid out under `data/sequenceLabelling/grobid/` (see
   [GROBID models](grobid.md)).
 
@@ -214,7 +214,7 @@ of `scripts/train_distributed_array.sh`:
 | Variable | Default | Meaning |
 |----------|---------|---------|
 | `CONTAINER_IMAGE` | `/netscratch/lfoppiano/enroot/delft-pytorch.sqsh` | enroot image to run inside. Set it empty (`CONTAINER_IMAGE=`) to drop the three `--container-*` options on a site without enroot/Pyxis, and run against your own module or conda environment. |
-| `CONTAINER_WORKDIR` | `/netscratch/lfoppiano/delft/delft-pytorch2` | working directory of the tasks: the DeLFT checkout |
+| `CONTAINER_WORKDIR` | the checkout the script is in | working directory of the tasks. The tasks run the code of the checkout you submit from, whichever of several checkouts it is. |
 | `CONTAINER_MOUNTS` | `/netscratch:/netscratch,$HOME:$HOME` | host paths mounted into the container |
 | `PARTITIONS` | `RTX3090,RTXA6000,RTXB6000,L40S` | candidate partitions, the first available is used |
 | `CPUS_PER_TASK` | `6` | CPU cores per task. Without it SLURM gives a task one core, on which the data loading workers starve the GPU: a BidLSTM training then shows a few percent of GPU use. |
