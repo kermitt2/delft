@@ -12,6 +12,24 @@ By default, the LMDB databases are stored under the subdirectory `data/db`. The 
 
 Ok, ok, then set the `embedding-lmdb-path` value to `"None"` in the file `delft/resources-registry.json`, the embeddings will be loaded in memory as immutable data.
 
+## Getting the embeddings files
+
+When the `path` of an embeddings entry of the registry is not a file, the embeddings are downloaded from its `url` before being compiled into LMDB. A file of the Hugging Face Hub is taken the way the transformers are, through the Hub client: `url` is then a `hf://` reference, `hf://[datasets/]owner/repository[@revision]/file`, or the URL the Hub serves the file at:
+
+```json
+{
+    "name": "word2vec",
+    "path": "/PATH/TO/GoogleNews-vectors-negative300.vec",
+    "type": "w2v",
+    "format": "vec",
+    "lang": "en",
+    "item": "word",
+    "url": "hf://datasets/sciencialab/word2vec-google-news-negative-300/GoogleNews-vectors-negative300.vec.gz"
+}
+```
+
+The file is kept in the usual HuggingFace cache (`HF_HOME`), shared with the transformers, so that building the database again does not download it again, and `HF_HUB_OFFLINE=1` works from that cache only. A private repository needs an access token, `HF_ACCESS_TOKEN` as for the transformers, or the one of `huggingface_hub` (`HF_TOKEN`, `hf auth login`). Any other `url` is downloaded under `embedding-download-path`, which is emptied once the embeddings are compiled.
+
 ## Modern static embeddings
 
 The embeddings above (glove, word2vec, fasttext `.vec`) are word-level embedding files of several GB, distributed between 2014 and 2018. DeLFT also supports the recent generation of static embeddings, which are distilled from a transformer and distributed on the HuggingFace hub as a small embedding matrix plus a tokenizer:
