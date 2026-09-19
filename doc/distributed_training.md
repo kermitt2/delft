@@ -215,6 +215,7 @@ of `scripts/train_distributed_array.sh`:
 | `CONTAINER_WORKDIR` | `/netscratch/lfoppiano/delft/delft-pytorch2` | working directory of the tasks: the DeLFT checkout |
 | `CONTAINER_MOUNTS` | `/netscratch:/netscratch,$HOME:$HOME` | host paths mounted into the container |
 | `PARTITIONS` | `RTX3090,RTXA6000,RTXB6000,L40S` | candidate partitions, the first available is used |
+| `CPUS_PER_TASK` | `6` | CPU cores per task. Without it SLURM gives a task one core, on which the data loading workers starve the GPU: a BidLSTM training then shows a few percent of GPU use. |
 | `MEMORY` | `100G` | host memory per task |
 | `TIME_LIMIT` | `3-00:00` | wall-clock limit per task (days-hours:minutes) |
 | `SBATCH_EXTRA` | | any further `sbatch` options, as one string: `SBATCH_EXTRA="--account=abc --qos=long"` |
