@@ -137,6 +137,25 @@ class TestStaticTransformerEmbeddings:
 
         assert StaticTransformerEmbeddings(directory, normalize=False).normalize is False
 
+    def test_global_scaling_keeps_the_size_of_a_unit_relative_to_the_others(self, tmp_path):
+        directory = make_model2vec_model(tmp_path / "potion", normalize=True)
+        model = StaticTransformerEmbeddings(directory, normalize="global")
+
+        assert model.normalize == "global"
+        norms = np.linalg.norm(MATRIX, axis=1)
+        scale = norms[norms > 0].mean()
+        np.testing.assert_allclose(model.get_word_vector("cat"), MATRIX[2] / scale, rtol=1e-6)
+        np.testing.assert_allclose(model.get_word_vector("cats"), (MATRIX[2] + MATRIX[3]) / 2 / scale, rtol=1e-6)
+        # no normalization of the word vector itself
+        assert np.linalg.norm(model.get_word_vector("cats")) != pytest.approx(1.0)
+
+    def test_normalize_given_as_a_string(self, tmp_path):
+        directory = make_model2vec_model(tmp_path / "potion")
+        assert StaticTransformerEmbeddings(directory, normalize="true").normalize is True
+        assert StaticTransformerEmbeddings(directory, normalize="false").normalize is False
+        with pytest.raises(ValueError, match="normalize"):
+            StaticTransformerEmbeddings(directory, normalize="sometimes").load()
+
     def test_sentence_transformers_layout_is_supported(self, tmp_path):
         directory = make_sentence_transformers_model(tmp_path / "static-mrl", normalize=True)
         model = StaticTransformerEmbeddings(directory)

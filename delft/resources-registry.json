@@ -90,6 +90,24 @@
             "item": "word"
         },
         {
+            "name": "static-retrieval-mrl-en-raw",
+            "model": "sentence-transformers/static-retrieval-mrl-en-v1",
+            "type": "static-embedding",
+            "format": "static-transformer",
+            "normalize": false,
+            "lang": "en",
+            "item": "word"
+        },
+        {
+            "name": "static-retrieval-mrl-en-scaled",
+            "model": "sentence-transformers/static-retrieval-mrl-en-v1",
+            "type": "static-embedding",
+            "format": "static-transformer",
+            "normalize": "global",
+            "lang": "en",
+            "item": "word"
+        },
+        {
             "name": "static-retrieval-mrl-en-256",
             "model": "sentence-transformers/static-retrieval-mrl-en-v1",
             "type": "static-embedding",
