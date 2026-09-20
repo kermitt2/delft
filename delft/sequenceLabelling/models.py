@@ -626,8 +626,10 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
 
         self.dropout = nn.Dropout(config.dropout)
 
-        # Pre-CRF dense
+        # Pre-CRF dense, then one emission per tag: the CRF was given the dense output
+        # itself, num_word_lstm_units wide, and refused it
         self.dense = nn.Linear(config.num_word_lstm_units * 2, config.num_word_lstm_units)
+        self.linear = nn.Linear(config.num_word_lstm_units, ntags)
 
         # CRF
         self.crf = CRF(ntags)
@@ -639,6 +641,9 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
         word_emb = inputs["word_input"]
         char_input = inputs["char_input"]
 
+        # padded positions take no part in the sequence, as in BidLSTM_CRF
+        mask = get_token_mask(char_input)
+
         # Encode characters
         char_encoded = self.char_encoder(char_input)
 
@@ -646,17 +651,18 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded], dim=-1)
         x = self.dropout(x)
 
-        # BiLSTM
-        lstm_out, _ = self.bilstm(x)
+        # BiLSTM over the real positions only
+        lstm_out = run_masked_lstm(self.bilstm, x, mask)
         lstm_out = self.dropout(lstm_out)
 
         # Dense
-        emissions = torch.tanh(self.dense(lstm_out))
+        x = torch.tanh(self.dense(lstm_out))
+        emissions = self.linear(x)
 
         outputs = {"logits": emissions}
 
         if labels is not None:
-            loss = self.crf(emissions, labels)
+            loss = self.crf(emissions, labels, mask=mask)
             outputs["loss"] = loss
 
         return outputs
@@ -664,9 +670,13 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
     def decode(self, inputs: Dict[str, torch.Tensor]) -> List[List[int]]:
         """Decode using Viterbi."""
         with torch.no_grad():
+            mask = get_token_mask(inputs["char_input"])
             outputs = self.forward(inputs)
-            predictions = self.crf.decode(outputs["logits"])
-        return predictions
+            predictions = self.crf.decode(outputs["logits"], mask=mask)
+        # a masked decode returns only the real positions; callers expect one
+        # tag per position, so the padding is filled back in
+        sequence_length = outputs["logits"].shape[1]
+        return [tags + [0] * (sequence_length - len(tags)) for tags in predictions]
 
 
 class BidGRU_CRF(BaseSequenceLabeler):
