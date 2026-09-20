@@ -415,15 +415,15 @@ class Embeddings(object):
             self.env = None
             return False
         try:
-            with self.env.begin() as txn:
-                self.vocab_size = txn.stat()["entries"]
-            with self.env.begin() as txn:
-                cursor = txn.cursor()
-                for _key, value in cursor:
-                    _check_lmdb_format(value)
-                    self.embed_size = _deserialize_float32(value).shape[0]
-                    break
-                cursor.close()
+            try:
+                self._read_lmdb_header()
+            except lmdb.Error:
+                # a reader slot error (MDB_BAD_RSLOT) happens on a freshly opened
+                # environment on some platforms and goes away on a new one: a database
+                # is only damaged when a fresh environment cannot read it either
+                close_lmdb_env(envFilePath)
+                self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+                self._read_lmdb_header()
         except lmdb.Error as e:
             # damaged, by a compilation that crashed or ran twice at once
             print(f"The embeddings database {envFilePath} is damaged ({e}): compiling it again")
@@ -454,6 +454,17 @@ class Embeddings(object):
             close_lmdb_env(envFilePath)
             self.env, _ = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
         return True
+
+    def _read_lmdb_header(self):
+        """Set ``vocab_size`` and ``embed_size`` from the open database, in one transaction."""
+        with self.env.begin() as txn:
+            self.vocab_size = txn.stat()["entries"]
+            cursor = txn.cursor()
+            for _key, value in cursor:
+                _check_lmdb_format(value)
+                self.embed_size = _deserialize_float32(value).shape[0]
+                break
+            cursor.close()
 
     def _compile_lmdb(self, name, envFilePath):
         """
