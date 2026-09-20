@@ -82,7 +82,8 @@ def test_several_processes_needing_the_same_database_compile_it_once(tmp_path, s
 
     assert results == [(NB_WORDS, DIMENSIONS, 7.0)] * 4
     with open(log) as f:
-        assert len(f.read().split()) == 1
+        compiled_by = f.read().split()
+    assert len(compiled_by) == 1, f"compiled by {compiled_by}: a process took a complete database for a damaged one"
     embeddings = Embeddings(NAME, resource_registry=registry)
     try:
         _assert_usable(tmp_path, embeddings)
