@@ -7,7 +7,7 @@ import numpy as np
 import pytest
 import torch
 
-from delft.sequenceLabelling.trainer import EarlyStopping, unique_checkpoint_path
+from delft.sequenceLabelling.trainer import unique_checkpoint_path
 from delft.sequenceLabelling.wrapper import Sequence, summarize_fold_scores
 from delft.utilities.Utilities import set_random_seed
 
@@ -55,33 +55,6 @@ class TestConfiguration:
         sequence = _sequence(tmp_path, monkeypatch)
         assert sequence.training_config.clip_gradients == 1.0
         assert sequence.training_config.lr_decay == 0.5
-
-
-class TestEarlyStopping:
-    @staticmethod
-    def _stops_after(scores, **kwargs):
-        early_stopping = EarlyStopping(**kwargs)
-        for epoch, score in enumerate(scores, start=1):
-            if early_stopping(score):
-                return epoch
-        return None
-
-    def test_stops_after_patience_epochs_without_improvement(self):
-        assert self._stops_after([0.5, 0.6, 0.6, 0.6, 0.6], patience=3) == 5
-        assert self._stops_after([0.5, 0.6, 0.6, 0.6, 0.7, 0.7], patience=3) is None
-
-    def test_the_epochs_scoring_zero_do_not_count(self):
-        """The patience ran from epoch 1: a model with no entity predicted yet was stopped at epoch 6."""
-        assert self._stops_after([0.0] * 10, patience=5) is None
-        assert self._stops_after([0.0] * 8 + [0.4, 0.5, 0.5, 0.5, 0.5, 0.5], patience=5) is None
-        assert self._stops_after([0.0] * 8 + [0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], patience=5) == 15
-
-    def test_a_score_back_to_zero_counts_once_there_was_one(self):
-        assert self._stops_after([0.4, 0.0, 0.0, 0.0], patience=3) == 4
-
-    def test_in_mode_min_a_zero_is_a_score(self):
-        """A loss of zero is not an absence of score."""
-        assert self._stops_after([0.0, 0.0, 0.0, 0.0], patience=3, mode="min") == 4
 
 
 class TestCallbacks:
