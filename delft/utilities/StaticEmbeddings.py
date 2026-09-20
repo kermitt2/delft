@@ -56,6 +56,14 @@ MODULES_FILE = "modules.json"
 # the vocabulary size of a large training corpus
 DEFAULT_CACHE_SIZE = 300000
 
+# The value of ``normalize`` that scales the whole vocabulary once, by the mean norm of
+# its units, rather than every word vector to a norm of 1: the raw vectors of the
+# sentence-transformers static models have norms in the hundreds, a scale a recurrent
+# layer does not train well on, but their sizes relative to each other carry how much a
+# unit weighs in the pooling the models were trained for, which normalizing every word
+# throws away.
+GLOBAL_SCALING = "global"
+
 
 def _import_tokenizers():
     try:
@@ -194,11 +202,18 @@ class StaticTransformerEmbeddings:
                 # information, so the vectors can simply be cut
                 matrix = np.ascontiguousarray(matrix[:, : self.dimensions])
 
+            self.normalize = self._resolve_normalize(config, modules)
+            if self.normalize == GLOBAL_SCALING:
+                # one scale for the whole vocabulary: the average unit has a norm of 1,
+                # and a unit keeps its size relative to the others
+                norms = np.linalg.norm(matrix, axis=1)
+                mean_norm = float(norms[norms > 0].mean()) if (norms > 0).any() else 1.0
+                matrix = np.ascontiguousarray(matrix / mean_norm, dtype=np.float32)
+
             self._tokenizer = tokenizer
             self._matrix = matrix
             self.vocab_size = matrix.shape[0]
             self.embed_size = matrix.shape[1]
-            self.normalize = self._resolve_normalize(config, modules)
             self._cache = {}
 
     def _resolve_model_files(self):
@@ -295,11 +310,22 @@ class StaticTransformerEmbeddings:
 
     def _resolve_normalize(self, config, modules):
         """
-        Whether pooled vectors must be L2-normalized. Model2Vec states it in
-        config.json, sentence-transformers as a Normalize module in
-        modules.json. An explicit value in the registry wins over both.
+        Whether pooled vectors must be L2-normalized (True), left as they are (False),
+        or scaled once for the whole vocabulary (``"global"``, see ``GLOBAL_SCALING``).
+        Model2Vec states the normalization in config.json, sentence-transformers as
+        a Normalize module in modules.json. An explicit value in the registry wins
+        over both.
         """
         if self.normalize_override is not None:
+            if isinstance(self.normalize_override, str):
+                value = self.normalize_override.strip().lower()
+                if value == GLOBAL_SCALING:
+                    return GLOBAL_SCALING
+                if value in ("true", "false"):
+                    return value == "true"
+                raise ValueError(
+                    f"normalize must be true, false or {GLOBAL_SCALING!r}, got {self.normalize_override!r}"
+                )
             return bool(self.normalize_override)
         if isinstance(config, dict) and "normalize" in config:
             return bool(config["normalize"])
@@ -326,7 +352,7 @@ class StaticTransformerEmbeddings:
             vector = np.zeros((self.embed_size,), dtype=np.float32)
         else:
             vector = self._matrix[ids].mean(axis=0)
-            if self.normalize:
+            if self.normalize is True:
                 norm = np.linalg.norm(vector)
                 if norm > 0:
                     vector = vector / norm
