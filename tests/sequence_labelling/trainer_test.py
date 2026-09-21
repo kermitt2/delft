@@ -143,6 +143,54 @@ class TestDataSets:
         assert len(sequence.models) == 2
 
 
+class TestFoldPreprocessors:
+    """The preprocessor was fit on the whole set, so that a fold model knew the characters
+    and the feature values of the fold it is evaluated on: see issue #102."""
+
+    # 'Ω' is in the first sequence alone, which fold 0 is evaluated on and fold 1 trained on
+    X_FOLDS = [["Ω", "was", "here"], WORDS[:3], WORDS[2:], WORDS[:5]]
+    Y_FOLDS = [["B-loc", "O", "O"], LABELS[:3], LABELS[2:], LABELS[:5]]
+    FEATURES_FOLDS = [[[word, "GREEK" if word == "Ω" else "LATIN"] for word in sequence] for sequence in X_FOLDS]
+
+    def test_a_fold_model_knows_the_characters_of_its_training_data_alone(self, tmp_path, monkeypatch):
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS)
+        fold_0, fold_1 = sequence.fold_preprocessors
+        assert "Ω" not in fold_0.vocab_char
+        assert "Ω" in fold_1.vocab_char
+        assert sequence.models[0].char_encoder.char_embeddings.num_embeddings == len(fold_0.vocab_char)
+        assert sequence.models[1].char_encoder.char_embeddings.num_embeddings == len(fold_1.vocab_char)
+
+    def test_every_fold_model_has_the_labels_of_the_whole_set(self, tmp_path, monkeypatch):
+        """A label missing from the training data of a fold would be dropped from its evaluation."""
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS)
+        assert all(p.vocab_tag == sequence.p.vocab_tag for p in sequence.fold_preprocessors)
+        assert "B-loc" in sequence.fold_preprocessors[0].vocab_tag
+
+    def test_every_fold_model_has_the_feature_columns_of_the_whole_set(self, tmp_path, monkeypatch):
+        sequence = _sequence(tmp_path, monkeypatch, "BidLSTM_CRF_FEATURES", fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS, f_train=self.FEATURES_FOLDS)
+        fold_0, fold_1 = sequence.fold_preprocessors
+        assert fold_0.feature_preprocessor.features_indices == fold_1.feature_preprocessor.features_indices == [0, 1]
+        assert "GREEK" not in str(fold_0.feature_preprocessor.features_map_to_index)
+        assert "GREEK" in str(fold_1.feature_preprocessor.features_map_to_index)
+
+    def test_the_saved_model_is_the_best_fold_with_its_preprocessor(self, tmp_path, monkeypatch):
+        sequence = _sequence(tmp_path, monkeypatch, "BidLSTM_CRF_FEATURES", fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS, f_train=self.FEATURES_FOLDS)
+        sequence.eval(self.X_FOLDS, self.Y_FOLDS, features=self.FEATURES_FOLDS)
+        best = sequence.models.index(sequence.model)
+        assert sequence.p is sequence.fold_preprocessors[best]
+        assert sequence.model_config.char_vocab_size == len(sequence.p.vocab_char)
+        sequence.save(str(tmp_path))
+        loaded = Sequence("test-model", device="cpu")
+        loaded.load(str(tmp_path))
+        assert loaded.p.vocab_char == sequence.p.vocab_char
+        assert loaded.model.char_encoder.char_embeddings.num_embeddings == len(sequence.p.vocab_char)
+        loaded.tag(self.X_FOLDS, "json", features=self.FEATURES_FOLDS)
+
+
 class TestNFoldEvaluation:
     def test_the_scores_of_every_fold_are_summarized_with_their_mean_and_std(self):
         scores = [
