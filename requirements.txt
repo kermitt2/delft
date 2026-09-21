@@ -2,7 +2,7 @@ numpy==1.26.4
 regex
 scikit-learn==1.6.1
 tqdm>=4.66
-unidecode==1.3.2
+unidecode==1.4.0
 lmdb==2.3.0
 truecase
 requests>=2.20
