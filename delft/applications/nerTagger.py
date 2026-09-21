@@ -113,6 +113,7 @@ def train(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    whole_text_tokenization=False,
 ):
     (
         batch_size,
@@ -171,6 +172,7 @@ def train(
             wandb_project=wandb_project,
             nb_workers=num_workers,
             short_model_name=short_model_name,
+            whole_text_tokenization=whole_text_tokenization,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -209,6 +211,7 @@ def train(
             wandb_project=wandb_project,
             nb_workers=num_workers,
             short_model_name=short_model_name,
+            whole_text_tokenization=whole_text_tokenization,
         )
     elif lang == "fr":
         print("Loading data...")
@@ -239,6 +242,7 @@ def train(
             wandb_project=wandb_project,
             nb_workers=num_workers,
             short_model_name=short_model_name,
+            whole_text_tokenization=whole_text_tokenization,
         )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -278,6 +282,7 @@ def train_eval(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    whole_text_tokenization=False,
 ):
     (
         batch_size,
@@ -332,6 +337,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -356,6 +362,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
 
     elif (dataset_type == "ontonotes-all") and (lang == "en"):
@@ -385,6 +392,7 @@ def train_eval(
             learning_rate=learning_rate,
             nb_workers=num_workers,
             short_model_name=short_model_name,
+            whole_text_tokenization=whole_text_tokenization,
         )
 
     elif (dataset_type == "conll2012") and (lang == "en"):
@@ -418,6 +426,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
         else:
             # also use validation set to train (no early stop, hyperparameters must be set preliminarly),
@@ -442,6 +451,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
 
     elif (lang == "fr") and (dataset_type == "ftb" or dataset_type is None):
@@ -472,6 +482,7 @@ def train_eval(
             learning_rate=learning_rate,
             nb_workers=num_workers,
             short_model_name=short_model_name,
+            whole_text_tokenization=whole_text_tokenization,
         )
     elif (lang == "fr") and (dataset_type == "ftb_force_split"):
         print("Loading data for ftb_force_split...")
@@ -505,6 +516,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -529,6 +541,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
     elif (lang == "fr") and (dataset_type == "ftb_force_split_xml"):
         print("Loading data for ftb_force_split_xml...")
@@ -568,6 +581,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
         else:
             # also use validation set to train (no early stop, hyperparmeters must be set preliminarly),
@@ -592,6 +606,7 @@ def train_eval(
                 wandb_project=wandb_project,
                 nb_workers=num_workers,
                 short_model_name=short_model_name,
+                whole_text_tokenization=whole_text_tokenization,
             )
     else:
         print("dataset/language combination is not supported:", dataset_type, lang)
@@ -775,6 +790,14 @@ if __name__ == "__main__":
         default=None,
         help="path to the corpus of documents for training (only use currently with Ontonotes corpus in orginal XML format)",
     )
+    parser.add_argument(
+        "--whole-text-tokenization",
+        action="store_true",
+        help="With a transformer, sub-tokenize a sequence as one text, its tokens joined back with the usual "
+        + "spacing of punctuation, rather than token by token with a space before each: a SentencePiece or "
+        + "byte-level BPE tokenizer (RoBERTa, CamemBERT, XLM-R...) then reads the text as it was pretrained on. "
+        + "Saved with the model.",
+    )
     parser.add_argument("--file-in", default=None, help="path to a text file to annotate")
     parser.add_argument(
         "--file-out",
@@ -901,6 +924,7 @@ if __name__ == "__main__":
             transformer=transformer,
             data_path=data_path,
             max_sequence_length=max_sequence_length,
+            whole_text_tokenization=args.whole_text_tokenization,
             batch_size=batch_size,
             patience=patience,
             learning_rate=learning_rate,
@@ -925,6 +949,7 @@ if __name__ == "__main__":
             train_with_validation_set=train_with_validation_set,
             data_path=data_path,
             max_sequence_length=max_sequence_length,
+            whole_text_tokenization=args.whole_text_tokenization,
             batch_size=batch_size,
             patience=patience,
             learning_rate=learning_rate,

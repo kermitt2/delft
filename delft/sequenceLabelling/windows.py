@@ -173,15 +173,27 @@ def join_scored_windows(loader, *per_window: Sequence[Sequence]) -> Tuple[List, 
     return tuple(join_windows(items, window_counts) for items in per_window)
 
 
-def subtoken_costs(tokenizer) -> Callable[[Sequence[str]], List[int]]:
-    """How many sub-tokens ``tokenizer`` makes of each token of a sequence."""
+def subtoken_costs(tokenizer, whole_text=False) -> Callable[[Sequence[str]], List[int]]:
+    """
+    How many sub-tokens ``tokenizer`` makes of each token of a sequence, the sequence
+    being sub-tokenized word by word, or as one text with ``whole_text`` (see
+    ``delft.sequenceLabelling.whole_text``), where a sub-token spanning several tokens
+    counts for the first of them.
+    """
 
     def costs(tokens: Sequence[str]) -> List[int]:
         counts = [0] * len(tokens)
         if len(tokens) == 0:
             return counts
-        encoded = tokenizer(list(tokens), is_split_into_words=True, add_special_tokens=False, verbose=False)
-        for word_id in encoded.word_ids():
+        if whole_text:
+            from delft.sequenceLabelling.whole_text import subtokenize_whole_text
+
+            _, words_of_subtokens, _ = subtokenize_whole_text(tokenizer, tokens, add_special_tokens=False)
+            word_ids = words_of_subtokens
+        else:
+            encoded = tokenizer(list(tokens), is_split_into_words=True, add_special_tokens=False, verbose=False)
+            word_ids = encoded.word_ids()
+        for word_id in word_ids:
             if word_id is not None:
                 counts[word_id] += 1
         return counts

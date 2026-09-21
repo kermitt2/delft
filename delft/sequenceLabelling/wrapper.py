@@ -116,6 +116,7 @@ class Sequence(object):
         window_stride: int = None,
         text_features_indices=None,
         continuous_features_indices=None,
+        whole_text_tokenization=False,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -192,6 +193,7 @@ class Sequence(object):
             window_stride=window_stride,
             text_features_indices=text_features_indices,
             continuous_features_indices=continuous_features_indices,
+            whole_text_tokenization=whole_text_tokenization,
         )
         self.window_stride = window_stride
 

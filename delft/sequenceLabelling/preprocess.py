@@ -13,6 +13,7 @@ LOGGER = logging.getLogger(__name__)
 from sklearn.base import BaseEstimator, TransformerMixin
 
 # Import shared utilities - these are re-exported for backward compatibility
+from delft.sequenceLabelling.whole_text import subtokenize_whole_text
 from delft.utilities.preprocess import (
     PAD,
     UNK,
@@ -111,10 +112,17 @@ class BERTPreprocessor(object):
     Rely on HuggingFace Tokenizer library and the tokenizer instance obtained with AutoTokenizer.
     """
 
-    def __init__(self, tokenizer, empty_features_vector=None, empty_char_vector=None):
+    def __init__(self, tokenizer, empty_features_vector=None, empty_char_vector=None, whole_text=False):
+        """
+        With ``whole_text``, a sequence is sub-tokenized as one text, its words joined
+        back with the usual spacing, and the sub-tokens are aligned on the words by their
+        offsets: see ``delft.sequenceLabelling.whole_text``. Otherwise the tokenizer is
+        given the words (``is_split_into_words``), a space before each of them.
+        """
         self.tokenizer = tokenizer
         self.empty_features_vector = empty_features_vector
         self.empty_char_vector = empty_char_vector
+        self.whole_text = whole_text
 
         tokenizer_name = type(self.tokenizer).__name__
 
@@ -176,6 +184,9 @@ class BERTPreprocessor(object):
         target_attention_mask = []
         input_tokens = []
         target_chars = []
+        # how many words start on each sub-token: 1 on the first sub-token of a word, 0
+        # elsewhere, more when a sub-token spans several words (whole_text)
+        target_word_starts = []
 
         target_features = None
         if text_features is not None:
@@ -202,6 +213,7 @@ class BERTPreprocessor(object):
                 attention_mask,
                 chars_block,
                 feature_blocks,
+                word_starts,
                 target_tags,
                 tokens,
             ) = self.convert_single_text(
@@ -217,6 +229,7 @@ class BERTPreprocessor(object):
             target_attention_mask.append(attention_mask)
             input_tokens.append(tokens)
             target_chars.append(chars_block)
+            target_word_starts.append(word_starts)
 
             if target_features is not None:
                 target_features.append(feature_blocks)
@@ -230,6 +243,7 @@ class BERTPreprocessor(object):
             target_attention_mask,
             target_chars,
             target_features,
+            target_word_starts,
             target_labels,
             input_tokens,
         )
@@ -261,6 +275,11 @@ class BERTPreprocessor(object):
             while len(chars_tokens) < nb_positions:
                 chars_tokens.append(self.empty_char_vector)
 
+        if self.whole_text:
+            return self._convert_whole_text(
+                text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length, word_positions
+            )
+
         # sub-tokenization
         encoded_result = self.tokenizer(
             text_tokens,
@@ -278,9 +297,6 @@ class BERTPreprocessor(object):
         else:
             token_type_ids = [0] * len(input_ids)
         attention_mask = encoded_result.attention_mask
-        label_ids = []
-        chars_blocks = []
-        feature_blocks = []
 
         # tricks to support BPE/sentence piece tokenizer like GPT2, roBERTa, CamemBERT, etc. which encode prefixed
         # spaces in the tokens (the encoding symbol for this space varies from one model to another)
@@ -352,19 +368,103 @@ class BERTPreprocessor(object):
         # Use the tokenizer's word_ids() method for reliable word boundary detection
         # This is more robust across different tokenizer implementations (BERT, RoBERTa, modernBERT, etc.)
 
+        # the words (positions) started on each sub-token: the first sub-token of a word
+        started = []
         prev_word_idx = None
-        for i, word_idx in enumerate(word_ids):
+        for word_idx in word_ids:
+            started.append([word_idx] if word_idx is not None and word_idx != prev_word_idx else [])
+            prev_word_idx = word_idx
+
+        return self._align_and_pad(
+            input_ids,
+            token_type_ids,
+            attention_mask,
+            offsets,
+            word_ids,
+            started,
+            chars_tokens,
+            features_tokens,
+            label_tokens,
+            max_seq_length,
+        )
+
+    def _convert_whole_text(
+        self, text_tokens, chars_tokens, features_tokens, label_tokens, max_seq_length, word_positions=None
+    ):
+        """
+        ``convert_single_text`` with the sequence sub-tokenized as one text, see
+        ``delft.sequenceLabelling.whole_text``.
+        """
+        encoded, words_of_subtokens, started = subtokenize_whole_text(self.tokenizer, text_tokens, max_seq_length)
+        input_ids = encoded.input_ids
+        if "token_type_ids" in encoded:
+            token_type_ids = encoded.token_type_ids
+        else:
+            token_type_ids = [0] * len(input_ids)
+        if word_positions is not None:
+            # several words per position: sub-tokens are aligned on positions, not on words
+            words_of_subtokens = [None if word is None else word_positions[word] for word in words_of_subtokens]
+            started = [sorted({word_positions[word] for word in words}) for words in started]
+            seen = set()
+            for words in started:
+                words[:] = [position for position in words if position not in seen]
+                seen.update(words)
+        return self._align_and_pad(
+            list(input_ids),
+            list(token_type_ids),
+            list(encoded.attention_mask),
+            list(encoded.offset_mapping),
+            words_of_subtokens,
+            started,
+            chars_tokens,
+            features_tokens,
+            label_tokens,
+            max_seq_length,
+        )
+
+    def _align_and_pad(
+        self,
+        input_ids,
+        token_type_ids,
+        attention_mask,
+        offsets,
+        word_ids,
+        started,
+        chars_tokens,
+        features_tokens,
+        label_tokens,
+        max_seq_length,
+    ):
+        """
+        Align the labels, characters and features of the words on the sub-tokens, given
+        the word of each sub-token (``word_ids``, None for a special token) and the
+        words started on each (``started``), and pad everything to ``max_seq_length``.
+
+        The first sub-token of a word carries its label and its characters; the other
+        sub-tokens of the word carry PAD and no characters, but its features. A
+        sub-token starting several words carries the label of the first one, and the
+        number of words it starts is what tells, when tagging, how many words take the
+        label predicted for it.
+        """
+        label_ids = []
+        chars_blocks = []
+        feature_blocks = []
+        word_starts = []
+
+        for word_idx, words in zip(word_ids, started):
+            word_starts.append(len(words))
             if word_idx is None:
                 # this is a special token (CLS, SEP, PAD)
                 label_ids.append("<PAD>")
                 chars_blocks.append(self.empty_char_vector)
                 feature_blocks.append(self.empty_features_vector)
-            elif word_idx != prev_word_idx:
+            elif words:
                 # first sub-token of a new word
-                if word_idx < len(label_tokens):
-                    label_ids.append(label_tokens[word_idx])
-                    feature_blocks.append(features_tokens[word_idx])
-                    chars_blocks.append(chars_tokens[word_idx])
+                first = words[0]
+                if first < len(label_tokens):
+                    label_ids.append(label_tokens[first])
+                    feature_blocks.append(features_tokens[first])
+                    chars_blocks.append(chars_tokens[first])
                 else:
                     # safety fallback if word_idx is somehow out of range
                     label_ids.append("<PAD>")
@@ -382,7 +482,6 @@ class BERTPreprocessor(object):
                     feature_blocks.append(features_tokens[word_idx])
                 else:
                     feature_blocks.append(self.empty_features_vector)
-            prev_word_idx = word_idx
 
         # Zero-pad up to the sequence length.
         while len(input_ids) < max_seq_length:
@@ -394,6 +493,7 @@ class BERTPreprocessor(object):
             label_ids.append("<PAD>")
             chars_blocks.append(self.empty_char_vector)
             feature_blocks.append(self.empty_features_vector)
+            word_starts.append(0)
 
         assert len(input_ids) == max_seq_length
         assert len(token_type_ids) == max_seq_length
@@ -401,6 +501,7 @@ class BERTPreprocessor(object):
         assert len(label_ids) == max_seq_length
         assert len(chars_blocks) == max_seq_length
         assert len(feature_blocks) == max_seq_length
+        assert len(word_starts) == max_seq_length
 
         return (
             input_ids,
@@ -408,6 +509,7 @@ class BERTPreprocessor(object):
             attention_mask,
             chars_blocks,
             feature_blocks,
+            word_starts,
             label_ids,
             offsets,
         )
