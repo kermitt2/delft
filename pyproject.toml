@@ -38,7 +38,7 @@ classifiers = [
 dependencies = [
     "numpy==1.26.4",
     "regex",
-    "scikit-learn==1.6.1",
+    "scikit-learn==1.7.2",
     "tqdm>=4.66",
     "unidecode==1.4.0",
     "lmdb==2.3.0",
