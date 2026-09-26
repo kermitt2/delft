@@ -785,6 +785,14 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         return self
 
 
+# the architectures with a casing embedding next to the word and character ones
+CASING_ARCHITECTURES = ("BidLSTM_CNN", "BidLSTM_CRF_CASING")
+
+
+def architecture_uses_casing(architecture):
+    return architecture in CASING_ARCHITECTURES
+
+
 def prepare_preprocessor(X, y, model_config, features: np.array = None):
     """
     Prepare the preprocessor. If features are passed, configure the feature preprocessor
@@ -803,6 +811,8 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
         max_char_length=model_config.max_char_length,
         feature_preprocessor=feature_preprocessor,
         return_features=(feature_preprocessor is not None),
+        # the models with a casing channel read it from the batch, which held none
+        return_casing=architecture_uses_casing(model_config.architecture),
     )
     preprocessor.fit(X, y)
 
