@@ -85,6 +85,63 @@ An entry of the embeddings registry describing such a model looks like this:
 - `dimensions`: the `static-retrieval-mrl-*` and `static-similarity-mrl-*` models are matryoshka (MRL) models, whose vectors can be truncated to fewer dimensions at a very small quality cost. Truncating reduces the size of the RNN input layer accordingly, and hence the training and inference time - this is what the `-256` variants above do.
 - `normalize`: `true` L2-normalizes every word vector after pooling, `false` leaves the vectors as the model gives them, and `"global"` divides the whole vocabulary once by the mean norm of its units, so that the average unit has a norm of 1 while a unit keeps its size relative to the others. It defaults to what the model itself declares (`normalize` in its `config.json`, or a `Normalize` module in its `modules.json`). The registry entries of the sentence-transformers models set it to `true`, because their raw vectors have norms of a few hundreds, a scale a recurrent layer does not train well on; but in these models the norm of a unit is also how much it weighs in the pooling they were trained for, which normalizing every word throws away. The `static-retrieval-mrl-en-raw` and `static-retrieval-mrl-en-scaled` entries are the same model with `false` and `"global"`, to compare.
 
+## Contextual embeddings from a frozen transformer
+
+The hidden states of a transformer (BERT, SciBERT, RoBERTa, ...) can be used as word embeddings by all the RNN architectures (`BidLSTM_CRF`, `BidLSTM_CRF_FEATURES`, `BidLSTM_ChainCRF`, ...), the same way ELMo embeddings were used in the past:
+
+```sh
+python3 delft/applications/grobidTagger.py citation train --architecture BidLSTM_CRF --embedding scibert-contextual
+```
+
+This is different from the `BERT*` architectures: the transformer is **frozen**, it is a feature extractor and not a part of the trained model. The model that is trained and saved is the usual RNN one, with its usual settings (Adam, learning rate of 0.001, no limit of 512 sub-word units on the sequence length), and `--transformer` must not be set.
+
+| name | model | dimensions | language |
+|---|---|---|---|
+| `scibert-contextual` | `allenai/scibert_scivocab_cased` | 768 | en |
+| `bert-base-cased-contextual` | `google-bert/bert-base-cased` | 768 | en |
+
+### How word vectors are produced
+
+- A sequence is tokenized into sub-word units and sent to the transformer. The vector of a word is the mean of the last four hidden layers of its first sub-word unit, so that a sequence of `n` tokens gives `n` vectors and the character, feature and label channels stay aligned, as with static embeddings. Tokens are given as they are written: there is no lowercasing nor number normalization, the transformer has its own handling of those.
+- A sequence longer than what the transformer accepts is covered by overlapping windows, each sub-word unit taking its vector from the window where it is the furthest from an edge, i.e. where it has the most context on both sides. The usual long `max_sequence_length` of the RNN architectures can thus be kept (e.g. for the GROBID header model).
+- As the transformer is frozen, the vectors of a sequence never change. They are computed once, before the first epoch, in the process that owns the GPU, and cached in LMDB as `float16` under `<embedding-lmdb-path>/contextual/<model>-<hash of the settings>`. The following epochs, n-fold trainings and later runs on the same corpus read the cache, and cost what a training with static embeddings costs. DataLoader workers never load the transformer.
+- The vectors of texts to be tagged are computed on the fly and are not written in the cache.
+
+The cache is made of LMDB *shards*: a training that finds sequences missing from the cache writes them in a shard of its own, which is published (atomic rename) once complete and never modified afterwards. Several trainings can therefore share the same cache at the same time, from different nodes and on a network file system, as the tasks of a SLURM job array do. Two trainings starting at the same time on the same corpus will both embed it, which is only a waste of time and space: when using `scripts/train_distributed_array.sh`, submit one architecture per model first (see the header of the script). With a multi-GPU training (`--multi-gpu`), the sequences to embed are shared out between the GPUs.
+
+The cache needs `2 x dimensions` bytes per token, i.e. around 1.5 GB per million tokens for a 768 dimensions model.
+
+An entry of the embeddings registry describing such embeddings looks like this:
+
+```json
+{
+    "name": "scibert-contextual",
+    "model": "allenai/scibert_scivocab_cased",
+    "type": "contextual-embedding",
+    "format": "contextual-transformer",
+    "layers": [-4, -3, -2, -1],
+    "layer-pooling": "mean",
+    "subword-pooling": "first",
+    "lang": "en",
+    "item": "word"
+}
+```
+
+A transformer that is not in the registry can be used with the default settings by prefixing its hub identifier, or the path of a local copy, with `contextual:`:
+
+```sh
+python3 delft/applications/grobidTagger.py citation train --architecture BidLSTM_CRF --embedding contextual:michiyasunaga/LinkBERT-base
+```
+
+`format` set to `contextual-transformer` is what routes the embeddings to this backend, and `model` is the hub identifier or the path of a local copy of the transformer. The optional attributes are:
+
+- `layers`: the hidden layers to use, as indices in the hidden states of the transformer (default: the last four).
+- `layer-pooling`: `mean` (default), `sum` or `concat`. `concat` multiplies the dimensions, the size of the RNN input layer and the size of the cache by the number of layers.
+- `subword-pooling`: `first` (default), `last` or `mean`.
+- `window` and `stride`: size of a window in sub-word units (default 512, bound by what the transformer accepts) and step between two windows (default 256).
+- `batch-size`: number of windows sent to the transformer at once (default 32).
+- `cache`: set to `false` to keep the vectors in memory only, and `cache-path` to store the cache somewhere else.
+
 ## Upgrading LMDB caches from 0.3.x to 0.4.x
 
 Starting with DeLFT 0.4.x, embedding vectors are stored in LMDB as raw `float32` bytes instead of the legacy serialized-object format used in 0.3.x. This makes the cache directly readable from other languages (used by [GROBID](https://github.com/kermitt2/grobid) via JEP) and improves load performance.

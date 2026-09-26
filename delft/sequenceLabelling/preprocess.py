@@ -845,6 +845,15 @@ def to_vector_single(tokens, embeddings, maxlen, lowercase=False, num_norm=True,
 
     window = tokens[-maxlen:]
 
+    if hasattr(embeddings, "get_sentence_vectors"):
+        # contextual embeddings: the vector of a word depends on the sentence,
+        # so the sentence is embedded as a whole, and as it is written (the
+        # transformer has its own handling of case and numbers)
+        x = np.zeros((maxlen, embeddings.embed_size), dtype=np.float32)
+        if len(window) > 0:
+            x[: len(window), :] = embeddings.get_sentence_vectors(window)
+        return x
+
     # TBD: use better initializers (uniform, etc.)
     # float32 throughout: the vectors are float32 in the store and the model
     # consumes float32, so the default float64 buffer only bought a widening

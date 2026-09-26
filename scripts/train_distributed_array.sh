@@ -15,6 +15,18 @@
 # the saved models do not overwrite each other. A boolean flag of the tagger (--wandb,
 # --incremental, --multi-gpu) is given alone, without a value.
 #
+# EMBEDDING can also name contextual embeddings from a frozen transformer (e.g. scibert-contextual,
+# see doc/embeddings.md). Their vectors are computed once per corpus and cached: tasks running at
+# the same time on the same corpus would each compute them. To avoid that, submit the first
+# architecture of every model first, then the whole matrix once these tasks are done, e.g.
+#   ARRAY_SPEC=0-43:4 train_distributed_array.sh train scibert-contextual
+#
+# EMBEDDING can also name contextual embeddings from a frozen transformer (e.g. scibert-contextual,
+# see doc/embeddings.md). Their vectors are computed once per corpus and cached: tasks running at
+# the same time on the same corpus would each compute them. To avoid that, submit the first
+# architecture of every model first, then the whole matrix once these tasks are done, e.g.
+#   ARRAY_SPEC=0-43:4 train_distributed_array.sh train scibert-contextual
+#
 # Environment overrides:
 #   MODELS             space-separated subset of the models of a standard profile
 #   ARCHITECTURES      space-separated architectures (train, train-eval, license)
