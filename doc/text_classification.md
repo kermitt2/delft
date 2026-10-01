@@ -29,9 +29,10 @@ A classifier can be trained over several folds (`fold_number` of `Classifier`, `
 ```python
 from delft.textClassification.wrapper import Classifier
 
-classifier = Classifier("my-model", architecture="gru", embeddings_name="glove-840B",
-                        list_classes=["yes", "no"], fold_number=10)
-classifier.train(texts, classes)      # or classifier.train_nfold(texts, classes)
+classifier = Classifier(
+    "my-model", architecture="gru", embeddings_name="glove-840B", list_classes=["yes", "no"], fold_number=10
+)
+classifier.train(texts, classes)  # or classifier.train_nfold(texts, classes)
 classifier.eval(test_texts, test_classes)
 classifier.save()
 ```
