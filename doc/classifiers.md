@@ -6,7 +6,7 @@ In general, the best results will be obtained with a transformer classifier (arc
 
 The word embeddings of the RNN and CNN architectures are given with `--embedding`, as for sequence labelling. Without it (and without a transformer), no pre-trained word embeddings are used: the classifier learns the embeddings of the words of its training texts, which is usually less accurate than starting from `glove-840B` or another registered embeddings when the training set is small. Embeddings of any size can be used, `potion-base-8M` for instance. `classify` uses the embeddings the model was trained with.
 
-Training over several folds (`--fold-count` above 1, the ensembles of the results below) is not implemented for the classifiers in this version: it stops with an error saying so, where it used to do nothing and fail later.
+With `--fold-count` above 1, one model is trained per fold and the models classify together, as an ensemble: see [Training over folds](text_classification.md#training-over-folds).
 
 With `--incremental`, the license classifier (`licenseClassifier.py`) goes on training from the models already saved instead of starting new ones; `Classifier.train(..., incremental=True)` does the same after a `load()`.
 
