@@ -1,4 +1,5 @@
 # Manage pre-trained embeddings
+import glob
 import gzip
 import hashlib
 import io
@@ -7,10 +8,12 @@ import mmap
 import os
 import pickle
 import shutil
+import socket
 import struct
 import sys
 import threading
 import time
+import uuid
 import zipfile
 from urllib.parse import unquote, urlparse
 
@@ -35,16 +38,23 @@ from delft.utilities.Utilities import download_file
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
 
-# A database is compiled in a directory of its own next to its final path, then renamed
-# into place: a reader never sees a half-written database, whether the compilation is
-# still running or crashed. One process compiles at a time, the others wait on a lock
-# directory, which mkdir creates atomically on a network filesystem as well, where the
-# lock of LMDB itself does not hold across nodes. A lock left by a process that died is
-# ignored after STALE_BUILD_LOCK_SECONDS.
+# A database is compiled in a directory of its own next to its final path, one per
+# compiling process, then renamed into place: a reader never sees a half-written
+# database, whether the compilation is still running or crashed, and two processes
+# never write to the same one. The first complete database is the one kept.
+#
+# One process compiles at a time, the others wait on a lock directory, which mkdir
+# creates atomically on a network filesystem as well, where the lock of LMDB itself does
+# not hold across nodes. A lock left by a process that died is taken over after
+# STALE_BUILD_LOCK_SECONDS. The lock only spares the processes compiling the same
+# embeddings several times: should two of them hold it at once, each still writes to its
+# own directory.
 BUILD_DIRECTORY_SUFFIX = ".building"
 BUILD_LOCK_SUFFIX = ".lock"
 STALE_BUILD_LOCK_SECONDS = 12 * 3600
 BUILD_WAIT_SECONDS = 30
+# in a lock directory, the token of the process holding it
+BUILD_LOCK_OWNER_FILE = "owner"
 
 # modern static embeddings (sentence-transformers static embeddings, Model2Vec
 # potion models) are not a vector file to be compiled into LMDB, they are a
@@ -521,11 +531,15 @@ class Embeddings(object):
             # no usable database: compile it, or wait for the process compiling it
             lock_path = envFilePath + BUILD_LOCK_SUFFIX
             while True:
-                if _acquire_build_lock(lock_path):
+                token = _acquire_build_lock(lock_path)
+                if token is not None:
                     try:
-                        self._compile_lmdb(name, envFilePath)
+                        # compiled by another process between the check above and the lock
+                        if self._open_valid_lmdb(envFilePath):
+                            return
+                        self._compile_lmdb(name, envFilePath, token)
                     finally:
-                        _release_build_lock(lock_path)
+                        _release_build_lock(lock_path, token)
                     if self._open_valid_lmdb(envFilePath, just_compiled=True):
                         return
                     raise ValueError(f"The embeddings {name} could not be compiled into {envFilePath}")
@@ -609,12 +623,15 @@ class Embeddings(object):
                 break
             cursor.close()
 
-    def _compile_lmdb(self, name, envFilePath):
+    def _compile_lmdb(self, name, envFilePath, token=None):
         """
-        Compile the embeddings ``name`` into a database next to ``envFilePath``, and
-        move it there once complete, over whatever unusable database was there.
+        Compile the embeddings ``name`` into a database of this process next to
+        ``envFilePath``, and move it there once complete, in place of whatever unusable
+        database was there. When another process put a complete database there in the
+        meantime, that one is kept and this one dropped.
         """
-        build_path = envFilePath + BUILD_DIRECTORY_SUFFIX
+        _remove_stale_builds(envFilePath)
+        build_path = f"{envFilePath}{BUILD_DIRECTORY_SUFFIX}-{token or _new_build_token()}"
         close_lmdb_env(build_path)
         shutil.rmtree(build_path, ignore_errors=True)
         self.env, _ = open_lmdb_env(build_path, map_size=map_size)
@@ -623,9 +640,27 @@ class Embeddings(object):
         finally:
             close_lmdb_env(build_path)
             self.env = None
+
+        if self._open_valid_lmdb(envFilePath):
+            # published by another process while this one compiled
+            shutil.rmtree(build_path, ignore_errors=True)
+            return
         close_lmdb_env(envFilePath)
-        shutil.rmtree(envFilePath, ignore_errors=True)
-        os.rename(build_path, envFilePath)
+        if os.path.isdir(envFilePath):
+            # an unusable database: taken away under a name of this process, which is
+            # atomic, rather than removed where another process may be putting its own
+            aside = f"{build_path}.replaced"
+            try:
+                os.rename(envFilePath, aside)
+            except OSError:
+                pass
+            shutil.rmtree(aside, ignore_errors=True)
+        try:
+            os.rename(build_path, envFilePath)
+        except OSError:
+            # another process put its database there first: a directory is not renamed
+            # over one that is not empty
+            shutil.rmtree(build_path, ignore_errors=True)
 
     def get_description(self, name):
         # without a registry nothing is described: a static embedding model given by its
@@ -763,21 +798,66 @@ class Embeddings(object):
         return embeddings_path
 
 
-def _acquire_build_lock(lock_path):
-    """Take the lock of a compilation, a directory; False when another process holds it."""
+def _new_build_token():
+    """A name no other process has: for the lock and for the directory of a compilation."""
+    return f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+
+
+def _build_lock_owner(lock_path):
     try:
-        os.mkdir(lock_path)
-        return True
-    except FileExistsError:
-        if _build_lock_is_stale(lock_path):
+        with open(os.path.join(lock_path, BUILD_LOCK_OWNER_FILE)) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def _acquire_build_lock(lock_path):
+    """
+    Take the lock of a compilation, a directory holding the token of its owner. Returns
+    the token of this process when it took the lock, None when another process holds it.
+
+    A stale lock is first taken away by renaming it, which is atomic: of the processes
+    finding it stale at the same time, one takes it away and the others find it gone.
+    Removing it in place let a second process remove the lock the first had just taken,
+    and both compile. The renamed directory is checked again: a process that looked at
+    the stale lock before another replaced it may have taken away the new one, which is
+    then put back.
+    """
+    token = _new_build_token()
+    for _ in range(2):
+        try:
+            os.mkdir(lock_path)
+        except FileExistsError:
+            if not _build_lock_is_stale(lock_path):
+                return None
+            claimed = f"{lock_path}.stale-{token}"
+            try:
+                os.rename(lock_path, claimed)
+            except OSError:
+                return None  # taken away by another process
+            if not _build_lock_is_stale(claimed):
+                # the lock another process took in the meantime, not the stale one
+                try:
+                    os.rename(claimed, lock_path)
+                except OSError:
+                    shutil.rmtree(claimed, ignore_errors=True)
+                return None
             print(f"Ignoring the compilation lock {lock_path}, left by a process that is gone")
-            shutil.rmtree(lock_path, ignore_errors=True)
-            return _acquire_build_lock(lock_path)
-        return False
+            shutil.rmtree(claimed, ignore_errors=True)
+            continue
+        try:
+            with open(os.path.join(lock_path, BUILD_LOCK_OWNER_FILE), "w") as f:
+                f.write(token)
+        except OSError:
+            return None  # the lock was taken away before it was signed
+        return token
+    return None
 
 
-def _release_build_lock(lock_path):
-    shutil.rmtree(lock_path, ignore_errors=True)
+def _release_build_lock(lock_path, token):
+    """Release the lock, when it is still the one this process took."""
+    if token is not None and _build_lock_owner(lock_path) == token:
+        shutil.rmtree(lock_path, ignore_errors=True)
 
 
 def _build_lock_is_stale(lock_path):
@@ -785,6 +865,13 @@ def _build_lock_is_stale(lock_path):
         return time.time() - os.path.getmtime(lock_path) > STALE_BUILD_LOCK_SECONDS
     except OSError:
         return False
+
+
+def _remove_stale_builds(envFilePath):
+    """Remove the directories left next to a database by compilations that died."""
+    for path in glob.glob(glob.escape(envFilePath + BUILD_DIRECTORY_SUFFIX) + "*"):
+        if _build_lock_is_stale(path):
+            shutil.rmtree(path, ignore_errors=True)
 
 
 def _serialize_byteio(array):
