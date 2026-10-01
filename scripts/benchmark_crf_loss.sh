@@ -10,8 +10,8 @@
 # that every kind of GPU gets its own table, written to LOG_DIR/<partition>.log. A SLURM job
 # array shares one partition request between its tasks, hence one job per partition instead.
 #
-# The benchmark options are passed on as they are, e.g. `--reps 10 --profile-steps 5`
-# or `--shape citation:200,100,37,20`; see `benchmark_crf_loss.py --help`.
+# The benchmark options are passed on as they are, e.g. `--reps 10 --profile-steps 5`,
+# `--ladder` or `--shape citation:200,100,37,20`; see `benchmark_crf_loss.py --help`.
 #
 # Environment overrides:
 #   PARTITIONS         comma-separated partitions

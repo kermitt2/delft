@@ -15,21 +15,28 @@ Arms, all over the same ``torchcrf.CRF`` parameters and all giving the same loss
   B            A, with the normalizer loop scripted (what #230 did for the decode)
   D            scripted alpha and beta recursions with a hand-written backward pass
                (forward-backward algorithm), so no autograd graph is built in the loops
+  delft        the CRF layer of the delft checkout this script is in, whatever its loss is:
+               the header line says whether it computes it itself or hands it to pytorch-crf
 
 On ``--device cuda`` every arm is timed with the CRF on the GPU and with the CRF on the CPU
-under a model on the GPU (emissions are moved, gradients flow back to the GPU).
+under a model on the GPU (emissions are moved, gradients flow back to the GPU). ``--ladder``
+adds shapes over which batch x tags² grows, and the run ends on a table of which of the two
+is faster for each shape.
 
-It needs torch and pytorch-crf only: no corpus, no model, and no import of delft.
+It needs torch and pytorch-crf only: no corpus and no model. The delft arm is left out where
+delft cannot be imported.
 
 Usage:
   python scripts/benchmark_crf_loss.py                       # cuda when available, else cpu
   python scripts/benchmark_crf_loss.py --device cpu --threads 4
   python scripts/benchmark_crf_loss.py --shape citation:200,100,37,20 --reps 10
+  python scripts/benchmark_crf_loss.py --ladder --arms pytorch-crf,A,delft
   python scripts/benchmark_crf_loss.py --profile-steps 5 --json crf_loss.json
 """
 
 import argparse
 import json
+import os
 import socket
 import sys
 import time
@@ -39,6 +46,7 @@ import torch
 from torchcrf import CRF as TorchCRF
 
 REFERENCE_ARM = "pytorch-crf"
+DELFT_ARM = "delft"
 
 # name -> (batch size, sequence length, number of tags, shortest sequence)
 # citation and reference-segmenter are the shapes of the runs measured on Vertex AI:
@@ -49,6 +57,18 @@ DEFAULT_SHAPES = {
     "reference-segmenter": (30, 2000, 5, 200),
     "segmentation-like": (10, 2000, 15, 200),
 }
+
+# number of tags -> batch sizes, over 100 positions. Within each series batch x tags² runs
+# from a few thousand to a few hundred thousand, which is the range where the loss stops
+# being faster on the CPU; three numbers of tags, to see whether that product is what
+# decides it.
+LADDER = {
+    5: (128, 512, 2048, 8192),
+    15: (16, 32, 64, 128, 256, 512),
+    37: (4, 8, 16, 32, 64, 128),
+}
+LADDER_SEQ_LENGTH = 100
+LADDER_MIN_LENGTH = 20
 
 # (batch size, sequence length, number of tags, shortest sequence) of the correctness checks
 CHECK_SHAPES = [(7, 23, 6, 1), (4, 50, 37, 5)]
@@ -213,11 +233,43 @@ def loss_d(crf: TorchCRF, emissions: torch.Tensor, tags: torch.Tensor, mask: tor
 LossFunction = Callable[[TorchCRF, torch.Tensor, torch.Tensor, torch.Tensor], torch.Tensor]
 
 ARMS: Dict[str, Tuple[str, LossFunction]] = {
-    REFERENCE_ARM: ("pytorch-crf (today)", loss_pytorch_crf),
+    REFERENCE_ARM: ("pytorch-crf", loss_pytorch_crf),
     "A": ("A  score without a loop, lean loop", loss_a),
     "B": ("B  A, with the loop scripted", loss_b),
     "D": ("D  scripted loops, own backward", loss_d),
 }
+
+
+def register_delft_arm() -> Tuple[bool, str]:
+    """
+    Add the CRF layer of delft to the arms: of the checkout this script is in when it is in
+    one, else of the installed delft. Returns whether that layer computes the loss itself,
+    and a description of what was found for the header line.
+    """
+    repo_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    if os.path.isdir(os.path.join(repo_root, "delft")) and repo_root not in sys.path:
+        sys.path.insert(0, repo_root)
+    try:
+        from delft.utilities import crf_pytorch
+    except Exception as error:  # whatever stops delft importing, the other arms do not need it
+        return False, f"not importable ({type(error).__name__}: {error})"
+
+    own_loss = hasattr(crf_pytorch.CRF, "neg_log_likelihood")
+    layers: Dict[int, torch.nn.Module] = {}
+
+    def loss_delft(crf: TorchCRF, emissions: torch.Tensor, tags: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
+        layer = layers.get(id(crf))
+        if layer is None:
+            # delft's layer over the parameters of the batch, so that it is timed and checked
+            # on the same values as the other arms
+            layer = crf_pytorch.CRF(crf.num_tags, batch_first=True)
+            layer.crf = crf
+            layers[id(crf)] = layer
+        return layer(emissions, tags, mask=mask)
+
+    label = "delft  its own loss" if own_loss else "delft  the loss of pytorch-crf"
+    ARMS[DELFT_ARM] = (label, loss_delft)
+    return own_loss, f"{crf_pytorch.__file__} ({'its own loss' if own_loss else 'the loss of pytorch-crf'})"
 
 
 # --- data --------------------------------------------------------------------------------
@@ -436,6 +488,32 @@ def profile_arm(loss_function: LossFunction, batch: Batch, steps: int, top: int 
         )
 
 
+def summarise_placements(records: List[Dict[str, object]], arm: str) -> None:
+    """For one arm, which placement of the CRF is faster for each shape, by batch x tags²."""
+    by_shape: Dict[str, Dict[str, Dict[str, object]]] = {}
+    for record in records:
+        if record["arm"] == arm:
+            by_shape.setdefault(str(record["shape"]), {})[str(record["crf_device"])] = record
+    rows = [placements for placements in by_shape.values() if len(placements) == 2 and "cpu" in placements]
+    if not rows:
+        return
+
+    def gpu_of(placements: Dict[str, Dict[str, object]]) -> Dict[str, object]:
+        return next(record for device, record in placements.items() if device != "cpu")
+
+    print(f"\n=== where the loss is faster, arm {arm} (ms per step, sorted by batch x tags²)")
+    print(
+        f"{'shape':24s} {'batch':>6s} {'tags':>5s} {'batch x tags²':>14s} {'GPU':>9s} {'CPU':>9s} {'CPU/GPU':>8s}  faster on"
+    )
+    for placements in sorted(rows, key=lambda row: row["cpu"]["batch_x_tags_squared"]):
+        cpu, gpu = placements["cpu"], gpu_of(placements)
+        ratio = cpu["total_ms"] / gpu["total_ms"]
+        print(
+            f"{str(cpu['shape'])[:24]:24s} {cpu['batch_size']:6d} {cpu['num_tags']:5d} {cpu['batch_x_tags_squared']:14d}"
+            f" {gpu['total_ms']:9.1f} {cpu['total_ms']:9.1f} {ratio:8.2f}  {'CPU' if ratio < 1 else 'GPU'}"
+        )
+
+
 # --- command line ------------------------------------------------------------------------
 
 
@@ -463,7 +541,16 @@ def parse_args() -> argparse.Namespace:
         help="batch size, sequence length, number of tags and shortest sequence; may be repeated "
         f"(default: {', '.join(DEFAULT_SHAPES)})",
     )
-    parser.add_argument("--arms", default=",".join(ARMS), help=f"comma-separated arms (default: {','.join(ARMS)})")
+    parser.add_argument(
+        "--ladder",
+        action="store_true",
+        help="also time shapes over which batch x tags² grows, to find where the CPU stops being faster",
+    )
+    parser.add_argument(
+        "--arms",
+        default=None,
+        help=f"comma-separated arms among {','.join([*ARMS, DELFT_ARM])} (default: all, {DELFT_ARM} when importable)",
+    )
     parser.add_argument("--reps", type=int, default=5, help="timed steps per arm, after 3 warm-up steps (default: 5)")
     parser.add_argument("--threads", type=int, default=None, help="intra-op CPU threads (default: torch's own)")
     parser.add_argument("--seed", type=int, default=0)
@@ -479,10 +566,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--skip-check", action="store_true", help="do not compare the arms with pytorch-crf first")
     args = parser.parse_args()
-    args.arms = [name.strip() for name in args.arms.split(",") if name.strip()]
-    unknown = [name for name in args.arms if name not in ARMS]
-    if unknown:
-        parser.error(f"unknown arms {unknown}; known: {list(ARMS)}")
+    if args.arms is not None:
+        args.arms = [name.strip() for name in args.arms.split(",") if name.strip()]
+        unknown = [name for name in args.arms if name not in [*ARMS, DELFT_ARM]]
+        if unknown:
+            parser.error(f"unknown arms {unknown}; known: {[*ARMS, DELFT_ARM]}")
     if args.reps < 1:
         parser.error("--reps must be at least 1")
     return args
@@ -509,6 +597,13 @@ def describe_environment(model_device: torch.device) -> Dict[str, object]:
 
 def main() -> None:
     args = parse_args()
+    # before the threads are set: importing delft sizes torch's thread pools
+    delft_wanted = args.arms is None or DELFT_ARM in args.arms
+    delft_has_own_loss, delft_description = register_delft_arm() if delft_wanted else (False, "not asked for")
+    if args.arms is None:
+        args.arms = list(ARMS)
+    elif DELFT_ARM in args.arms and DELFT_ARM not in ARMS:
+        sys.exit(f"--arms asks for {DELFT_ARM}, which is {delft_description}")
     if args.threads is not None:
         torch.set_num_threads(args.threads)
     if args.device is None:
@@ -518,6 +613,7 @@ def main() -> None:
         sys.exit("--device cuda was asked for and torch sees no GPU")
 
     environment = describe_environment(model_device)
+    environment["delft"] = delft_description
     if model_device.type == "cuda":
         environment["jit_gpu_fusion"] = configure_gpu_fusion(args.jit_gpu_fusion)
     print(" | ".join(f"{key}={value}" for key, value in environment.items()))
@@ -532,7 +628,16 @@ def main() -> None:
         for _, crf_device in placements:
             check_arms(args.arms, model_device, crf_device)
 
-    shapes = dict(args.shape) if args.shape else DEFAULT_SHAPES
+    shapes = dict(args.shape) if args.shape else dict(DEFAULT_SHAPES)
+    if args.ladder:
+        for num_tags, batch_sizes in LADDER.items():
+            for batch_size in batch_sizes:
+                shapes[f"ladder {num_tags} tags, batch {batch_size}"] = (
+                    batch_size,
+                    LADDER_SEQ_LENGTH,
+                    num_tags,
+                    LADDER_MIN_LENGTH,
+                )
     records = []
     for shape_name, shape in shapes.items():
         batch_size, seq_length, num_tags, _ = shape
@@ -559,6 +664,7 @@ def main() -> None:
                         "batch_size": batch_size,
                         "seq_length": seq_length,
                         "num_tags": num_tags,
+                        "batch_x_tags_squared": batch_size * num_tags * num_tags,
                         "placement": placement_name,
                         "crf_device": str(crf_device),
                         "arm": name,
@@ -574,6 +680,11 @@ def main() -> None:
                     if name in args.arms:
                         print(f"  profile of {ARMS[name][0].strip()}, {placement_name}:")
                         profile_arm(ARMS[name][1], batch, args.profile_steps)
+
+    # the arm a placement would be chosen for: delft's own loss when it is there, else its model
+    summary_arm = DELFT_ARM if delft_has_own_loss and DELFT_ARM in args.arms else "A"
+    if summary_arm in args.arms:
+        summarise_placements(records, summary_arm)
 
     if args.json:
         with open(args.json, "w") as output:
