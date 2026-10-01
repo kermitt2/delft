@@ -79,7 +79,7 @@ class TestDefaultNbWorkers:
         monkeypatch.setattr(delft, "cpu_affinity_count", lambda: cores)
         return delft.default_nb_workers()
 
-    def test_none_on_a_single_core(self, monkeypatch):
+    def test_zero_on_a_single_core(self, monkeypatch):
         """One worker was started there, sharing the core with the process it loads the data for."""
         assert self._default(monkeypatch, 1) == 0
 

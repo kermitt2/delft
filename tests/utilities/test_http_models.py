@@ -284,6 +284,24 @@ class TestFolder:
             resolve_model(f"{http_server.url}/{MODEL_NAME}/", cache_dir=models_dir)
         assert _nothing_in(models_dir)
 
+    def test_of_a_text_classifier_trained_over_folds(self, http_server, models_dir):
+        weights = ("model_fold0.safetensors", "model_weights_fold1.pt", "model_fold2.safetensors")
+        _serve_model(http_server.directory / MODEL_NAME, files=weights, config={"fold_number": 3})
+        model_path = resolve_model(f"{http_server.url}/{MODEL_NAME}/", cache_dir=models_dir)
+        assert _files(model_path) == sorted(("config.json",) + weights)
+
+    def test_of_a_sequence_model_trained_over_folds(self, http_server, models_dir):
+        """It keeps a single model, the one of its best fold."""
+        _serve_model(http_server.directory / MODEL_NAME, config={"fold_number": 3})
+        model_path = resolve_model(f"{http_server.url}/{MODEL_NAME}/", cache_dir=models_dir)
+        assert _files(model_path) == ["config.json", "model.safetensors", "preprocessor.json"]
+
+    def test_without_the_weights_of_a_fold(self, http_server, models_dir):
+        _serve_model(http_server.directory / MODEL_NAME, files=("model_fold0.safetensors",), config={"fold_number": 2})
+        with pytest.raises(HubModelNotFoundError, match="no weights of fold 1 there"):
+            resolve_model(f"{http_server.url}/{MODEL_NAME}/", cache_dir=models_dir)
+        assert _nothing_in(models_dir)
+
     def test_whose_configuration_is_not_one(self, http_server, models_dir):
         # what a server may give for any URL
         folder = _serve_model(http_server.directory / MODEL_NAME)

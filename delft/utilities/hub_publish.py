@@ -12,13 +12,12 @@ import tempfile
 
 from delft.utilities.hub_models import HubReference, hub_references, list_models, parse_reference
 from delft.utilities.model_names import split_model_name
-from delft.utilities.weights import SAFETENSORS_WEIGHT_FILE_NAME, is_safetensors
+from delft.utilities.weights import PICKLED_WEIGHTS_EXTENSIONS, SAFETENSORS_WEIGHT_FILE_NAME, is_safetensors
 
 LOGGER = logging.getLogger(__name__)
 
 CONFIG_FILE_NAME = "config.json"
 README_FILE_NAME = "README.md"
-PICKLED_WEIGHTS_EXTENSIONS = (".pt", ".pth")
 
 # the table of the models is rewritten between these two lines, the rest of a README
 # being left as it was written

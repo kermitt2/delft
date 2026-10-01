@@ -4,7 +4,7 @@
 
 All the following models includes Dropout, Pooling and Dense layers with hyperparameters tuned for reasonable performance across standard text classification tasks. If necessary, they are good basis for further performance tuning.
 
-* `bert`: a transformer classifier to fine-tune, to be instanciated by any BERT pre-trained model or transformers available on HuggingFace Hub (we have tested various BERT and RoBERTa flavors) 
+* `bert`: a transformer classifier to fine-tune, to be instanciated by any BERT pre-trained model or transformers available on HuggingFace Hub (we have tested various BERT and RoBERTa flavors). Given no transformer (`transformer_name`, `--transformer`), it uses `bert-base-uncased`.
 * `gru`: two layers Bidirectional GRU
 * `gru_simple`: one layer Bidirectional GRU
 * `gru_lstm`: one layer Bidirectional GRU followed by a Bidirectional LSTM
@@ -41,7 +41,7 @@ How it works:
 
 - **Training.** The training texts are shuffled, then cut into `fold_number` folds of the same size, the last one taking the texts the division leaves over. One model is trained per fold, on the texts of all the other folds. With early stopping, the fold itself is the validation set of its model: every model is validated on texts it was not trained on, and every text serves once as validation. Without early stopping the fold is simply left out.
 - **Classifying.** `predict` and `eval` run every fold model, and the probability of a class is the geometric mean of the probabilities the models give it.
-- **Saving and loading.** `save` writes the weights of every fold model next to the one configuration, as `model_fold0.safetensors`, `model_fold1.safetensors` and so on; `load` reads the number of folds from the configuration and loads them all. The weights a previous training left in the directory, for a single model or for another number of folds, are removed.
+- **Saving and loading.** `save` writes the weights of every fold model next to the one configuration, as `model_fold0.safetensors`, `model_fold1.safetensors` and so on; `load` reads the number of folds from the configuration and loads them all, in whichever format they were saved (`model_weights_fold0.pt` for pickled weights). The weights a previous training left in the directory, for a single model or for another number of folds, are removed.
 - **Incremental training.** After a `load`, `train(..., incremental=True)` goes on with the training of every fold model on new folds of the given texts.
 - **Transformers.** With the `bert` architecture every fold is a whole transformer. On a GPU the fold models are kept in main memory and moved to the GPU one at a time, for the time each runs, since several may not fit there together; expect a classification to take as many times longer as there are folds.
 

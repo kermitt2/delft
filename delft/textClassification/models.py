@@ -22,6 +22,8 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+from delft.textClassification.config import DEFAULT_TRANSFORMER_NAME
+
 # size of the word vectors when the configuration gives none, and of the word embeddings
 # a model learns when it is given no pre-trained ones
 DEFAULT_WORD_EMBEDDING_SIZE = 300
@@ -674,7 +676,7 @@ class bert(BaseTextClassifier):
 
         from transformers import AutoConfig, AutoModel
 
-        transformer_name = model_config.transformer_name or "bert-base-uncased"
+        transformer_name = model_config.transformer_name or DEFAULT_TRANSFORMER_NAME
 
         # Pin fp32: some HF checkpoints (e.g. deberta-v3) ship as fp16, and recent
         # transformers versions honor that, which clashes with the fp32 classifier head below.

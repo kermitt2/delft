@@ -9,6 +9,7 @@ Weight files of the models, in either of two formats told apart by the file exte
 """
 
 import os
+import re
 
 import torch
 
@@ -24,6 +25,10 @@ LOSS_PREFIX = "loss_fn."
 
 # the names the wrappers give to the weights of a model
 WEIGHT_FILE_NAMES = (SAFETENSORS_WEIGHT_FILE_NAME, "model_weights.pt", "model_weights.pth")
+PICKLED_WEIGHTS_EXTENSIONS = (".pt", ".pth")
+
+# the weights of the model of a fold, of a text classifier trained over several folds
+FOLD_WEIGHT_FILE_PATTERN = re.compile(r"(?P<stem>.+)_fold(?P<fold>\d+)(?P<extension>\.[A-Za-z]+)")
 
 
 def is_safetensors(path):
@@ -58,6 +63,12 @@ def save_weights(model, path):
         save_file(state, str(path), metadata={"format": "pt"})
     else:
         torch.save(state, path)
+
+
+def fold_weight_file(weight_file, fold_id):
+    """The name of the weights of the model of fold ``fold_id``: model.safetensors gives model_fold0.safetensors."""
+    stem, extension = os.path.splitext(weight_file)
+    return f"{stem}_fold{fold_id}{extension}"
 
 
 def remove_other_weights(model_path, weight_file):
@@ -115,7 +126,7 @@ def find_weight_file(model_path, weight_file):
 
     if is_safetensors(weight_file):
         # the pickled weights are named differently by each wrapper
-        candidates = [name for name in sorted(os.listdir(model_path)) if name.endswith((".pt", ".pth"))]
+        candidates = [name for name in sorted(os.listdir(model_path)) if name.endswith(PICKLED_WEIGHTS_EXTENSIONS)]
     else:
         candidates = [SAFETENSORS_WEIGHT_FILE_NAME]
 
@@ -125,4 +136,29 @@ def find_weight_file(model_path, weight_file):
             return path
 
     # let the caller fail on the file it asked for
+    return requested
+
+
+def find_fold_weight_file(model_path, fold_id, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
+    """
+    Path of the weights of the model of fold ``fold_id`` in the directory ``model_path``:
+    those named after ``weight_file`` when they are there, else those named after
+    another name the wrappers give to weights, else pickled weights of that fold under
+    any name. As ``find_weight_file``, for a model trained over several folds.
+    """
+    requested = os.path.join(model_path, fold_weight_file(weight_file, fold_id))
+    if os.path.isfile(requested) or not os.path.isdir(model_path):
+        return requested
+
+    candidates = [fold_weight_file(name, fold_id) for name in WEIGHT_FILE_NAMES]
+    for name in sorted(os.listdir(model_path)):
+        match = FOLD_WEIGHT_FILE_PATTERN.fullmatch(name)
+        if match is not None and int(match.group("fold")) == fold_id and name.endswith(PICKLED_WEIGHTS_EXTENSIONS):
+            candidates.append(name)
+
+    for candidate in candidates:
+        path = os.path.join(model_path, candidate)
+        if os.path.isfile(path):
+            return path
+
     return requested

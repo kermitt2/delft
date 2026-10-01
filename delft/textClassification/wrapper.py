@@ -1,5 +1,4 @@
 import os
-import re
 import time
 from contextlib import contextmanager
 
@@ -22,9 +21,12 @@ from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.transformer_tokenizers import get_tokenizer
 from delft.utilities.Utilities import pick_device
 from delft.utilities.weights import (
+    FOLD_WEIGHT_FILE_PATTERN,
     SAFETENSORS_WEIGHT_FILE_NAME,
     WEIGHT_FILE_NAMES,
+    find_fold_weight_file,
     find_weight_file,
+    fold_weight_file,
     load_weights,
     save_weights,
 )
@@ -56,15 +58,6 @@ def split_train_validation(x_train, y_train, split_ratio=0.9):
 
 # File names for saving/loading
 PREPROCESSOR_FILE = "preprocessor.json"
-
-# the weights of the model of a fold, of a classifier trained over several folds
-FOLD_WEIGHT_FILE_PATTERN = re.compile(r"(?P<stem>.+)_fold(?P<fold>\d+)(?P<extension>\.[A-Za-z]+)")
-
-
-def fold_weight_file(weight_file, fold_id):
-    """The name of the weights of the model of fold ``fold_id``: model.safetensors gives model_fold0.safetensors."""
-    stem, extension = os.path.splitext(weight_file)
-    return f"{stem}_fold{fold_id}{extension}"
 
 
 def remove_weights_except(directory, kept):
@@ -781,9 +774,7 @@ class Classifier(object):
             self.model = None
             self.models = []
             for fold_id in range(self.model_config.fold_number):
-                weight_path = os.path.join(model_path, fold_weight_file(SAFETENSORS_WEIGHT_FILE_NAME, fold_id))
-                if not os.path.isfile(weight_path):
-                    weight_path = os.path.join(model_path, fold_weight_file(self.weight_file, fold_id))
+                weight_path = find_fold_weight_file(model_path, fold_id)
                 model = getModel(self.model_config, self.training_config)
                 load_weights(model, weight_path, device=self.device)
                 model.to("cpu" if self._parks_fold_models() else self.device)

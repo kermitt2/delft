@@ -1,5 +1,8 @@
 import json
 
+# the transformer of a classifier of architecture "bert" that is given none
+DEFAULT_TRANSFORMER_NAME = "bert-base-uncased"
+
 
 # Model parameter
 class ModelConfig(object):
@@ -42,6 +45,16 @@ class ModelConfig(object):
         self.batch_size = batch_size  # this is the batch size for test and prediction
 
         self.transformer_name = transformer_name
+        self.set_default_transformer()
+
+    def set_default_transformer(self):
+        """
+        Name the transformer of a "bert" classifier that is given none. The model alone
+        took the default one: the texts, with no transformer named, were not prepared
+        with its tokenizer but as those of a model reading word embeddings.
+        """
+        if self.architecture == "bert" and self.transformer_name is None:
+            self.transformer_name = DEFAULT_TRANSFORMER_NAME
 
     def save(self, file):
         with open(file, "w") as f:
@@ -54,6 +67,8 @@ class ModelConfig(object):
             self = cls()
             for key, val in variables.items():
                 setattr(self, key, val)
+        # a model saved before the default transformer was named in its configuration
+        self.set_default_transformer()
         return self
 
 

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 import torch
 
-from delft.textClassification.config import ModelConfig, TrainingConfig
+from delft.textClassification.config import DEFAULT_TRANSFORMER_NAME, ModelConfig, TrainingConfig
 from delft.textClassification.data_loader import TextClassificationDataset
 from delft.textClassification.preprocess import create_batch_input_bert, create_single_input_bert
 
@@ -83,3 +83,67 @@ def test_a_transformer_that_takes_no_segment_ids_is_not_given_any():
         "token_type_ids": torch.zeros(1, 3, dtype=torch.long),
     }
     assert model(inputs, labels=torch.tensor([[1.0, 0.0]]))["logits"].shape == (1, 2)
+
+
+class TestDefaultTransformer:
+    """
+    A "bert" classifier given no transformer: its model took bert-base-uncased, and its
+    texts, no transformer being named, were prepared as those of a model reading word
+    embeddings, of which there were none.
+    """
+
+    def test_it_is_named_in_the_configuration(self):
+        assert ModelConfig(architecture="bert").transformer_name == DEFAULT_TRANSFORMER_NAME
+        assert ModelConfig(architecture="bert", transformer_name="in-memory").transformer_name == "in-memory"
+        assert ModelConfig(architecture="gru").transformer_name is None
+
+    def test_a_configuration_saved_without_it_names_it_once_loaded(self, tmp_path):
+        config = ModelConfig(architecture="bert")
+        config.transformer_name = None  # as the models saved before
+        config.save(str(tmp_path / "config.json"))
+        assert ModelConfig.load(str(tmp_path / "config.json")).transformer_name == DEFAULT_TRANSFORMER_NAME
+
+        ModelConfig(architecture="gru").save(str(tmp_path / "config.json"))
+        assert ModelConfig.load(str(tmp_path / "config.json")).transformer_name is None
+
+    def test_training_and_classifying_use_its_tokenizer(self, tmp_path, monkeypatch):
+        from transformers import BertConfig, BertModel
+
+        from delft.textClassification.wrapper import Classifier
+
+        monkeypatch.chdir(tmp_path)
+        asked = []
+
+        def tokenizer(name, *args, **kwargs):
+            asked.append(name)
+            return _tokenizer(with_segment_ids=True)
+
+        def transformer(name, *args, **kwargs):
+            asked.append(name)
+            return BertModel(
+                BertConfig(
+                    vocab_size=16, hidden_size=16, num_hidden_layers=1, num_attention_heads=2, intermediate_size=32
+                )
+            )
+
+        texts = ["good work", "bad work", "good", "bad"] * 2
+        classes = [[1, 0], [0, 1]] * 4
+        with (
+            patch("transformers.AutoTokenizer.from_pretrained", side_effect=tokenizer),
+            patch("transformers.AutoModel.from_pretrained", side_effect=transformer),
+        ):
+            classifier = Classifier(
+                "test-classifier",
+                architecture="bert",
+                list_classes=["a", "b"],
+                maxlen=6,
+                max_epoch=1,
+                batch_size=4,
+                early_stop=False,
+                nb_workers=0,
+                device="cpu",
+            )
+            classifier.train(texts, classes)
+            assert classifier.preprocessor is None
+            assert classifier.predict(texts, output_format="array").shape == (8, 2)
+        assert asked and set(asked) == {DEFAULT_TRANSFORMER_NAME}

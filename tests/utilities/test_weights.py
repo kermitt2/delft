@@ -3,7 +3,14 @@ import os
 import pytest
 import torch
 
-from delft.utilities.weights import SAFETENSORS_WEIGHT_FILE_NAME, find_weight_file, load_weights, save_weights
+from delft.utilities.weights import (
+    SAFETENSORS_WEIGHT_FILE_NAME,
+    find_fold_weight_file,
+    find_weight_file,
+    fold_weight_file,
+    load_weights,
+    save_weights,
+)
 
 
 class TiedModel(torch.nn.Module):
@@ -179,3 +186,38 @@ class TestFindWeightFile:
         assert find_weight_file(str(tmp_path), "model_weights.pt") == os.path.join(str(tmp_path), "model_weights.pt")
         missing = str(tmp_path / "no-such-model")
         assert find_weight_file(missing, "model_weights.pt") == os.path.join(missing, "model_weights.pt")
+
+
+class TestFindFoldWeightFile:
+    """The weights of the model of a fold, of a text classifier trained over several folds."""
+
+    @staticmethod
+    def _touch(directory, name):
+        (directory / name).write_bytes(b"")
+        return str(directory / name)
+
+    def test_name_of_the_weights_of_a_fold(self):
+        assert fold_weight_file("model.safetensors", 0) == "model_fold0.safetensors"
+        assert fold_weight_file("model_weights.pt", 12) == "model_weights_fold12.pt"
+
+    def test_safetensors_win_when_both_formats_are_there(self, tmp_path):
+        self._touch(tmp_path, "model_weights_fold1.pt")
+        published = self._touch(tmp_path, "model_fold1.safetensors")
+        assert find_fold_weight_file(str(tmp_path), 1) == published
+
+    @pytest.mark.parametrize("pickled", ["model_weights.pt", "model_weights.pth", "weights.pt"])
+    def test_falls_back_to_pickled_weights_whatever_their_name(self, tmp_path, pickled):
+        """model_weights.pt is a name the wrappers save under: only the .pth one was looked for."""
+        saved = [self._touch(tmp_path, fold_weight_file(pickled, fold_id)) for fold_id in range(11)]
+        assert [find_fold_weight_file(str(tmp_path), fold_id) for fold_id in (0, 1, 10)] == [
+            saved[0],
+            saved[1],
+            saved[10],
+        ]
+
+    def test_names_the_safetensors_file_when_the_fold_has_no_weights(self, tmp_path):
+        self._touch(tmp_path, "model_fold0.safetensors")
+        self._touch(tmp_path, "model.safetensors")  # the weights of a single model are not those of a fold
+        assert find_fold_weight_file(str(tmp_path), 1) == os.path.join(str(tmp_path), "model_fold1.safetensors")
+        missing = str(tmp_path / "no-such-model")
+        assert find_fold_weight_file(missing, 0) == os.path.join(missing, "model_fold0.safetensors")

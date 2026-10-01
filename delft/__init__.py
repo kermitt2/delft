@@ -57,8 +57,8 @@ def cpu_affinity_count():
 def default_nb_workers(maximum=4):
     """
     The number of data loading workers of a training that asks for none: one per core
-    this process may run on, bar the one of the process itself, up to ``maximum``. None
-    on a single core, where the data is loaded in the process.
+    this process may run on, bar the one of the process itself, up to ``maximum``. It is
+    0 on a single core: no worker is started and the data is loaded in the process.
     """
     return max(0, min(maximum, (cpu_affinity_count() or os.cpu_count() or 2) - 1))
 

@@ -170,13 +170,15 @@ class TestSavingAndLoading:
         assert loaded.model_config.fold_number == FOLDS and len(loaded.models) == FOLDS and loaded.model is None
         np.testing.assert_allclose(loaded.predict(TEXTS, output_format="array"), scores, rtol=1e-6)
 
-    def test_pickled_weights(self, tmp_path, monkeypatch):
+    @pytest.mark.parametrize("weight_file", ["model_weights.pth", "model_weights.pt"])
+    def test_pickled_weights(self, tmp_path, monkeypatch, weight_file):
+        """Those saved as model_weights.pt were not found again: only the .pth ones were looked for."""
         monkeypatch.chdir(tmp_path)
         classifier = _classifier()
         classifier.train(TEXTS, CLASSES)
         scores = classifier.predict(TEXTS, output_format="array")
-        classifier.save(str(tmp_path), weight_file="model_weights.pth")
-        assert (tmp_path / "test-classifier" / "model_weights_fold2.pth").is_file()
+        classifier.save(str(tmp_path), weight_file=weight_file)
+        assert (tmp_path / "test-classifier" / fold_weight_file(weight_file, 2)).is_file()
         np.testing.assert_allclose(_loaded(tmp_path).predict(TEXTS, output_format="array"), scores, rtol=1e-6)
 
     def test_the_weights_of_an_earlier_training_do_not_stay(self, tmp_path, monkeypatch):
