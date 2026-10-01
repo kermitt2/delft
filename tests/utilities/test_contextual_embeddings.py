@@ -723,6 +723,19 @@ class TestSequenceLabelling:
         assert other.cache_env_path() == contextual.cache_env_path()
         assert other.precompute([tagged], verbose=False) == 1
 
+        model.save(str(tmp_path / "saved"))
+        saved_settings = model.model_config.contextual_embedding_settings
+        assert saved_settings == contextual.fingerprint()
+
+        # A machine-specific local model path is not written to config.json: a
+        # local registry entry is required to locate it when the model is loaded.
+        empty_cache = tmp_path / "empty-cache"
+        registry.clear()
+        registry.update(_registry(empty_cache, _entry(tiny_bert)))
+        registry["embeddings"] = []
+        loaded = wrapper.Sequence("contextual-test", embeddings_name=None, nb_workers=0, device="cpu")
+        with pytest.raises(ValueError, match="configure its path"):
+            loaded.load(str(tmp_path / "saved"))
 
 class TestDataLoader:
     @staticmethod

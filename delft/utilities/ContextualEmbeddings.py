@@ -139,6 +139,7 @@ class ContextualEmbeddings:
         device=None,
         local_files_only=False,
         lang="en",
+        revision=None,
     ):
         if layer_pooling not in LAYER_POOLINGS:
             raise ValueError("layer pooling must be one of %s, not %s" % (", ".join(LAYER_POOLINGS), layer_pooling))
@@ -168,7 +169,8 @@ class ContextualEmbeddings:
         # the revision of the model the vectors come from, part of the identity of the
         # cache, and the commit of the Hub every file of the model is taken from
         self.revision = None
-        self._hub_revision = None
+        self._expected_revision = revision
+        self._hub_revision = None if os.path.isdir(str(model_reference)) else revision
         # what the model is to its cache: its identifier on the Hub, or, for a local
         # directory, its type alone, the revision telling which model of that type
         self._cache_model = str(model_reference)
@@ -250,6 +252,11 @@ class ContextualEmbeddings:
             # the commit the files of the Hub were resolved to, also from its cache
             self._hub_revision = getattr(config, "_commit_hash", None)
             self.revision = self._hub_revision
+        if self._expected_revision is not None and self.revision != self._expected_revision:
+            raise ValueError(
+                "contextual embedding model revision %r does not match the saved revision %r"
+                % (self.revision, self._expected_revision)
+            )
 
     def _load_tokenizer(self):
         transformers = _import_transformers()
@@ -485,6 +492,10 @@ class ContextualEmbeddings:
             "stride": self.stride,
             "dtype": np.dtype(CACHE_DTYPE).name,
         }
+
+    def saved_settings(self):
+        """Portable settings needed to reproduce the vectors of a saved model."""
+        return self.fingerprint()
 
     def cache_env_path(self):
         """Directory of the LMDB cache, or None when the vectors are only kept in memory."""
