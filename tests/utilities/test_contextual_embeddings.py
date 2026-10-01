@@ -15,7 +15,9 @@ import numpy as np
 import pytest
 
 import delft.utilities.ContextualEmbeddings as contextual_module
-from delft.sequenceLabelling.preprocess import to_vector_single
+from delft.sequenceLabelling.config import ModelConfig
+from delft.sequenceLabelling.data_loader import create_dataloader
+from delft.sequenceLabelling.preprocess import Preprocessor, to_vector_single
 from delft.utilities.ContextualEmbeddings import ContextualEmbeddings, local_model_revision
 from delft.utilities.Embeddings import Embeddings
 
@@ -707,6 +709,59 @@ class TestEmbeddingsIntegration:
 
 
 class TestSequenceLabelling:
+    def test_dataloader_workers_read_precomputed_contextual_vectors(self, tiny_bert, tmp_path):
+        x = np.array([SENTENCE, SENTENCE[:3], SENTENCE[1:5], SENTENCE[2:]], dtype=object)
+        y = np.array([["O"] * len(tokens) for tokens in x], dtype=object)
+        preprocessor = Preprocessor()
+        preprocessor.fit(x, y)
+        config = ModelConfig(
+            architecture="BidLSTM_CRF",
+            embeddings_name="tiny-contextual",
+            word_embedding_size=HIDDEN_SIZE,
+            max_sequence_length=10,
+        )
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        loader = create_dataloader(
+            x,
+            y,
+            preprocessor=preprocessor,
+            embeddings=embeddings,
+            batch_size=1,
+            shuffle=False,
+            model_config=config,
+            num_workers=2,
+        )
+
+        batches = list(loader)
+        assert loader.num_workers == 2
+        assert len(batches) == len(x)
+        assert all(batch[0]["word_input"].abs().sum() > 0 for batch in batches)
+
+    def test_nfold_training_with_contextual_embeddings(self, tiny_bert, tmp_path, monkeypatch):
+        import delft.sequenceLabelling.wrapper as wrapper
+
+        registry = _registry(tmp_path, _entry(tiny_bert, window=12, stride=5))
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: registry)
+        monkeypatch.chdir(tmp_path)
+        x = np.array([SENTENCE, SENTENCE[:3], SENTENCE[1:5], SENTENCE[2:]], dtype=object)
+        y = np.array([["B-ANIMAL" if token == "cat" else "O" for token in tokens] for tokens in x], dtype=object)
+        model = wrapper.Sequence(
+            "contextual-nfold-test",
+            architecture="BidLSTM_CRF",
+            embeddings_name="tiny-contextual",
+            fold_number=2,
+            max_epoch=1,
+            batch_size=2,
+            max_sequence_length=10,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+
+        model.train_nfold(x, y)
+        assert len(model.models) == 2
+        assert model.embeddings.model.precompute(x, max_sequence_length=10, verbose=False) == 0
+
     def test_rnn_architecture_trains_and_tags_with_contextual_embeddings(self, tiny_bert, tmp_path, monkeypatch):
         import delft.sequenceLabelling.wrapper as wrapper
 
@@ -951,10 +1006,31 @@ class TestTextClassification:
 
         embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
         config = ModelConfig(architecture="gru", embeddings_name="tiny-contextual", list_classes=["a", "b"], maxlen=4)
-        loader = create_dataloader(self.TEXTS, self.CLASSES, config, embeddings=embeddings, batch_size=4, shuffle=False)
+        loader = create_dataloader(
+            self.TEXTS,
+            self.CLASSES,
+            config,
+            embeddings=embeddings,
+            batch_size=4,
+            shuffle=False,
+            num_workers=2,
+        )
+        assert loader.num_workers > 0
         assert embeddings.model._model is None
         inputs, labels = next(iter(loader))
         assert inputs.shape == (4, 4, HIDDEN_SIZE) and labels.shape == (4, 2)
         assert embeddings.model._model is None, "the dataset found every text in the cache"
         # cut at the last 4 tokens, as the dataset cuts a text
         np.testing.assert_array_equal(inputs[0].numpy(), embeddings.get_sentence_vectors(["sat", "on", "the", "mat"]))
+
+        prediction_loader = create_dataloader(
+            self.TEXTS,
+            None,
+            config,
+            embeddings=embeddings,
+            batch_size=4,
+            shuffle=False,
+            num_workers=2,
+        )
+        assert prediction_loader.num_workers > 0
+        assert sum(len(batch) for batch in prediction_loader) == len(self.TEXTS)
