@@ -17,6 +17,7 @@ from delft.utilities.preprocess import (
     BasePreprocessor,
 )
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.transformer_tokenizers import call_tokenizer
 
 special_character_removal = re.compile(r"[^A-Za-z\.\-\?\!\,\#\@\% ]", re.IGNORECASE)
 
@@ -87,7 +88,8 @@ def create_single_input_bert(text, maxlen=512, transformer_tokenizer=None):
     """
 
     # TBD: exception if tokenizer is not valid/None
-    encoded_tokens = transformer_tokenizer(
+    encoded_tokens = call_tokenizer(
+        transformer_tokenizer,
         text,
         truncation=True,
         add_special_tokens=True,
@@ -110,7 +112,8 @@ def create_batch_input_bert(texts, maxlen=512, transformer_tokenizer=None):
     if isinstance(texts, np.ndarray):
         texts = texts.tolist()
 
-    encoded_tokens = transformer_tokenizer(
+    encoded_tokens = call_tokenizer(
+        transformer_tokenizer,
         texts,
         add_special_tokens=True,
         truncation=True,

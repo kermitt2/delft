@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import torch
 import transformers
 
-from delft import DELFT_PROJECT_DIR
+from delft import DELFT_PROJECT_DIR, default_nb_workers
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
@@ -143,7 +143,11 @@ class Sequence(object):
         # host process such as GROBID (see ``tag()``).
         self.nb_workers_explicit = nb_workers is not None
         if nb_workers is None:
-            self.nb_workers = max(1, min(4, os.cpu_count() - 1))
+            # the cores this process may run on, not those of the node: a SLURM task
+            # allocated one or two of them was spawning four workers on them. On a
+            # single core the data is loaded in the process itself: a worker would
+            # only share that core with it.
+            self.nb_workers = default_nb_workers()
         else:
             self.nb_workers = max(0, nb_workers)
 

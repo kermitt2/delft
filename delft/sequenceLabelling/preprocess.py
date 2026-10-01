@@ -7,6 +7,7 @@ import numpy as np
 
 from delft.sequenceLabelling.config import ModelConfig
 from delft.sequenceLabelling.text_features import TEXT_SEPARATOR
+from delft.utilities.transformer_tokenizers import call_tokenizer
 
 LOGGER = logging.getLogger(__name__)
 
@@ -261,8 +262,9 @@ class BERTPreprocessor(object):
             while len(chars_tokens) < nb_positions:
                 chars_tokens.append(self.empty_char_vector)
 
-        # sub-tokenization
-        encoded_result = self.tokenizer(
+        # sub-tokenization, one call at a time: the tokenizer is shared by the threads
+        encoded_result = call_tokenizer(
+            self.tokenizer,
             text_tokens,
             add_special_tokens=True,
             is_split_into_words=True,
@@ -785,6 +787,14 @@ class Preprocessor(BaseEstimator, TransformerMixin):
         return self
 
 
+# the architectures with a casing embedding next to the word and character ones
+CASING_ARCHITECTURES = ("BidLSTM_CNN", "BidLSTM_CRF_CASING")
+
+
+def architecture_uses_casing(architecture):
+    return architecture in CASING_ARCHITECTURES
+
+
 def prepare_preprocessor(X, y, model_config, features: np.array = None):
     """
     Prepare the preprocessor. If features are passed, configure the feature preprocessor
@@ -803,6 +813,8 @@ def prepare_preprocessor(X, y, model_config, features: np.array = None):
         max_char_length=model_config.max_char_length,
         feature_preprocessor=feature_preprocessor,
         return_features=(feature_preprocessor is not None),
+        # the models with a casing channel read it from the batch, which held none
+        return_casing=architecture_uses_casing(model_config.architecture),
     )
     preprocessor.fit(X, y)
 

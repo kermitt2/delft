@@ -29,6 +29,7 @@ from delft.utilities.dataloader_utils import (
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.transformer_tokenizers import get_tokenizer
 from delft.utilities.Utilities import truncate_batch_values
 
 LOGGER = logging.getLogger(__name__)
@@ -498,14 +499,14 @@ def create_dataloader(
     x = text_from_features(x, features, getattr(model_config, "text_features_indices", None))
 
     if model_config and model_config.transformer_name:
-        from transformers import AutoTokenizer
-
         # Initialize BERT/Transformer preprocessor
         # add_prefix_space: the sequences are already split into words, and the byte-level BPE
         # tokenizers (RoBERTa, GPT2...) only mark the start of a word with a leading space.
         # Without it no sub-token carries that mark, and the alignment of the labels, which
         # relies on it for these tokenizers, drops the first sub-token of every word.
-        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name, add_prefix_space=True)
+        # The tokenizer is loaded once for the process: a loader is built for every call
+        # to tag, which loaded it again, and asked the Hub about it, each time.
+        tokenizer = get_tokenizer(model_config.transformer_name, add_prefix_space=True)
         bert_preprocessor = BERTPreprocessor(tokenizer)
 
         if windowing:

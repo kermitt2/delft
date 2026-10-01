@@ -31,6 +31,16 @@ def patch_magicmock():
         MagicMock.assert_called = _backport_assert_called
 
 
+@pytest.fixture(autouse=True)
+def no_tokenizer_kept_between_tests():
+    """Tokenizers are kept for the life of the process, under names the tests reuse for different ones."""
+    from delft.utilities.transformer_tokenizers import clear_tokenizers
+
+    clear_tokenizers()
+    yield
+    clear_tokenizers()
+
+
 @pytest.fixture
 def temp_dir(tmpdir):
     # convert to standard Path

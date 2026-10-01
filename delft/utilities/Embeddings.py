@@ -1,4 +1,5 @@
 # Manage pre-trained embeddings
+import glob
 import gzip
 import hashlib
 import io
@@ -7,10 +8,14 @@ import mmap
 import os
 import pickle
 import shutil
+import socket
 import struct
 import sys
 import threading
+import time
+import uuid
 import zipfile
+from urllib.parse import unquote, urlparse
 
 import lmdb
 import numpy as np
@@ -23,10 +28,50 @@ try:
 except ImportError:
     fasttext_support = False
 
+from delft.utilities.hub_models import BUCKETS, HF_SCHEME, HUB_HOSTS
+from delft.utilities.StaticEmbeddings import (
+    StaticTransformerEmbeddings,
+    looks_like_static_embedding_reference,
+)
 from delft.utilities.Utilities import download_file
 
 # this is the default init size of a lmdb database for embeddings
 map_size = 100 * 1024 * 1024 * 1024
+
+# A database is compiled in a directory of its own next to its final path, one per
+# compiling process, then renamed into place: a reader never sees a half-written
+# database, whether the compilation is still running or crashed, and two processes
+# never write to the same one. The first complete database is the one kept.
+#
+# One process compiles at a time, the others wait on a lock directory, which mkdir
+# creates atomically on a network filesystem as well, where the lock of LMDB itself does
+# not hold across nodes. A lock left by a process that died is taken over after
+# STALE_BUILD_LOCK_SECONDS. The lock only spares the processes compiling the same
+# embeddings several times: should two of them hold it at once, each still writes to its
+# own directory.
+BUILD_DIRECTORY_SUFFIX = ".building"
+BUILD_LOCK_SUFFIX = ".lock"
+STALE_BUILD_LOCK_SECONDS = 12 * 3600
+BUILD_WAIT_SECONDS = 30
+# in a lock directory, the token of the process holding it
+BUILD_LOCK_OWNER_FILE = "owner"
+
+# modern static embeddings (sentence-transformers static embeddings, Model2Vec
+# potion models) are not a vector file to be compiled into LMDB, they are a
+# tokenizer plus an embedding matrix loaded from the HuggingFace hub, see
+# delft/utilities/StaticEmbeddings.py
+STATIC_TRANSFORMER_FORMAT = "static-transformer"
+STATIC_TRANSFORMER_FORMATS = (STATIC_TRANSFORMER_FORMAT, "hf")
+
+
+def is_static_transformer_description(description):
+    """Whether an embeddings registry entry describes a modern static embedding model."""
+    if not isinstance(description, dict):
+        return False
+    return (
+        description.get("format") in STATIC_TRANSFORMER_FORMATS or description.get("type") in STATIC_TRANSFORMER_FORMATS
+    )
+
 
 # Since py-lmdb 1.0, opening the same environment twice in a process raises
 #   lmdb.Error: The environment '<path>' is already open in this process.
@@ -94,6 +139,78 @@ def current_lmdb_env(path):
     return cached[1]
 
 
+# the repositories of the Hub other than the models are named after their kind,
+# in the hf:// references as in the URLs
+HUB_REPO_TYPES = {"datasets": "dataset", "spaces": "space"}
+
+
+def hub_file_of(url):
+    """
+    Where the file of the Hugging Face Hub an embeddings registry ``url`` points
+    to is, as the arguments of ``huggingface_hub.hf_hub_download``, or None when
+    ``url`` is not one of the Hub. A file of the Hub is given
+
+    - as a ``hf://`` reference, the revision being optional:
+      ``hf://stanfordnlp/glove/glove.840B.300d.zip``,
+      ``hf://datasets/sciencialab/word2vec-google-news-negative-300@main/GoogleNews-vectors-negative300.vec.gz``;
+    - or as the URL the Hub serves it at, or shows it at:
+      ``https://huggingface.co/stanfordnlp/glove/resolve/main/glove.840B.300d.zip``.
+    """
+    if not isinstance(url, str):
+        return None
+    if url.startswith(HF_SCHEME):
+        return _hub_file_of_reference(url)
+
+    parsed = urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https") or parsed.netloc.lower() not in HUB_HOSTS:
+        return None
+    parts = [unquote(part) for part in parsed.path.split("/") if part]
+    repo_type = HUB_REPO_TYPES.get(parts[0]) if parts else None
+    if repo_type:
+        parts = parts[1:]
+    # owner/repository/resolve/revision/file: another page of the Hub is no file
+    if len(parts) < 5 or parts[2] not in ("resolve", "blob"):
+        return None
+    return _hub_file(parts[0] + "/" + parts[1], "/".join(parts[4:]), repo_type, parts[3])
+
+
+def _hub_file_of_reference(reference):
+    expected = f"expected {HF_SCHEME}[datasets/]owner/repository[@revision]/file"
+    parts = reference[len(HF_SCHEME) :].strip("/").split("/")
+    if parts[0] == BUCKETS:
+        raise ValueError(f"Invalid reference {reference!r}, {expected}: embeddings are not read from a bucket")
+    repo_type = HUB_REPO_TYPES.get(parts[0])
+    if repo_type:
+        parts = parts[1:]
+    if len(parts) < 3 or not all(parts):
+        raise ValueError(f"Invalid reference {reference!r}, {expected}")
+    name, _, revision = parts[1].partition("@")
+    if not name:
+        raise ValueError(f"Invalid reference {reference!r}: no repository name")
+    # a revision with a slash is quoted, as in hf://owner/repository@refs%2Fpr%2F1/file
+    return _hub_file(parts[0] + "/" + name, "/".join(parts[2:]), repo_type, unquote(revision) or None)
+
+
+def _hub_file(repo_id, filename, repo_type, revision):
+    return {"repo_id": repo_id, "filename": filename, "repo_type": repo_type, "revision": revision}
+
+
+def download_hub_file(url, token=None):
+    """
+    Local path of the file of the Hub ``url`` points to (see hub_file_of), taken
+    the way the transformers are: downloaded once into the cache of the Hub
+    (HF_HOME), with the access token of the environment (HF_ACCESS_TOKEN, as for
+    the transformers, else the one of huggingface_hub), and from the cache alone
+    when HF_HUB_OFFLINE is set.
+    """
+    from huggingface_hub import hf_hub_download
+
+    location = hub_file_of(url)
+    if location is None:
+        raise ValueError(f"Not a file of the Hugging Face Hub: {url!r}")
+    return hf_hub_download(**location, token=token or os.getenv("HF_ACCESS_TOKEN") or None)
+
+
 class Embeddings(object):
     def __init__(
         self,
@@ -149,6 +266,11 @@ class Embeddings(object):
 
     def lmdb_env_path(self):
         """Path of the LMDB database backing these embeddings, or None."""
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            # a static embedding model is never compiled into LMDB, and its
+            # name may be a path, which os.path.join below would take as the
+            # database directory
+            return None
         if not self.embedding_lmdb_path:
             return None
         return os.path.join(self.embedding_lmdb_path, self.name)
@@ -317,12 +439,50 @@ class Embeddings(object):
                 except Exception as e:
                     print("Failed to delete %s. Reason: %s" % (file_path, e))
 
+    def make_static_transformer_embeddings(self, name, description=None):
+        """
+        Load a modern static embedding model (sentence-transformers static
+        embeddings, Model2Vec potion models), either described in the
+        embeddings registry or given directly as a HuggingFace hub identifier
+        or as a path to a local copy of such a model.
+        """
+        if description is None:
+            description = {}
+        model_reference = description.get("model") or description.get("path") or name
+        self.lang = description.get("lang", self.lang)
+        self.extension = STATIC_TRANSFORMER_FORMAT
+
+        print("loading static embedding model", model_reference, "...")
+        self.model = StaticTransformerEmbeddings(
+            model_reference,
+            dimensions=description.get("dimensions"),
+            normalize=description.get("normalize"),
+            lang=self.lang,
+        )
+        self.embed_size = self.model.embed_size
+        self.vocab_size = self.model.vocab_size
+        print(
+            "embeddings loaded for",
+            self.vocab_size,
+            "sub-word units and",
+            self.embed_size,
+            "dimensions",
+        )
+
     def make_embeddings_simple(self, name="fasttext-crawl"):
         description = self.get_description(name)
         if description is not None:
-            self.extension = description["format"]
+            self.extension = description.get("format", self.extension)
 
-        if self.extension == "bin":
+        if is_static_transformer_description(description) or (
+            description is None and looks_like_static_embedding_reference(name)
+        ):
+            # a static embedding model is used as it is, there is nothing to
+            # compile into LMDB: the vocabulary is made of sub-word units and
+            # word vectors are pooled on the fly
+            self.make_static_transformer_embeddings(name, description)
+
+        elif self.extension == "bin":
             if fasttext_support:
                 print("embeddings are of .bin format, so they will be loaded in memory...")
                 self.make_embeddings_simple_in_memory(name)
@@ -339,6 +499,11 @@ class Embeddings(object):
                 "embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory..."
             )
             embeddings_path = None
+            if description is None:
+                raise ValueError(
+                    f"Unknown embeddings {name}: they are not in the embeddings registry, and the name is "
+                    "neither a static embedding model of the Hugging Face Hub (owner/model) nor the directory of one"
+                )
             if "path" in description:
                 embeddings_path = description["path"]
             self.lang = description["lang"]
@@ -354,82 +519,160 @@ class Embeddings(object):
 
         else:
             # if the path to the lmdb database files does not exist, we create it
-            if not os.path.isdir(self.embedding_lmdb_path):
-                # conservative check (likely very useless)
-                if not os.path.exists(self.embedding_lmdb_path):
-                    os.makedirs(self.embedding_lmdb_path, exist_ok=True)
+            os.makedirs(self.embedding_lmdb_path, exist_ok=True)
+            description = self.get_description(name)
+            if description is not None:
+                self.lang = description["lang"]
 
-            # check if the lmdb database exists
             envFilePath = os.path.join(self.embedding_lmdb_path, name)
-            load_db = True
-            if os.path.isdir(envFilePath):
-                description = self.get_description(name)
-                if description is not None:
-                    self.lang = description["lang"]
+            if self._open_valid_lmdb(envFilePath):
+                return
 
-                # open the database in read mode, or reuse the environment
-                # already open on this path in the current process
-                self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
-                if self.env:
+            # no usable database: compile it, or wait for the process compiling it
+            lock_path = envFilePath + BUILD_LOCK_SUFFIX
+            while True:
+                token = _acquire_build_lock(lock_path)
+                if token is not None:
                     try:
-                        # we need to set self.embed_size and self.vocab_size
-                        with self.env.begin() as txn:
-                            stats = txn.stat()
-                            size = stats["entries"]
-                            self.vocab_size = size
+                        # compiled by another process between the check above and the lock
+                        if self._open_valid_lmdb(envFilePath):
+                            return
+                        self._compile_lmdb(name, envFilePath, token)
+                    finally:
+                        _release_build_lock(lock_path, token)
+                    if self._open_valid_lmdb(envFilePath, just_compiled=True):
+                        return
+                    raise ValueError(f"The embeddings {name} could not be compiled into {envFilePath}")
 
-                        with self.env.begin() as txn:
-                            cursor = txn.cursor()
-                            for key, value in cursor:
-                                _check_lmdb_format(value)
-                                vector = _deserialize_float32(value)
-                                self.embed_size = vector.shape[0]
-                                break
-                            cursor.close()
-                    except Exception:
-                        # never leave an environment behind on the way out: the
-                        # real cause (a legacy-format database, say) would then
-                        # be masked by "already open in this process" on the
-                        # next attempt
-                        if opened:
-                            close_lmdb_env(envFilePath)
-                            self.env = None
-                        raise
+                print(f"Another process is compiling the embeddings {name}, waiting for it...")
+                while os.path.isdir(lock_path) and not _build_lock_is_stale(lock_path):
+                    time.sleep(BUILD_WAIT_SECONDS)
+                if self._open_valid_lmdb(envFilePath):
+                    return
 
-                    if self.vocab_size > 100 and self.embed_size > 10:
-                        # lmdb database exists and looks valid
-                        load_db = False
+    def _open_valid_lmdb(self, envFilePath, just_compiled=False):
+        """
+        Open the database at ``envFilePath`` for reading, when it is there and holds
+        vectors: set ``env``, ``vocab_size`` and ``embed_size`` and return True. A
+        database that is missing, half-written or damaged gives False, to be compiled
+        again; one in the legacy format raises, see ``_check_lmdb_format``.
 
-                        if opened:
-                            # no idea why, but we need to close and reopen the environment to avoid
-                            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-                            # when opening new transaction !
-                            # Only for an environment we opened ourselves: a reused
-                            # one already went through this and is read by others.
-                            close_lmdb_env(envFilePath)
-                            self.env, _ = open_lmdb_env(
-                                envFilePath,
-                                readonly=True,
-                                max_readers=2048,
-                                max_spare_txns=2,
-                            )
-
-            if load_db:
-                # create and load the database in write mode. The check above may
-                # have left a read-only environment open on this path, and write
-                # mode needs an exclusive open.
+        A database found on disk has to look like real embeddings, over a hundred
+        words of over ten dimensions, to be trusted; one this process
+        ``just_compiled`` holds whatever the embeddings file held.
+        """
+        if not os.path.isdir(envFilePath):
+            return False
+        # open the database in read mode, or reuse the environment already open on
+        # this path in the current process
+        try:
+            self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+        except lmdb.Error as e:
+            print(f"The embeddings database {envFilePath} cannot be opened ({e}): compiling it again")
+            self.env = None
+            return False
+        try:
+            try:
+                self._read_lmdb_header()
+            except lmdb.Error:
+                # a reader slot error (MDB_BAD_RSLOT) happens on a freshly opened
+                # environment on some platforms and goes away on a new one: a database
+                # is only damaged when a fresh environment cannot read it either
                 close_lmdb_env(envFilePath)
-                self.env, _ = open_lmdb_env(envFilePath, map_size=map_size)
-                self.make_embeddings_lmdb(name)
+                self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+                self._read_lmdb_header()
+        except lmdb.Error as e:
+            # damaged, by a compilation that crashed or ran twice at once
+            print(f"The embeddings database {envFilePath} is damaged ({e}): compiling it again")
+            close_lmdb_env(envFilePath)
+            self.env = None
+            return False
+        except Exception:
+            # never leave an environment behind on the way out: the real cause (a
+            # legacy-format database, say) would then be masked by "already open in
+            # this process" on the next attempt
+            if opened:
+                close_lmdb_env(envFilePath)
+                self.env = None
+            raise
+
+        usable = self.vocab_size > 0 if just_compiled else (self.vocab_size > 100 and self.embed_size > 10)
+        if not usable:
+            close_lmdb_env(envFilePath)
+            self.env = None
+            return False
+
+        if opened:
+            # no idea why, but we need to close and reopen the environment to avoid
+            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
+            # when opening new transaction !
+            # Only for an environment we opened ourselves: a reused
+            # one already went through this and is read by others.
+            close_lmdb_env(envFilePath)
+            self.env, _ = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
+        return True
+
+    def _read_lmdb_header(self):
+        """Set ``vocab_size`` and ``embed_size`` from the open database, in one transaction."""
+        with self.env.begin() as txn:
+            self.vocab_size = txn.stat()["entries"]
+            cursor = txn.cursor()
+            for _key, value in cursor:
+                _check_lmdb_format(value)
+                self.embed_size = _deserialize_float32(value).shape[0]
+                break
+            cursor.close()
+
+    def _compile_lmdb(self, name, envFilePath, token=None):
+        """
+        Compile the embeddings ``name`` into a database of this process next to
+        ``envFilePath``, and move it there once complete, in place of whatever unusable
+        database was there. When another process put a complete database there in the
+        meantime, that one is kept and this one dropped.
+        """
+        _remove_stale_builds(envFilePath)
+        build_path = f"{envFilePath}{BUILD_DIRECTORY_SUFFIX}-{token or _new_build_token()}"
+        close_lmdb_env(build_path)
+        shutil.rmtree(build_path, ignore_errors=True)
+        self.env, _ = open_lmdb_env(build_path, map_size=map_size)
+        try:
+            self.make_embeddings_lmdb(name)
+        finally:
+            close_lmdb_env(build_path)
+            self.env = None
+
+        if self._open_valid_lmdb(envFilePath):
+            # published by another process while this one compiled
+            shutil.rmtree(build_path, ignore_errors=True)
+            return
+        close_lmdb_env(envFilePath)
+        if os.path.isdir(envFilePath):
+            # an unusable database: taken away under a name of this process, which is
+            # atomic, rather than removed where another process may be putting its own
+            aside = f"{build_path}.replaced"
+            try:
+                os.rename(envFilePath, aside)
+            except OSError:
+                pass
+            shutil.rmtree(aside, ignore_errors=True)
+        try:
+            os.rename(build_path, envFilePath)
+        except OSError:
+            # another process put its database there first: a directory is not renamed
+            # over one that is not empty
+            shutil.rmtree(build_path, ignore_errors=True)
 
     def get_description(self, name):
-        for emb in self.registry["embeddings"]:
+        # without a registry nothing is described: a static embedding model given by its
+        # Hub identifier or its path needs none
+        registry = self.registry or {}
+        for emb in registry.get("embeddings", ()):
             if emb["name"] == name:
                 return emb
-        for emb in self.registry["embeddings-contextualized"]:
+        for emb in registry.get("embeddings-contextualized", ()):
             if emb["name"] == name:
                 return emb
-        for emb in self.registry["transformers"]:
+        for emb in registry.get("transformers", ()):
             if emb["name"] == name:
                 return emb
         return None
@@ -438,6 +681,8 @@ class Embeddings(object):
         """
         Get static embeddings (e.g. glove) for a given token
         """
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
@@ -492,6 +737,8 @@ class Embeddings(object):
             return env
 
     def get_word_vector_in_memory(self, word):
+        if self.extension == STATIC_TRANSFORMER_FORMAT:
+            return self.model.get_word_vector(word)
         if (self.name == "wiki.fr") or (self.name == "wiki.fr.bin"):
             # the pre-trained embeddings are not cased
             word = word.lower()
@@ -518,20 +765,29 @@ class Embeddings(object):
             )
             if "url" in description and len(description["url"]) > 0:
                 url = description["url"]
-                download_path = self.registry["embedding-download-path"]
-                # if the download path does not exist, we create it
-                if not os.path.isdir(download_path):
-                    try:
-                        os.mkdir(download_path)
-                    except OSError:
-                        print(
-                            "Creation of the download directory",
-                            download_path,
-                            "failed",
-                        )
-
                 print("Downloading resource file for", description["name"], "...")
-                embeddings_path = download_file(url, download_path)
+                if hub_file_of(url) is not None:
+                    # kept in the cache of the Hub, as the transformers are, and not
+                    # in embedding-download-path, which is emptied once compiled
+                    try:
+                        embeddings_path = download_hub_file(url)
+                    except Exception as e:
+                        print("Download failed for", url, "\nError:", e)
+                        embeddings_path = None
+                else:
+                    download_path = self.registry["embedding-download-path"]
+                    # if the download path does not exist, we create it
+                    if not os.path.isdir(download_path):
+                        try:
+                            os.mkdir(download_path)
+                        except OSError:
+                            print(
+                                "Creation of the download directory",
+                                download_path,
+                                "failed",
+                            )
+
+                    embeddings_path = download_file(url, download_path)
                 if embeddings_path is not None and os.path.isfile(embeddings_path):
                     print("Download sucessful:", embeddings_path)
             else:
@@ -540,6 +796,82 @@ class Embeddings(object):
                     description["name"],
                 )
         return embeddings_path
+
+
+def _new_build_token():
+    """A name no other process has: for the lock and for the directory of a compilation."""
+    return f"{socket.gethostname()}-{os.getpid()}-{uuid.uuid4().hex[:12]}"
+
+
+def _build_lock_owner(lock_path):
+    try:
+        with open(os.path.join(lock_path, BUILD_LOCK_OWNER_FILE)) as f:
+            return f.read().strip()
+    except OSError:
+        return None
+
+
+def _acquire_build_lock(lock_path):
+    """
+    Take the lock of a compilation, a directory holding the token of its owner. Returns
+    the token of this process when it took the lock, None when another process holds it.
+
+    A stale lock is first taken away by renaming it, which is atomic: of the processes
+    finding it stale at the same time, one takes it away and the others find it gone.
+    Removing it in place let a second process remove the lock the first had just taken,
+    and both compile. The renamed directory is checked again: a process that looked at
+    the stale lock before another replaced it may have taken away the new one, which is
+    then put back.
+    """
+    token = _new_build_token()
+    for _ in range(2):
+        try:
+            os.mkdir(lock_path)
+        except FileExistsError:
+            if not _build_lock_is_stale(lock_path):
+                return None
+            claimed = f"{lock_path}.stale-{token}"
+            try:
+                os.rename(lock_path, claimed)
+            except OSError:
+                return None  # taken away by another process
+            if not _build_lock_is_stale(claimed):
+                # the lock another process took in the meantime, not the stale one
+                try:
+                    os.rename(claimed, lock_path)
+                except OSError:
+                    shutil.rmtree(claimed, ignore_errors=True)
+                return None
+            print(f"Ignoring the compilation lock {lock_path}, left by a process that is gone")
+            shutil.rmtree(claimed, ignore_errors=True)
+            continue
+        try:
+            with open(os.path.join(lock_path, BUILD_LOCK_OWNER_FILE), "w") as f:
+                f.write(token)
+        except OSError:
+            return None  # the lock was taken away before it was signed
+        return token
+    return None
+
+
+def _release_build_lock(lock_path, token):
+    """Release the lock, when it is still the one this process took."""
+    if token is not None and _build_lock_owner(lock_path) == token:
+        shutil.rmtree(lock_path, ignore_errors=True)
+
+
+def _build_lock_is_stale(lock_path):
+    try:
+        return time.time() - os.path.getmtime(lock_path) > STALE_BUILD_LOCK_SECONDS
+    except OSError:
+        return False
+
+
+def _remove_stale_builds(envFilePath):
+    """Remove the directories left next to a database by compilations that died."""
+    for path in glob.glob(glob.escape(envFilePath + BUILD_DIRECTORY_SUFFIX) + "*"):
+        if _build_lock_is_stale(path):
+            shutil.rmtree(path, ignore_errors=True)
 
 
 def _serialize_byteio(array):
