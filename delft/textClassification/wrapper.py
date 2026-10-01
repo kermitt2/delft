@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from sklearn.metrics import f1_score, precision_recall_fscore_support
 
-from delft import DELFT_PROJECT_DIR, cpu_affinity_count
+from delft import DELFT_PROJECT_DIR, default_nb_workers
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.data_loader import create_dataloader
 from delft.textClassification.models import DEFAULT_WORD_EMBEDDING_SIZE, getModel
@@ -151,8 +151,10 @@ class Classifier(object):
         self.nb_workers_explicit = nb_workers is not None
         if nb_workers is None:
             # the cores this process may run on, not those of the node: a SLURM task
-            # allocated one or two of them was spawning four workers on them
-            self.nb_workers = max(1, min(4, (cpu_affinity_count() or os.cpu_count() or 2) - 1))
+            # allocated one or two of them was spawning four workers on them. On a
+            # single core the data is loaded in the process itself: a worker would
+            # only share that core with it.
+            self.nb_workers = default_nb_workers()
         else:
             self.nb_workers = max(0, nb_workers)
 
@@ -349,7 +351,13 @@ class Classifier(object):
         )
 
     def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
-        pass  # To implement if needed, following logic in wrapper.py
+        # It did nothing, without a word: a training that asked for folds then failed when
+        # saving a model that did not exist, or, started from a loaded model, saved that
+        # model unchanged as if it had been trained.
+        raise NotImplementedError(
+            f"Training a text classifier over {self.model_config.fold_number} folds is not implemented: "
+            "train a single model (fold_number=1, --fold-count 1)"
+        )
 
     def eval(self, x_test, y_test):
         """Evaluate model on test data.

@@ -110,7 +110,7 @@ The training is set with the arguments of `Sequence`:
 
 - `clip_gradients` (1.0): maximum norm of the gradients, 0 for no clipping;
 - `lr_decay` (0.5): factor the learning rate is multiplied by when the F1 on the validation set has not improved for two epochs;
-- `early_stop` and `patience` (5): stop when that F1 has not improved for `patience` epochs. The weights of the best epoch are the ones kept;
+- `early_stop` and `patience` (5): stop when that F1 has not improved for `patience` epochs. The weights of the best epoch are the ones kept; The epochs where that F1 is still 0 do not count towards the patience: a model predicts no complete entity during its first epochs, the more so when one label covers nearly every token (the lines of `reference-segmenter`), and counting from the first epoch stopped such a model at epoch `patience + 1` while its loss was still falling. The patience starts with the first score above 0; a model that never leaves 0 runs to `max_epoch`.
 - `max_checkpoints_to_keep` (0): above 0, the weights of the last epochs are left in the directory of the model, as `<model name>-epoch<N>.pt`;
 - `model.train(..., callbacks=[...])`: functions called at the end of every epoch as `callback(epoch, logs)`, `logs` holding the `loss` and, with a validation set, `val_loss`, `f1`, `precision`, `recall` and `learning_rate`.
 

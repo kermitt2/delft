@@ -125,6 +125,16 @@ def test_a_classifier_trained_with_class_weights_loads_back_and_goes_on(tmp_path
     assert not np.allclose(loaded.predict(TEXTS, output_format="array"), scores)
 
 
+def test_training_over_folds_says_it_is_not_implemented(tmp_path, monkeypatch):
+    """It did nothing and said nothing: started from a loaded model, that model was saved as if trained."""
+    monkeypatch.chdir(tmp_path)
+    classifier = _classifier(fold_number=3)
+    with pytest.raises(NotImplementedError, match="3 folds"):
+        classifier.train(TEXTS, CLASSES)
+    with pytest.raises(NotImplementedError, match="3 folds"):
+        classifier.train_nfold(TEXTS, CLASSES, incremental=True)
+
+
 class _Model:
     def __init__(self):
         self.calls = []

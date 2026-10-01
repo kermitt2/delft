@@ -67,3 +67,36 @@ class TestCpuAffinityCount:
     def test_returns_none_when_the_affinity_call_fails(self):
         with patch("os.sched_getaffinity", side_effect=OSError, create=True):
             assert cpu_affinity_count() is None
+
+
+class TestDefaultNbWorkers:
+    """The data loading workers of a training that asks for none, from the cores of the process."""
+
+    @staticmethod
+    def _default(monkeypatch, cores):
+        import delft
+
+        monkeypatch.setattr(delft, "cpu_affinity_count", lambda: cores)
+        return delft.default_nb_workers()
+
+    def test_none_on_a_single_core(self, monkeypatch):
+        """One worker was started there, sharing the core with the process it loads the data for."""
+        assert self._default(monkeypatch, 1) == 0
+
+    def test_a_worker_per_core_bar_the_one_of_the_process(self, monkeypatch):
+        assert self._default(monkeypatch, 2) == 1
+        assert self._default(monkeypatch, 4) == 3
+
+    def test_no_more_than_four(self, monkeypatch):
+        assert self._default(monkeypatch, 64) == 4
+
+    def test_the_wrappers_take_it(self, monkeypatch):
+        import delft
+        from delft.sequenceLabelling.wrapper import Sequence
+        from delft.textClassification.wrapper import Classifier
+
+        monkeypatch.setattr(delft, "cpu_affinity_count", lambda: 1)
+        assert Sequence("test", embeddings_name=None, device="cpu").nb_workers == 0
+        assert Classifier("test", device="cpu").nb_workers == 0
+        # asked for, a number of workers is kept
+        assert Sequence("test", embeddings_name=None, device="cpu", nb_workers=3).nb_workers == 3
