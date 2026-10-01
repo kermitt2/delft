@@ -65,7 +65,9 @@ python3 delft/applications/grobidTagger.py citation train --architecture BidLSTM
 
 ### How word vectors are produced
 
-A word vector is obtained the way these models embed a text: the word is tokenized into sub-word units and the vectors of these units are averaged (then L2-normalized when the model asks for it). The result is memoized, so the tokenization cost is paid once per distinct word of the corpus.
+A word vector is obtained the way these models embed a text: the word is tokenized into sub-word units and the vectors of these units are averaged (then L2-normalized when the model asks for it). The result is memoized, so the tokenization cost is paid once per distinct word of the corpus. A Model2Vec model whose vocabulary was quantized (it holds a `mapping` and `weights` next to its matrix, as `minishlab/potion-code-16M` does) is pooled the way Model2Vec does it: each unit takes the row of the matrix its mapping gives, times its weight.
+
+A model in a private repository of the Hub is downloaded with the access token of the `HF_ACCESS_TOKEN` environment variable, as the embeddings files are.
 
 An entry of the embeddings registry describing such a model looks like this:
 

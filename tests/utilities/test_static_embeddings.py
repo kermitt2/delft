@@ -47,11 +47,11 @@ def _write_tokenizer(path):
     tokenizer.save(path)
 
 
-def _write_matrix(path, tensor_name, matrix=MATRIX):
+def _write_matrix(path, tensor_name, matrix=MATRIX, **other_tensors):
     from safetensors.numpy import save_file
 
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    save_file({tensor_name: matrix}, path)
+    save_file({tensor_name: matrix, **other_tensors}, path)
 
 
 def make_model2vec_model(directory, normalize=False, matrix=MATRIX):
@@ -155,6 +155,104 @@ class TestStaticTransformerEmbeddings:
         assert StaticTransformerEmbeddings(directory, normalize="false").normalize is False
         with pytest.raises(ValueError, match="normalize"):
             StaticTransformerEmbeddings(directory, normalize="sometimes").load()
+
+    def test_a_quantized_vocabulary_takes_the_row_and_the_weight_of_each_unit(self, tmp_path):
+        """
+        Model2Vec models with a quantized vocabulary hold a mapping of the units to the
+        rows of the matrix and a weight per unit: the matrix was read by the unit itself.
+        """
+        directory = str(tmp_path / "potion-quantized")
+        _write_tokenizer(os.path.join(directory, "tokenizer.json"))
+        # two rows for the four units, as many weights as units, as model2vec saves them
+        rows = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 2.0]], dtype=np.float32)
+        mapping = np.array([0, 1, 1, 0], dtype=np.int64)
+        weights = np.array([1.0, 0.5, 3.0, 2.0], dtype=np.float64)
+        _write_matrix(
+            os.path.join(directory, "model.safetensors"), "embeddings", rows, mapping=mapping, weights=weights
+        )
+        model = StaticTransformerEmbeddings(directory)
+
+        assert model.vocab_size == 4 and model.embed_size == 4
+        np.testing.assert_allclose(model.get_word_vector("cat"), rows[1] * 3.0)
+        np.testing.assert_allclose(model.get_word_vector("the"), rows[1] * 0.5)
+        # "cats" is "cat" and "##s": the mean of the weighted rows of the two units
+        np.testing.assert_allclose(model.get_word_vector("cats"), (rows[1] * 3.0 + rows[0] * 2.0) / 2)
+        assert model.get_word_vector("cats").dtype == np.float32
+
+    def test_weights_alone_with_a_matrix_of_one_row_per_unit(self, tmp_path):
+        """As minishlab/potion-code-16M: nothing failed, the weights were just not applied."""
+        directory = str(tmp_path / "potion-weighted")
+        _write_tokenizer(os.path.join(directory, "tokenizer.json"))
+        weights = np.array([1.0, 2.0, 3.0, 4.0], dtype=np.float64)
+        _write_matrix(os.path.join(directory, "model.safetensors"), "embeddings", MATRIX, weights=weights)
+        model = StaticTransformerEmbeddings(directory)
+
+        np.testing.assert_allclose(model.get_word_vector("cats"), (MATRIX[2] * 3.0 + MATRIX[3] * 4.0) / 2)
+
+    def test_global_scaling_counts_the_weights_of_the_units(self, tmp_path):
+        directory = str(tmp_path / "potion-quantized")
+        _write_tokenizer(os.path.join(directory, "tokenizer.json"))
+        rows = np.array([[3.0, 0.0, 0.0, 0.0], [0.0, 4.0, 0.0, 0.0]], dtype=np.float32)
+        mapping = np.array([0, 1, 1, 0], dtype=np.int64)
+        weights = np.array([1.0, 1.0, 2.0, 2.0], dtype=np.float32)
+        _write_matrix(
+            os.path.join(directory, "model.safetensors"), "embeddings", rows, mapping=mapping, weights=weights
+        )
+        model = StaticTransformerEmbeddings(directory, normalize="global")
+
+        scale = np.mean([3.0 * 1.0, 4.0 * 1.0, 4.0 * 2.0, 3.0 * 2.0])  # the norms of the four units
+        np.testing.assert_allclose(model.get_word_vector("cat"), rows[1] * 2.0 / scale, rtol=1e-6)
+
+    def test_a_mapping_that_does_not_match_the_matrix_is_refused(self, tmp_path):
+        directory = str(tmp_path / "potion-broken")
+        _write_tokenizer(os.path.join(directory, "tokenizer.json"))
+        _write_matrix(
+            os.path.join(directory, "model.safetensors"),
+            "embeddings",
+            MATRIX[:2],
+            mapping=np.array([0, 1, 2, 3], dtype=np.int64),
+        )
+        with pytest.raises(ValueError, match="mapping"):
+            StaticTransformerEmbeddings(directory).load()
+
+    def test_a_quantized_model_survives_pickling(self, tmp_path):
+        import pickle
+
+        directory = str(tmp_path / "potion-quantized")
+        _write_tokenizer(os.path.join(directory, "tokenizer.json"))
+        rows = np.array([[1.0, 0.0, 0.0, 0.0], [0.0, 2.0, 0.0, 2.0]], dtype=np.float32)
+        _write_matrix(
+            os.path.join(directory, "model.safetensors"),
+            "embeddings",
+            rows,
+            mapping=np.array([0, 1, 1, 0], dtype=np.int64),
+            weights=np.array([1.0, 0.5, 3.0, 2.0], dtype=np.float32),
+        )
+        model = StaticTransformerEmbeddings(directory)
+        expected = model.get_word_vector("cats")
+        np.testing.assert_allclose(pickle.loads(pickle.dumps(model)).get_word_vector("cats"), expected)
+
+    def test_the_hub_is_asked_with_the_access_token_of_the_project(self, monkeypatch):
+        """HF_ACCESS_TOKEN, as for the embeddings files: huggingface_hub only finds HF_TOKEN by itself."""
+        from delft.utilities import StaticEmbeddings as module
+
+        calls = []
+
+        def hf_hub_download(**kwargs):
+            calls.append(kwargs)
+            raise FileNotFoundError(kwargs["filename"])
+
+        monkeypatch.setattr(module, "_import_huggingface_hub", lambda: (hf_hub_download, KeyError, KeyError))
+        monkeypatch.setenv("HF_ACCESS_TOKEN", "hf_secret")
+        with pytest.raises(ValueError):
+            StaticTransformerEmbeddings("owner/private-static-model").load()
+        assert calls and all(call["token"] == "hf_secret" for call in calls)
+
+        calls.clear()
+        monkeypatch.delenv("HF_ACCESS_TOKEN")
+        with pytest.raises(ValueError):
+            StaticTransformerEmbeddings("owner/private-static-model").load()
+        assert calls and all(call["token"] is None for call in calls)
 
     def test_sentence_transformers_layout_is_supported(self, tmp_path):
         directory = make_sentence_transformers_model(tmp_path / "static-mrl", normalize=True)
@@ -323,6 +421,19 @@ class TestEmbeddingsIntegration:
         )
 
         assert Embeddings("test-static", resource_registry=registry).embed_size == 4
+
+    def test_a_model_is_used_without_a_registry_at_all(self, tmp_path):
+        """Embeddings(name) has no registry by default, and looked the name up in it: a TypeError."""
+        directory = make_model2vec_model(tmp_path / "potion")
+
+        embeddings = Embeddings(directory)
+
+        assert embeddings.embed_size == 4
+        np.testing.assert_allclose(embeddings.get_word_vector("cats"), (MATRIX[2] + MATRIX[3]) / 2)
+
+    def test_without_a_registry_a_name_that_is_no_static_model_is_an_error_that_says_so(self):
+        with pytest.raises(ValueError, match="Unknown embeddings glove-840B"):
+            Embeddings("glove-840B")
 
     def test_local_model_used_without_any_registry_entry(self, tmp_path):
         directory = make_model2vec_model(tmp_path / "potion")

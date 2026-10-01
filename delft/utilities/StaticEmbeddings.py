@@ -49,6 +49,14 @@ EMBEDDING_TENSOR_KEYS = (
     "embedding_bag.weight",
 )
 
+# Model2Vec models whose vocabulary was quantized hold, next to the matrix, the row of
+# the matrix each sub-word unit takes its vector from, and a weight per unit
+MAPPING_TENSOR_KEY = "mapping"
+WEIGHTS_TENSOR_KEY = "weights"
+
+# access token of the Hugging Face Hub, as for the embeddings files and the transformers
+HUB_TOKEN_VARIABLE = "HF_ACCESS_TOKEN"
+
 CONFIG_FILE = "config.json"
 MODULES_FILE = "modules.json"
 
@@ -141,6 +149,9 @@ class StaticTransformerEmbeddings:
 
         self._tokenizer = None
         self._matrix = None
+        # of a Model2Vec model with a quantized vocabulary, see load()
+        self._mapping = None
+        self._unit_weights = None
         self._cache = {}
         self._download_errors = []
         self._load_lock = threading.Lock()
@@ -157,6 +168,8 @@ class StaticTransformerEmbeddings:
         state = self.__dict__.copy()
         state["_tokenizer"] = None
         state["_matrix"] = None
+        state["_mapping"] = None
+        state["_unit_weights"] = None
         state["_cache"] = {}
         state["_download_errors"] = []
         state["_load_lock"] = None
@@ -185,7 +198,7 @@ class StaticTransformerEmbeddings:
             Tokenizer = _import_tokenizers()
             tokenizer = Tokenizer.from_file(tokenizer_path)
 
-            matrix = self._read_embedding_matrix(weights_path)
+            matrix, mapping, unit_weights = self._read_embedding_tensors(weights_path)
             if matrix.ndim != 2:
                 raise ValueError(
                     "the embedding matrix of %s has %d dimensions, 2 expected" % (self.model_reference, matrix.ndim)
@@ -202,17 +215,43 @@ class StaticTransformerEmbeddings:
                 # information, so the vectors can simply be cut
                 matrix = np.ascontiguousarray(matrix[:, : self.dimensions])
 
+            # A Model2Vec model with a quantized vocabulary: the vector of a unit is the row
+            # ``mapping[unit]`` of the matrix, times ``weights[unit]``. Reading the matrix by
+            # the unit itself, as for the other models, gave another vector, with no error
+            # when the matrix has as many rows as there are units.
+            nb_units = matrix.shape[0] if mapping is None else mapping.shape[0]
+            if mapping is not None:
+                mapping = np.ascontiguousarray(mapping, dtype=np.int64)
+                if mapping.ndim != 1 or (mapping.size and (mapping.min() < 0 or mapping.max() >= matrix.shape[0])):
+                    raise ValueError(
+                        "the vocabulary mapping of %s does not match its embedding matrix of %d rows"
+                        % (self.model_reference, matrix.shape[0])
+                    )
+            if unit_weights is not None:
+                unit_weights = np.ascontiguousarray(unit_weights, dtype=np.float32)
+                if unit_weights.shape != (nb_units,):
+                    raise ValueError(
+                        "%s has weights for %d sub-word units, and %d units"
+                        % (self.model_reference, unit_weights.shape[0], nb_units)
+                    )
+
             self.normalize = self._resolve_normalize(config, modules)
             if self.normalize == GLOBAL_SCALING:
                 # one scale for the whole vocabulary: the average unit has a norm of 1,
                 # and a unit keeps its size relative to the others
                 norms = np.linalg.norm(matrix, axis=1)
+                if mapping is not None:
+                    norms = norms[mapping]
+                if unit_weights is not None:
+                    norms = norms * np.abs(unit_weights)
                 mean_norm = float(norms[norms > 0].mean()) if (norms > 0).any() else 1.0
                 matrix = np.ascontiguousarray(matrix / mean_norm, dtype=np.float32)
 
             self._tokenizer = tokenizer
             self._matrix = matrix
-            self.vocab_size = matrix.shape[0]
+            self._mapping = mapping
+            self._unit_weights = unit_weights
+            self.vocab_size = nb_units
             self.embed_size = matrix.shape[1]
             self._cache = {}
 
@@ -281,6 +320,9 @@ class StaticTransformerEmbeddings:
                 repo_id=self.model_reference,
                 filename=filename,
                 local_files_only=self.local_files_only,
+                # huggingface_hub only finds HF_TOKEN by itself: a private repository was
+                # not reachable with the token the rest of DeLFT is given
+                token=os.getenv(HUB_TOKEN_VARIABLE) or None,
             )
         except local_entry_not_found as e:
             # nothing in the local cache, and the hub could not be reached
@@ -292,21 +334,32 @@ class StaticTransformerEmbeddings:
             self._download_errors.append(e)
             return None
 
-    def _read_embedding_matrix(self, weights_path):
+    def _read_embedding_tensors(self, weights_path):
+        """
+        The embedding matrix and, for a Model2Vec model with a quantized vocabulary, the
+        row of the matrix of every sub-word unit and the weight of every unit, None for
+        the models that have none.
+        """
         safe_open = _import_safetensors()
-        with safe_open(weights_path, framework="numpy") as weights:
-            keys = list(weights.keys())
+        with safe_open(weights_path, framework="numpy") as tensors:
+            keys = list(tensors.keys())
             name = next((key for key in EMBEDDING_TENSOR_KEYS if key in keys), None)
             if name is None:
                 # unknown family: fall back on the only 2 dimensional tensor
-                candidates = [key for key in keys if len(weights.get_slice(key).get_shape()) == 2]
+                candidates = [key for key in keys if len(tensors.get_slice(key).get_shape()) == 2]
                 if len(candidates) != 1:
                     raise ValueError(
                         "could not identify the embedding matrix of %s among the tensors %s"
                         % (self.model_reference, keys)
                     )
                 name = candidates[0]
-            return weights.get_tensor(name)
+
+            def one_dimensional(key):
+                if key == name or key not in keys or len(tensors.get_slice(key).get_shape()) != 1:
+                    return None
+                return tensors.get_tensor(key)
+
+            return tensors.get_tensor(name), one_dimensional(MAPPING_TENSOR_KEY), one_dimensional(WEIGHTS_TENSOR_KEY)
 
     def _resolve_normalize(self, config, modules):
         """
@@ -351,7 +404,10 @@ class StaticTransformerEmbeddings:
         if len(ids) == 0:
             vector = np.zeros((self.embed_size,), dtype=np.float32)
         else:
-            vector = self._matrix[ids].mean(axis=0)
+            vectors = self._matrix[ids if self._mapping is None else self._mapping[ids]]
+            if self._unit_weights is not None:
+                vectors = vectors * self._unit_weights[ids][:, None]
+            vector = vectors.mean(axis=0)
             if self.normalize is True:
                 norm = np.linalg.norm(vector)
                 if norm > 0:

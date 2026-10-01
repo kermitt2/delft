@@ -489,6 +489,11 @@ class Embeddings(object):
                 "embedding_lmdb_path is not specified in the embeddings registry, so the embeddings will be loaded in memory..."
             )
             embeddings_path = None
+            if description is None:
+                raise ValueError(
+                    f"Unknown embeddings {name}: they are not in the embeddings registry, and the name is "
+                    "neither a static embedding model of the Hugging Face Hub (owner/model) nor the directory of one"
+                )
             if "path" in description:
                 embeddings_path = description["path"]
             self.lang = description["lang"]
@@ -623,13 +628,16 @@ class Embeddings(object):
         os.rename(build_path, envFilePath)
 
     def get_description(self, name):
-        for emb in self.registry["embeddings"]:
+        # without a registry nothing is described: a static embedding model given by its
+        # Hub identifier or its path needs none
+        registry = self.registry or {}
+        for emb in registry.get("embeddings", ()):
             if emb["name"] == name:
                 return emb
-        for emb in self.registry["embeddings-contextualized"]:
+        for emb in registry.get("embeddings-contextualized", ()):
             if emb["name"] == name:
                 return emb
-        for emb in self.registry["transformers"]:
+        for emb in registry.get("transformers", ()):
             if emb["name"] == name:
                 return emb
         return None
