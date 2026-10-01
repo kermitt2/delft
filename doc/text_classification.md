@@ -4,7 +4,7 @@
 
 All the following models includes Dropout, Pooling and Dense layers with hyperparameters tuned for reasonable performance across standard text classification tasks. If necessary, they are good basis for further performance tuning.
 
-* `bert`: a transformer classifier to fine-tune, to be instanciated by any BERT pre-trained model or transformers available on HuggingFace Hub (we have tested various BERT and RoBERTa flavors). Given no transformer (`transformer_name`, `--transformer`), it uses `bert-base-uncased`.
+* `bert`: a transformer classifier to fine-tune, to be instantiated by any BERT pre-trained model or transformers available on HuggingFace Hub (we have tested various BERT and RoBERTa flavors). Given no transformer (`transformer_name`, `--transformer`), it uses `bert-base-uncased`.
 * `gru`: two layers Bidirectional GRU
 * `gru_simple`: one layer Bidirectional GRU
 * `gru_lstm`: one layer Bidirectional GRU followed by a Bidirectional LSTM

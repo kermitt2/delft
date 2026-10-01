@@ -62,7 +62,9 @@ models get `--num-workers 6`, plus `--max-sequence-length 3000` in the `train` p
 
 The models of the `bert` profiles are named after their transformer, with `--suffix`:
 `grobid-header-BERT_CRF-scibert_scivocab_cased`, `grobid-header-BERT_CRF-ModernBERT-base`
-(see [GROBID models](grobid.md)). The models of the static profiles keep the release names,
+(see [GROBID models](grobid.md)). Two transformers of a run with the same name under different
+owners are named with their owner, `owner-a-model` and `owner-b-model`, so that they do not
+save the same model. The models of the static profiles keep the release names,
 `grobid-header-BidLSTM_CRF_FEATURES`.
 
 A profile is adjusted from the environment:
@@ -95,7 +97,8 @@ unless `WANDB=false`, so that the runs can be compared in Weights & Biases.
 Each task names its model with a `--suffix` built from its swept values, so that no two tasks
 overwrite each other and the models can be told apart afterwards:
 
-- a swept `--transformer` contributes the last part of its name (`ModernBERT-base`), a swept
+- a swept `--transformer` contributes the last part of its name (`ModernBERT-base`), or its
+  whole name when another swept transformer ends the same way, and a swept
   `--embedding` its value, or `no-embedding` for the value `none`, which trains that task
   without word embeddings;
 - any other swept flag contributes the flag without dashes followed by the value:

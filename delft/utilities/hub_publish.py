@@ -12,7 +12,13 @@ import tempfile
 
 from delft.utilities.hub_models import HubReference, hub_references, list_models, parse_reference
 from delft.utilities.model_names import split_model_name
-from delft.utilities.weights import PICKLED_WEIGHTS_EXTENSIONS, SAFETENSORS_WEIGHT_FILE_NAME, is_safetensors
+from delft.utilities.weights import (
+    FOLD_WEIGHT_FILE_PATTERN,
+    PICKLED_WEIGHTS_EXTENSIONS,
+    SAFETENSORS_WEIGHT_FILE_NAME,
+    fold_weight_file,
+    is_safetensors,
+)
 
 LOGGER = logging.getLogger(__name__)
 
@@ -65,13 +71,24 @@ def prepare_model(model_dir, staging_dir, safetensors=True):
     Copy to ``staging_dir`` what is published of the model in ``model_dir``, and return
     the names of the files: everything but the hidden files, such as the record of
     where a model was downloaded from, with the weights as safetensors instead of
-    pickled unless ``safetensors`` is False.
+    pickled unless ``safetensors`` is False. The weights of a text classifier trained
+    over several folds, one file per fold, keep their fold: ``model_weights_fold0.pt``
+    is published as ``model_fold0.safetensors``.
     """
     names = sorted(name for name in os.listdir(model_dir) if not name.startswith("."))
     names = [name for name in names if os.path.isfile(os.path.join(model_dir, name))]
     pickled = [name for name in names if name.endswith(PICKLED_WEIGHTS_EXTENSIONS)]
     convert = safetensors and not any(is_safetensors(name) for name in names)
-    if convert and len(pickled) > 1:
+
+    # the safetensors file each pickled one is published as
+    converted = {}
+    for name in pickled:
+        fold = FOLD_WEIGHT_FILE_PATTERN.fullmatch(name)
+        if fold is None:
+            converted[name] = SAFETENSORS_WEIGHT_FILE_NAME
+        else:
+            converted[name] = fold_weight_file(SAFETENSORS_WEIGHT_FILE_NAME, int(fold.group("fold")))
+    if convert and len(set(converted.values())) < len(pickled):
         raise ValueError(f"{model_dir} holds several weight files, {pickled}: which to publish is ambiguous")
 
     os.makedirs(staging_dir, exist_ok=True)
@@ -79,10 +96,8 @@ def prepare_model(model_dir, staging_dir, safetensors=True):
     for name in names:
         if safetensors and name in pickled:
             if convert:
-                convert_to_safetensors(
-                    os.path.join(model_dir, name), os.path.join(staging_dir, SAFETENSORS_WEIGHT_FILE_NAME)
-                )
-                published.append(SAFETENSORS_WEIGHT_FILE_NAME)
+                convert_to_safetensors(os.path.join(model_dir, name), os.path.join(staging_dir, converted[name]))
+                published.append(converted[name])
             continue
         shutil.copy(os.path.join(model_dir, name), os.path.join(staging_dir, name))
         published.append(name)

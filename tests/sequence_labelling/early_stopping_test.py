@@ -7,9 +7,10 @@ from unittest.mock import patch
 
 import numpy as np
 import pytest
+import torch
 
 from delft.sequenceLabelling.models import MODEL_REGISTRY
-from delft.sequenceLabelling.trainer import Trainer
+from delft.sequenceLabelling.trainer import ModelCheckpoint, Trainer
 from delft.sequenceLabelling.wrapper import Sequence
 
 WORDS = ["Jim", "Henson", "was", "a", "puppeteer", "in", "Mississippi", "today"]
@@ -106,3 +107,46 @@ def test_a_model_whose_score_stops_improving_is_still_stopped(tmp_path, monkeypa
 
 def test_every_architecture_is_covered():
     assert len(MODEL_REGISTRY) == 15
+
+
+class TestCheckpoint:
+    """
+    The weights kept as the best ones follow the same rule: those of the first epoch were
+    kept as long as the score stayed at 0, and put back at the end of a training that
+    early stopping had let go on.
+    """
+
+    @staticmethod
+    def _kept(tmp_path, scores, mode="max"):
+        """The epoch whose weights are kept after epochs with these scores, counted from 1."""
+        model = torch.nn.Linear(1, 1)
+        checkpoint = ModelCheckpoint(str(tmp_path / "best.pt"), mode=mode)
+        for epoch, score in enumerate(scores, start=1):
+            torch.nn.init.constant_(model.weight, float(epoch))
+            checkpoint(model, score)
+        return int(torch.load(tmp_path / "best.pt")["weight"].item())
+
+    def test_the_latest_weights_are_kept_while_there_is_no_score(self, tmp_path):
+        assert self._kept(tmp_path, [0.0, 0.0, 0.0]) == 3
+
+    def test_the_best_weights_are_kept_once_there_is_a_score(self, tmp_path):
+        assert self._kept(tmp_path, [0.0, 0.0, 0.5, 0.4, 0.0]) == 3
+        assert self._kept(tmp_path, [0.5, 0.0, 0.0]) == 1
+        assert self._kept(tmp_path, [0.2, 0.2, 0.3, 0.3]) == 3
+
+    def test_a_loss_is_not_concerned(self, tmp_path):
+        assert self._kept(tmp_path, [0.0, 0.0, 0.0], mode="min") == 1
+
+
+def test_a_training_that_never_scores_ends_with_its_latest_weights(tmp_path, monkeypatch):
+    """Its weights were those of its first epoch, whatever the number of epochs it ran."""
+    saved = []
+    save = ModelCheckpoint._save
+
+    def spy(self, model):
+        saved.append(len(saved) + 1)
+        save(self, model)
+
+    monkeypatch.setattr(ModelCheckpoint, "_save", spy)
+    epochs = _train(tmp_path, monkeypatch, "BidLSTM_CRF", [0.0] * 5)
+    assert len(epochs) == 5 and len(saved) == 5

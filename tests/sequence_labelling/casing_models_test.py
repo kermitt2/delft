@@ -6,7 +6,10 @@ output of its dense layer rather than one emission per tag.
 
 import numpy as np
 import pytest
+import torch
 
+from delft.sequenceLabelling.config import ModelConfig
+from delft.sequenceLabelling.models import get_model
 from delft.sequenceLabelling.preprocess import architecture_uses_casing
 from delft.sequenceLabelling.wrapper import Sequence
 
@@ -48,3 +51,37 @@ def test_trains_saves_loads_and_tags(tmp_path, monkeypatch, architecture):
 def test_the_casing_architectures():
     assert architecture_uses_casing("BidLSTM_CNN") and architecture_uses_casing("BidLSTM_CRF_CASING")
     assert not architecture_uses_casing("BidLSTM_CNN_CRF") and not architecture_uses_casing("BidLSTM_CRF")
+
+
+@pytest.mark.parametrize(
+    "architecture", ["BidLSTM", "BidLSTM_CRF", "BidLSTM_CNN", "BidLSTM_CNN_CRF", "BidLSTM_CRF_CASING", "BidGRU_CRF"]
+)
+def test_the_scores_of_a_sentence_do_not_change_with_the_padding_of_its_batch(architecture):
+    """BidLSTM_CNN ran its LSTM over the padding: the backward one started from it."""
+    torch.manual_seed(0)
+    config = ModelConfig(architecture=architecture, embeddings_name=None, word_embedding_size=8)
+    config.char_vocab_size = 20
+    config.case_vocab_size = 8
+    model = get_model(config, 5, load_pretrained_weights=False).eval()
+
+    length, padded_length, characters = 3, 7, 6
+    words = torch.randn(1, length, 8)
+    chars = torch.randint(1, 20, (1, length, characters))
+    casing = torch.randint(1, 8, (1, length))
+
+    def inputs(total):
+        """The sentence, first of a batch whose other sentence has ``total`` tokens."""
+        batch = {
+            "word_input": torch.randn(2, total, 8),
+            "char_input": torch.randint(1, 20, (2, total, characters)),
+            "casing_input": torch.randint(1, 8, (2, total)),
+        }
+        for name, value in (("word_input", words), ("char_input", chars), ("casing_input", casing)):
+            batch[name][0] = 0
+            batch[name][0, :length] = value[0]
+        return batch
+
+    with torch.no_grad():
+        alone = model(inputs(length))["logits"][0]
+        padded = model(inputs(padded_length))["logits"][0, :length]
+    torch.testing.assert_close(padded, alone, rtol=1e-5, atol=1e-6)

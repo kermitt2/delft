@@ -87,6 +87,11 @@ class ModelCheckpoint:
     """
     Save model weights when validation metric improves.
 
+    In mode 'max', as long as no epoch scored above 0 the weights of the latest epoch are
+    the ones kept: early stopping lets such a training go on (see EarlyStopping), and
+    keeping those of the first epoch would discard all of it when the best weights are
+    put back at its end.
+
     Args:
         filepath: Path to save model weights
         monitor: Metric to monitor
@@ -107,7 +112,8 @@ class ModelCheckpoint:
             return True
 
         if self.mode == "max":
-            improved = score > self.best_score
+            no_score_yet = score <= 0 and self.best_score <= 0
+            improved = score > self.best_score or no_score_yet
         else:
             improved = score < self.best_score
 

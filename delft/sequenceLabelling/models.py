@@ -564,6 +564,11 @@ class BidLSTM_CNN(BaseSequenceLabeler):
         char_input = inputs["char_input"]
         casing_input = inputs["casing_input"]
 
+        # padded positions take no part in the sequence, as in BidLSTM: the backward
+        # LSTM otherwise starts from the padding, and the tags of a sentence change with
+        # the length of the longest one of its batch
+        mask = get_token_mask(char_input)
+
         # Encode characters with CNN
         char_encoded = self.char_encoder(char_input)
 
@@ -575,8 +580,8 @@ class BidLSTM_CNN(BaseSequenceLabeler):
         x = torch.cat([word_emb, char_encoded, casing_emb], dim=-1)
         x = self.dropout(x)
 
-        # BiLSTM
-        lstm_out, _ = self.bilstm(x)
+        # BiLSTM over the real positions only
+        lstm_out = run_masked_lstm(self.bilstm, x, mask)
         lstm_out = self.dropout(lstm_out)
 
         # Classification

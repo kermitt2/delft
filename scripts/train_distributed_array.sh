@@ -156,6 +156,21 @@ join_suffix() {
     printf '%s' "$joined"
 }
 
+# What a transformer adds to the suffix: its name without its owner (ModernBERT-base for
+# answerdotai/ModernBERT-base), or its whole identifier when another transformer of the
+# run, given after it, has the same name: two tasks would otherwise save the same model.
+transformer_suffix() {
+    local transformer=$1 other
+    shift
+    for other in "$@"; do
+        if [[ "$other" != "$transformer" && "${other##*/}" == "${transformer##*/}" ]]; then
+            printf '%s' "$transformer"
+            return
+        fi
+    done
+    printf '%s' "${transformer##*/}"
+}
+
 EMBEDDING=${EMBEDDING:-glove-840B}
 MODEL=${MODEL:-}
 SWEEP_FLAGS=()             # the flags of the sweep, in the order given
@@ -284,7 +299,7 @@ build_task_command() {
     local suffix
     if [[ "$PROFILE" == bert || "$PROFILE" == bert-eval ]]; then
         # one model directory per transformer: grobid-header-BERT_CRF-ModernBERT-base
-        suffix=$(join_suffix "${item##*/}")
+        suffix=$(join_suffix "$(transformer_suffix "$item" "${ITEMS[@]}")")
         CMD+=(--architecture BERT_CRF --transformer "$item")
     else
         suffix=$(join_suffix)
@@ -299,7 +314,7 @@ build_task_command() {
 build_sweep_command() {
     local index=$1
     local -A chosen=()
-    local flag values dimension value
+    local flag values dimension value transformers
     for ((dimension = ${#SWEEP_DIMENSIONS[@]} - 1; dimension >= 0; dimension--)); do
         flag=${SWEEP_DIMENSIONS[$dimension]}
         IFS=, read -r -a values <<<"${SWEEP_VALUES[$flag]}"
@@ -314,7 +329,10 @@ build_sweep_command() {
             value=${chosen[$flag]}
             case "$flag" in
                 --architecture) ;; # already in the model name
-                --transformer) suffix_parts+=("${value##*/}") ;;
+                --transformer)
+                    IFS=, read -r -a transformers <<<"${SWEEP_VALUES[$flag]}"
+                    suffix_parts+=("$(transformer_suffix "$value" "${transformers[@]}")")
+                    ;;
                 --embedding) suffix_parts+=("$([[ "$value" == none ]] && echo no-embedding || echo "$value")") ;;
                 *) suffix_parts+=("${flag//-/}$value") ;;
             esac
