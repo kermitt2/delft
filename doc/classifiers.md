@@ -4,6 +4,10 @@ As an example, we use here DeLFT for creating classifiers for various snippet ty
 
 In general, the best results will be obtained with a transformer classifier (architecture `bert`), possibly using a costly 10-fold ensemble classifications if speed is not an issue. However, a `gru` architecture with 10-fold ensemble and good static embeddings might be similar or even more accurate than a transformer in some cases, leading to a much faster and less memory-hungry solution. It is thus advised to experiment with a `gru` architecture with 10-fold ensemble before deciding with a transformer classifier.
 
+The word embeddings of the RNN and CNN architectures are given with `--embedding`, as for sequence labelling. Without it (and without a transformer), no pre-trained word embeddings are used: the classifier learns the embeddings of the words of its training texts, which is usually less accurate than starting from `glove-840B` or another registered embeddings when the training set is small. Embeddings of any size can be used, `potion-base-8M` for instance. `classify` uses the embeddings the model was trained with.
+
+With `--incremental`, the license classifier (`licenseClassifier.py`) goes on training from the models already saved instead of starting new ones; `Classifier.train(..., incremental=True)` does the same after a `load()`.
+
 #### Toxic comment classification
 
 The dataset of the [Kaggle Toxic Comment Classification challenge](https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge) can be found here: https://www.kaggle.com/c/jigsaw-toxic-comment-classification-challenge/data
@@ -46,7 +50,7 @@ optional arguments:
 To launch the training with default BiGRU model:
 
 ```sh
-> python3 delft/applications/toxicCommentClassifier.py train
+> python3 delft/applications/toxicCommentClassifier.py train --embedding glove-840B
 ```
 
 To use for instance the BERT architecture, with `bert-base-cased` as pretrained model, and training data splitting for training and evaluating:
@@ -58,7 +62,7 @@ To use for instance the BERT architecture, with `bert-base-cased` as pretrained 
 For training with n-folds and default BiGRU model, use the parameter `--fold-count`:
 
 ```sh
-> python3 delft/applications/toxicCommentClassifier.py train --fold-count 10
+> python3 delft/applications/toxicCommentClassifier.py train --embedding glove-840B --fold-count 10
 ```
 
 This will train 10 classifiers that will be used then as ensemble classifier.
@@ -124,19 +128,19 @@ Examples:
 
 
 ```sh
-> python3 delft/applications/citationClassifier.py train
+> python3 delft/applications/citationClassifier.py train --embedding glove-840B
 ```
 
 with n-folds:
 
 ```sh
-> python3 delft/applications/citationClassifier.py train --fold-count 10
+> python3 delft/applications/citationClassifier.py train --embedding glove-840B --fold-count 10
 ```
 
 Training and evalation (ratio) with 10-folds:
 
 ```sh
-> python3 delft/applications/citationClassifier.py train_eval --fold-count 10
+> python3 delft/applications/citationClassifier.py train_eval --embedding glove-840B --fold-count 10
 ```
 
 which should produce the following evaluation, using the default 2-layers Bidirectional GRU model `gru`):

@@ -8,7 +8,7 @@ from sklearn.metrics import f1_score, precision_recall_fscore_support
 from delft import DELFT_PROJECT_DIR, cpu_affinity_count
 from delft.textClassification.config import ModelConfig, TrainingConfig
 from delft.textClassification.data_loader import create_dataloader
-from delft.textClassification.models import getModel
+from delft.textClassification.models import DEFAULT_WORD_EMBEDDING_SIZE, getModel
 from delft.textClassification.preprocess import TextPreprocessor
 from delft.textClassification.reader import TextsOnDisk
 from delft.textClassification.trainer import Trainer
@@ -236,6 +236,11 @@ class Classifier(object):
             self.report_to_wandb = False
 
     def train(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
+        """
+        Train on the texts ``x_train`` with the labels ``y_train``. With ``incremental``,
+        the training goes on from the model that was loaded (see ``load``), with its
+        classes, embeddings and architecture, rather than from a new one.
+        """
         if self.model_config.fold_number == 1:
             self.train_single(x_train, y_train, vocab_init, incremental, callbacks)
         else:
@@ -249,11 +254,38 @@ class Classifier(object):
         x_valid = None
         y_valid = None
 
+        if not incremental:
+            if self._learns_word_embeddings():
+                # No pre-trained word embeddings and no transformer: the model learns the
+                # embeddings of the words of its training texts, as a sequence labelling
+                # model given no embeddings learns from the characters alone.
+                print("No word embeddings: they are learned from the training texts")
+                self.preprocessor = TextPreprocessor(maxlen=self.model_config.maxlen)
+                self.preprocessor.fit(x_train)
+                self.model_config.vocab_size = len(self.preprocessor.vocab_word)
+                self.model_config.word_embedding_size = DEFAULT_WORD_EMBEDDING_SIZE
+            else:
+                self.preprocessor = None
+                self.model_config.vocab_size = None
+
         if self.training_config.early_stop:
             x_train, y_train, x_valid, y_valid = split_train_validation(x_train, y_train)
 
-        # Init model
-        self.model = getModel(self.model_config, self.training_config)
+        if incremental:
+            # go on from the loaded model: the argument was accepted and ignored, and a
+            # new model was trained in its place
+            if self.model is None:
+                raise ValueError("Incremental training starts from a model: load one first")
+            nb_classes = np.asarray(y_train).shape[-1]
+            if nb_classes != len(self.model_config.list_classes):
+                raise ValueError(
+                    f"The loaded model {self.model_config.model_name} has {len(self.model_config.list_classes)} "
+                    f"classes, and the training data {nb_classes}"
+                )
+            print("Incremental training from loaded model", self.model_config.model_name)
+        else:
+            # Init model
+            self.model = getModel(self.model_config, self.training_config)
         self.model.to(self.device)
 
         print(f"Model: {self.model_config.architecture}")
@@ -269,6 +301,7 @@ class Classifier(object):
             self.model_config,
             embeddings=self.embeddings,
             transformer_tokenizer=transformer_tokenizer,
+            preprocessor=self.preprocessor,
             batch_size=self.training_config.batch_size,
             shuffle=True,
             num_workers=self.nb_workers,
@@ -283,6 +316,7 @@ class Classifier(object):
                 self.model_config,
                 embeddings=self.embeddings,
                 transformer_tokenizer=transformer_tokenizer,
+                preprocessor=self.preprocessor,
                 batch_size=self.training_config.batch_size,
                 shuffle=False,
                 num_workers=self.nb_workers,
@@ -302,6 +336,17 @@ class Classifier(object):
         )
 
         trainer.train(train_loader, valid_loader)
+
+    def _learns_word_embeddings(self):
+        """
+        Whether the model is given neither pre-trained word embeddings nor a transformer:
+        it then learns the embeddings of the words of its training texts.
+        """
+        return (
+            self.embeddings is None
+            and self.model_config.transformer_name is None
+            and self.model_config.architecture != "bert"
+        )
 
     def train_nfold(self, x_train, y_train, vocab_init=None, incremental=False, callbacks=None):
         pass  # To implement if needed, following logic in wrapper.py
@@ -334,6 +379,7 @@ class Classifier(object):
             self.model_config,
             embeddings=self.embeddings,
             transformer_tokenizer=transformer_tokenizer,
+            preprocessor=self.preprocessor,
             batch_size=self.model_config.batch_size,
             shuffle=False,
             num_workers=self.nb_workers,
@@ -490,6 +536,7 @@ class Classifier(object):
             self.model_config,
             embeddings=self.embeddings,
             transformer_tokenizer=transformer_tokenizer,
+            preprocessor=self.preprocessor,
             batch_size=self.model_config.batch_size,
             shuffle=False,
             num_workers=nb_workers,
@@ -548,10 +595,12 @@ class Classifier(object):
 
         self.model_config.save(os.path.join(directory, self.config_file))
 
-        # Save preprocessor if present
+        # Save preprocessor if present, and leave none of an earlier training otherwise
         if self.preprocessor is not None:
             self.preprocessor.save(os.path.join(directory, PREPROCESSOR_FILE))
             print("Preprocessor saved")
+        elif os.path.isfile(os.path.join(directory, PREPROCESSOR_FILE)):
+            os.remove(os.path.join(directory, PREPROCESSOR_FILE))
 
         # Save PyTorch model
         save_weights(self.model, os.path.join(directory, weight_file))
@@ -593,18 +642,23 @@ class Classifier(object):
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
 
-        # Load preprocessor if present
+        # The vocabulary of a model that learned its word embeddings. A model that reads
+        # pre-trained ones or a transformer has none, whatever file an earlier training
+        # left in its directory.
+        self.preprocessor = None
         preprocessor_path = os.path.join(model_path, PREPROCESSOR_FILE)
-        if os.path.exists(preprocessor_path):
+        if getattr(self.model_config, "vocab_size", None) and os.path.exists(preprocessor_path):
             self.preprocessor = TextPreprocessor.load(preprocessor_path)
             print("Preprocessor loaded")
 
-        # Load embeddings if needed
+        # Load embeddings if needed: those of the model, not those the wrapper was created with
         if self.model_config.embeddings_name is not None:
             self.embeddings = Embeddings(
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
             )
+        else:
+            self.embeddings = None
 
         # Init model
         self.model = getModel(self.model_config, self.training_config)
@@ -620,7 +674,7 @@ class Classifier(object):
         elif self.model_config.embeddings_name is not None:
             print(f"Word embeddings: {self.model_config.embeddings_name}")
         else:
-            print("Word embeddings: none")
+            print("Word embeddings: none (learned from the training texts)")
 
     def _get_model_dir(self):
         return os.path.join("data/models/textClassification/", self.model_config.model_name)

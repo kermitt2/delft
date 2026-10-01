@@ -24,7 +24,9 @@ class ModelConfig(object):
         self.architecture = architecture
         self.embeddings_name = embeddings_name
 
-        # self.vocab_size = None
+        # the number of words of the vocabulary of a model that learns its word embeddings,
+        # given no pre-trained ones nor a transformer; None for the other models
+        self.vocab_size = None
         # self.char_vocab_size = None
 
         self.char_embedding_size = char_emb_size

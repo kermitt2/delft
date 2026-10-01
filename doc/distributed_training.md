@@ -55,9 +55,9 @@ ModernBERT, DeBERTa-v3 and LinkBERT, all with the `BERT_CRF` architecture.
 | `license` | license classifier × `gru` | 1 | `licenseClassifier train` |
 
 The static-embedding profiles (`train`, `train-eval`, `license`) take an optional embedding
-name after the profile and default to `glove-840B`. With `train` and `train-eval`, `none`
-trains without word embeddings, on the character features alone; the license classifier
-needs word embeddings, and the submitter refuses `none` for it. The `header` and `citation`
+name after the profile and default to `glove-840B`. `none` trains without pre-trained word
+embeddings: on the character features alone for the GROBID models, and with word embeddings
+learned from the training texts for the license classifier. The `header` and `citation`
 models get `--num-workers 6`, plus `--max-sequence-length 3000` in the `train` profile.
 
 The models of the `bert` profiles are named after their transformer, with `--suffix`:
@@ -72,7 +72,7 @@ A profile is adjusted from the environment:
 | `MODELS` | Space-separated subset of the models of the profile: `MODELS="header citation"` trains two models × 4 architectures. |
 | `ARCHITECTURES` | Space-separated architectures in place of the four BidLSTM ones (`train`, `train-eval`) or of `gru` (`license`). |
 | `TRANSFORMERS` | Space-separated transformers in place of the five default ones (`bert`, `bert-eval`). |
-| `INCREMENTAL=true` | Add `--incremental` to every task, to continue training the models already saved. Not for `license`: the classifier has no incremental training, and the submitter refuses it. |
+| `INCREMENTAL=true` | Add `--incremental` to every task, to continue training the models already saved. |
 | `SUFFIX` | Appended to the name of every model of the run, after the transformer for the `bert` profiles: `SUFFIX=v2` gives `grobid-date-BidLSTM_CRF-v2`. Use it to train a second set without overwriting the first. |
 
 ### Sweeping the hyper-parameters of one model

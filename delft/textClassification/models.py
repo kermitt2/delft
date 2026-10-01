@@ -22,6 +22,10 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# size of the word vectors when the configuration gives none, and of the word embeddings
+# a model learns when it is given no pre-trained ones
+DEFAULT_WORD_EMBEDDING_SIZE = 300
+
 
 class BaseTextClassifier(nn.Module):
     """
@@ -47,12 +51,21 @@ class BaseTextClassifier(nn.Module):
 
         # Default parameters
         self.maxlen = getattr(model_config, "maxlen", 300)
-        self.embed_size = getattr(model_config, "embed_size", 300)
+        # the size of the word vectors the model reads: that of its embeddings, which was
+        # taken for 300 whatever they were, so that only embeddings of that size worked
+        self.embed_size = (
+            getattr(model_config, "embed_size", None)
+            or getattr(model_config, "word_embedding_size", None)
+            or DEFAULT_WORD_EMBEDDING_SIZE
+        )
         self.dropout_rate = getattr(model_config, "dropout_rate", 0.3)
         self.recurrent_units = getattr(model_config, "recurrent_units", 64)
         self.dense_size = getattr(model_config, "dense_size", 32)
 
-        # Embedding layer for index-based inputs
+        # Embedding layer for index-based inputs: of a model that learns its word embeddings,
+        # whose configuration gives the size of the vocabulary
+        if vocab_size is None:
+            vocab_size = getattr(model_config, "vocab_size", None)
         self.vocab_size = vocab_size
         self.use_embedding_layer = vocab_size is not None
         if self.use_embedding_layer:

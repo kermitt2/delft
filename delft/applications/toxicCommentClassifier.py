@@ -166,9 +166,9 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
-        # default word embeddings
-        embeddings_name = "glove-840B"
+    if args.action.startswith("train") and transformer is None and embeddings_name is None and architecture != "bert":
+        # as for sequence labelling: no pre-trained word embeddings unless some are asked for
+        print("No --embedding given: training without pre-trained word embeddings (learned from the training texts).")
 
     if args.action == "classify" and (args.embedding is not None or args.transformer is not None):
         print(
