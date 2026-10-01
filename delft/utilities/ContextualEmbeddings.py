@@ -508,7 +508,12 @@ class ContextualEmbeddings:
 
     @staticmethod
     def sentence_key(tokens):
-        return hashlib.sha1("\x1f".join(tokens).encode("utf-8")).digest()
+        escape = "\x1e"
+        separator = "\x1f"
+        encoded = separator.join(
+            token.replace(escape, escape + escape).replace(separator, escape + separator) for token in tokens
+        )
+        return hashlib.sha1(encoded.encode("utf-8")).digest()
 
     # The cache is a directory of LMDB *shards*. A shard is written by a single
     # process in a temporary directory, and only becomes visible, through an

@@ -214,6 +214,14 @@ class TestWindows:
 
 
 class TestCache:
+    def test_ordinary_sentence_key_stays_compatible_with_existing_caches(self):
+        assert ContextualEmbeddings.sentence_key(["the", "cat", "sat"]).hex() == (
+            "c4a48330f76ba7e3d37c99c6166d5db429d177af"
+        )
+
+    def test_sentence_key_escapes_tokens_that_used_to_collide(self):
+        assert ContextualEmbeddings.sentence_key(["a\x1fb", "c"]) != ContextualEmbeddings.sentence_key(["a", "b\x1fc"])
+
     def test_cache_miss_in_a_dataloader_worker_is_an_error(self, tiny_bert, monkeypatch):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
         monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: object())
