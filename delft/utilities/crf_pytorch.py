@@ -165,11 +165,99 @@ def viterbi_decode_numpy(
     return out
 
 
+LOSS_REDUCTIONS = ("none", "sum", "mean", "token_mean")
+
+
+def gold_path_score(
+    emissions: torch.Tensor,
+    tags: torch.Tensor,
+    mask: torch.Tensor,
+    start_transitions: torch.Tensor,
+    transitions: torch.Tensor,
+    end_transitions: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Score of the gold tag sequences, the numerator of the CRF likelihood.
+
+    pytorch-crf walks the sequence for this, one timestep at a time. Nothing in
+    it depends on the previous timestep though — the tags are given — so it is
+    one gather over the emissions and one over the transitions.
+
+    Args:
+        emissions: [batch_size, seq_length, num_tags]
+        tags: [batch_size, seq_length]
+        mask: [batch_size, seq_length] bool, each sequence a prefix of valid
+            positions, the first one always valid.
+
+    Returns:
+        [batch_size]
+    """
+    mask_values = mask.to(emissions.dtype)
+    emitted = emissions.gather(2, tags.unsqueeze(2)).squeeze(2)  # [B,T]
+    moved = transitions[tags[:, :-1], tags[:, 1:]]  # [B,T-1]
+
+    score = start_transitions[tags[:, 0]] + emitted[:, 0]
+    score = score + ((moved + emitted[:, 1:]) * mask_values[:, 1:]).sum(dim=1)
+
+    last_positions = mask.long().sum(dim=1) - 1
+    last_tags = tags.gather(1, last_positions.unsqueeze(1)).squeeze(1)
+    return score + end_transitions[last_tags]
+
+
+def log_partition(
+    emissions: torch.Tensor,
+    mask: Optional[torch.Tensor],
+    start_transitions: torch.Tensor,
+    transitions: torch.Tensor,
+    end_transitions: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Log partition function, the denominator of the CRF likelihood, by the
+    forward algorithm.
+
+    The recurrence has to run timestep by timestep, and what it costs is the
+    number of operations it dispatches rather than their arithmetic: measured on
+    a GPU, a step of the loss takes the same time for a batch of 200 as for a
+    batch of 20. So the loop is kept to as few operations as it can be:
+
+    - the timesteps are unbound once, ahead of the loop. Indexing the emissions
+      inside it, as pytorch-crf does, makes the backward pass build a gradient
+      of the size of the whole tensor at every timestep;
+    - the emission is added after the logsumexp rather than inside it, since it
+      does not depend on the previous tag;
+    - with ``mask=None`` nothing is padded and the torch.where is dropped.
+
+    Args:
+        emissions: [batch_size, seq_length, num_tags]
+        mask: [batch_size, seq_length] bool, or None when every position of
+            every sequence is valid.
+
+    Returns:
+        [batch_size]
+    """
+    steps = emissions.unbind(1)
+    score = start_transitions + steps[0]
+
+    if mask is None:
+        for i in range(1, len(steps)):
+            score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
+    else:
+        valid = mask.unsqueeze(2).unbind(1)
+        for i in range(1, len(steps)):
+            next_score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
+            score = torch.where(valid[i], next_score, score)
+
+    return torch.logsumexp(score + end_transitions, dim=1)
+
+
 class CRF(nn.Module):
     """
-    Conditional Random Field layer using pytorch-crf.
+    Conditional Random Field layer, with the parameters of pytorch-crf.
 
-    This is the primary CRF implementation for models like BidLSTM_CRF.
+    This is the primary CRF implementation for models like BidLSTM_CRF. The
+    transition parameters are held by a ``torchcrf.CRF``, so that a saved model
+    keeps its ``crf.crf.*`` weights; the loss and the decoding are this
+    module's own, computing what pytorch-crf computes in fewer operations.
 
     Args:
         num_tags: Number of tags/labels
@@ -210,23 +298,90 @@ class CRF(nn.Module):
             emissions: Emission scores [batch_size, seq_len, num_tags]
             tags: Gold tag sequence [batch_size, seq_len] (required for training)
             mask: Mask tensor [batch_size, seq_len] (1 = valid, 0 = pad)
-            reduction: Loss reduction method ('mean', 'sum', 'none')
+            reduction: Loss reduction method ('mean' and 'sum' over the
+                sequences, 'token_mean' over the valid positions, 'none')
 
         Returns:
             If tags is provided: negative log-likelihood loss
             If tags is None: best tag sequence
         """
-        if HAS_TORCHCRF:
-            if tags is not None:
-                # Training: compute negative log-likelihood
-                if mask is not None:
-                    mask = mask.bool()
-                return -self.crf(emissions, tags, mask=mask, reduction=reduction)
-            else:
-                # Inference: decode best sequence
-                return self.decode(emissions, mask=mask)
+        if tags is None:
+            # Inference: decode best sequence
+            return self.decode(emissions, mask=mask)
+        # Training: compute negative log-likelihood
+        return self.neg_log_likelihood(emissions, tags, mask=mask, reduction=reduction)
+
+    def _transition_parameters(self):
+        """The start, transition and end scores, from pytorch-crf's layer when there is one."""
+        holder = getattr(self, "crf", self)
+        return holder.start_transitions, holder.transitions, holder.end_transitions
+
+    def neg_log_likelihood(
+        self,
+        emissions: torch.Tensor,
+        tags: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        reduction: str = "mean",
+    ) -> torch.Tensor:
+        """
+        Negative log-likelihood of the gold tag sequences.
+
+        Computes ``-torchcrf.CRF.forward(...)`` with this module's own
+        :func:`gold_path_score` and :func:`log_partition` rather than
+        delegating to it: the same loss and the same gradients, to rounding,
+        computed in about a third of the time on a GPU.
+        ``tests/utilities/test_crf_pytorch.py`` pins both against pytorch-crf.
+
+        Arguments are those of :meth:`forward`, in the layout ``batch_first``
+        says.
+        """
+        if emissions.dim() != 3:
+            raise ValueError(f"emissions must have dimension of 3, got {emissions.dim()}")
+        if emissions.size(2) != self.num_tags:
+            raise ValueError(f"expected last dimension of emissions is {self.num_tags}, got {emissions.size(2)}")
+        if emissions.shape[:2] != tags.shape:
+            raise ValueError(
+                "the first two dimensions of emissions and tags must match, "
+                f"got {tuple(emissions.shape[:2])} and {tuple(tags.shape)}"
+            )
+        if mask is not None and emissions.shape[:2] != mask.shape:
+            raise ValueError(
+                "the first two dimensions of emissions and mask must match, "
+                f"got {tuple(emissions.shape[:2])} and {tuple(mask.shape)}"
+            )
+        if reduction not in LOSS_REDUCTIONS:
+            raise ValueError(f"invalid reduction: {reduction}")
+
+        if not self.batch_first:
+            emissions = emissions.transpose(0, 1)
+            tags = tags.transpose(0, 1)
+            if mask is not None:
+                mask = mask.transpose(0, 1)
+
+        padded_mask = None
+        if mask is not None:
+            mask = mask.bool()
+            # Both answers in one read, which is the one device sync of the loss.
+            nothing_padded, first_valid = torch.stack([mask.all(), mask[:, 0].all()]).tolist()
+            if not first_valid:
+                raise ValueError("mask of the first timestep must all be on")
+            if not nothing_padded:
+                padded_mask = mask
         else:
-            return self._forward_custom(emissions, tags, mask, reduction)
+            mask = torch.ones_like(tags, dtype=torch.bool)
+
+        start_transitions, transitions, end_transitions = self._transition_parameters()
+        numerator = gold_path_score(emissions, tags, mask, start_transitions, transitions, end_transitions)
+        denominator = log_partition(emissions, padded_mask, start_transitions, transitions, end_transitions)
+        nll = denominator - numerator
+
+        if reduction == "none":
+            return nll
+        if reduction == "sum":
+            return nll.sum()
+        if reduction == "mean":
+            return nll.mean()
+        return nll.sum() / mask.to(emissions.dtype).sum()
 
     def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """
@@ -271,74 +426,6 @@ class CRF(nn.Module):
             )
         else:
             return self._viterbi_decode_custom(emissions, mask)
-
-    def _forward_custom(
-        self,
-        emissions: torch.Tensor,
-        tags: torch.Tensor,
-        mask: Optional[torch.Tensor],
-        reduction: str,
-    ) -> torch.Tensor:
-        """Custom forward pass without pytorch-crf."""
-        if mask is None:
-            mask = torch.ones_like(tags, dtype=torch.bool)
-        else:
-            mask = mask.bool()
-
-        # Compute log-likelihood
-        numerator = self._compute_score(emissions, tags, mask)
-        denominator = self._compute_normalizer(emissions, mask)
-        llh = numerator - denominator
-
-        if reduction == "mean":
-            return -llh.mean()
-        elif reduction == "sum":
-            return -llh.sum()
-        else:
-            return -llh
-
-    def _compute_score(self, emissions: torch.Tensor, tags: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Compute the score of a tag sequence."""
-        batch_size, seq_length = tags.shape
-
-        # Start transition score
-        score = self.start_transitions[tags[:, 0]]
-
-        # Emission and transition scores
-        for i in range(seq_length):
-            score += emissions[:, i].gather(1, tags[:, i : i + 1]).squeeze(1) * mask[:, i].float()
-            if i < seq_length - 1:
-                transition_score = self.transitions[tags[:, i], tags[:, i + 1]]
-                score += transition_score * mask[:, i + 1].float()
-
-        # End transition score (at last valid position)
-        seq_ends = mask.long().sum(dim=1) - 1
-        last_tags = tags.gather(1, seq_ends.unsqueeze(1)).squeeze(1)
-        score += self.end_transitions[last_tags]
-
-        return score
-
-    def _compute_normalizer(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Compute the partition function using forward algorithm."""
-        batch_size, seq_length, num_tags = emissions.shape
-
-        # Initialize alpha with start transitions
-        alpha = self.start_transitions + emissions[:, 0]
-
-        for i in range(1, seq_length):
-            emit_score = emissions[:, i].unsqueeze(1)  # [batch, 1, num_tags]
-            trans_score = self.transitions.unsqueeze(0)  # [1, num_tags, num_tags]
-            alpha_expand = alpha.unsqueeze(2)  # [batch, num_tags, 1]
-
-            next_alpha = alpha_expand + trans_score + emit_score
-            next_alpha = torch.logsumexp(next_alpha, dim=1)
-
-            # Apply mask
-            alpha = torch.where(mask[:, i : i + 1].bool(), next_alpha, alpha)
-
-        # Add end transitions
-        alpha = alpha + self.end_transitions
-        return torch.logsumexp(alpha, dim=1)
 
     def _viterbi_decode_custom(self, emissions: torch.Tensor, mask: Optional[torch.Tensor]) -> List[List[int]]:
         """Viterbi decoding without pytorch-crf."""

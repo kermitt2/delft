@@ -5,6 +5,11 @@ no longer delegates to ``torchcrf.CRF.decode``. It runs one of two
 reimplementations instead, for speed — a TorchScript one and a numpy twin,
 chosen by batch size. Both are only safe swaps as long as they return exactly
 the same tags, so pin them against the reference and against each other.
+
+The loss is not delegated to ``torchcrf.CRF.forward`` either. It cannot be
+bit-for-bit identical — the same sums are taken in another order — so it is
+pinned to rounding instead, gradients included, since a loss that matches while
+its gradients do not would train another model.
 """
 
 import logging
@@ -18,6 +23,7 @@ from delft.utilities.crf_pytorch import (
     HAS_TORCHCRF,
     NUMPY_DECODE_MAX_BATCH,
     ChainCRF,
+    log_partition,
     viterbi_decode,
     viterbi_decode_numpy,
 )
@@ -147,6 +153,185 @@ def test_crf_wrapper_decode_matches_pytorch_crf(shape, batch_first):
     assert crf.decode(emissions, mask=mask) == ref.decode(emissions, mask=mask)
     # mask=None must decode every timestep, like torchcrf does
     assert crf.decode(emissions) == ref.decode(emissions)
+
+
+REDUCTIONS = ["none", "sum", "mean", "token_mean"]
+
+# double precision leaves rounding far below any real difference
+DOUBLE_TOLERANCE = {"rtol": 1e-9, "atol": 1e-9}
+
+
+def _loss_inputs(shape, batch_first, variable_length, dtype=torch.float64):
+    """A reference pytorch-crf layer, a CRF with its parameters, and a batch for both."""
+    seq_length, batch_size, num_tags = shape
+    ref = _reference(num_tags, batch_first, seed=seq_length).to(dtype)
+    crf = CRF(num_tags, batch_first=batch_first).to(dtype)
+    crf.crf.load_state_dict(ref.state_dict())
+
+    emissions, mask = _emissions_and_mask(seq_length, batch_size, num_tags, variable_length)
+    emissions = emissions.to(dtype)
+    tags = torch.randint(0, num_tags, (seq_length, batch_size))
+    if batch_first:
+        emissions, mask, tags = emissions.transpose(0, 1), mask.transpose(0, 1), tags.transpose(0, 1)
+    return ref, crf, emissions.contiguous(), tags.contiguous(), mask.contiguous()
+
+
+def _loss_and_gradients(layer, emissions, tags, sign=1.0, **kwargs):
+    """The loss of a layer, with its gradients for the emissions and for each parameter."""
+    emissions = emissions.detach().clone().requires_grad_(True)
+    layer.zero_grad()
+    loss = sign * layer(emissions, tags, **kwargs)
+    loss.sum().backward()
+    # a parameter the loss does not reach has no gradient, which is a gradient of zero:
+    # the transitions of pytorch-crf over a single timestep
+    gradients = {
+        name: torch.zeros_like(parameter) if parameter.grad is None else parameter.grad.clone()
+        for name, parameter in layer.named_parameters()
+    }
+    gradients["emissions"] = emissions.grad
+    return loss.detach(), gradients
+
+
+def _assert_same_loss_and_gradients(ref, crf, emissions, tags, tolerance=DOUBLE_TOLERANCE, reduction="mean", **kwargs):
+    # pytorch-crf returns the log-likelihood, the layer its negation, and the two do not
+    # default to the same reduction
+    kwargs["reduction"] = reduction
+    expected_loss, expected_gradients = _loss_and_gradients(ref, emissions, tags, sign=-1.0, **kwargs)
+    loss, gradients = _loss_and_gradients(crf, emissions, tags, **kwargs)
+
+    torch.testing.assert_close(loss, expected_loss, **tolerance)
+    assert set(gradients) == {"emissions"} | {f"crf.{name}" for name in expected_gradients if name != "emissions"}
+    for name, expected in expected_gradients.items():
+        key = name if name == "emissions" else f"crf.{name}"
+        torch.testing.assert_close(gradients[key], expected, **tolerance)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("shape", SHAPES)
+@pytest.mark.parametrize("variable_length", [False, True])
+@pytest.mark.parametrize("batch_first", [False, True])
+def test_loss_and_gradients_match_pytorch_crf(shape, variable_length, batch_first):
+    ref, crf, emissions, tags, mask = _loss_inputs(shape, batch_first, variable_length)
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, mask=mask)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("reduction", REDUCTIONS)
+def test_loss_matches_pytorch_crf_for_every_reduction(reduction):
+    ref, crf, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=True, variable_length=True)
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, mask=mask, reduction=reduction)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("batch_first", [False, True])
+def test_loss_without_a_mask_takes_every_timestep_like_pytorch_crf(batch_first):
+    ref, crf, emissions, tags, _ = _loss_inputs((17, 3, 4), batch_first, variable_length=True)
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags)
+
+
+@requires_torchcrf
+def test_loss_in_single_precision_matches_pytorch_crf_to_rounding():
+    """What training runs: the two differ by the order of their sums and by no more."""
+    ref, crf, emissions, tags, mask = _loss_inputs(
+        (50, 32, 12), batch_first=True, variable_length=True, dtype=torch.float32
+    )
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, tolerance={"rtol": 1e-4, "atol": 1e-5}, mask=mask)
+
+
+@requires_torchcrf
+def test_loss_takes_the_mask_of_a_transformer():
+    """BERT_CRF passes its attention mask as floats."""
+    ref, crf, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=True, variable_length=True)
+
+    loss = crf(emissions, tags, mask=mask.float())
+
+    torch.testing.assert_close(loss, -ref(emissions, tags, mask=mask, reduction="mean"), **DOUBLE_TOLERANCE)
+
+
+@requires_torchcrf
+def test_loss_matches_pytorch_crf_without_pytorch_crf_installed(monkeypatch):
+    """Without pytorch-crf the layer holds the parameters itself, and computes the same loss."""
+    ref, _, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=True, variable_length=True)
+    monkeypatch.setattr("delft.utilities.crf_pytorch.HAS_TORCHCRF", False)
+    crf = CRF(4, batch_first=True).double()
+    assert not hasattr(crf, "crf")
+    crf.load_state_dict(ref.state_dict())
+
+    loss = crf(emissions, tags, mask=mask)
+
+    torch.testing.assert_close(loss, -ref(emissions, tags, mask=mask, reduction="mean"), **DOUBLE_TOLERANCE)
+
+
+def test_log_partition_does_not_depend_on_what_is_padded():
+    """Padding a batch must not move the loss of the sequences in it."""
+    torch.manual_seed(7)
+    num_tags, length, padding = 4, 6, 5
+    start, transitions, end = torch.randn(num_tags), torch.randn(num_tags, num_tags), torch.randn(num_tags)
+    emissions = torch.randn(3, length, num_tags, dtype=torch.float64)
+    padded = torch.cat([emissions, 100 * torch.randn(3, padding, num_tags, dtype=torch.float64)], dim=1)
+    mask = torch.arange(length + padding).unsqueeze(0).expand(3, -1) < length
+    start, transitions, end = start.double(), transitions.double(), end.double()
+
+    torch.testing.assert_close(
+        log_partition(padded, mask, start, transitions, end),
+        log_partition(emissions, None, start, transitions, end),
+        **DOUBLE_TOLERANCE,
+    )
+
+
+def test_backward_of_the_loss_does_not_index_the_emissions_per_timestep():
+    """
+    Indexing the emissions inside the loop is what made the loss slow: the
+    backward pass of each ``emissions[i]`` builds a gradient of the size of the
+    whole tensor. The timesteps are unbound once instead, so the graph of the
+    loss must hold as many selects for a long sequence as for a short one.
+    """
+    crf = CRF(4, batch_first=True)
+
+    def node_counts(seq_length):
+        emissions = torch.randn(3, seq_length, 4, requires_grad=True)
+        tags = torch.randint(0, 4, (3, seq_length))
+        mask = torch.arange(seq_length).unsqueeze(0) < torch.tensor([seq_length, 3, 2]).unsqueeze(1)
+
+        pending, seen, counts = [crf(emissions, tags, mask=mask).grad_fn], set(), {}
+        while pending:
+            node = pending.pop()
+            if node is None or node in seen:
+                continue
+            seen.add(node)
+            name = type(node).__name__.rstrip("0123456789")
+            counts[name] = counts.get(name, 0) + 1
+            pending.extend(parent for parent, _ in node.next_functions)
+        return counts
+
+    short, long = node_counts(5), node_counts(40)
+
+    assert long["LogsumexpBackward"] > short["LogsumexpBackward"]  # the recurrence is there
+    assert long.get("SelectBackward", 0) == short.get("SelectBackward", 0)
+    assert long.get("IndexBackward", 0) == short.get("IndexBackward", 0)
+    assert long["UnbindBackward"] == short["UnbindBackward"] == 1
+
+
+@pytest.mark.parametrize(
+    "arguments,message",
+    [
+        ({"reduction": "median"}, "invalid reduction"),
+        ({"mask": torch.tensor([[False, True, True], [True, True, False]])}, "first timestep"),
+        ({"mask": torch.ones(2, 4, dtype=torch.bool)}, "emissions and mask must match"),
+        ({"tags": torch.zeros(2, 4, dtype=torch.long)}, "emissions and tags must match"),
+        ({"emissions": torch.zeros(2, 3, 7)}, "last dimension of emissions"),
+    ],
+)
+def test_loss_refuses_what_pytorch_crf_refuses(arguments, message):
+    crf = CRF(NUM_TAGS, batch_first=True)
+    call = {"emissions": torch.zeros(2, 3, NUM_TAGS), "tags": torch.zeros(2, 3, dtype=torch.long), **arguments}
+
+    with pytest.raises(ValueError, match=message):
+        crf(call.pop("emissions"), call.pop("tags"), **call)
 
 
 def _emissions_and_tags():
