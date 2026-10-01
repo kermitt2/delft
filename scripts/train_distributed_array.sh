@@ -9,7 +9,8 @@
 #
 # The standard profiles run a matrix of GROBID models by architectures (or transformers)
 # with grobidTagger; `license` runs the license classifier. EMBEDDING defaults to glove-840B;
-# `none` trains without word embeddings (character features only). `sweep` runs one model over the
+# `none` trains without word embeddings (character features only), which the license
+# classifier cannot do. `sweep` runs one model over the
 # cartesian product of every flag given several comma-separated values, the other flags
 # being passed as they are; each task gets a --suffix built from its swept values so that
 # the saved models do not overwrite each other. A boolean flag of the tagger (--wandb,
@@ -20,6 +21,7 @@
 #   ARCHITECTURES      space-separated architectures (train, train-eval, license)
 #   TRANSFORMERS       space-separated transformers (bert, bert-eval)
 #   INCREMENTAL        when "true", add --incremental to every task of a standard profile
+#                      (not license: the classifier has no incremental training)
 #   SUFFIX             appended to the model name of every task, after the one the profile
 #                      or the sweep builds (train and train-eval have none by default)
 #   ACTION             sweep only: the tagger action (default: train_eval)
@@ -226,6 +228,17 @@ if [[ "$PROFILE" != sweep ]]; then
     if [[ "$PROFILE" != license ]]; then
         list_from_env "$ENV_MODELS" "${MODELS[@]}"
         MODELS=("${LIST[@]}")
+    else
+        # refused here rather than in every task: licenseClassifier has no --incremental
+        # option, and given no --embedding it trains with glove-840B, not without embeddings
+        if [[ "$INCREMENTAL" == true ]]; then
+            echo "INCREMENTAL is not supported by the license profile: the classifier has no incremental training" >&2
+            exit 2
+        fi
+        if [[ "$EMBEDDING" == none ]]; then
+            echo "The license profile needs word embeddings: the classifier cannot train without them ('none')" >&2
+            exit 2
+        fi
     fi
 fi
 fi
@@ -256,15 +269,16 @@ build_task_command() {
 
     local model=${MODELS[$((index / ${#ITEMS[@]}))]}
     local item=${ITEMS[$((index % ${#ITEMS[@]}))]}
-    local extra_args=()
-    [[ "$INCREMENTAL" != true ]] || extra_args+=(--incremental)
-
-    embedding_option "$EMBEDDING"
     if [[ "$PROFILE" == license ]]; then
+        # the options the classifier has: no --incremental, and always its embeddings
         CMD=("$PYTHON_BIN" -m delft.applications.licenseClassifier train
-             --architecture "$item" "${EMBEDDING_OPTION[@]}" "${extra_args[@]}")
+             --architecture "$item" --embedding "$EMBEDDING")
         return
     fi
+
+    local extra_args=()
+    [[ "$INCREMENTAL" != true ]] || extra_args+=(--incremental)
+    embedding_option "$EMBEDDING"
 
     local action=train
     if [[ "$PROFILE" == train-eval || "$PROFILE" == bert-eval ]]; then
