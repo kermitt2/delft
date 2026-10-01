@@ -185,6 +185,7 @@ class ContextualEmbeddings:
         self._shards = {}
         self._shards_pid = None
         self._memory = {}
+        self._warned_about_missing_subwords = False
         self._lock = threading.RLock()
 
         self._load_configuration()
@@ -393,23 +394,36 @@ class ContextualEmbeddings:
             return stacked.sum(dim=0)
         return stacked.mean(dim=0)
 
-    def _pool_subwords(self, piece_vectors, word_ids, nb_words):
+    def _pool_subwords(self, piece_vectors, word_ids, nb_words, tokens=None):
         """One vector per word, a word without any sub-word unit gets a zero vector."""
         vectors = np.zeros((nb_words, self.embed_size), dtype=np.float32)
-        if len(word_ids) == 0:
-            return vectors
-        word_ids = np.asarray(word_ids, dtype=np.int64)
-        if self.subword_pooling == "mean":
-            np.add.at(vectors, word_ids, piece_vectors)
-            counts = np.bincount(word_ids, minlength=nb_words).astype(np.float32)
-            vectors /= np.maximum(counts, 1.0)[:, None]
-        elif self.subword_pooling == "last":
-            # a later sub-word unit of the same word overwrites the earlier one
-            vectors[word_ids] = piece_vectors
+        if len(word_ids) > 0:
+            word_ids = np.asarray(word_ids, dtype=np.int64)
+            if self.subword_pooling == "mean":
+                np.add.at(vectors, word_ids, piece_vectors)
+                counts = np.bincount(word_ids, minlength=nb_words).astype(np.float32)
+                vectors /= np.maximum(counts, 1.0)[:, None]
+            elif self.subword_pooling == "last":
+                # a later sub-word unit of the same word overwrites the earlier one
+                vectors[word_ids] = piece_vectors
+            else:
+                # word ids are increasing: the first occurrence is the first unit
+                _, first_positions = np.unique(word_ids, return_index=True)
+                vectors[word_ids[first_positions]] = piece_vectors[first_positions]
         else:
-            # word ids are increasing: the first occurrence is the first unit
-            _, first_positions = np.unique(word_ids, return_index=True)
-            vectors[word_ids[first_positions]] = piece_vectors[first_positions]
+            word_ids = np.empty((0,), dtype=np.int64)
+
+        if tokens is not None and not self._warned_about_missing_subwords:
+            present = np.zeros((nb_words,), dtype=bool)
+            present[word_ids] = True
+            missing = [tokens[index] for index in np.flatnonzero(~present)]
+            if missing:
+                self._warned_about_missing_subwords = True
+                examples = ", ".join(repr(token) for token in missing[:5])
+                print(
+                    "warning: the contextual tokenizer produced no sub-word units for "
+                    f"tokens such as {examples}; their vectors stay zero"
+                )
         return vectors
 
     def embed_batch(self, token_lists):
@@ -472,7 +486,7 @@ class ContextualEmbeddings:
                 target_margin[better] = margin[better]
 
         return [
-            self._pool_subwords(piece_vectors[i], word_ids, len(token_lists[i]))
+            self._pool_subwords(piece_vectors[i], word_ids, len(token_lists[i]), token_lists[i])
             for i, (_, word_ids) in enumerate(tokenized)
         ]
 

@@ -156,12 +156,17 @@ class TestWordVectors:
         )
         np.testing.assert_allclose(total.embed_batch([SENTENCE])[0], 2 * mean_vectors, atol=1e-5)
 
-    def test_token_without_any_subword_unit_gets_a_zero_vector(self, tiny_bert):
+    def test_token_without_any_subword_unit_gets_a_zero_vector_and_a_rate_limited_warning(self, tiny_bert, capsys):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
         vectors = embeddings.embed_batch([["the", " ", "cat"]])[0]
         assert vectors.shape == (3, HIDDEN_SIZE)
         assert not vectors[1].any()
         assert vectors[0].any() and vectors[2].any()
+        warning = capsys.readouterr().out
+        assert "warning:" in warning
+        assert "' '" in warning
+        embeddings.embed_batch([["", "the"]])
+        assert "warning:" not in capsys.readouterr().out
 
     def test_empty_sentence(self, tiny_bert):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
