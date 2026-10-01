@@ -83,6 +83,55 @@ def test_a_file_with_weights_missing_or_unexpected_is_refused(tmp_path):
         load_weights(torch.nn.Linear(2, 3), path)
 
 
+class WeightedLossModel(torch.nn.Module):
+    """A model whose loss holds a tensor, as a text classifier trained with class weights."""
+
+    def __init__(self, class_weights=None):
+        super().__init__()
+        self.linear = torch.nn.Linear(2, 3)
+        self.loss_fn = torch.nn.BCEWithLogitsLoss(weight=class_weights)
+
+
+@pytest.mark.parametrize("weight_file", ["model_weights.pth", SAFETENSORS_WEIGHT_FILE_NAME])
+class TestLossTensors:
+    def test_a_model_trained_with_class_weights_loads_back(self, tmp_path, weight_file):
+        """Its loss weights were saved with it, and the model built to load them has none: an error."""
+        model, other = WeightedLossModel(torch.tensor([1.0, 2.0, 3.0])), WeightedLossModel()
+        assert "loss_fn.weight" in model.state_dict()
+        save_weights(model, tmp_path / weight_file)
+        load_weights(other, tmp_path / weight_file)
+        assert torch.equal(other.linear.weight, model.linear.weight)
+
+    def test_the_loss_of_the_model_keeps_its_own_weights(self, tmp_path, weight_file):
+        """As when training goes on from a saved model, with the class weights of the new training."""
+        save_weights(WeightedLossModel(torch.tensor([1.0, 2.0, 3.0])), tmp_path / weight_file)
+        other = WeightedLossModel(torch.tensor([5.0, 5.0, 5.0]))
+        load_weights(other, tmp_path / weight_file)
+        assert other.loss_fn.weight.tolist() == [5.0, 5.0, 5.0]
+
+    def test_a_file_saved_with_the_loss_weights_still_loads(self, tmp_path, weight_file):
+        """The models saved so far hold them."""
+        model, other = WeightedLossModel(torch.tensor([1.0, 2.0, 3.0])), WeightedLossModel()
+        state = {name: tensor.clone() for name, tensor in model.state_dict().items()}
+        assert "loss_fn.weight" in state
+        if weight_file == SAFETENSORS_WEIGHT_FILE_NAME:
+            from safetensors.torch import save_file
+
+            save_file(state, str(tmp_path / weight_file))
+        else:
+            torch.save(state, tmp_path / weight_file)
+        load_weights(other, tmp_path / weight_file)
+        assert torch.equal(other.linear.bias, model.linear.bias)
+
+
+def test_the_loss_weights_are_not_written(tmp_path):
+    from safetensors import safe_open
+
+    save_weights(WeightedLossModel(torch.tensor([1.0, 2.0, 3.0])), tmp_path / SAFETENSORS_WEIGHT_FILE_NAME)
+    with safe_open(str(tmp_path / SAFETENSORS_WEIGHT_FILE_NAME), framework="pt") as weights:
+        assert sorted(weights.keys()) == ["linear.bias", "linear.weight"]
+
+
 def test_safetensors_file_holds_no_pickle(tmp_path):
     from safetensors import safe_open
 

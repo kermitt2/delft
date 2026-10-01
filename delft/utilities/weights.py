@@ -15,6 +15,13 @@ import torch
 SAFETENSORS_WEIGHT_FILE_NAME = "model.safetensors"
 SAFETENSORS_EXTENSION = ".safetensors"
 
+# The loss of a model is an attribute of it (``loss_fn``), so what it holds comes with the
+# state of the model. A text classifier trained with class weights keeps them in its loss
+# (``loss_fn.weight``): they were saved with the model, which then could not be loaded
+# again, the model built to receive the weights having a loss without any. They are
+# training settings, given again by the training configuration, and no part of the model.
+LOSS_PREFIX = "loss_fn."
+
 # the names the wrappers give to the weights of a model
 WEIGHT_FILE_NAMES = (SAFETENSORS_WEIGHT_FILE_NAME, "model_weights.pt", "model_weights.pth")
 
@@ -23,8 +30,15 @@ def is_safetensors(path):
     return str(path).endswith(SAFETENSORS_EXTENSION)
 
 
+def is_loss_tensor(name):
+    """Whether a tensor of a state dict belongs to the loss of the model rather than to the model."""
+    return name.startswith(LOSS_PREFIX)
+
+
 def save_weights(model, path):
     """Save the weights of ``model`` in the format the extension of ``path`` tells."""
+    # without the tensors of its loss: see LOSS_PREFIX
+    state = {name: tensor for name, tensor in model.state_dict().items() if not is_loss_tensor(name)}
     if is_safetensors(path):
         from safetensors.torch import save_file
 
@@ -34,10 +48,10 @@ def save_weights(model, path):
         # save_model raised on every model trained there, after the training. Tied
         # parameters (embeddings shared with an output layer) are written twice and load
         # back into the same tensor.
-        state = {name: tensor.detach().clone().cpu() for name, tensor in model.state_dict().items()}
+        state = {name: tensor.detach().clone().cpu() for name, tensor in state.items()}
         save_file(state, str(path), metadata={"format": "pt"})
     else:
-        torch.save(model.state_dict(), path)
+        torch.save(state, path)
 
 
 def remove_other_weights(model_path, weight_file):
@@ -62,20 +76,25 @@ def load_weights(model, path, device=None):
         # save_weights does, and inspects the shared storages of the model, which raises
         # on an LSTM flattened by cuDNN
         state = load_file(str(path), device="cpu" if device is None else str(device))
-        missing, unexpected = model.load_state_dict(state, strict=False)
-        # a file written by safetensors' save_model holds a tied parameter under one
-        # name only: the other names are not missing when their tensor was loaded
-        model_state = model.state_dict()
-        loaded = {model_state[name].data_ptr() for name in state if name in model_state}
-        missing = [name for name in missing if model_state[name].data_ptr() not in loaded]
-        if missing or unexpected:
-            raise RuntimeError(
-                f"Error(s) in loading the weights of {model.__class__.__name__} from {path}:"
-                + (f"\n    Missing key(s): {sorted(missing)}" if missing else "")
-                + (f"\n    Unexpected key(s): {sorted(unexpected)}" if unexpected else "")
-            )
     else:
-        model.load_state_dict(torch.load(path, map_location=device))
+        state = torch.load(path, map_location=device)
+
+    # the tensors of a loss are left out, from the files that hold some (see LOSS_PREFIX)
+    # and of the model: its loss keeps what it has
+    state = {name: tensor for name, tensor in state.items() if not is_loss_tensor(name)}
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    missing = [name for name in missing if not is_loss_tensor(name)]
+    # a file written by safetensors' save_model holds a tied parameter under one
+    # name only: the other names are not missing when their tensor was loaded
+    model_state = model.state_dict()
+    loaded = {model_state[name].data_ptr() for name in state if name in model_state}
+    missing = [name for name in missing if model_state[name].data_ptr() not in loaded]
+    if missing or unexpected:
+        raise RuntimeError(
+            f"Error(s) in loading the weights of {model.__class__.__name__} from {path}:"
+            + (f"\n    Missing key(s): {sorted(missing)}" if missing else "")
+            + (f"\n    Unexpected key(s): {sorted(unexpected)}" if unexpected else "")
+        )
 
 
 def find_weight_file(model_path, weight_file):
