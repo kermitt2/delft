@@ -183,7 +183,6 @@ class ContextualEmbeddings:
         self._shards = {}
         self._shards_pid = None
         self._memory = {}
-        self._warned_about_worker = False
         self._lock = threading.RLock()
 
         self._load_configuration()
@@ -287,14 +286,12 @@ class ContextualEmbeddings:
             if self._model is not None:
                 return
             torch = _import_torch()
-            transformers = _import_transformers()
-
-            if torch.utils.data.get_worker_info() is not None and not self._warned_about_worker:
-                self._warned_about_worker = True
-                print(
-                    "warning: contextual embeddings are computed in a DataLoader worker, "
-                    "call precompute() beforehand to avoid loading the transformer in every worker"
+            if torch.utils.data.get_worker_info() is not None:
+                raise RuntimeError(
+                    "a contextual embedding cache miss occurred in a DataLoader worker; "
+                    "precompute the sentence vectors in the main process before iterating the DataLoader"
                 )
+            transformers = _import_transformers()
 
             if self.device_name is not None:
                 device = torch.device(self.device_name)
@@ -758,6 +755,12 @@ class ContextualEmbeddings:
         vectors = self._lookup(self.sentence_key(tokens))
         if vectors is not None and vectors.shape[0] == len(tokens):
             return vectors
+        torch = _import_torch()
+        if torch.utils.data.get_worker_info() is not None:
+            raise RuntimeError(
+                "a contextual embedding cache miss occurred in a DataLoader worker; "
+                "precompute the sentence vectors in the main process before iterating the DataLoader"
+            )
         vectors = self.embed_batch([tokens])[0]
         return self._deserialize(self._serialize(vectors))
 

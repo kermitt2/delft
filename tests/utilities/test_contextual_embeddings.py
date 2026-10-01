@@ -214,6 +214,13 @@ class TestWindows:
 
 
 class TestCache:
+    def test_cache_miss_in_a_dataloader_worker_is_an_error(self, tiny_bert, monkeypatch):
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
+        monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: object())
+        with pytest.raises(RuntimeError, match="cache miss.*DataLoader worker.*precompute.*main process"):
+            embeddings.get_sentence_vectors(SENTENCE)
+        assert embeddings._model is None
+
     def test_precompute_fills_the_cache_once(self, tiny_bert, tmp_path):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
         sentences = [SENTENCE, LONG_SENTENCE, SENTENCE]
