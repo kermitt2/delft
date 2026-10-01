@@ -83,6 +83,20 @@ def test_a_file_with_weights_missing_or_unexpected_is_refused(tmp_path):
         load_weights(torch.nn.Linear(2, 3), path)
 
 
+@pytest.mark.parametrize("weight_file", ["model_weights.pt", SAFETENSORS_WEIGHT_FILE_NAME])
+def test_round_trip_of_weights_that_are_not_contiguous(tmp_path, weight_file):
+    """
+    As the weights of SciBERT, converted from TensorFlow and transposed: safetensors
+    refuses them, and a fine-tuned SciBERT could not be saved after its training.
+    """
+    model, other = torch.nn.Linear(2, 3), torch.nn.Linear(2, 3)
+    model.weight = torch.nn.Parameter(torch.randn(2, 3).t())
+    assert not model.weight.is_contiguous()
+    save_weights(model, tmp_path / weight_file)
+    load_weights(other, tmp_path / weight_file)
+    _assert_same_weights(model, other)
+
+
 class WeightedLossModel(torch.nn.Module):
     """A model whose loss holds a tensor, as a text classifier trained with class weights."""
 

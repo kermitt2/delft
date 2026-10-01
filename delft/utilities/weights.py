@@ -48,7 +48,13 @@ def save_weights(model, path):
         # save_model raised on every model trained there, after the training. Tied
         # parameters (embeddings shared with an output layer) are written twice and load
         # back into the same tensor.
-        state = {name: tensor.detach().clone().cpu() for name, tensor in state.items()}
+        # The copy is also made contiguous, which safetensors requires and its save_model
+        # did: the weights of some transformers are not as they come from the Hub
+        # (SciBERT, converted from TensorFlow, holds transposed ones), and such a model
+        # could not be saved after its training.
+        state = {
+            name: tensor.detach().clone(memory_format=torch.contiguous_format).cpu() for name, tensor in state.items()
+        }
         save_file(state, str(path), metadata={"format": "pt"})
     else:
         torch.save(state, path)
