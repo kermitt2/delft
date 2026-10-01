@@ -279,6 +279,69 @@ def synchronize(*devices: torch.device) -> None:
         torch.cuda.synchronize()
 
 
+# --- TorchScript on a GPU ----------------------------------------------------------------
+
+# The loop of the scripted arms in miniature. Compiled anew for every probe, since a
+# scripted function keeps the execution plan of its first runs.
+FUSION_PROBE_SOURCE = """
+def probe(steps: Tensor, valid: Tensor, transitions: Tensor) -> Tensor:
+    score = steps[0]
+    for i in range(1, steps.size(0)):
+        next_score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
+        score = torch.where(valid[i], next_score, score)
+    return score
+"""
+
+
+def scripted_loop_error_on_gpu() -> Optional[str]:
+    """The first line of the error a scripted loop fails with on the GPU, or None when it runs."""
+    probe = torch.jit.CompilationUnit(FUSION_PROBE_SOURCE).probe
+    valid = torch.ones(6, 4, 1, dtype=torch.bool, device="cuda")
+    try:
+        for dtype in (torch.float64, torch.float32):
+            steps = torch.randn(6, 4, 5, dtype=dtype, device="cuda", requires_grad=True)
+            transitions = torch.randn(5, 5, dtype=dtype, device="cuda", requires_grad=True)
+            # the optimized plan, with its fused kernels, is built after the profiled runs
+            for _ in range(4):
+                probe(steps, valid, transitions).sum().backward()
+        torch.cuda.synchronize()
+    except RuntimeError as error:
+        lines = [line.strip() for line in str(error).splitlines() if line.strip()]
+        return next((line for line in lines if "nvrtc" in line), lines[0] if lines else repr(error))
+    return None
+
+
+def configure_gpu_fusion(mode: str) -> str:
+    """
+    Whether TorchScript fuses the element-wise operations of a scripted loop into one GPU
+    kernel. It compiles such a kernel with nvrtc when the loop first runs, and an
+    installation without the nvrtc builtins fails right there. Under `auto` the fusion is
+    turned off when it does not work, and the scripted arms then run their operations one
+    by one: fewer interpreter steps than Python, the same number of kernel launches.
+    """
+
+    def turn_off() -> None:
+        torch._C._jit_override_can_fuse_on_gpu(False)
+        torch._C._jit_set_texpr_fuser_enabled(False)
+
+    if mode == "off":
+        turn_off()
+        return "off"
+    error = scripted_loop_error_on_gpu()
+    if error is None:
+        return "on"
+    if mode == "on":
+        sys.exit(f"--jit-gpu-fusion on was asked for and a scripted loop does not run on this GPU: {error}")
+    turn_off()
+    remaining_error = scripted_loop_error_on_gpu()
+    if remaining_error is not None:
+        sys.exit(
+            f"a scripted loop does not run on this GPU, with or without fusion: {remaining_error}\n"
+            f"the arms without TorchScript still run: --arms {REFERENCE_ARM},A"
+        )
+    return f"off, the fused kernels do not compile here ({error})"
+
+
 # --- correctness -------------------------------------------------------------------------
 
 
@@ -408,6 +471,12 @@ def parse_args() -> argparse.Namespace:
         "--profile-steps", type=int, default=0, help="also profile this many steps of pytorch-crf and A"
     )
     parser.add_argument("--json", default=None, metavar="PATH", help="also write the records as JSON")
+    parser.add_argument(
+        "--jit-gpu-fusion",
+        choices=["auto", "on", "off"],
+        default="auto",
+        help="let TorchScript fuse operations into GPU kernels; auto turns it off where they do not compile",
+    )
     parser.add_argument("--skip-check", action="store_true", help="do not compare the arms with pytorch-crf first")
     args = parser.parse_args()
     args.arms = [name.strip() for name in args.arms.split(",") if name.strip()]
@@ -449,6 +518,8 @@ def main() -> None:
         sys.exit("--device cuda was asked for and torch sees no GPU")
 
     environment = describe_environment(model_device)
+    if model_device.type == "cuda":
+        environment["jit_gpu_fusion"] = configure_gpu_fusion(args.jit_gpu_fusion)
     print(" | ".join(f"{key}={value}" for key, value in environment.items()))
 
     # where the CRF runs under a model on model_device
