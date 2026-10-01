@@ -14,6 +14,7 @@ from delft.utilities.dataloader_utils import (
 from delft.utilities.dataloader_utils import (
     safe_multiprocessing_context as _safe_multiprocessing_context,
 )
+from delft.utilities.transformer_tokenizers import call_tokenizer
 
 
 def _worker_init_fn(worker_id):
@@ -79,7 +80,8 @@ class TextClassificationDataset(Dataset):
         if self.bert_data:
             # BERT mode: use transformer tokenizer
             # the tokenizer is called: encode_plus is gone from transformers 5
-            inputs = self.transformer_tokenizer(
+            inputs = call_tokenizer(
+                self.transformer_tokenizer,
                 text,
                 add_special_tokens=True,
                 max_length=self.maxlen,

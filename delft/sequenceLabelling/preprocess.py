@@ -7,6 +7,7 @@ import numpy as np
 
 from delft.sequenceLabelling.config import ModelConfig
 from delft.sequenceLabelling.text_features import TEXT_SEPARATOR
+from delft.utilities.transformer_tokenizers import call_tokenizer
 
 LOGGER = logging.getLogger(__name__)
 
@@ -261,8 +262,9 @@ class BERTPreprocessor(object):
             while len(chars_tokens) < nb_positions:
                 chars_tokens.append(self.empty_char_vector)
 
-        # sub-tokenization
-        encoded_result = self.tokenizer(
+        # sub-tokenization, one call at a time: the tokenizer is shared by the threads
+        encoded_result = call_tokenizer(
+            self.tokenizer,
             text_tokens,
             add_special_tokens=True,
             is_split_into_words=True,

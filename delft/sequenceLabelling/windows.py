@@ -22,6 +22,8 @@ sequence give the length of each of its tokens in that unit.
 
 from typing import Callable, List, Optional, Sequence, Tuple
 
+from delft.utilities.transformer_tokenizers import call_tokenizer
+
 
 def window_bounds(costs: Sequence[int], max_length: int, stride: int) -> List[Tuple[int, int]]:
     """
@@ -180,7 +182,9 @@ def subtoken_costs(tokenizer) -> Callable[[Sequence[str]], List[int]]:
         counts = [0] * len(tokens)
         if len(tokens) == 0:
             return counts
-        encoded = tokenizer(list(tokens), is_split_into_words=True, add_special_tokens=False, verbose=False)
+        encoded = call_tokenizer(
+            tokenizer, list(tokens), is_split_into_words=True, add_special_tokens=False, verbose=False
+        )
         for word_id in encoded.word_ids():
             if word_id is not None:
                 counts[word_id] += 1

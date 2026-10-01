@@ -17,6 +17,7 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import shuffle_triple_with_view
+from delft.utilities.transformer_tokenizers import get_tokenizer
 from delft.utilities.Utilities import pick_device
 from delft.utilities.weights import (
     SAFETENSORS_WEIGHT_FILE_NAME,
@@ -260,12 +261,7 @@ class Classifier(object):
         # Helper to get tokenizer if needed
         transformer_tokenizer = None
         if self.model_config.transformer_name is not None:
-            # Logic to fetch tokenizer from model or transformer helper
-            # In models_pytorch.py we use AutoModel.
-            # We need generic way to get tokenizer.
-            from transformers import AutoTokenizer
-
-            transformer_tokenizer = AutoTokenizer.from_pretrained(self.model_config.transformer_name)
+            transformer_tokenizer = get_tokenizer(self.model_config.transformer_name)
 
         train_loader = create_dataloader(
             x_train,
@@ -328,9 +324,8 @@ class Classifier(object):
         # Get transformer tokenizer if needed
         transformer_tokenizer = None
         if self.model_config.transformer_name is not None:
-            from transformers import AutoTokenizer
-
-            transformer_tokenizer = AutoTokenizer.from_pretrained(self.model_config.transformer_name)
+            # loaded once for the process, not for every call
+            transformer_tokenizer = get_tokenizer(self.model_config.transformer_name)
 
         # Create dataloader
         test_loader = create_dataloader(
@@ -479,9 +474,8 @@ class Classifier(object):
 
         transformer_tokenizer = None
         if self.model_config.transformer_name is not None:
-            from transformers import AutoTokenizer
-
-            transformer_tokenizer = AutoTokenizer.from_pretrained(self.model_config.transformer_name)
+            # loaded once for the process, not for every call
+            transformer_tokenizer = get_tokenizer(self.model_config.transformer_name)
 
         # Preprocess texts if they are raw strings
         if len(texts) > 0 and isinstance(texts[0], str):
