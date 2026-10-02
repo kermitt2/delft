@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_json_offsets
-from delft.utilities.Utilities import t_or_f
+from delft.utilities.Utilities import set_random_seed, t_or_f
 
 
 def configure(
@@ -365,6 +365,13 @@ if __name__ == "__main__":
         help="Number of fold to use when evaluating with n-fold cross validation.",
     )
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
+    parser.add_argument(
         "--architecture",
         help="Type of model architecture to be used, one of " + str(architectures),
     )
@@ -446,6 +453,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    set_random_seed(args.seed)
 
     action = args.action
     architecture = args.architecture
