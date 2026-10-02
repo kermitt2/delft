@@ -167,6 +167,27 @@ def viterbi_decode_numpy(
 
 LOSS_REDUCTIONS = ("none", "sum", "mean", "token_mean")
 
+# Under a model on a GPU, the loss of a batch with at most this many emission
+# scores per timestep (batch size x number of tags) is computed on the CPU.
+# On a GPU the recurrence costs its kernel launches, about 0.28 ms a timestep
+# whatever the batch (0.28 ms for 4 sequences of 37 tags, 0.29 ms for 2048 of
+# 5), while on the CPU it costs its arithmetic, which grows with the batch.
+# Measured on an RTX 3090, CPU over GPU time of a step of the loss by
+# batch x tags — 150: 0.56, 480: 0.72, 592: 0.84, 640: 0.74, 680: 0.82,
+# 960: 0.97, 1184: 1.25, 1920: 1.48, 2560: 1.62, 7400: 2.91. The crossover
+# sits between about 750 and 1000 for 5, 15 and 37 tags alike, at 100 positions
+# as at 2000, and below it one CPU thread does as well as six. The long
+# sequences of few tags (segmentation, reference-segmenter) sit at the left
+# end; batches of short ones (citation) at the right.
+CPU_LOSS_MAX_SCORES_PER_STEP = 768
+
+
+def loss_device(device: torch.device, batch_size: int, num_tags: int) -> torch.device:
+    """Where the loss of a batch given on ``device`` is computed: see ``CPU_LOSS_MAX_SCORES_PER_STEP``."""
+    if device.type == "cuda" and batch_size * num_tags <= CPU_LOSS_MAX_SCORES_PER_STEP:
+        return torch.device("cpu")
+    return device
+
 
 def gold_path_score(
     emissions: torch.Tensor,
@@ -332,6 +353,10 @@ class CRF(nn.Module):
         computed in about a third of the time on a GPU.
         ``tests/utilities/test_crf_pytorch.py`` pins both against pytorch-crf.
 
+        A small batch given on a GPU is moved to the CPU for it, as
+        :func:`loss_device` decides; the gradients flow back to the GPU and
+        the loss is returned there.
+
         Arguments are those of :meth:`forward`, in the layout ``batch_first``
         says.
         """
@@ -358,6 +383,15 @@ class CRF(nn.Module):
             if mask is not None:
                 mask = mask.transpose(0, 1)
 
+        device = emissions.device
+        computed_on = loss_device(device, emissions.size(0), self.num_tags)
+        parameters = self._transition_parameters()
+        if computed_on != device:
+            emissions, tags = emissions.to(computed_on), tags.to(computed_on)
+            mask = None if mask is None else mask.to(computed_on)
+            parameters = tuple(parameter.to(computed_on) for parameter in parameters)
+        start_transitions, transitions, end_transitions = parameters
+
         padded_mask = None
         if mask is not None:
             mask = mask.bool()
@@ -370,18 +404,17 @@ class CRF(nn.Module):
         else:
             mask = torch.ones_like(tags, dtype=torch.bool)
 
-        start_transitions, transitions, end_transitions = self._transition_parameters()
         numerator = gold_path_score(emissions, tags, mask, start_transitions, transitions, end_transitions)
         denominator = log_partition(emissions, padded_mask, start_transitions, transitions, end_transitions)
         nll = denominator - numerator
 
-        if reduction == "none":
-            return nll
         if reduction == "sum":
-            return nll.sum()
-        if reduction == "mean":
-            return nll.mean()
-        return nll.sum() / mask.to(emissions.dtype).sum()
+            nll = nll.sum()
+        elif reduction == "mean":
+            nll = nll.mean()
+        elif reduction == "token_mean":
+            nll = nll.sum() / mask.to(emissions.dtype).sum()
+        return nll.to(device)
 
     def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """

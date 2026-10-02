@@ -19,11 +19,13 @@ import torch
 from torch.optim import Adam
 
 from delft.utilities.crf_pytorch import (
+    CPU_LOSS_MAX_SCORES_PER_STEP,
     CRF,
     HAS_TORCHCRF,
     NUMPY_DECODE_MAX_BATCH,
     ChainCRF,
     log_partition,
+    loss_device,
     viterbi_decode,
     viterbi_decode_numpy,
 )
@@ -34,6 +36,7 @@ IMPLEMENTATIONS = [("scripted", viterbi_decode), ("numpy", viterbi_decode_numpy)
 
 # Only the CRF suite needs pytorch-crf as a reference; ChainCRF is standalone.
 requires_torchcrf = pytest.mark.skipif(not HAS_TORCHCRF, reason="pytorch-crf not installed")
+requires_cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason="no GPU")
 
 # (seq_length, batch_size, num_tags), covering the single-timestep edge case,
 # single-item batches (what GROBID sends) and long sequences.
@@ -332,6 +335,60 @@ def test_loss_refuses_what_pytorch_crf_refuses(arguments, message):
 
     with pytest.raises(ValueError, match=message):
         crf(call.pop("emissions"), call.pop("tags"), **call)
+
+
+@pytest.mark.parametrize(
+    "device,batch_size,num_tags,expected",
+    [
+        ("cuda", 30, 5, "cpu"),  # long sequences of few tags: reference-segmenter
+        ("cuda", 20, 34, "cpu"),
+        ("cuda", 200, 37, "cuda"),  # batches of short sequences: citation
+        ("cuda:1", 200, 37, "cuda:1"),
+        ("cuda", CPU_LOSS_MAX_SCORES_PER_STEP, 1, "cpu"),
+        ("cuda", CPU_LOSS_MAX_SCORES_PER_STEP + 1, 1, "cuda"),
+        ("cpu", 30, 5, "cpu"),
+        ("cpu", 200, 37, "cpu"),
+    ],
+)
+def test_loss_of_a_small_batch_on_a_gpu_is_computed_on_the_cpu(device, batch_size, num_tags, expected):
+    """The split is a measured performance crossover — keep it wired up."""
+    assert loss_device(torch.device(device), batch_size, num_tags) == torch.device(expected)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("with_mask", [False, True])
+def test_loss_computed_on_another_device_matches_pytorch_crf(with_mask, monkeypatch):
+    """
+    The path a small batch takes on a GPU, without one: ``cpu:0`` is the CPU under another
+    name, which is enough for the batch and the parameters to go through the move.
+    """
+    elsewhere = torch.device("cpu:0")
+    moved = []
+    monkeypatch.setattr(
+        "delft.utilities.crf_pytorch.loss_device",
+        lambda device, batch_size, num_tags: (moved.append((batch_size, num_tags)), elsewhere)[1],
+    )
+    ref, crf, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=False, variable_length=True)
+    kwargs = {"mask": mask} if with_mask else {}
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, **kwargs)
+    assert moved and set(moved) == {(3, 4)}  # the batch size and not the length, whatever the layout
+
+
+@requires_torchcrf
+@requires_cuda
+@pytest.mark.parametrize("shape", [(50, 4, 12), (50, 128, 12)])
+def test_loss_on_a_gpu_matches_pytorch_crf_wherever_it_is_computed(shape):
+    """One batch under the crossover and one over it: the same loss, returned on the GPU either way."""
+    _, batch_size, num_tags = shape
+    ref, crf, emissions, tags, mask = _loss_inputs(shape, batch_first=True, variable_length=True)
+    ref, crf = ref.cuda(), crf.cuda()
+    emissions, tags, mask = emissions.cuda(), tags.cuda(), mask.cuda()
+    on_cpu = batch_size * num_tags <= CPU_LOSS_MAX_SCORES_PER_STEP
+    assert (loss_device(emissions.device, batch_size, num_tags).type == "cpu") == on_cpu
+
+    assert crf(emissions, tags, mask=mask).device == emissions.device
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, mask=mask)
 
 
 def _emissions_and_tags():
