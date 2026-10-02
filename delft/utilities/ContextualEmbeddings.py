@@ -670,6 +670,8 @@ class ContextualEmbeddings:
             tokens = list(tokens)
             if max_sequence_length:
                 tokens = tokens[:max_sequence_length]
+            if not tokens or not any(tokens):
+                continue
             key = self.sentence_key(tokens)
             if key not in pending and key not in self._memory:
                 pending[key] = tokens
@@ -782,6 +784,8 @@ class ContextualEmbeddings:
         tokens = list(tokens)
         if len(tokens) == 0:
             return np.zeros((0, self.embed_size), dtype=np.float32)
+        if not any(tokens):
+            return np.zeros((len(tokens), self.embed_size), dtype=np.float32)
         vectors = self._lookup(self.sentence_key(tokens))
         if vectors is not None and vectors.shape[0] == len(tokens):
             return vectors

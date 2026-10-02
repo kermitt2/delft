@@ -227,6 +227,20 @@ class TestCache:
     def test_sentence_key_escapes_tokens_that_used_to_collide(self):
         assert ContextualEmbeddings.sentence_key(["a\x1fb", "c"]) != ContextualEmbeddings.sentence_key(["a", "b\x1fc"])
 
+    @pytest.mark.parametrize(("cached", "read"), [([], [""]), ([""], [])])
+    def test_empty_token_sequences_need_neither_cache_nor_model_in_a_worker(
+        self, tiny_bert, tmp_path, monkeypatch, cached, read
+    ):
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        assert embeddings.precompute([cached], verbose=False) == 0
+        monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: object())
+
+        vectors = embeddings.get_sentence_vectors(read)
+
+        assert vectors.shape == (len(read), HIDDEN_SIZE)
+        assert not vectors.any()
+        assert embeddings._model is None
+
     def test_cache_miss_in_a_dataloader_worker_is_an_error(self, tiny_bert, monkeypatch):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
         monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: object())
