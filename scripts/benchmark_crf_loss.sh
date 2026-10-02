@@ -414,8 +414,10 @@ for arm in "${ARMS[@]}"; do
         echo "$arm failed with status $status: see $log.err" >&2
         failed=1
     fi
-    # the result is the log
-    [[ "$KEEP_MODELS" == true ]] || rm -rf data/models/sequenceLabelling/*-"$suffix"
+    # The result is the log. Only the model of this training goes: the other tasks have the
+    # same suffix for another model or architecture, and keep their best weights in theirs
+    # while they train.
+    [[ "$KEEP_MODELS" == true ]] || rm -rf "data/models/sequenceLabelling/grobid-$model-$architecture-$suffix"
 done
 exit "$failed"
 TASK
