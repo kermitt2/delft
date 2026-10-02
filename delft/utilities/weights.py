@@ -9,30 +9,66 @@ Weight files of the models, in either of two formats told apart by the file exte
 """
 
 import os
+import re
 
 import torch
 
 SAFETENSORS_WEIGHT_FILE_NAME = "model.safetensors"
 SAFETENSORS_EXTENSION = ".safetensors"
 
+# The loss of a model is an attribute of it (``loss_fn``), so what it holds comes with the
+# state of the model. A text classifier trained with class weights keeps them in its loss
+# (``loss_fn.weight``): they were saved with the model, which then could not be loaded
+# again, the model built to receive the weights having a loss without any. They are
+# training settings, given again by the training configuration, and no part of the model.
+LOSS_PREFIX = "loss_fn."
+
 # the names the wrappers give to the weights of a model
 WEIGHT_FILE_NAMES = (SAFETENSORS_WEIGHT_FILE_NAME, "model_weights.pt", "model_weights.pth")
+PICKLED_WEIGHTS_EXTENSIONS = (".pt", ".pth")
+
+# the weights of the model of a fold, of a text classifier trained over several folds
+FOLD_WEIGHT_FILE_PATTERN = re.compile(r"(?P<stem>.+)_fold(?P<fold>\d+)(?P<extension>\.[A-Za-z]+)")
 
 
 def is_safetensors(path):
     return str(path).endswith(SAFETENSORS_EXTENSION)
 
 
+def is_loss_tensor(name):
+    """Whether a tensor of a state dict belongs to the loss of the model rather than to the model."""
+    return name.startswith(LOSS_PREFIX)
+
+
 def save_weights(model, path):
     """Save the weights of ``model`` in the format the extension of ``path`` tells."""
+    # without the tensors of its loss: see LOSS_PREFIX
+    state = {name: tensor for name, tensor in model.state_dict().items() if not is_loss_tensor(name)}
     if is_safetensors(path):
-        # save_model rather than save_file(state_dict): it deals with the tensors that
-        # several parameters share, such as tied embeddings, which save_file refuses
-        from safetensors.torch import save_model
+        from safetensors.torch import save_file
 
-        save_model(model, str(path))
+        # Every tensor is written from a storage of its own. safetensors refuses tensors
+        # that share a storage unless one of them covers it whole, and on a GPU cuDNN
+        # flattens all the weights of an LSTM into one buffer that none of them covers:
+        # save_model raised on every model trained there, after the training. Tied
+        # parameters (embeddings shared with an output layer) are written twice and load
+        # back into the same tensor.
+        # The copy is also made contiguous, which safetensors requires and its save_model
+        # did: the weights of some transformers are not as they come from the Hub
+        # (SciBERT, converted from TensorFlow, holds transposed ones), and such a model
+        # could not be saved after its training.
+        state = {
+            name: tensor.detach().clone(memory_format=torch.contiguous_format).cpu() for name, tensor in state.items()
+        }
+        save_file(state, str(path), metadata={"format": "pt"})
     else:
-        torch.save(model.state_dict(), path)
+        torch.save(state, path)
+
+
+def fold_weight_file(weight_file, fold_id):
+    """The name of the weights of the model of fold ``fold_id``: model.safetensors gives model_fold0.safetensors."""
+    stem, extension = os.path.splitext(weight_file)
+    return f"{stem}_fold{fold_id}{extension}"
 
 
 def remove_other_weights(model_path, weight_file):
@@ -51,11 +87,31 @@ def remove_other_weights(model_path, weight_file):
 def load_weights(model, path, device=None):
     """Load into ``model`` the weights saved at ``path`` by ``save_weights``."""
     if is_safetensors(path):
-        from safetensors.torch import load_model
+        from safetensors.torch import load_file
 
-        load_model(model, str(path), device="cpu" if device is None else str(device))
+        # not load_model: it refuses a tied parameter written under both its names, as
+        # save_weights does, and inspects the shared storages of the model, which raises
+        # on an LSTM flattened by cuDNN
+        state = load_file(str(path), device="cpu" if device is None else str(device))
     else:
-        model.load_state_dict(torch.load(path, map_location=device))
+        state = torch.load(path, map_location=device)
+
+    # the tensors of a loss are left out, from the files that hold some (see LOSS_PREFIX)
+    # and of the model: its loss keeps what it has
+    state = {name: tensor for name, tensor in state.items() if not is_loss_tensor(name)}
+    missing, unexpected = model.load_state_dict(state, strict=False)
+    missing = [name for name in missing if not is_loss_tensor(name)]
+    # a file written by safetensors' save_model holds a tied parameter under one
+    # name only: the other names are not missing when their tensor was loaded
+    model_state = model.state_dict()
+    loaded = {model_state[name].data_ptr() for name in state if name in model_state}
+    missing = [name for name in missing if model_state[name].data_ptr() not in loaded]
+    if missing or unexpected:
+        raise RuntimeError(
+            f"Error(s) in loading the weights of {model.__class__.__name__} from {path}:"
+            + (f"\n    Missing key(s): {sorted(missing)}" if missing else "")
+            + (f"\n    Unexpected key(s): {sorted(unexpected)}" if unexpected else "")
+        )
 
 
 def find_weight_file(model_path, weight_file):
@@ -70,7 +126,7 @@ def find_weight_file(model_path, weight_file):
 
     if is_safetensors(weight_file):
         # the pickled weights are named differently by each wrapper
-        candidates = [name for name in sorted(os.listdir(model_path)) if name.endswith((".pt", ".pth"))]
+        candidates = [name for name in sorted(os.listdir(model_path)) if name.endswith(PICKLED_WEIGHTS_EXTENSIONS)]
     else:
         candidates = [SAFETENSORS_WEIGHT_FILE_NAME]
 
@@ -80,4 +136,29 @@ def find_weight_file(model_path, weight_file):
             return path
 
     # let the caller fail on the file it asked for
+    return requested
+
+
+def find_fold_weight_file(model_path, fold_id, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
+    """
+    Path of the weights of the model of fold ``fold_id`` in the directory ``model_path``:
+    those named after ``weight_file`` when they are there, else those named after
+    another name the wrappers give to weights, else pickled weights of that fold under
+    any name. As ``find_weight_file``, for a model trained over several folds.
+    """
+    requested = os.path.join(model_path, fold_weight_file(weight_file, fold_id))
+    if os.path.isfile(requested) or not os.path.isdir(model_path):
+        return requested
+
+    candidates = [fold_weight_file(name, fold_id) for name in WEIGHT_FILE_NAMES]
+    for name in sorted(os.listdir(model_path)):
+        match = FOLD_WEIGHT_FILE_PATTERN.fullmatch(name)
+        if match is not None and int(match.group("fold")) == fold_id and name.endswith(PICKLED_WEIGHTS_EXTENSIONS):
+            candidates.append(name)
+
+    for candidate in candidates:
+        path = os.path.join(model_path, candidate)
+        if os.path.isfile(path):
+            return path
+
     return requested

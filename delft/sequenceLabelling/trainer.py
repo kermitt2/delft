@@ -35,6 +35,13 @@ class EarlyStopping:
     """
     Early stopping callback to stop training when validation metric stops improving.
 
+    In mode 'max', the epochs whose score is 0 do not count toward the patience: a
+    sequence labelling model predicts no entity at all for its first epochs, the more so
+    on a set where one class covers nearly every token, and its f1 stays at 0 until it
+    gets its first boundary right. Counting from the first epoch stopped such a model at
+    epoch patience + 1, while its loss was still falling, whereas the same model one
+    epoch faster went on to a high score.
+
     Args:
         patience: Number of epochs to wait before stopping
         min_delta: Minimum change to qualify as improvement
@@ -50,6 +57,12 @@ class EarlyStopping:
         self.should_stop = False
 
     def __call__(self, score: float) -> bool:
+        if self.mode == "max" and score <= 0 and (self.best_score is None or self.best_score <= 0):
+            # nothing predicted yet: the patience starts with the first score
+            print("No validation score yet, the patience of early stopping is not counting")
+            self.best_score = 0.0
+            return False
+
         if self.best_score is None:
             self.best_score = score
             return False
@@ -74,6 +87,11 @@ class ModelCheckpoint:
     """
     Save model weights when validation metric improves.
 
+    In mode 'max', as long as no epoch scored above 0 the weights of the latest epoch are
+    the ones kept: early stopping lets such a training go on (see EarlyStopping), and
+    keeping those of the first epoch would discard all of it when the best weights are
+    put back at its end.
+
     Args:
         filepath: Path to save model weights
         monitor: Metric to monitor
@@ -94,7 +112,8 @@ class ModelCheckpoint:
             return True
 
         if self.mode == "max":
-            improved = score > self.best_score
+            no_score_yet = score <= 0 and self.best_score <= 0
+            improved = score > self.best_score or no_score_yet
         else:
             improved = score < self.best_score
 

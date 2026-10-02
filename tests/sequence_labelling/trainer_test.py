@@ -7,8 +7,8 @@ import numpy as np
 import pytest
 import torch
 
-from delft.sequenceLabelling.trainer import unique_checkpoint_path
-from delft.sequenceLabelling.wrapper import Sequence
+from delft.sequenceLabelling.trainer import EarlyStopping, unique_checkpoint_path
+from delft.sequenceLabelling.wrapper import Sequence, summarize_fold_scores
 from delft.utilities.Utilities import set_random_seed
 
 WORDS = ["Jim", "Henson", "was", "a", "puppeteer", "in", "Mississippi", "today"]
@@ -55,6 +55,33 @@ class TestConfiguration:
         sequence = _sequence(tmp_path, monkeypatch)
         assert sequence.training_config.clip_gradients == 1.0
         assert sequence.training_config.lr_decay == 0.5
+
+
+class TestEarlyStopping:
+    @staticmethod
+    def _stops_after(scores, **kwargs):
+        early_stopping = EarlyStopping(**kwargs)
+        for epoch, score in enumerate(scores, start=1):
+            if early_stopping(score):
+                return epoch
+        return None
+
+    def test_stops_after_patience_epochs_without_improvement(self):
+        assert self._stops_after([0.5, 0.6, 0.6, 0.6, 0.6], patience=3) == 5
+        assert self._stops_after([0.5, 0.6, 0.6, 0.6, 0.7, 0.7], patience=3) is None
+
+    def test_the_epochs_scoring_zero_do_not_count(self):
+        """The patience ran from epoch 1: a model with no entity predicted yet was stopped at epoch 6."""
+        assert self._stops_after([0.0] * 10, patience=5) is None
+        assert self._stops_after([0.0] * 8 + [0.4, 0.5, 0.5, 0.5, 0.5, 0.5], patience=5) is None
+        assert self._stops_after([0.0] * 8 + [0.4, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5], patience=5) == 15
+
+    def test_a_score_back_to_zero_counts_once_there_was_one(self):
+        assert self._stops_after([0.4, 0.0, 0.0, 0.0], patience=3) == 4
+
+    def test_in_mode_min_a_zero_is_a_score(self):
+        """A loss of zero is not an absence of score."""
+        assert self._stops_after([0.0, 0.0, 0.0, 0.0], patience=3, mode="min") == 4
 
 
 class TestCallbacks:
@@ -141,6 +168,79 @@ class TestDataSets:
         sequence = _sequence(tmp_path, monkeypatch, "BidLSTM_CRF_FEATURES", fold_number=2, max_epoch=1)
         sequence.train_nfold(X_ARRAY, Y_ARRAY, f_train=FEATURES_ARRAY)
         assert len(sequence.models) == 2
+
+
+class TestFoldPreprocessors:
+    """The preprocessor was fit on the whole set, so that a fold model knew the characters
+    and the feature values of the fold it is evaluated on: see issue #102."""
+
+    # 'Ω' is in the first sequence alone, which fold 0 is evaluated on and fold 1 trained on
+    X_FOLDS = [["Ω", "was", "here"], WORDS[:3], WORDS[2:], WORDS[:5]]
+    Y_FOLDS = [["B-loc", "O", "O"], LABELS[:3], LABELS[2:], LABELS[:5]]
+    FEATURES_FOLDS = [[[word, "GREEK" if word == "Ω" else "LATIN"] for word in sequence] for sequence in X_FOLDS]
+
+    def test_a_fold_model_knows_the_characters_of_its_training_data_alone(self, tmp_path, monkeypatch):
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS)
+        fold_0, fold_1 = sequence.fold_preprocessors
+        assert "Ω" not in fold_0.vocab_char
+        assert "Ω" in fold_1.vocab_char
+        assert sequence.models[0].char_encoder.char_embeddings.num_embeddings == len(fold_0.vocab_char)
+        assert sequence.models[1].char_encoder.char_embeddings.num_embeddings == len(fold_1.vocab_char)
+
+    def test_every_fold_model_has_the_labels_of_the_whole_set(self, tmp_path, monkeypatch):
+        """A label missing from the training data of a fold would be dropped from its evaluation."""
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS)
+        assert all(p.vocab_tag == sequence.p.vocab_tag for p in sequence.fold_preprocessors)
+        assert "B-loc" in sequence.fold_preprocessors[0].vocab_tag
+
+    def test_every_fold_model_has_the_feature_columns_of_the_whole_set(self, tmp_path, monkeypatch):
+        sequence = _sequence(tmp_path, monkeypatch, "BidLSTM_CRF_FEATURES", fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS, f_train=self.FEATURES_FOLDS)
+        fold_0, fold_1 = sequence.fold_preprocessors
+        assert fold_0.feature_preprocessor.features_indices == fold_1.feature_preprocessor.features_indices == [0, 1]
+        assert "GREEK" not in str(fold_0.feature_preprocessor.features_map_to_index)
+        assert "GREEK" in str(fold_1.feature_preprocessor.features_map_to_index)
+
+    def test_the_saved_model_is_the_best_fold_with_its_preprocessor(self, tmp_path, monkeypatch):
+        sequence = _sequence(tmp_path, monkeypatch, "BidLSTM_CRF_FEATURES", fold_number=2, max_epoch=1)
+        sequence.train_nfold(self.X_FOLDS, self.Y_FOLDS, f_train=self.FEATURES_FOLDS)
+        sequence.eval(self.X_FOLDS, self.Y_FOLDS, features=self.FEATURES_FOLDS)
+        best = sequence.models.index(sequence.model)
+        assert sequence.p is sequence.fold_preprocessors[best]
+        assert sequence.model_config.char_vocab_size == len(sequence.p.vocab_char)
+        sequence.save(str(tmp_path))
+        loaded = Sequence("test-model", device="cpu")
+        loaded.load(str(tmp_path))
+        assert loaded.p.vocab_char == sequence.p.vocab_char
+        assert loaded.model.char_encoder.char_embeddings.num_embeddings == len(sequence.p.vocab_char)
+        loaded.tag(self.X_FOLDS, "json", features=self.FEATURES_FOLDS)
+
+
+class TestNFoldEvaluation:
+    def test_the_scores_of_every_fold_are_summarized_with_their_mean_and_std(self):
+        scores = [
+            {"precision": 0.5, "recall": 0.5, "f1": 0.5},
+            {"precision": 0.7, "recall": 0.9, "f1": 0.8},
+            {"precision": 0.6, "recall": 0.4, "f1": 0.5},
+        ]
+        summary = summarize_fold_scores(scores)
+        assert summary["folds"] == scores
+        assert summary["mean"] == pytest.approx({"precision": 0.6, "recall": 0.6, "f1": 0.6})
+        assert summary["std"] == pytest.approx({"precision": 0.0816497, "recall": 0.2160247, "f1": 0.1414214})
+        assert summary["best_fold"] == 1
+
+    def test_eval_reports_the_mean_and_the_std_over_the_folds(self, tmp_path, monkeypatch, capsys):
+        """eval_nfold gave the best and the average f1 alone, see issue #18."""
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(X_ARRAY, Y_ARRAY)
+        summary = sequence.eval(X_ARRAY, Y_ARRAY)
+        assert len(summary["folds"]) == 2
+        assert set(summary["mean"]) == set(summary["std"]) == {"precision", "recall", "f1"}
+        assert summary["std"]["f1"] >= 0
+        assert sequence.model is sequence.models[summary["best_fold"]]
+        assert "std" in capsys.readouterr().out
 
 
 class TestSeed:

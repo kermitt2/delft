@@ -5,7 +5,7 @@ import time
 from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
 from delft.textClassification.reader import load_software_use_corpus_json
-from delft.utilities.Utilities import split_data_and_labels
+from delft.utilities.Utilities import set_random_seed, split_data_and_labels
 
 """
     This binary classifier is used in combination with a software mention recognition model, for characterizing
@@ -167,7 +167,7 @@ if __name__ == "__main__":
         description="Classify whether a mentioned software is used or not, using the DeLFT library"
     )
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
     pretrained_transformers_examples = [
         "bert-base-cased",
         "bert-large-cased",
@@ -176,6 +176,13 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
     parser.add_argument(
         "--architecture",
         default="gru",
@@ -221,6 +228,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    set_random_seed(args.seed)
 
     if args.action not in ("train", "train_eval", "classify"):
         print("action not specified, must be one of [train,train_eval,classify]")
@@ -232,9 +240,9 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
-        # default word embeddings
-        embeddings_name = "glove-840B"
+    if args.action.startswith("train") and transformer is None and embeddings_name is None and architecture != "bert":
+        # as for sequence labelling: no pre-trained word embeddings unless some are asked for
+        print("No --embedding given: training without pre-trained word embeddings (learned from the training texts).")
 
     if args.action == "classify" and (args.embedding is not None or args.transformer is not None):
         print(

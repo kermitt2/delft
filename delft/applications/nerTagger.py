@@ -12,7 +12,7 @@ from delft.sequenceLabelling.reader import (
     load_data_and_labels_ontonotes,
 )
 from delft.utilities.numpy import shuffle_arrays
-from delft.utilities.Utilities import stats, t_or_f
+from delft.utilities.Utilities import set_random_seed, stats, t_or_f
 
 
 def configure(
@@ -724,7 +724,7 @@ if __name__ == "__main__":
         "BidLSTM_CRF_CASING",
     ]
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
 
     architectures_transformers_based = [
         "BERT",
@@ -749,6 +749,13 @@ if __name__ == "__main__":
         type=int,
         default=1,
         help="number of folds or re-runs to be used when training",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
     )
     parser.add_argument(
         "--lang",
@@ -860,6 +867,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    set_random_seed(args.seed)
 
     action = args.action
     if action not in ("train", "tag", "eval", "train_eval"):

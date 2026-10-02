@@ -17,8 +17,24 @@ from delft.utilities.preprocess import (
     BasePreprocessor,
 )
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.transformer_tokenizers import call_tokenizer
 
 special_character_removal = re.compile(r"[^A-Za-z\.\-\?\!\,\#\@\% ]", re.IGNORECASE)
+
+
+def uses_sentence_vectors(embeddings):
+    """Whether the embeddings are contextual: the vector of a word depends on its text."""
+    return embeddings is not None and hasattr(embeddings, "get_sentence_vectors")
+
+
+def tokens_to_embed(text, maxlen=300):
+    """
+    The tokens of a text that contextual embeddings are given, as one sentence: the last
+    ``maxlen`` ones, as the other embeddings, but as they are written. The text is not
+    cleaned of its digits, accents and symbols: the transformer has its own handling of
+    those, as for sequence labelling.
+    """
+    return tokenizeAndFilterSimple(text)[-maxlen:]
 
 
 def to_vector_single(text, embeddings, maxlen=300):
@@ -27,6 +43,15 @@ def to_vector_single(text, embeddings, maxlen=300):
     vectors with the provided embeddings, introducing <PAD> and <UNK> padding token
     vector when appropriate
     """
+    if uses_sentence_vectors(embeddings):
+        # contextual embeddings: the text is embedded as a whole. Word by word, each
+        # vector was the one of the word alone, without any context.
+        x = np.zeros((maxlen, embeddings.embed_size), dtype=np.float32)
+        window = tokens_to_embed(text, maxlen)
+        if len(window) > 0:
+            x[: len(window), :] = embeddings.get_sentence_vectors(window)
+        return x
+
     tokens = tokenizeAndFilterSimple(clean_text(text))
     window = tokens[-maxlen:]
 
@@ -87,7 +112,8 @@ def create_single_input_bert(text, maxlen=512, transformer_tokenizer=None):
     """
 
     # TBD: exception if tokenizer is not valid/None
-    encoded_tokens = transformer_tokenizer(
+    encoded_tokens = call_tokenizer(
+        transformer_tokenizer,
         text,
         truncation=True,
         add_special_tokens=True,
@@ -110,7 +136,8 @@ def create_batch_input_bert(texts, maxlen=512, transformer_tokenizer=None):
     if isinstance(texts, np.ndarray):
         texts = texts.tolist()
 
-    encoded_tokens = transformer_tokenizer(
+    encoded_tokens = call_tokenizer(
+        transformer_tokenizer,
         texts,
         add_special_tokens=True,
         truncation=True,

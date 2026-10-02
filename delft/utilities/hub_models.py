@@ -436,14 +436,16 @@ def _download_folder(folder, model_name, token, directory):
     """
     Download the model of ``folder`` to ``{directory}/{model_name}``: its configuration,
     and the first of each list of names that the folder holds, a preprocessor and the
-    weights. A text classifier may have no preprocessor, and every model has weights.
+    weights. A text classifier may have no preprocessor, and every model has weights:
+    those of a text classifier trained over several folds are the ones of every fold.
     """
-    from delft.utilities.weights import WEIGHT_FILE_NAMES
+    from delft.utilities.weights import WEIGHT_FILE_NAMES, fold_weight_file
 
     model_dir = os.path.join(directory, model_name)
     os.makedirs(model_dir)
     _download_file(folder + CONFIG_FILE_NAME, os.path.join(model_dir, CONFIG_FILE_NAME), token)
-    _check_folder_config(folder, os.path.join(model_dir, CONFIG_FILE_NAME))
+    config = _check_folder_config(folder, os.path.join(model_dir, CONFIG_FILE_NAME))
+    fold_number = config.get("fold_number") or 1
 
     def download_first(names):
         for name in names:
@@ -456,8 +458,17 @@ def _download_folder(folder, model_name, token, directory):
 
     download_first(PREPROCESSOR_FILE_NAMES)
     weight_file_names = WEIGHT_FILE_NAMES + LEGACY_WEIGHT_FILE_NAMES
-    if download_first(weight_file_names) is None:
+    if download_first(weight_file_names) is not None:
+        return
+    if fold_number <= 1:
         raise HubModelNotFoundError(f"{folder} not found: no weights there, none of {', '.join(weight_file_names)}")
+    # no weights of a single model: a text classifier trained over several folds
+    for fold_id in range(fold_number):
+        fold_file_names = [fold_weight_file(name, fold_id) for name in WEIGHT_FILE_NAMES]
+        if download_first(fold_file_names) is None:
+            raise HubModelNotFoundError(
+                f"{folder} not found: no weights of fold {fold_id} there, none of {', '.join(fold_file_names)}"
+            )
 
 
 def _check_folder_config(folder, config_path):
@@ -465,6 +476,7 @@ def _check_folder_config(folder, config_path):
     Refuse what is not the configuration of a model, a page a server gives for any URL
     for instance, and the models with a transformer: their tokenizer is a folder of
     files named after the tokenizer, which cannot be found where nothing can be listed.
+    Return the configuration.
     """
     try:
         with open(config_path) as f:
@@ -478,6 +490,7 @@ def _check_folder_config(folder, config_path):
             f"{folder} holds a model with a transformer, {config['transformer_name']}, which cannot be taken "
             "from a folder over HTTP: take it from an archive of the model, or from the Hub"
         )
+    return config
 
 
 def _resolve_archive(url, model_name, extension, cache_dir, token, force):

@@ -18,7 +18,12 @@ from delft.sequenceLabelling.preprocess import (
     to_casing_single,
     to_vector_single,
 )
-from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position, words_and_positions
+from delft.sequenceLabelling.text_features import (
+    text_from_features,
+    tokens_per_position,
+    words_and_positions,
+    words_of_columns,
+)
 from delft.sequenceLabelling.windows import cut_into_windows, subtoken_costs
 from delft.utilities.dataloader_utils import (
     effective_num_workers as _effective_num_workers,
@@ -29,6 +34,7 @@ from delft.utilities.dataloader_utils import (
 from delft.utilities.numpy import shuffle_triple_with_view
 from delft.utilities.preprocess import PAD
 from delft.utilities.Tokenizer import tokenizeAndFilterSimple
+from delft.utilities.transformer_tokenizers import get_tokenizer
 from delft.utilities.Utilities import truncate_batch_values
 
 LOGGER = logging.getLogger(__name__)
@@ -452,6 +458,21 @@ def _set_windows(dataset, bounds):
     dataset.window_counts = None if bounds is None else [len(sequence_bounds) for sequence_bounds in bounds]
 
 
+def _sentences_to_embed(x, max_sequence_length, nb_columns):
+    """
+    The sentences the dataset asks contextual embeddings for: the sequences, cut as the
+    dataset cuts them, or the words of their columns when a position holds several
+    tokens (see to_vector_single).
+    """
+    sentences = []
+    for tokens in x:
+        tokens = list(tokens)
+        if max_sequence_length:
+            tokens = tokens[:max_sequence_length]
+        sentences.append(words_of_columns(tokens, nb_columns)[0] if nb_columns > 1 else tokens)
+    return sentences
+
+
 def create_dataloader(
     x,
     y=None,
@@ -498,14 +519,14 @@ def create_dataloader(
     x = text_from_features(x, features, getattr(model_config, "text_features_indices", None))
 
     if model_config and model_config.transformer_name:
-        from transformers import AutoTokenizer
-
         # Initialize BERT/Transformer preprocessor
         # add_prefix_space: the sequences are already split into words, and the byte-level BPE
         # tokenizers (RoBERTa, GPT2...) only mark the start of a word with a leading space.
         # Without it no sub-token carries that mark, and the alignment of the labels, which
         # relies on it for these tokenizers, drops the first sub-token of every word.
-        tokenizer = AutoTokenizer.from_pretrained(model_config.transformer_name, add_prefix_space=True)
+        # The tokenizer is loaded once for the process: a loader is built for every call
+        # to tag, which loaded it again, and asked the Hub about it, each time.
+        tokenizer = get_tokenizer(model_config.transformer_name, add_prefix_space=True)
         bert_preprocessor = BERTPreprocessor(tokenizer)
 
         if windowing:
@@ -558,6 +579,30 @@ def create_dataloader(
 
     if windowing:
         x, y, features, window_bounds = _split_into_windows(x, y, features, max_sequence_length, window_stride, role)
+
+    if embeddings is not None and hasattr(embeddings, "precompute"):
+        # contextual embeddings come from a frozen transformer: the sequences
+        # (the windows, when cut above, since they are what the dataset reads)
+        # are embedded here, once, in the process owning the GPU, and the
+        # dataset (possibly in worker processes) only reads the result. The
+        # vectors of a labelled corpus are kept in the cache on disk, those of
+        # texts to be tagged are forgotten with the next call.
+        embeddings.precompute(
+            _sentences_to_embed(
+                x,
+                model_config.max_sequence_length if model_config else None,
+                tokens_per_position(getattr(model_config, "text_features_indices", None)),
+            ),
+            persist=y is not None,
+            verbose=y is not None,
+            distributed=distributed,
+        )
+        if y is not None:
+            # every vector of a labelled corpus is in the cache from here on: the
+            # transformer is not needed any more, and would otherwise hold its share of
+            # the GPU for the whole training. It stays loaded for the texts to be tagged,
+            # whose vectors are computed at each call.
+            embeddings.release_model()
 
     dataset = SequenceLabelingDataset(
         x,

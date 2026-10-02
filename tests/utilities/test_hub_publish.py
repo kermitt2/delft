@@ -60,6 +60,42 @@ class TestPrepareModel:
         with pytest.raises(ValueError, match="ambiguous"):
             prepare_model(model_dir, str(tmp_path / "staging"))
 
+    @staticmethod
+    def _fold_classifier(model_dir, weight_files):
+        """The directory of a text classifier trained over folds, the weights of fold i holding i."""
+        os.makedirs(model_dir)
+        open(os.path.join(model_dir, "config.json"), "w").close()
+        for name in weight_files:
+            fold = int(name.split("_fold")[1].split(".")[0])
+            torch.save({"weight": torch.full((2,), float(fold))}, os.path.join(model_dir, name))
+        return str(model_dir)
+
+    @pytest.mark.parametrize("pickled", ["model_weights.pt", "model_weights.pth"])
+    def test_pickled_weights_of_folds_are_published_each_as_safetensors(self, tmp_path, pickled):
+        """They were refused as ambiguous: such a classifier could be saved and not published."""
+        from safetensors.torch import load_file
+
+        from delft.utilities.weights import fold_weight_file
+
+        folds = [fold_weight_file(pickled, fold_id) for fold_id in range(11)]
+        model_dir = self._fold_classifier(tmp_path / "license_gru", folds)
+        published = prepare_model(model_dir, str(tmp_path / "staging"))
+        assert published == sorted(["config.json"] + [f"model_fold{fold_id}.safetensors" for fold_id in range(11)])
+        for fold_id in (0, 1, 10):
+            weights = load_file(str(tmp_path / "staging" / f"model_fold{fold_id}.safetensors"))
+            assert weights["weight"].tolist() == [float(fold_id)] * 2
+
+    def test_pickled_weights_of_folds_can_be_kept(self, tmp_path):
+        folds = ["model_weights_fold0.pt", "model_weights_fold1.pt"]
+        model_dir = self._fold_classifier(tmp_path / "license_gru", folds)
+        assert prepare_model(model_dir, str(tmp_path / "staging"), safetensors=False) == ["config.json"] + folds
+
+    def test_two_pickled_weights_of_a_fold_are_ambiguous(self, tmp_path):
+        folds = ["model_weights_fold0.pt", "model_weights_fold0.pth", "model_weights_fold1.pt"]
+        model_dir = self._fold_classifier(tmp_path / "license_gru", folds)
+        with pytest.raises(ValueError, match="ambiguous"):
+            prepare_model(model_dir, str(tmp_path / "staging"))
+
 
 @pytest.mark.parametrize("location", [REPOSITORY, BUCKET], ids=["repo", "bucket"])
 class TestPushModel:

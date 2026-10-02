@@ -11,7 +11,7 @@ from delft.textClassification.reader import (
 )
 from delft.textClassification.reader import vectorize as vectorizer
 from delft.utilities.numpy import shuffle_triple_with_view
-from delft.utilities.Utilities import split_data_and_labels, t_or_f
+from delft.utilities.Utilities import set_random_seed, split_data_and_labels, t_or_f
 
 """
     Two multiclass classifiers to be used in combination with Grobid to classify a license/copyrights section
@@ -93,6 +93,20 @@ def configure(
     return o_batch_size, o_maxlen, o_patience, o_early_stop, o_max_epoch, o_learning_rate
 
 
+def _train(model, x, y, fold_count, incremental=False):
+    """
+    Train ``model``. With ``incremental``, the model saved under its name is loaded
+    first and its training goes on, with the classes, embeddings and architecture it
+    was saved with.
+    """
+    if incremental:
+        model.load()
+    if fold_count == 1:
+        model.train(x, y, incremental=incremental)
+    else:
+        model.train_nfold(x, y, incremental=incremental)
+
+
 def train(
     embeddings_name,
     fold_count,
@@ -107,6 +121,7 @@ def train(
     max_epoch=-1,
     learning_rate=None,
     num_workers=None,
+    incremental=False,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -143,10 +158,7 @@ def train(
         nb_workers=num_workers,
     )
 
-    if fold_count == 1:
-        model.train(xtr, y_copyrights)
-    else:
-        model.train_nfold(xtr, y_copyrights)
+    _train(model, xtr, y_copyrights, fold_count, incremental)
     # saving the model
     model.save()
 
@@ -180,10 +192,7 @@ def train(
         nb_workers=num_workers,
     )
 
-    if fold_count == 1:
-        model.train(xtr, y_licenses)
-    else:
-        model.train_nfold(xtr, y_licenses)
+    _train(model, xtr, y_licenses, fold_count, incremental)
     # saving the model
     model.save()
 
@@ -202,6 +211,7 @@ def train_and_eval(
     max_epoch=-1,
     learning_rate=None,
     num_workers=None,
+    incremental=False,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -243,10 +253,7 @@ def train_and_eval(
         nb_workers=num_workers,
     )
 
-    if fold_count == 1:
-        model.train(x_train, y_train)
-    else:
-        model.train_nfold(x_train, y_train)
+    _train(model, x_train, y_train, fold_count, incremental)
     model.eval(x_test, y_test)
 
     # saving the model
@@ -285,17 +292,14 @@ def train_and_eval(
         nb_workers=num_workers,
     )
 
-    if fold_count == 1:
-        model.train(x_train, y_train)
-    else:
-        model.train_nfold(x_train, y_train)
+    _train(model, x_train, y_train, fold_count, incremental)
     model.eval(x_test, y_test)
 
     # saving the model (not so useful...)
     model.save()
 
 
-def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None, incremental=False):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
@@ -336,10 +340,7 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
             transformer_name=transformer,
         )
 
-        if fold_count == 1:
-            model.train(xtr, y_train_class_rank)
-        else:
-            model.train_nfold(xtr, y_train_class_rank)
+        _train(model, xtr, y_train_class_rank, fold_count, incremental)
         # saving the model
         model.save()
 
@@ -379,15 +380,12 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
             transformer_name=transformer,
         )
 
-        if fold_count == 1:
-            model.train(xtr, y_train_class_rank)
-        else:
-            model.train_nfold(xtr, y_train_class_rank)
+        _train(model, xtr, y_train_class_rank, fold_count, incremental)
         # saving the model
         model.save()
 
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None, incremental=False):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
@@ -432,10 +430,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
             transformer_name=transformer,
         )
 
-        if fold_count == 1:
-            model.train(x_train, y_train_class_rank)
-        else:
-            model.train_nfold(x_train, y_train_class_rank)
+        _train(model, x_train, y_train_class_rank, fold_count, incremental)
         model.eval(x_test, y_test_class_rank)
 
         # saving the model
@@ -482,10 +477,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
             transformer_name=transformer,
         )
 
-        if fold_count == 1:
-            model.train(x_train, y_train_class_rank)
-        else:
-            model.train_nfold(x_train, y_train_class_rank)
+        _train(model, x_train, y_train_class_rank, fold_count, incremental)
         model.eval(x_test, y_test_class_rank)
 
         # saving the model
@@ -597,7 +589,7 @@ def report_training_copyrights(y):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Classify a copyright/license section using the DeLFT library")
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec"]
+    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
     pretrained_transformers_examples = [
         "bert-base-cased",
         "bert-large-cased",
@@ -606,6 +598,13 @@ if __name__ == "__main__":
 
     parser.add_argument("action")
     parser.add_argument("--fold-count", type=int, default=1)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
     parser.add_argument(
         "--architecture",
         default="gru",
@@ -672,6 +671,12 @@ if __name__ == "__main__":
         help="Enable early stopping (true/false).",
     )
     parser.add_argument(
+        "--incremental",
+        action="store_true",
+        help="training is incremental: it goes on from the models already saved (copyright_<architecture> and "
+        "license_<architecture>), with the embeddings or the transformer they were trained with",
+    )
+    parser.add_argument(
         "--maxlen",
         type=int,
         default=-1,
@@ -686,6 +691,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    set_random_seed(args.seed)
 
     if args.action not in (
         "train",
@@ -703,9 +709,9 @@ if __name__ == "__main__":
     if architecture not in architectures:
         print("unknown model architecture, must be one of " + str(architectures))
 
-    if transformer is None and embeddings_name is None:
-        # default word embeddings
-        embeddings_name = "glove-840B"
+    if args.action.startswith("train") and transformer is None and embeddings_name is None and architecture != "bert":
+        # as for sequence labelling: no pre-trained word embeddings unless some are asked for
+        print("No --embedding given: training without pre-trained word embeddings (learned from the training texts).")
 
     if args.action == "classify" and (args.embedding is not None or args.transformer is not None):
         print(
@@ -735,6 +741,7 @@ if __name__ == "__main__":
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
             num_workers=num_workers,
+            incremental=args.incremental,
         )
 
     if args.action == "train_binary":
@@ -746,6 +753,7 @@ if __name__ == "__main__":
             args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            incremental=args.incremental,
         )
 
     if args.action == "train_eval":
@@ -766,6 +774,7 @@ if __name__ == "__main__":
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
             num_workers=num_workers,
+            incremental=args.incremental,
         )
 
     if args.action == "train_eval_binary":
@@ -777,6 +786,7 @@ if __name__ == "__main__":
             args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            incremental=args.incremental,
         )
 
     if args.action == "classify":

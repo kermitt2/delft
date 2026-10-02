@@ -201,3 +201,28 @@ class TestClassifier:
     def test_features_for_another_number_of_texts_are_an_error(self, tmp_path, monkeypatch):
         with pytest.raises(ValueError, match="features for"):
             _classifier(tmp_path, monkeypatch).train(TEXTS, CLASSES, features=FEATURES[:2])
+
+    @pytest.mark.parametrize("early_stop", [False, True])
+    def test_trained_over_folds_every_fold_model_takes_the_features(self, tmp_path, monkeypatch, early_stop):
+        classifier = _classifier(tmp_path, monkeypatch, fold_number=2, early_stop=early_stop)
+        classifier.train(TEXTS, CLASSES, features=FEATURES)
+        assert len(classifier.models) == 2
+        assert all(model.features_size > 0 for model in classifier.models)
+        scores = classifier.predict(TEXTS, output_format="array", features=FEATURES)
+        assert scores.shape == (6, 2)
+        classifier.save(str(tmp_path))
+
+        loaded = Classifier("test-classifier", device="cpu", fold_number=2)
+        loaded.load(str(tmp_path))
+        loaded.embeddings = _Embeddings()
+        assert np.allclose(loaded.predict(TEXTS, output_format="array", features=FEATURES), scores, atol=1e-6)
+
+    def test_an_incremental_training_keeps_the_features_preprocessor_of_the_loaded_model(self, tmp_path, monkeypatch):
+        classifier = _classifier(tmp_path, monkeypatch)
+        classifier.train(TEXTS, CLASSES, features=FEATURES)
+        mapping = dict(classifier.model_config.features_map_to_index)
+        other = [["results", "9"]] * len(TEXTS)  # values the model has not seen
+        classifier.train(TEXTS, CLASSES, incremental=True, features=other)
+        assert classifier.model_config.features_map_to_index == mapping
+        with pytest.raises(ValueError, match="takes features"):
+            classifier.train(TEXTS, CLASSES, incremental=True)
