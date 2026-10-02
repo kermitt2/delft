@@ -737,6 +737,33 @@ class TestSequenceLabelling:
         with pytest.raises(ValueError, match="configure its path"):
             loaded.load(str(tmp_path / "saved"))
 
+        # Vector settings still come from the saved model when the local entry
+        # changes, while machine-local cache and batching choices follow it.
+        import shutil
+
+        local_cache = tmp_path / "local-cache"
+        relocated_model = str(tmp_path / "relocated-model")
+        shutil.copytree(tiny_bert, relocated_model)
+        changed = _entry(
+            relocated_model,
+            layers=[-1],
+            **{
+                "layer-pooling": "sum",
+                "subword-pooling": "last",
+                "window": 32,
+                "stride": 16,
+                "cache-path": str(local_cache),
+                "batch-size": 3,
+            },
+        )
+        registry["embeddings"] = [changed]
+        reloaded = wrapper.Sequence("contextual-test", embeddings_name=None, nb_workers=0, device="cpu")
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.embeddings.model.saved_settings() == saved_settings
+        assert reloaded.embeddings.model.cache_path == str(local_cache)
+        assert reloaded.embeddings.model.batch_size == 3
+
+
 class TestDataLoader:
     @staticmethod
     def _loader(embeddings, x, y, features=None, text_features_indices=None, max_sequence_length=None):

@@ -298,7 +298,7 @@ class Embeddings(object):
             "stride": settings["stride"],
         }
         if is_contextual_transformer_description(local):
-            for key in ("cache", "cache-path"):
+            for key in ("cache", "cache-path", "batch-size"):
                 if key in local:
                     description[key] = local[key]
         return description
