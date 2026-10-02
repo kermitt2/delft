@@ -8,6 +8,7 @@ import pandas as pd
 from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
 from delft.textClassification.reader import load_texts_and_classes_pandas, load_texts_pandas
+from delft.utilities.Utilities import set_random_seed
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 class_weights = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0}
@@ -110,6 +111,13 @@ if __name__ == "__main__":
     parser.add_argument("action", help="one of [train, test, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
+    parser.add_argument(
         "--architecture",
         default="gru",
         help="type of model architecture to be used, one of " + str(architectures),
@@ -154,6 +162,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    set_random_seed(args.seed)
 
     action = args.action
     if action not in ("train", "classify", "test"):

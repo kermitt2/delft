@@ -114,7 +114,7 @@ The training is set with the arguments of `Sequence`:
 - `max_checkpoints_to_keep` (0): above 0, the weights of the last epochs are left in the directory of the model, as `<model name>-epoch<N>.pt`;
 - `model.train(..., callbacks=[...])`: functions called at the end of every epoch as `callback(epoch, logs)`, `logs` holding the `loss` and, with a validation set, `val_loss`, `f1`, `precision`, `recall` and `learning_rate`.
 
-`delft.utilities.Utilities.set_random_seed(seed)` seeds Python, NumPy and PyTorch, for a training that can be run again.
+`delft.utilities.Utilities.set_random_seed(seed)` seeds Python, NumPy and PyTorch, for a training that can be run again. The applications call it with their `--seed` option.
 
 Use the loaders in `delft/sequenceLabelling/reader.py` to read your training data; pick the one matching your file format:
 

@@ -8,7 +8,7 @@ from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
 from delft.textClassification.reader import load_dataseer_corpus_csv
 from delft.textClassification.reader import vectorize as vectorizer
-from delft.utilities.Utilities import split_data_and_labels, t_or_f
+from delft.utilities.Utilities import set_random_seed, split_data_and_labels, t_or_f
 
 """
     Classifier for deciding if a sentence introduce a dataset or not, and prediction of the
@@ -722,6 +722,13 @@ if __name__ == "__main__":
     parser.add_argument("action", help="one of [train, train_eval, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
+        "--seed",
+        type=int,
+        default=None,
+        help="Seed of the random number generators, to run a training again with the same split of the data, the "
+        + "same initial weights and the same order of the batches. Default: not seeded, every run differs.",
+    )
+    parser.add_argument(
         "--architecture",
         default="gru",
         help="type of model architecture to be used, one of " + str(architectures),
@@ -806,6 +813,7 @@ if __name__ == "__main__":
     )
 
     args = parser.parse_args()
+    set_random_seed(args.seed)
 
     if args.action not in ("train", "train_eval", "classify"):
         print("action not specifed, must be one of [train,train_eval,classify]")

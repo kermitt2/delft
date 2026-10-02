@@ -22,6 +22,10 @@ Note: a training set too big for memory can be read from disk, one text at a tim
 
 Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 Ti with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
 
+### Training again with the same result
+
+`delft.utilities.Utilities.set_random_seed(seed)` seeds Python, NumPy and PyTorch, so that the split of the data, the initial weights and the order of the batches are the same from a run to the next. The applications call it with their `--seed` option; without it every run draws its own.
+
 ### Training over folds
 
 A classifier can be trained over several folds (`fold_number` of `Classifier`, `--fold-count` of the applications), which gives an ensemble: usually more accurate than a single model, and as many times slower to train and to run.
