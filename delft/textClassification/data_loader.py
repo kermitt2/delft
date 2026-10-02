@@ -7,7 +7,12 @@ Supports both legacy embedding-vector approach and new preprocessor-based index 
 import torch
 from torch.utils.data import DataLoader, Dataset
 
-from delft.textClassification.preprocess import to_indices_single, to_vector_single
+from delft.textClassification.preprocess import (
+    to_indices_single,
+    to_vector_single,
+    tokens_to_embed,
+    uses_sentence_vectors,
+)
 from delft.utilities.dataloader_utils import (
     effective_num_workers as _effective_num_workers,
 )
@@ -150,6 +155,21 @@ def create_dataloader(
         transformer_tokenizer=transformer_tokenizer,
         preprocessor=preprocessor,
     )
+
+    if uses_sentence_vectors(embeddings) and not dataset.bert_data and not dataset.use_preprocessor:
+        # contextual embeddings come from a frozen transformer: the texts are embedded
+        # here, once, in the process owning the GPU, and the dataset (possibly in worker
+        # processes) only reads the result, as for sequence labelling. The vectors of
+        # labelled texts are kept in the cache on disk, and the transformer is then
+        # freed for the training; those of texts to classify are forgotten with the
+        # next call, for which the transformer stays loaded.
+        embeddings.precompute(
+            [tokens_to_embed(text, model_config.maxlen) for text in x],
+            persist=y is not None,
+            verbose=y is not None,
+        )
+        if y is not None:
+            embeddings.release_model()
 
     effective_workers = _effective_num_workers(num_workers, len(dataset), batch_size, role=role)
     # pin_memory only helps CUDA host->device transfers; on MPS/CPU it's overhead.
