@@ -169,6 +169,9 @@ class ContextualEmbeddings:
         # cache, and the commit of the Hub every file of the model is taken from
         self.revision = None
         self._hub_revision = None
+        # what the model is to its cache: its identifier on the Hub, or, for a local
+        # directory, its type alone, the revision telling which model of that type
+        self._cache_model = str(model_reference)
 
         self._tokenizer = None
         self._prefix_ids = []
@@ -240,7 +243,10 @@ class ContextualEmbeddings:
     def _resolve_revision(self, config):
         """The revision of the model, from its configuration as it was just loaded."""
         if self._is_local_model():
+            # the path takes no part in the identity of the cache: the same model under
+            # another path, as staged on the disk of a node, reads the same cache
             self.revision = local_model_revision(str(self.model_reference))
+            self._cache_model = getattr(config, "model_type", None) or "model"
         else:
             # the commit the files of the Hub were resolved to, also from its cache
             self._hub_revision = getattr(config, "_commit_hash", None)
@@ -473,7 +479,7 @@ class ContextualEmbeddings:
     def fingerprint(self):
         """Everything the vectors depend on, two different fingerprints never share a cache."""
         return {
-            "model": str(self.model_reference),
+            "model": self._cache_model,
             "revision": self.revision,
             "layers": list(self.layers),
             "layer_pooling": self.layer_pooling,
@@ -489,7 +495,7 @@ class ContextualEmbeddings:
             return None
         fingerprint = json.dumps(self.fingerprint(), sort_keys=True)
         digest = hashlib.sha1(fingerprint.encode("utf-8")).hexdigest()[:12]
-        name = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.basename(os.path.normpath(str(self.model_reference))))
+        name = re.sub(r"[^A-Za-z0-9._-]+", "_", os.path.basename(os.path.normpath(self._cache_model)))
         return os.path.join(self.cache_path, "%s-%s" % (name, digest))
 
     @staticmethod
