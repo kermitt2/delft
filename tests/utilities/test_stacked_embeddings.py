@@ -149,6 +149,28 @@ class TestConcatenation:
         np.testing.assert_array_equal(vectors[0, WORD_SIZE : WORD_SIZE * 2], resources["words"]["cat"])
         assert not vectors[2].any()
 
+    def test_several_tokens_per_position_with_contextual_embeddings(self, resources):
+        """Their tokens are read as one sentence by the contextual part, whose vectors go back to their columns."""
+        embeddings = _stack(resources)
+        glove, contextual = embeddings.components
+        text = ["the cat", "sat ", "on the"]  # a position without a second token
+        assert embeddings.precompute([["the", "cat", "sat", "on", "the"]], verbose=False) == 1
+        embeddings.release_model()
+
+        vectors = to_vector_single(text, embeddings, 4, tokens_per_position=2)
+        assert vectors.shape == (4, embeddings.embed_size * 2)
+        assert contextual.model._model is None, "the sentence of the columns is the one that was computed"
+        np.testing.assert_array_equal(
+            vectors[:, : WORD_SIZE * 2], to_vector_single(text, glove, 4, tokens_per_position=2)
+        )
+        sentence = contextual.get_sentence_vectors(["the", "cat", "sat", "on", "the"])
+        contextual_part = vectors[:, WORD_SIZE * 2 :]
+        np.testing.assert_array_equal(contextual_part[0, :HIDDEN_SIZE], sentence[0])
+        np.testing.assert_array_equal(contextual_part[0, HIDDEN_SIZE:], sentence[1])
+        np.testing.assert_array_equal(contextual_part[1, :HIDDEN_SIZE], sentence[2])
+        assert not contextual_part[1, HIDDEN_SIZE:].any()
+        np.testing.assert_array_equal(contextual_part[2, HIDDEN_SIZE:], sentence[4])
+
     def test_word_vector_out_of_context(self, resources):
         vector = _stack(resources).get_word_vector("cat")
         assert vector.shape == (WORD_SIZE + HIDDEN_SIZE,)
@@ -239,7 +261,17 @@ class TestPrecompute:
     def test_nothing_to_precompute_with_static_embeddings_only(self, resources):
         embeddings = _stack(resources, "tiny-glove+tiny-static")
         assert embeddings.precompute([SENTENCE], verbose=False) == 0
+        embeddings.release_model()  # no transformer to free
         assert to_vector_single(SENTENCE, embeddings, 8).shape == (8, WORD_SIZE + STATIC_SIZE)
+
+    def test_the_transformer_of_the_stack_is_released(self, resources):
+        """The data loaders free it once a corpus is embedded: the stack had no way to."""
+        embeddings = _stack(resources)
+        contextual = embeddings.components[1].model
+        embeddings.precompute([SENTENCE], verbose=False)
+        assert contextual._model is not None
+        embeddings.release_model()
+        assert contextual._model is None
 
 
 def _worker(embeddings, tokens, queue):
@@ -311,6 +343,7 @@ class TestSequenceLabelling:
         assert model.model_config.word_embedding_size == WORD_SIZE + HIDDEN_SIZE
 
         model.train(x[:20], y[:20], x_valid=x[20:], y_valid=y[20:])
+        assert model.embeddings.components[1].model._model is None, "the transformer is freed for the training"
         # the training and validation sets went to the cache of the contextual embeddings
         assert model.embeddings.precompute(list(x), max_sequence_length=25, verbose=False) == 0
 
@@ -323,3 +356,87 @@ class TestSequenceLabelling:
         assert reloaded.model_config.embeddings_name == "tiny-glove+tiny-contextual"
         assert reloaded.embeddings.embed_size == WORD_SIZE + HIDDEN_SIZE
         assert reloaded.tag([text], "json")["texts"] == expected
+
+
+class TestTextClassification:
+    """
+    A text classifier took a stack word by word: the contextual part gave the vector of
+    each word alone, computed by the dataset.
+    """
+
+    TEXTS = ["the cat sat on the mat", "the dog ran far away now", "cat 42 sat", "dog ran"] * 3
+    CLASSES = np.array([[1, 0], [0, 1], [1, 0], [0, 1]] * 3, dtype=np.float32)
+
+    def test_the_parts_embed_the_same_tokens(self, resources):
+        from delft.textClassification.preprocess import to_vector_single as classification_vectors
+        from delft.textClassification.preprocess import uses_sentence_vectors
+
+        embeddings = _stack(resources)
+        assert uses_sentence_vectors(embeddings)
+        x = classification_vectors("the cat 42 sat", embeddings, maxlen=6)
+        assert x.shape == (6, WORD_SIZE + HIDDEN_SIZE) and x.dtype == np.float32
+
+        # the contextual part reads the text as it is written, as a whole
+        tokens = ["the", "cat", "42", "sat"]
+        contextual = embeddings.components[1]
+        np.testing.assert_array_equal(x[:4, WORD_SIZE:], contextual.get_sentence_vectors(tokens))
+        # the word database gives the vectors of the same tokens, and none for the number
+        # the classifiers clean out of a text: "sat" stays next to its contextual vector
+        words = resources["words"]
+        np.testing.assert_array_equal(x[0, :WORD_SIZE], words["the"])
+        np.testing.assert_array_equal(x[1, :WORD_SIZE], words["cat"])
+        assert not x[2, :WORD_SIZE].any()
+        np.testing.assert_array_equal(x[3, :WORD_SIZE], words["sat"])
+        assert not x[4:].any()
+
+    def test_a_stack_of_static_embeddings_is_used_as_each_of_them(self, resources):
+        from delft.textClassification.preprocess import to_vector_single as classification_vectors
+        from delft.textClassification.preprocess import uses_sentence_vectors
+
+        embeddings = _stack(resources, "tiny-glove+tiny-static")
+        assert not uses_sentence_vectors(embeddings)
+        x = classification_vectors("the cat 42 sat", embeddings, maxlen=6)
+        assert x.shape == (6, WORD_SIZE + STATIC_SIZE)
+        # the text is cleaned, then cut into tokens: the number takes no position
+        glove = embeddings.components[0]
+        for position, word in enumerate(["the", "cat", "sat"]):
+            np.testing.assert_array_equal(x[position, :WORD_SIZE], glove.get_word_vector(word))
+        assert not x[3:].any()
+
+    def test_classifier_trains_and_classifies_with_stacked_embeddings(self, resources, tmp_path, monkeypatch):
+        import delft.textClassification.wrapper as wrapper
+
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: resources["registry"])
+        monkeypatch.chdir(tmp_path)
+
+        classifier = wrapper.Classifier(
+            "stacked-classifier",
+            architecture="gru",
+            embeddings_name="tiny-glove+tiny-contextual",
+            list_classes=["a", "b"],
+            maxlen=8,
+            max_epoch=1,
+            batch_size=4,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+        assert classifier.model_config.word_embedding_size == WORD_SIZE + HIDDEN_SIZE
+        contextual = classifier.embeddings.components[1].model
+
+        classifier.train(self.TEXTS, self.CLASSES)
+        assert contextual._model is None, "the transformer is freed once the texts are embedded"
+        # the texts went to the cache of the contextual embeddings, as the sentences they are
+        assert contextual.precompute([text.split() for text in set(self.TEXTS)], verbose=False) == 0
+
+        scores = classifier.predict(["the cat sat", "dog ran far"], output_format="array")
+        assert scores.shape == (2, 2)
+        assert contextual.sentence_key(["the", "cat", "sat"]) in contextual._memory
+
+        classifier.save(str(tmp_path / "saved"))
+        reloaded = wrapper.Classifier("stacked-classifier", device="cpu", nb_workers=0)
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.model_config.embeddings_name == "tiny-glove+tiny-contextual"
+        np.testing.assert_allclose(
+            reloaded.predict(["the cat sat", "dog ran far"], output_format="array"), scores, rtol=1e-5
+        )

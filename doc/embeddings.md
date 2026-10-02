@@ -163,6 +163,8 @@ Each part is anything that is accepted as an embedding name: a name of the regis
 Each embedding keeps the behaviour it has when used alone:
 
 - tokens are looked up with number normalization in the static embeddings, and given as they are written to the transformer,
+- the transformer of the contextual part is freed, with the GPU memory it held, once the corpus is embedded, as when it is used alone,
+- with a text classifier, the parts give the vectors of the same tokens, those of the text as it is written, which the contextual part reads as a whole; the static parts look each of these tokens up cleaned as the classifiers clean a text. A stack of static embeddings alone behaves as each of them does alone,
 - each one keeps its own LMDB database or cache. In particular, the cache of contextual embeddings is the same whether they are used alone or in a stack: training with `glove-840B+scibert-contextual` after `scibert-contextual` on the same corpus does not embed the corpus again.
 
 A stack can also be given a name in the embeddings registry:

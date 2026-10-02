@@ -69,6 +69,15 @@ class StackedEmbeddings:
                 embedded += component.precompute(token_lists, **kwargs)
         return embedded
 
+    def release_model(self):
+        """
+        Free the transformer of the contextual embeddings of the stack, once the
+        vectors of a corpus are cached, see ContextualEmbeddings.release_model.
+        """
+        for component in self.components:
+            if hasattr(component, "release_model"):
+                component.release_model()
+
     def reopen_lmdb(self):
         """Called by the DataLoader workers, see Embeddings.reopen_lmdb."""
         for component in self.components:
