@@ -717,10 +717,10 @@ if __name__ == "__main__":
     parser.add_argument(
         "--whole-text-tokenization",
         action="store_true",
-        help="With a transformer, sub-tokenize a sequence as one text, its tokens joined back with the usual "
-        + "spacing of punctuation, rather than token by token with a space before each: a SentencePiece or "
-        + "byte-level BPE tokenizer (RoBERTa, CamemBERT, XLM-R...) then reads the text as it was pretrained on. "
-        + "Saved with the model.",
+        help="With a transformer, fine-tuned (--transformer) or frozen as contextual embeddings (--embedding), "
+        + "sub-tokenize a sequence as one text, its tokens joined back with the usual spacing of punctuation, "
+        + "rather than token by token with a space before each: a SentencePiece or byte-level BPE tokenizer "
+        + "(RoBERTa, CamemBERT, XLM-R...) then reads the text as it was pretrained on. Saved with the model.",
     )
     parser.add_argument(
         "--window-stride",

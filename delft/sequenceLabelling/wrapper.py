@@ -166,7 +166,11 @@ class Sequence(object):
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if self.embeddings_name is not None:
-            self.embeddings = Embeddings(self.embeddings_name, resource_registry=self.registry)
+            # a frozen transformer used as embeddings reads the sequences the way a
+            # fine-tuned one does, see whole_text_tokenization
+            self.embeddings = Embeddings(
+                self.embeddings_name, resource_registry=self.registry, whole_text_tokenization=whole_text_tokenization
+            )
             # one vector per column the text of a token is taken from
             word_emb_size = self.embeddings.embed_size * tokens_per_position(text_features_indices)
         else:
@@ -936,6 +940,7 @@ class Sequence(object):
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
                 use_cache=False,
+                whole_text_tokenization=getattr(self.model_config, "whole_text_tokenization", False),
             )
             self.model_config.word_embedding_size = self.embeddings.embed_size * tokens_per_position(
                 self.model_config.text_features_indices

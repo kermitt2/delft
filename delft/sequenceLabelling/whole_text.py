@@ -31,22 +31,42 @@ def join_words(words: Sequence[str]) -> Tuple[str, List[Tuple[int, int]]]:
     The text of the ``words`` of a sequence, with a space between two words except
     before a closing or a trailing punctuation and after an opening one, and the
     ``(start, end)`` character span of every word in it. An empty word has an empty
-    span.
+    span. A straight double quote opens and closes in turn.
+
+    Two punctuation marks in a row are kept apart, "J. ," rather than "J.,": glued,
+    a byte-level BPE tokenizer makes one sub-token of ".,", which the two words would
+    have to share, with its label (see the module). A word is never glued to a mark on
+    both sides that way, so a sub-token can only span words when the tokenizer joins
+    a word and a mark, as "50%", which is rare.
     """
     pieces = []
     spans = []
     position = 0
     previous = None
+    previous_opens = False
+    quote_open = False
     for word in words:
         word = "" if word is None else str(word)
-        if pieces and word and previous and word[0] not in NO_SPACE_BEFORE and previous[-1] not in NO_SPACE_AFTER:
-            pieces.append(" ")
-            position += 1
+        if not word:
+            spans.append((position, position))
+            continue
+        opens = word[-1] in NO_SPACE_AFTER
+        closes = word[0] in NO_SPACE_BEFORE
+        if word == '"':
+            opens, closes = not quote_open, quote_open
+            quote_open = not quote_open
+        if pieces:
+            spaced = not closes and not previous_opens
+            if not word[0].isalnum() and not previous[-1].isalnum():
+                spaced = True
+            if spaced:
+                pieces.append(" ")
+                position += 1
         pieces.append(word)
         spans.append((position, position + len(word)))
         position += len(word)
-        if word:
-            previous = word
+        previous = word
+        previous_opens = opens
     return "".join(pieces), spans
 
 
