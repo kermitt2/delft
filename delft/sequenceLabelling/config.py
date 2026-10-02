@@ -32,6 +32,7 @@ class ModelConfig(object):
         window_stride=None,
         text_features_indices=None,
         continuous_features_indices=None,
+        whole_text_tokenization=False,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -76,6 +77,11 @@ class ModelConfig(object):
         # Columns of the features the text of a token is taken from, column 0 being the
         # token itself; None for the token alone. See delft.sequenceLabelling.text_features.
         self.text_features_indices = text_features_indices
+        # With a transformer, sub-tokenize a sequence as one text, its words joined back
+        # with the usual spacing, rather than word by word with a space before each: see
+        # delft.sequenceLabelling.whole_text. Saved with the model, which is tagged the
+        # way it was trained.
+        self.whole_text_tokenization = whole_text_tokenization
 
     def save(self, file):
         with open(file, "w") as f:

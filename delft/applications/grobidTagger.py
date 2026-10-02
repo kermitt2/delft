@@ -257,6 +257,7 @@ def train(
     window_stride=None,
     text_features_indices=None,
     continuous_features_indices=None,
+    whole_text_tokenization=False,
 ):
     short_model_name = model
     print("Loading data...")
@@ -324,6 +325,7 @@ def train(
         window_stride=window_stride,
         text_features_indices=text_features_indices,
         continuous_features_indices=continuous_features_indices,
+        whole_text_tokenization=whole_text_tokenization,
     )
 
     if incremental:
@@ -384,6 +386,7 @@ def train_eval(
     window_stride=None,
     text_features_indices=None,
     continuous_features_indices=None,
+    whole_text_tokenization=False,
 ):
     short_model_name = model
     print("Loading data...")
@@ -455,6 +458,7 @@ def train_eval(
         window_stride=window_stride,
         text_features_indices=text_features_indices,
         continuous_features_indices=continuous_features_indices,
+        whole_text_tokenization=whole_text_tokenization,
     )
 
     if incremental:
@@ -711,6 +715,14 @@ if __name__ == "__main__":
         help="Maximum number of distinct values of a feature column (default: 12).",
     )
     parser.add_argument(
+        "--whole-text-tokenization",
+        action="store_true",
+        help="With a transformer, sub-tokenize a sequence as one text, its tokens joined back with the usual "
+        + "spacing of punctuation, rather than token by token with a space before each: a SentencePiece or "
+        + "byte-level BPE tokenizer (RoBERTa, CamemBERT, XLM-R...) then reads the text as it was pretrained on. "
+        + "Saved with the model.",
+    )
+    parser.add_argument(
         "--window-stride",
         type=int,
         default=None,
@@ -863,6 +875,7 @@ if __name__ == "__main__":
             window_stride=args.window_stride,
             text_features_indices=args.text_features_indices,
             continuous_features_indices=args.continuous_features_indices,
+            whole_text_tokenization=args.whole_text_tokenization,
         )
 
     if action == Tasks.EVAL:
@@ -916,6 +929,7 @@ if __name__ == "__main__":
             window_stride=args.window_stride,
             text_features_indices=args.text_features_indices,
             continuous_features_indices=args.continuous_features_indices,
+            whole_text_tokenization=args.whole_text_tokenization,
         )
 
     if action == Tasks.TAG:
