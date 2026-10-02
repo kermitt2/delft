@@ -19,6 +19,8 @@ trained with the label of the first one.
 from bisect import bisect_right
 from typing import List, Optional, Sequence, Tuple
 
+from delft.utilities.transformer_tokenizers import call_tokenizer
+
 # no space before a closing or a trailing punctuation, none after an opening one
 NO_SPACE_BEFORE = frozenset(",.;:!?)]}»%’”'\"")
 NO_SPACE_AFTER = frozenset("([{«‘“")
@@ -101,7 +103,8 @@ def subtokenize_whole_text(tokenizer, words: Sequence[str], max_length: Optional
     arguments = {"add_special_tokens": add_special_tokens, "return_offsets_mapping": True}
     if max_length:
         arguments.update(max_length=max_length, truncation=True)
-    encoded = tokenizer(text, **arguments)
+    # one call at a time: the tokenizer is shared by the threads
+    encoded = call_tokenizer(tokenizer, text, **arguments)
     special_ids = set(tokenizer.all_special_ids)
     special = [input_id in special_ids for input_id in encoded.input_ids]
     words_of_subtokens, started = align_offsets(encoded.offset_mapping, spans, special)

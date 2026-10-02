@@ -18,7 +18,7 @@ warnings.filterwarnings("ignore", category=UserWarning)
 import torch
 import transformers
 
-from delft import DELFT_PROJECT_DIR
+from delft import DELFT_PROJECT_DIR, default_nb_workers
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
@@ -48,6 +48,24 @@ from delft.utilities.weights import (
 )
 
 transformers.logging.set_verbosity(transformers.logging.ERROR)
+
+
+def summarize_fold_scores(scores):
+    """
+    The mean and the population standard deviation, over the folds, of the scores of
+    an n-fold evaluation, given as one dict of ``precision``, ``recall`` and ``f1``
+    per fold, and the index of the fold with the best f1 (the first one on a tie).
+    """
+    if not scores:
+        raise ValueError("No fold scores to summarize")
+    keys = ("precision", "recall", "f1")
+    values = {key: np.array([score[key] for score in scores], dtype=float) for key in keys}
+    return {
+        "folds": [dict(score) for score in scores],
+        "mean": {key: float(values[key].mean()) for key in keys},
+        "std": {key: float(values[key].std()) for key in keys},
+        "best_fold": int(np.argmax(values["f1"])),
+    }
 
 
 class Sequence(object):
@@ -110,6 +128,8 @@ class Sequence(object):
 
         self.model = None
         self.models = None
+        # the preprocessor of every fold model of an n-fold training, see train_nfold
+        self.fold_preprocessors = None
         self.p: Preprocessor = None
         self._tagger = None  # built lazily and reused across tag() calls
         self.log_dir = log_dir
@@ -126,7 +146,11 @@ class Sequence(object):
         # host process such as GROBID (see ``tag()``).
         self.nb_workers_explicit = nb_workers is not None
         if nb_workers is None:
-            self.nb_workers = max(1, min(4, os.cpu_count() - 1))
+            # the cores this process may run on, not those of the node: a SLURM task
+            # allocated one or two of them was spawning four workers on them. On a
+            # single core the data is loaded in the process itself: a worker would
+            # only share that core with it.
+            self.nb_workers = default_nb_workers()
         else:
             self.nb_workers = max(0, nb_workers)
 
@@ -483,10 +507,14 @@ class Sequence(object):
         os.makedirs(model_output_dir, exist_ok=True)
 
         if not incremental:
+            # The labels and the feature columns of the models come from the whole set, so
+            # that every fold model has the same outputs and inputs. The characters and the
+            # feature values a fold model knows are those of its own training data, as the
+            # ones of a model trained on the whole set are: see issue #102.
             self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
-            self.model_config.char_vocab_size = len(self.p.vocab_char)
             self.model_config.case_vocab_size = len(self.p.vocab_case)
             self.models = []
+            self.fold_preprocessors = []
 
         fold_count = self.model_config.fold_number
         fold_size = len(x_train) // fold_count
@@ -507,8 +535,15 @@ class Sequence(object):
                 fold_f_train = concatenate_or_none([f_train[:fold_start], f_train[fold_end:]])
                 fold_f_valid = f_train[fold_start:fold_end]
 
+            if incremental:
+                fold_preprocessor = self.p
+            else:
+                fold_preprocessor = self._fold_preprocessor(fold_x_train, y_all, fold_f_train)
+            self.fold_preprocessors.append(fold_preprocessor)
+            self._configure_for_preprocessor(fold_preprocessor)
+
             # Create model for this fold
-            fold_model = get_model(self.model_config, len(self.p.vocab_tag), load_pretrained_weights=True)
+            fold_model = get_model(self.model_config, len(fold_preprocessor.vocab_tag), load_pretrained_weights=True)
             fold_model.to(self.device)
 
             if fold_id == 0:
@@ -518,7 +553,7 @@ class Sequence(object):
             train_loader = create_dataloader(
                 fold_x_train,
                 fold_y_train,
-                preprocessor=self.p,
+                preprocessor=fold_preprocessor,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
                 features=fold_f_train,
@@ -531,7 +566,7 @@ class Sequence(object):
             valid_loader = create_dataloader(
                 fold_x_valid,
                 fold_y_valid,
-                preprocessor=self.p,
+                preprocessor=fold_preprocessor,
                 embeddings=self.embeddings,
                 batch_size=self.training_config.batch_size,
                 features=fold_f_valid,
@@ -546,13 +581,34 @@ class Sequence(object):
                 fold_model,
                 self.model_config,
                 self.training_config,
-                preprocessor=self.p,
+                preprocessor=fold_preprocessor,
                 device=str(self.device),
                 checkpoint_path=model_output_dir,
             )
             trainer.train(train_loader, valid_loader)
 
             self.models.append(fold_model)
+
+    def _fold_preprocessor(self, x_train, y_all, f_train):
+        """
+        The preprocessor of a fold model: its characters and feature values are those of
+        the training data of the fold, its labels those of the whole set, and its feature
+        columns those the preprocessor of the whole set chose, which the model config
+        holds by now.
+        """
+        x_train = text_from_features(x_train, f_train, self.model_config.text_features_indices)
+        return prepare_preprocessor(x_train, y_all, features=f_train, model_config=self.model_config)
+
+    def _configure_for_preprocessor(self, preprocessor):
+        """
+        Set in the model config what depends on ``preprocessor``: the sizes of the
+        vocabularies of the model built with it, and the map of the feature values.
+        """
+        self.model_config.char_vocab_size = len(preprocessor.vocab_char)
+        self.model_config.case_vocab_size = len(preprocessor.vocab_case)
+        if preprocessor.feature_preprocessor is not None:
+            self.model_config.features_indices = preprocessor.feature_preprocessor.features_indices
+            self.model_config.features_map_to_index = preprocessor.feature_preprocessor.features_map_to_index
 
     def _scoring_window_stride(self):
         """
@@ -565,9 +621,8 @@ class Sequence(object):
     def eval(self, x_test, y_test, features=None):
         """Evaluate the model."""
         if self.model_config.fold_number > 1:
-            self.eval_nfold(x_test, y_test, features=features)
-        else:
-            self.eval_single(x_test, y_test, features=features)
+            return self.eval_nfold(x_test, y_test, features=features)
+        return self.eval_single(x_test, y_test, features=features)
 
     def eval_single(self, x_test, y_test, features=None):
         """Evaluate single model."""
@@ -650,22 +705,29 @@ class Sequence(object):
         return metrics
 
     def eval_nfold(self, x_test, y_test, features=None):
-        """Evaluate n-fold models."""
+        """
+        Evaluate the models of every fold on the test set, and report the mean and the
+        standard deviation of their scores.
+
+        Returns a dict with the micro precision, recall and f1 of every fold under
+        ``"folds"``, and their ``"mean"`` and ``"std"`` (population standard deviation)
+        over the folds, plus ``"best_fold"``. The model of the best fold becomes the
+        model of the wrapper.
+        """
         if self.models is None:
             raise OSError("No fold models found.")
 
         reports = []
-        total_f1 = 0
-        best_f1 = 0
-        best_index = 0
+        scores = []
 
         for i, model in enumerate(self.models):
             print(f"\n------------------------ fold {i} --------------------------------------")
+            preprocessor = self.fold_preprocessors[i] if self.fold_preprocessors else self.p
 
             test_loader = create_dataloader(
                 x_test,
                 y_test,
-                preprocessor=self.p,
+                preprocessor=preprocessor,
                 embeddings=self.embeddings,
                 batch_size=self.model_config.batch_size,
                 features=features,
@@ -676,22 +738,49 @@ class Sequence(object):
                 window_stride=self._scoring_window_stride(),
             )
 
-            scorer = Scorer(test_loader, self.p, evaluation=True)
+            scorer = Scorer(test_loader, preprocessor, evaluation=True)
             metrics = scorer.on_epoch_end(model, self.device)
-
-            f1 = metrics["f1"]
-            total_f1 += f1
-            if f1 > best_f1:
-                best_f1 = f1
-                best_index = i
+            scores.append({key: float(metrics[key]) for key in ("precision", "recall", "f1")})
             reports.append(scorer.report)
 
-        print("\n----------------------------------------------------------------------")
-        print(f"\nBest model: fold {best_index} with F1={best_f1:.4f}")
-        print(f"Average F1: {total_f1 / len(self.models):.4f}")
+        summary = summarize_fold_scores(scores)
+        best_index = summary["best_fold"]
 
-        # Set best model as main model
+        print("\n----------------------------------------------------------------------")
+        print(f"\nBest model: fold {best_index} with F1={scores[best_index]['f1']:.4f}")
+        print(f"\n{'fold':>6}  {'precision':>12}  {'recall':>12}  {'f-score':>12}")
+        for i, score in enumerate(scores):
+            print(f"{i:>6}  {score['precision']:>12.4f}  {score['recall']:>12.4f}  {score['f1']:>12.4f}")
+        mean, std = summary["mean"], summary["std"]
+        print(f"{'mean':>6}  {mean['precision']:>12.4f}  {mean['recall']:>12.4f}  {mean['f1']:>12.4f}")
+        print(f"{'std':>6}  {std['precision']:>12.4f}  {std['recall']:>12.4f}  {std['f1']:>12.4f}")
+        print(f"\nAverage F1: {mean['f1']:.4f} (std {std['f1']:.4f}) over {len(scores)} folds")
+
+        if self.report_to_wandb and hasattr(self, "wandb"):
+            self.wandb.log(
+                {
+                    "eval_f1_mean": mean["f1"],
+                    "eval_f1_std": std["f1"],
+                    "eval_precision_mean": mean["precision"],
+                    "eval_precision_std": std["precision"],
+                    "eval_recall_mean": mean["recall"],
+                    "eval_recall_std": std["recall"],
+                    "eval_best_fold": best_index,
+                }
+            )
+            columns = ["fold", "precision", "recall", "f1"]
+            data = [[i, s["precision"], s["recall"], s["f1"]] for i, s in enumerate(scores)]
+            data.append(["mean", mean["precision"], mean["recall"], mean["f1"]])
+            data.append(["std", std["precision"], std["recall"], std["f1"]])
+            self.wandb.log({"Fold scores": self.wandb.Table(columns=columns, data=data)})
+
+        # Set best model as main model, with the preprocessor it was trained with
         self.model = self.models[best_index]
+        if self.fold_preprocessors:
+            self.p = self.fold_preprocessors[best_index]
+            self._configure_for_preprocessor(self.p)
+
+        return summary
 
     def tag(
         self, texts, output_format, features=None, batch_size=None, multi_gpu=False, nb_workers=None, window_stride=None
