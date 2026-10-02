@@ -18,7 +18,12 @@ from delft.sequenceLabelling.preprocess import (
     to_casing_single,
     to_vector_single,
 )
-from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position, words_and_positions
+from delft.sequenceLabelling.text_features import (
+    text_from_features,
+    tokens_per_position,
+    words_and_positions,
+    words_of_columns,
+)
 from delft.sequenceLabelling.windows import cut_into_windows, subtoken_costs
 from delft.utilities.dataloader_utils import (
     effective_num_workers as _effective_num_workers,
@@ -453,6 +458,21 @@ def _set_windows(dataset, bounds):
     dataset.window_counts = None if bounds is None else [len(sequence_bounds) for sequence_bounds in bounds]
 
 
+def _sentences_to_embed(x, max_sequence_length, nb_columns):
+    """
+    The sentences the dataset asks contextual embeddings for: the sequences, cut as the
+    dataset cuts them, or the words of their columns when a position holds several
+    tokens (see to_vector_single).
+    """
+    sentences = []
+    for tokens in x:
+        tokens = list(tokens)
+        if max_sequence_length:
+            tokens = tokens[:max_sequence_length]
+        sentences.append(words_of_columns(tokens, nb_columns)[0] if nb_columns > 1 else tokens)
+    return sentences
+
+
 def create_dataloader(
     x,
     y=None,
@@ -568,12 +588,21 @@ def create_dataloader(
         # vectors of a labelled corpus are kept in the cache on disk, those of
         # texts to be tagged are forgotten with the next call.
         embeddings.precompute(
-            x,
-            max_sequence_length=model_config.max_sequence_length if model_config else None,
+            _sentences_to_embed(
+                x,
+                model_config.max_sequence_length if model_config else None,
+                tokens_per_position(getattr(model_config, "text_features_indices", None)),
+            ),
             persist=y is not None,
             verbose=y is not None,
             distributed=distributed,
         )
+        if y is not None:
+            # every vector of a labelled corpus is in the cache from here on: the
+            # transformer is not needed any more, and would otherwise hold its share of
+            # the GPU for the whole training. It stays loaded for the texts to be tagged,
+            # whose vectors are computed at each call.
+            embeddings.release_model()
 
     dataset = SequenceLabelingDataset(
         x,

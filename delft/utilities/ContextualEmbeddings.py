@@ -19,7 +19,9 @@ fine-tune the transformer and label its sub-word units. Here:
 - as the transformer is frozen, the vectors of a sentence never change, so they
   are computed **once** and cached in LMDB (as float16). After the first pass,
   an epoch costs what it costs with static embeddings, and DataLoader workers
-  only read the cache, they never load the transformer.
+  only read the cache, they never load the transformer. The cache is the one of
+  a revision of the model: the commit of a model of the Hub, the content of a
+  local one. A model that changes under the same name gets another cache.
 
 The vector of a word is, by default, the mean of the last four hidden layers of
 its first sub-word unit.
@@ -36,6 +38,8 @@ import time
 import uuid
 
 import numpy as np
+
+from delft.utilities.StaticEmbeddings import HUB_TOKEN_VARIABLE
 
 # hidden layers used for the word vectors, as indices in the hidden states
 # returned by the transformer (embedding layer first, last layer last)
@@ -66,6 +70,14 @@ TEMPORARY_PREFIX = "tmp-"
 # above this, the maximum length announced by a tokenizer is a placeholder
 _UNBOUNDED_LENGTH = 100000
 
+# A file of a local model is read whole to tell the revision of the model, up to this
+# size. Of a larger one, the weights, the size and this many samples regularly spaced
+# are read: reading gigabytes whenever embeddings are created would cost seconds, and
+# weights trained again differ all over the file.
+REVISION_WHOLE_FILE_SIZE = 32 * 1024 * 1024
+REVISION_SAMPLES = 64
+REVISION_SAMPLE_SIZE = 64 * 1024
+
 
 def _import_torch():
     import torch
@@ -79,6 +91,30 @@ def _import_transformers():
     except ImportError as e:
         raise ImportError("the 'transformers' package is required to use contextual embeddings") from e
     return transformers
+
+
+def local_model_revision(directory):
+    """
+    What tells a model in a local directory from the one that replaces it there: a
+    digest of the names, the sizes and the content of its files (see
+    REVISION_WHOLE_FILE_SIZE). It does not change when the directory is copied.
+    """
+    digest = hashlib.sha1()
+    for name in sorted(os.listdir(directory)):
+        path = os.path.join(directory, name)
+        if name.startswith(".") or not os.path.isfile(path):
+            continue
+        size = os.path.getsize(path)
+        digest.update(("%s\x1f%d\x1f" % (name, size)).encode("utf-8"))
+        with open(path, "rb") as f:
+            if size <= REVISION_WHOLE_FILE_SIZE:
+                digest.update(f.read())
+                continue
+            step = (size - REVISION_SAMPLE_SIZE) // (REVISION_SAMPLES - 1)
+            for sample in range(REVISION_SAMPLES):
+                f.seek(sample * step)
+                digest.update(f.read(REVISION_SAMPLE_SIZE))
+    return "local-" + digest.hexdigest()[:12]
 
 
 class ContextualEmbeddings:
@@ -129,6 +165,10 @@ class ContextualEmbeddings:
         self.embed_size = 0
         self.window = 0
         self.stride = 0
+        # the revision of the model the vectors come from, part of the identity of the
+        # cache, and the commit of the Hub every file of the model is taken from
+        self.revision = None
+        self._hub_revision = None
 
         self._tokenizer = None
         self._prefix_ids = []
@@ -156,7 +196,8 @@ class ContextualEmbeddings:
         to be computed, which never happens when everything is in the cache.
         """
         transformers = _import_transformers()
-        config = transformers.AutoConfig.from_pretrained(self.model_reference, local_files_only=self.local_files_only)
+        config = transformers.AutoConfig.from_pretrained(self.model_reference, **self._hub_options())
+        self._resolve_revision(config)
         hidden_size = config.hidden_size
         nb_hidden_states = config.num_hidden_layers + 1
         for layer in self.layers:
@@ -177,18 +218,44 @@ class ContextualEmbeddings:
             raise ValueError("a window of %d sub-word units is too small for %s" % (self.window, self.model_reference))
         self.stride = max(1, min(self.requested_stride, capacity))
 
+    def _hub_options(self):
+        """
+        What every loader of the model is given: the access token of DeLFT, for a
+        private model (HF_ACCESS_TOKEN, as for the transformers and the static
+        embeddings), and the commit the configuration was resolved to, so that the
+        tokenizer and the weights are those of the revision the cache is named after,
+        even when the repository changes in between.
+        """
+        options = {"local_files_only": self.local_files_only}
+        token = os.getenv(HUB_TOKEN_VARIABLE)
+        if token:
+            options["token"] = token
+        if self._hub_revision is not None:
+            options["revision"] = self._hub_revision
+        return options
+
+    def _is_local_model(self):
+        return os.path.isdir(str(self.model_reference))
+
+    def _resolve_revision(self, config):
+        """The revision of the model, from its configuration as it was just loaded."""
+        if self._is_local_model():
+            self.revision = local_model_revision(str(self.model_reference))
+        else:
+            # the commit the files of the Hub were resolved to, also from its cache
+            self._hub_revision = getattr(config, "_commit_hash", None)
+            self.revision = self._hub_revision
+
     def _load_tokenizer(self):
         transformers = _import_transformers()
-        tokenizer = transformers.AutoTokenizer.from_pretrained(
-            self.model_reference, local_files_only=self.local_files_only
-        )
+        tokenizer = transformers.AutoTokenizer.from_pretrained(self.model_reference, **self._hub_options())
         try:
             tokenizer(["a"], is_split_into_words=True, add_special_tokens=False)
         except Exception:
             # byte-level BPE tokenizers (RoBERTa and friends) only accept
             # pre-tokenized input when they add a space before each word
             tokenizer = transformers.AutoTokenizer.from_pretrained(
-                self.model_reference, local_files_only=self.local_files_only, add_prefix_space=True
+                self.model_reference, add_prefix_space=True, **self._hub_options()
             )
         if not getattr(tokenizer, "is_fast", False):
             raise ValueError(
@@ -233,7 +300,7 @@ class ContextualEmbeddings:
             print("loading transformer", self.model_reference, "for contextual embeddings on", device, "...")
             # fp32 is pinned, some checkpoints are shipped as fp16
             model = transformers.AutoModel.from_pretrained(
-                self.model_reference, torch_dtype=torch.float32, local_files_only=self.local_files_only
+                self.model_reference, torch_dtype=torch.float32, **self._hub_options()
             )
             model.eval()
             model.requires_grad_(False)
@@ -242,10 +309,16 @@ class ContextualEmbeddings:
             self._device = device
 
     def release_model(self):
-        """Free the transformer, e.g. once the vectors of a corpus are cached."""
+        """
+        Free the transformer, e.g. once the vectors of a corpus are cached: the memory
+        of the GPU it held is given back, for the model that is trained on the vectors.
+        """
         with self._lock:
+            on_gpu = self._model is not None and self._device is not None and self._device.type == "cuda"
             self._model = None
             self._device = None
+        if on_gpu:
+            _import_torch().cuda.empty_cache()
 
     def __getstate__(self):
         """
@@ -401,6 +474,7 @@ class ContextualEmbeddings:
         """Everything the vectors depend on, two different fingerprints never share a cache."""
         return {
             "model": str(self.model_reference),
+            "revision": self.revision,
             "layers": list(self.layers),
             "layer_pooling": self.layer_pooling,
             "subword_pooling": self.subword_pooling,
