@@ -42,7 +42,8 @@
 #
 # `report` reads these logs, of the LOG_DIR given or else of the latest `train`, and prints
 # for every pair of trainings the seconds an epoch takes (the median, the first epoch left
-# out, validation included), the best F1 on the validation set and the F1 of the evaluation.
+# out, validation included), the best F1 on the validation set and the F1 of the evaluation,
+# then for every training that failed its exit status, how far it got and the end of its errors.
 # It can be run while the trainings are going. The two trainings of a pair are not the same
 # to the bit, as their losses differ by rounding: F1 scores a few tenths of a point apart
 # are what two runs give, SEEDS with several seeds tells by how much.
@@ -186,7 +187,7 @@ summarise_log() {
             median = "-"
             if (n) median = n % 2 ? seconds[(n + 1) / 2] : (seconds[n / 2] + seconds[n / 2 + 1]) / 2
             printf "%s\t%s\t%d\t%s\t%s\t%s\n", state, ("gpu" in meta ? meta["gpu"] : "-"), epochs, median,
-                (validated ? best : "-"), (f1 == "" ? "-" : f1)
+                (validated ? best + 0 : "-"), (f1 == "" ? "-" : f1)
         }' "$1"
 }
 
@@ -223,6 +224,36 @@ report() {
                     number(b_valid, "%.4f"), number(c_valid, "%.4f"), number(b_f1, "%.4f"), number(c_f1, "%.4f"), gpu
             }'
     done <<<"$names"
+    report_failures "$run_dir"
+}
+
+# Why the trainings that failed did: their exit status, how far they got and the end of what
+# they wrote to their standard error.
+report_failures() {
+    local run_dir=$1 log status
+    while IFS= read -r log; do
+        status=$(sed -n 's/^# exit=//p' "$log" | tail -1)
+        [[ -n "$status" && "$status" != 0 ]] || continue
+        echo
+        awk -v name="$(basename "$log" .log)" -v status="$status" '
+            $1 == "#" && $2 ~ /^host=/ { host = substr($2, 6) }
+            $1 == "#" && $2 ~ /^job=/ { job = substr($2, 5) }
+            $2 == "Epoch" && $3 ~ /^[0-9]+:$/ && $4 ~ /^loss=/ { epochs++ }
+            $2 == "Early" && $3 == "stopping" { stopped = 1 }
+            $2 == "training" && $3 == "runtime:" { trained = 1 }
+            $2 == "all" && $3 == "(micro" { evaluated = 1 }
+            END {
+                where = epochs ? "during epoch " (epochs + 1) : "before the end of the first epoch"
+                if (stopped || trained) where = "after the training" (stopped ? ", stopped early at epoch " epochs : " of " epochs " epochs")
+                if (evaluated) where = "after the evaluation"
+                printf "%s: exit %s, %s (host %s, job %s)\n", name, status, where, host, job
+            }' "$log"
+        if [[ -s "$log.err" ]]; then
+            grep -v '^[[:space:]]*$' "$log.err" | tail -6 | cut -c1-240 | sed 's/^/    /'
+        else
+            echo "    nothing on its standard error: see the end of $log"
+        fi
+    done < <(find "$run_dir/runs" -maxdepth 1 -name '*.log' | sort)
 }
 
 if [[ "$MODE" == report ]]; then
