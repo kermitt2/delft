@@ -102,6 +102,61 @@ def test_several_processes_needing_the_same_database_compile_it_once(tmp_path, s
         close_lmdb_env(_database(tmp_path))
 
 
+def test_a_compiled_database_is_read_without_the_locking_of_lmdb(tmp_path, small_and_quick):
+    """
+    On macOS that locking is made of named semaphores, which a reader closing the
+    database removes under the one opening it: "No such file or directory".
+    """
+    embeddings = Embeddings(NAME, resource_registry=_registry(tmp_path))
+    try:
+        assert embeddings.env.flags()["readonly"] and not embeddings.env.flags()["lock"]
+        _assert_usable(tmp_path, embeddings)
+    finally:
+        close_lmdb_env(_database(tmp_path))
+
+
+def _open_and_close(registry, times, log, queue):
+    """One process: load the embeddings and let go of them, again and again."""
+    original = Embeddings.load_embeddings_from_file
+
+    def logged(self, path):
+        with open(log, "a") as f:
+            f.write(f"{os.getpid()}\n")
+        return original(self, path)
+
+    Embeddings.load_embeddings_from_file = logged
+    try:
+        for _ in range(times):
+            embeddings = Embeddings(NAME, resource_registry=registry)
+            assert (embeddings.vocab_size, embeddings.embed_size) == (NB_WORDS, DIMENSIONS)
+            assert float(embeddings.get_word_vector("word7")[0]) == 7.0
+            close_lmdb_env(os.path.join(registry["embedding-lmdb-path"], NAME))
+        queue.put("ok")
+    except Exception as e:
+        queue.put(("error", type(e).__name__, str(e)))
+
+
+def test_processes_opening_and_closing_a_database_at_once_do_not_fail_each_other(tmp_path, small_and_quick):
+    """Nor take it for a damaged one, to be compiled again."""
+    registry = _registry(tmp_path)
+    log = str(tmp_path / "compiled-by.log")
+    Embeddings(NAME, resource_registry=registry)  # compiled here, once
+    close_lmdb_env(_database(tmp_path))
+    assert not os.path.exists(log)
+
+    context = multiprocessing.get_context("fork")
+    queue = context.Queue()
+    processes = [context.Process(target=_open_and_close, args=(registry, 25, log, queue)) for _ in range(6)]
+    for process in processes:
+        process.start()
+    results = [queue.get(timeout=120) for _ in processes]
+    for process in processes:
+        process.join(timeout=10)
+
+    assert results == ["ok"] * 6
+    assert not os.path.exists(log), "a process compiled the database again"
+
+
 def test_a_damaged_database_is_compiled_again(tmp_path, small_and_quick):
     os.makedirs(_database(tmp_path))
     with open(os.path.join(_database(tmp_path), "data.mdb"), "wb") as f:

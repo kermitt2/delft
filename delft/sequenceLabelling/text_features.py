@@ -11,6 +11,8 @@ With ``text_features_indices``, the text of a position is what the listed column
 hold, column 0 being the token, joined with a space: ``[0, 1]`` reads both tokens
 of a line. The characters of the whole text are encoded, a transformer sub-tokenizes
 the whole text, and the word embeddings of the listed columns are concatenated.
+Contextual embeddings read the tokens of all the columns as one sequence, each vector
+going to the column of its token.
 """
 
 from typing import List, Optional, Sequence
@@ -52,6 +54,23 @@ def text_from_features(
 def tokens_per_position(text_features_indices: Optional[Sequence[int]]) -> int:
     """How many word embeddings are concatenated at each position."""
     return max(1, len(text_features_indices or ()))
+
+
+def words_of_columns(texts: Sequence[str], nb_columns: int):
+    """
+    The words of a sequence whose positions hold up to ``nb_columns`` tokens, in the
+    order they are read, with the position and the column of each: what contextual
+    embeddings are given as one sentence, each vector going back to its column. A
+    column a position has no token for gives no word.
+    """
+    words, positions, columns = [], [], []
+    for position, text in enumerate(texts):
+        for column, word in enumerate(text.split(TEXT_SEPARATOR)[:nb_columns]):
+            if word:
+                words.append(word)
+                positions.append(position)
+                columns.append(column)
+    return words, positions, columns
 
 
 def words_and_positions(texts: Sequence[str]):

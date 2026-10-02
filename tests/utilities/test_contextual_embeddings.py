@@ -14,8 +14,9 @@ import pickle
 import numpy as np
 import pytest
 
+import delft.utilities.ContextualEmbeddings as contextual_module
 from delft.sequenceLabelling.preprocess import to_vector_single
-from delft.utilities.ContextualEmbeddings import ContextualEmbeddings
+from delft.utilities.ContextualEmbeddings import ContextualEmbeddings, local_model_revision
 from delft.utilities.Embeddings import Embeddings
 
 torch = pytest.importorskip("torch")
@@ -220,7 +221,9 @@ class TestCache:
         assert embeddings.precompute(sentences, verbose=False) == 0
         assert os.path.isdir(embeddings.cache_env_path())
         with open(os.path.join(embeddings.cache_env_path(), "fingerprint.json")) as f:
-            assert json.load(f)["model"] == tiny_bert
+            fingerprint = json.load(f)
+        # a local model is known by its type and its content, not by its path
+        assert fingerprint["model"] == "bert" and fingerprint["revision"] == local_model_revision(tiny_bert)
 
     def test_cached_vectors_are_the_computed_ones(self, tiny_bert, tmp_path):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
@@ -276,6 +279,172 @@ class TestCache:
         # forgotten with the next call
         embeddings.precompute([LONG_SENTENCE], persist=False, verbose=False)
         assert list(embeddings._memory) == [embeddings.sentence_key(LONG_SENTENCE)]
+
+
+def _retrained(directory, seed=11):
+    """The tiny BERT of ``directory`` with other weights, written in its place."""
+    torch.manual_seed(seed)
+    config = transformers.AutoConfig.from_pretrained(directory)
+    transformers.BertModel(config).save_pretrained(directory)
+
+
+class TestRevision:
+    """
+    The cache was named after the reference of the model alone: a model updated under
+    the same name kept the vectors of its previous weights for the sentences in the
+    cache, and computed the others with the new ones.
+    """
+
+    def test_a_local_model_updated_in_place_gets_another_cache(self, tmp_path):
+        directory = make_tiny_bert(tmp_path / "model")
+        before = ContextualEmbeddings(directory, device="cpu", cache_path=str(tmp_path / "cache"))
+        before.precompute([SENTENCE], verbose=False)
+        assert before.fingerprint()["revision"] == before.revision == local_model_revision(directory)
+
+        _retrained(directory)
+        after = ContextualEmbeddings(directory, device="cpu", cache_path=str(tmp_path / "cache"))
+        assert after.revision != before.revision
+        assert after.cache_env_path() != before.cache_env_path()
+        assert after.precompute([SENTENCE], verbose=False) == 1
+        assert not np.allclose(after.get_sentence_vectors(SENTENCE), before.get_sentence_vectors(SENTENCE))
+
+    def test_a_copy_of_a_local_model_has_its_revision(self, tiny_bert, tmp_path):
+        """Whatever the dates of the files: a model copied to the disk of a node keeps its cache."""
+        import shutil
+
+        copy = str(tmp_path / "copy")
+        shutil.copytree(tiny_bert, copy)
+        for name in os.listdir(copy):
+            os.utime(os.path.join(copy, name), (0, 0))
+        assert local_model_revision(copy) == local_model_revision(tiny_bert)
+
+    def test_a_copy_of_a_local_model_reads_its_cache(self, tiny_bert, tmp_path):
+        """
+        The path of the model was part of the name of the cache: a model staged under
+        another path, or another name, on each node computed its vectors again.
+        """
+        import shutil
+
+        original = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path / "cache"))
+        original.precompute([SENTENCE], verbose=False)
+
+        copy = str(tmp_path / "job-1234" / "staged")
+        shutil.copytree(tiny_bert, copy)
+        staged = ContextualEmbeddings(copy, device="cpu", cache_path=str(tmp_path / "cache"))
+        assert staged.cache_env_path() == original.cache_env_path()
+        assert os.path.basename(staged.cache_env_path()).startswith("bert-")
+        assert staged.precompute([SENTENCE], verbose=False) == 0
+        np.testing.assert_array_equal(staged.get_sentence_vectors(SENTENCE), original.get_sentence_vectors(SENTENCE))
+        assert staged._model is None
+
+    def test_a_model_of_the_hub_keeps_its_name(self, tiny_bert, tmp_path, monkeypatch):
+        monkeypatch.setattr(ContextualEmbeddings, "_is_local_model", lambda self: False)
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        assert embeddings.fingerprint()["model"] == tiny_bert
+        assert os.path.basename(embeddings.cache_env_path()).startswith(os.path.basename(tiny_bert) + "-")
+
+    def test_large_weights_are_sampled(self, tmp_path, monkeypatch):
+        directory = make_tiny_bert(tmp_path / "model")
+        monkeypatch.setattr(contextual_module, "REVISION_WHOLE_FILE_SIZE", 1024)
+        monkeypatch.setattr(contextual_module, "REVISION_SAMPLES", 8)
+        monkeypatch.setattr(contextual_module, "REVISION_SAMPLE_SIZE", 64)
+        read = []
+        real_open = open
+
+        class Counting:
+            def __init__(self, file):
+                self.file = file
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                self.file.close()
+
+            def seek(self, offset):
+                return self.file.seek(offset)
+
+            def read(self, size=-1):
+                data = self.file.read(size)
+                read.append(len(data))
+                return data
+
+        monkeypatch.setattr(
+            contextual_module, "open", lambda path, mode: Counting(real_open(path, mode)), raising=False
+        )
+        before = local_model_revision(directory)
+        weights = os.path.getsize(os.path.join(directory, "model.safetensors"))
+        large = [name for name in os.listdir(directory) if os.path.getsize(os.path.join(directory, name)) > 1024]
+        assert "model.safetensors" in large
+        assert read.count(64) == 8 * len(large), "8 samples of each large file, not the whole of it"
+        assert max(read) <= 1024 < weights
+
+        _retrained(directory)
+        assert os.path.getsize(os.path.join(directory, "model.safetensors")) == weights
+        assert local_model_revision(directory) != before
+
+    def test_a_model_of_the_hub_is_pinned_to_the_commit_of_its_configuration(self, tiny_bert, tmp_path, monkeypatch):
+        """The tokenizer and the weights are those of the commit the cache is named after."""
+        calls = []
+
+        def spy(loader, commit=None):
+            real = loader.from_pretrained
+
+            def from_pretrained(reference, **kwargs):
+                calls.append((loader.__name__, kwargs.get("revision")))
+                loaded = real(reference, **kwargs)  # the revision is ignored for a local directory
+                if commit is not None:
+                    # the other loaders ask for the configuration with what they did not use of their options
+                    (loaded[0] if isinstance(loaded, tuple) else loaded)._commit_hash = commit
+                return loaded
+
+            monkeypatch.setattr(loader, "from_pretrained", from_pretrained)
+
+        spy(transformers.AutoConfig, commit="0123abcd")
+        spy(transformers.AutoTokenizer)
+        spy(transformers.AutoModel)
+        monkeypatch.setattr(ContextualEmbeddings, "_is_local_model", lambda self: False)
+
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        assert embeddings.revision == "0123abcd" and embeddings.fingerprint()["revision"] == "0123abcd"
+        embeddings.precompute([SENTENCE], verbose=False)
+        assert calls[0] == ("AutoConfig", None)
+        assert ("AutoTokenizer", "0123abcd") in calls and ("AutoModel", "0123abcd") in calls
+        assert all(revision == "0123abcd" for _, revision in calls[1:])
+
+        # a worker, which loads the tokenizer again, takes the same commit
+        del calls[:]
+        restored = pickle.loads(pickle.dumps(embeddings))
+        restored.embed_batch([SENTENCE])
+        assert calls and all(revision == "0123abcd" for _, revision in calls)
+
+
+class TestAccessToken:
+    """HF_ACCESS_TOKEN, the token of DeLFT for the private models, reached none of the loaders."""
+
+    @pytest.mark.parametrize("token", ["secret", None])
+    def test_every_loader_is_given_the_token(self, tiny_bert, monkeypatch, token):
+        if token is None:
+            monkeypatch.delenv("HF_ACCESS_TOKEN", raising=False)
+        else:
+            monkeypatch.setenv("HF_ACCESS_TOKEN", token)
+        tokens = {}
+        for loader in (transformers.AutoConfig, transformers.AutoTokenizer, transformers.AutoModel):
+
+            def from_pretrained(reference, real=loader.from_pretrained, name=loader.__name__, **kwargs):
+                tokens.setdefault(name, []).append(kwargs.get("token"))
+                return real(reference, **kwargs)
+
+            monkeypatch.setattr(loader, "from_pretrained", from_pretrained)
+
+        ContextualEmbeddings(tiny_bert, device="cpu").embed_batch([SENTENCE])
+        assert sorted(tokens) == ["AutoConfig", "AutoModel", "AutoTokenizer"]
+        assert all(given == [token] * len(given) for given in tokens.values())
+
+    def test_the_token_is_not_kept_in_the_embeddings(self, tiny_bert, monkeypatch):
+        """They are pickled for the DataLoader workers."""
+        monkeypatch.setenv("HF_ACCESS_TOKEN", "secret-token")
+        assert b"secret-token" not in pickle.dumps(ContextualEmbeddings(tiny_bert, device="cpu"))
 
 
 def _shards(embeddings):
@@ -546,3 +715,172 @@ class TestSequenceLabelling:
         other = ContextualEmbeddings(tiny_bert, device="cpu", window=12, stride=5, cache_path=contextual.cache_path)
         assert other.cache_env_path() == contextual.cache_env_path()
         assert other.precompute([tagged], verbose=False) == 1
+
+
+class TestDataLoader:
+    @staticmethod
+    def _loader(embeddings, x, y, features=None, text_features_indices=None, max_sequence_length=None):
+        from delft.sequenceLabelling.config import ModelConfig
+        from delft.sequenceLabelling.data_loader import create_dataloader
+        from delft.sequenceLabelling.preprocess import Preprocessor
+
+        config = ModelConfig(architecture="BidLSTM_CRF", embeddings_name="tiny-contextual")
+        config.max_sequence_length = max_sequence_length
+        config.text_features_indices = text_features_indices
+        preprocessor = Preprocessor()
+        preprocessor.fit(x, y if y is not None else [["O"] * len(tokens) for tokens in x])
+        return create_dataloader(
+            x,
+            y,
+            preprocessor=preprocessor,
+            embeddings=embeddings,
+            features=features,
+            model_config=config,
+            batch_size=2,
+            num_workers=0,
+            shuffle=False,
+        )
+
+    def test_the_transformer_is_released_once_a_labelled_corpus_is_embedded(self, tiny_bert, tmp_path):
+        """It stayed loaded, on the GPU, for the whole training of the RNN."""
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        x = [SENTENCE, LONG_SENTENCE[:9]]
+        y = [["O"] * len(tokens) for tokens in x]
+        released = []
+        release = embeddings.model.release_model
+        embeddings.model.release_model = lambda: (released.append(embeddings.model._model is not None), release())
+
+        loader = self._loader(embeddings, x, y)
+        assert released == [True] and embeddings.model._model is None
+        batches = list(loader)
+        assert sum(len(labels) for _, labels in batches) == 2
+        assert embeddings.model._model is None, "the vectors of the corpus are read from the cache"
+
+    def test_the_transformer_stays_loaded_for_the_texts_to_tag(self, tiny_bert, tmp_path):
+        """Released, it would be loaded again at each call."""
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        self._loader(embeddings, [SENTENCE], None)
+        assert embeddings.model._model is not None
+
+    def test_several_tokens_per_position_are_embedded_as_one_sentence(self, tiny_bert, tmp_path):
+        """
+        Each token was embedded alone, without any context, and none of these vectors
+        was computed before the training: the transformer was loaded by the dataset.
+        """
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        lines = ["the cat", "sat ", "on the", " mat", "dog ran"]  # a line without a second token, one without a first
+        words = ["the", "cat", "sat", "on", "the", "mat", "dog", "ran"]
+        places = [(0, 0), (0, 1), (1, 0), (2, 0), (2, 1), (3, 1), (4, 0), (4, 1)]
+        expected = embeddings.model.embed_batch([words])[0]
+
+        x = to_vector_single(lines, embeddings, 6, tokens_per_position=2)
+        assert x.shape == (6, 2 * HIDDEN_SIZE)
+        filled = np.zeros((6, 2), dtype=bool)
+        for vector, (position, column) in zip(expected, places):
+            np.testing.assert_allclose(
+                x[position, column * HIDDEN_SIZE : (column + 1) * HIDDEN_SIZE], vector, atol=1e-3
+            )
+            filled[position, column] = True
+        for position, column in zip(*np.nonzero(~filled)):
+            assert not x[position, column * HIDDEN_SIZE : (column + 1) * HIDDEN_SIZE].any()
+        # in its sentence, not alone
+        assert not np.allclose(x[0, :HIDDEN_SIZE], embeddings.get_word_vector("the"), atol=1e-3)
+
+    def test_the_sentences_of_several_tokens_per_position_are_computed_before_the_training(self, tiny_bert, tmp_path):
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        # the first two tokens of each line, as the columns of the features; a line has no second token
+        features = [
+            [["the", "cat"], ["sat", ""], ["on", "the"], ["mat", "dog"], ["ran", "far"]],
+            [["far", "away"], ["now", "the"], ["cat", "sat"]],
+        ]
+        x = [[line[0] for line in lines] for lines in features]
+        y = [["O"] * len(lines) for lines in x]
+        loader = self._loader(embeddings, x, y, features=features, text_features_indices=[0, 1], max_sequence_length=4)
+        assert embeddings.model._model is None
+        inputs, _ = next(iter(loader))
+        assert inputs["word_input"].shape[-1] == 2 * HIDDEN_SIZE
+        assert embeddings.model._model is None, "the dataset found every sentence in the cache"
+        # cut at 4 positions as the dataset cuts them, before the words are taken
+        cached = embeddings.model
+        assert cached.precompute([["the", "cat", "sat", "on", "the", "mat", "dog"]], verbose=False) == 0
+        assert cached.precompute([["far", "away", "now", "the", "cat", "sat"]], verbose=False) == 0
+
+
+class TestTextClassification:
+    """
+    The text classifiers took contextual embeddings word by word: every vector was the
+    one of the word alone, computed by the dataset, in each of its worker processes.
+    """
+
+    TEXTS = ["the cat sat on the mat", "the dog ran far away now", "cat 42 sat", "dog ran"] * 3
+    CLASSES = np.array([[1, 0], [0, 1], [1, 0], [0, 1]] * 3, dtype=np.float32)
+
+    def test_a_text_is_embedded_as_a_whole(self, tiny_bert, tmp_path):
+        from delft.textClassification.preprocess import to_vector_single as classification_vectors
+
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        x = classification_vectors("the cat sat on the mat", embeddings, maxlen=8)
+        assert x.shape == (8, HIDDEN_SIZE) and x.dtype == np.float32
+        np.testing.assert_array_equal(x[:6], embeddings.get_sentence_vectors(["the", "cat", "sat", "on", "the", "mat"]))
+        assert not x[6:].any()
+        # the same word, at two places of the text
+        assert not np.allclose(x[0], x[4])
+        assert not np.allclose(x[0], embeddings.get_word_vector("the"), atol=1e-3)
+
+    def test_the_tokens_are_given_as_they_are_written(self, tiny_bert, tmp_path):
+        """The digits and the accents the classifiers clean out of a text are kept for the transformer."""
+        from delft.textClassification.preprocess import tokens_to_embed
+
+        assert tokens_to_embed("Le chat était là en 2020 !") == ["Le", "chat", "était", "là", "en", "2020", "!"]
+        assert tokens_to_embed("the cat sat on the mat", maxlen=2) == ["the", "mat"]
+
+    def test_classifier_trains_and_classifies_with_contextual_embeddings(self, tiny_bert, tmp_path, monkeypatch):
+        import delft.textClassification.wrapper as wrapper
+
+        registry = _registry(tmp_path, _entry(tiny_bert))
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: registry)
+        monkeypatch.chdir(tmp_path)
+
+        classifier = wrapper.Classifier(
+            "contextual-classifier",
+            architecture="gru",
+            embeddings_name="tiny-contextual",
+            list_classes=["a", "b"],
+            maxlen=8,
+            max_epoch=1,
+            batch_size=4,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+        assert classifier.model_config.word_embedding_size == HIDDEN_SIZE
+        contextual = classifier.embeddings.model
+
+        classifier.train(self.TEXTS, self.CLASSES)
+        assert classifier.preprocessor is None
+        assert contextual._model is None, "the transformer is freed once the texts are embedded"
+        # the texts of the training are in the cache, as the sentences they are
+        sentences = [text.split() for text in set(self.TEXTS)]
+        assert contextual.precompute(sentences, verbose=False) == 0
+
+        scores = classifier.predict(["the cat sat", "dog ran far"], output_format="array")
+        assert scores.shape == (2, 2)
+        # the vectors of the texts to classify stay in memory, and the transformer loaded
+        assert contextual.sentence_key(["the", "cat", "sat"]) in contextual._memory
+        assert contextual._model is not None
+        other = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=contextual.cache_path)
+        assert other.precompute([["the", "cat", "sat"]], verbose=False) == 1
+
+    def test_the_dataset_reads_the_cache(self, tiny_bert, tmp_path):
+        from delft.textClassification.config import ModelConfig
+        from delft.textClassification.data_loader import create_dataloader
+
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        config = ModelConfig(architecture="gru", embeddings_name="tiny-contextual", list_classes=["a", "b"], maxlen=4)
+        loader = create_dataloader(self.TEXTS, self.CLASSES, config, embeddings=embeddings, batch_size=4, shuffle=False)
+        assert embeddings.model._model is None
+        inputs, labels = next(iter(loader))
+        assert inputs.shape == (4, 4, HIDDEN_SIZE) and labels.shape == (4, 2)
+        assert embeddings.model._model is None, "the dataset found every text in the cache"
+        # cut at the last 4 tokens, as the dataset cuts a text
+        np.testing.assert_array_equal(inputs[0].numpy(), embeddings.get_sentence_vectors(["sat", "on", "the", "mat"]))

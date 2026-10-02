@@ -58,6 +58,17 @@ BUILD_WAIT_SECONDS = 30
 # in a lock directory, the token of the process holding it
 BUILD_LOCK_OWNER_FILE = "owner"
 
+# How a compiled database is opened for reading: without the locking of LMDB, as the
+# DataLoader workers and the cache of the contextual embeddings open theirs. A database
+# is complete when it is published and never written again, so its readers have nothing
+# to protect each other from, and the locking is what failed them: on macOS it relies on
+# named semaphores, which a reader closing the database removes when it finds itself its
+# last user, under a process opening it at that moment ("No such file or directory"),
+# and its table of readers is where MDB_BAD_RSLOT comes from. The environment used to be
+# closed and opened again in every process to get around the latter, which made the
+# former likely as soon as several processes loaded the same embeddings.
+LMDB_READ_OPTIONS = {"readonly": True, "lock": False, "max_readers": 2048, "max_spare_txns": 2}
+
 # modern static embeddings (sentence-transformers static embeddings, Model2Vec
 # potion models) are not a vector file to be compiled into LMDB, they are a
 # tokenizer plus an embedding matrix loaded from the HuggingFace hub, see
@@ -698,7 +709,7 @@ class Embeddings(object):
         # open the database in read mode, or reuse the environment already open on
         # this path in the current process
         try:
-            self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+            self.env, opened = open_lmdb_env(envFilePath, **LMDB_READ_OPTIONS)
         except lmdb.Error as e:
             print(f"The embeddings database {envFilePath} cannot be opened ({e}): compiling it again")
             self.env = None
@@ -711,7 +722,7 @@ class Embeddings(object):
                 # environment on some platforms and goes away on a new one: a database
                 # is only damaged when a fresh environment cannot read it either
                 close_lmdb_env(envFilePath)
-                self.env, opened = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=4)
+                self.env, opened = open_lmdb_env(envFilePath, **LMDB_READ_OPTIONS)
                 self._read_lmdb_header()
         except lmdb.Error as e:
             # damaged, by a compilation that crashed or ran twice at once
@@ -733,15 +744,6 @@ class Embeddings(object):
             close_lmdb_env(envFilePath)
             self.env = None
             return False
-
-        if opened:
-            # no idea why, but we need to close and reopen the environment to avoid
-            # mdb_txn_begin: MDB_BAD_RSLOT: Invalid reuse of reader locktable slot
-            # when opening new transaction !
-            # Only for an environment we opened ourselves: a reused
-            # one already went through this and is read by others.
-            close_lmdb_env(envFilePath)
-            self.env, _ = open_lmdb_env(envFilePath, readonly=True, max_readers=2048, max_spare_txns=2)
         return True
 
     def _read_lmdb_header(self):
