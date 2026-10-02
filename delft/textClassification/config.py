@@ -22,6 +22,7 @@ class ModelConfig(object):
         batch_size=64,
         dense_size=32,
         transformer_name=None,
+        whole_text_tokenization=False,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -46,6 +47,10 @@ class ModelConfig(object):
 
         self.transformer_name = transformer_name
         self.set_default_transformer()
+
+        # contextual embeddings from a frozen transformer read the tokens of a text joined
+        # back into a text rather than one by one: see delft.sequenceLabelling.whole_text
+        self.whole_text_tokenization = whole_text_tokenization
 
     def set_default_transformer(self):
         """

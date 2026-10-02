@@ -988,6 +988,40 @@ class TestTextClassification:
         other = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=contextual.cache_path)
         assert other.precompute([["the", "cat", "sat"]], verbose=False) == 1
 
+    def test_whole_text_tokenization_is_saved_with_the_classifier(self, tiny_bert, tmp_path, monkeypatch):
+        import delft.textClassification.wrapper as wrapper
+
+        registry = _registry(tmp_path, _entry(tiny_bert))
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: registry)
+        monkeypatch.chdir(tmp_path)
+        options = dict(
+            architecture="gru",
+            embeddings_name="tiny-contextual",
+            list_classes=["a", "b"],
+            maxlen=8,
+            max_epoch=1,
+            batch_size=4,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+        usual = wrapper.Classifier("contextual-classifier", **options)
+        assert usual.model_config.whole_text_tokenization is False
+        assert usual.embeddings.model.whole_text_tokenization is False
+
+        classifier = wrapper.Classifier("contextual-classifier", whole_text_tokenization=True, **options)
+        assert classifier.embeddings.model.whole_text_tokenization is True
+        assert classifier.embeddings.model.cache_env_path() != usual.embeddings.model.cache_env_path()
+        classifier.train(self.TEXTS, self.CLASSES)
+        scores = classifier.predict(["the cat sat", "dog ran far"], output_format="array")
+        classifier.save(str(tmp_path / "saved"))
+
+        reloaded = wrapper.Classifier("contextual-classifier", device="cpu")
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.model_config.whole_text_tokenization is True
+        assert reloaded.embeddings.model.whole_text_tokenization is True
+        np.testing.assert_allclose(reloaded.predict(["the cat sat", "dog ran far"], output_format="array"), scores)
+
     def test_the_dataset_reads_the_cache(self, tiny_bert, tmp_path):
         from delft.textClassification.config import ModelConfig
         from delft.textClassification.data_loader import create_dataloader

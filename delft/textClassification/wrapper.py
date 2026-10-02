@@ -109,7 +109,14 @@ class Classifier(object):
         wandb_project: str = None,
         nb_workers: int = None,
         short_model_name: str = None,
+        whole_text_tokenization=False,
     ):
+        """
+        ``whole_text_tokenization`` is for contextual embeddings from a frozen transformer
+        (``embeddings_name``): the transformer then reads the tokens of a text joined back
+        into a text, with the usual spacing of punctuation, rather than one by one with a
+        space before each. Saved with the model. See ``delft.sequenceLabelling.whole_text``.
+        """
         self.short_model_name = short_model_name
         self.model_config = ModelConfig(
             model_name=model_name,
@@ -124,6 +131,7 @@ class Classifier(object):
             fold_number=fold_number,
             batch_size=batch_size,
             transformer_name=transformer_name,
+            whole_text_tokenization=whole_text_tokenization,
         )
 
         self.training_config = TrainingConfig(
@@ -155,7 +163,9 @@ class Classifier(object):
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name, resource_registry=self.registry)
+            self.embeddings = Embeddings(
+                embeddings_name, resource_registry=self.registry, whole_text_tokenization=whole_text_tokenization
+            )
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.model_config.word_embedding_size = 0
@@ -765,6 +775,7 @@ class Classifier(object):
             self.embeddings = Embeddings(
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
+                whole_text_tokenization=getattr(self.model_config, "whole_text_tokenization", False),
             )
         else:
             self.embeddings = None

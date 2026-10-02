@@ -22,6 +22,10 @@ Note: a training set too big for memory can be read from disk, one text at a tim
 
 Note: by default the first 300 tokens of the text to be classified are used, which is largely enough for any _short text_ classification tasks and works fine with low profile GPU (for instance GeForce GTX 1050 Ti with 4 GB memory). For taking into account a larger portion of the text, modify the config model parameter `maxlen`. However, using more than 1000 tokens for instance requires a modern GPU with enough memory (e.g. 10 GB).
 
+### Contextual embeddings read the text as a whole
+
+With [contextual embeddings from a frozen transformer](embeddings.md#contextual-embeddings-from-a-frozen-transformer) (`--embedding scibert-contextual`, alone or in a stack), the transformer is given the tokens of a text one by one, a space before each. With `--whole-text-tokenization` (`whole_text_tokenization=True` for `Classifier`), the tokens are joined back into a text with the usual spacing of punctuation and the transformer reads that text, which is what a SentencePiece or byte-level BPE tokenizer was pretrained on: see [whole text sub-tokenization](sequence_labeling.md#whole-text-sub-tokenization). The option is saved with the model, and the vectors have a cache of their own. It has no effect on the `bert` architecture, which reads the text itself, nor on static embeddings.
+
 ### Training again with the same result
 
 `delft.utilities.Utilities.set_random_seed(seed)` seeds Python, NumPy and PyTorch, so that the split of the data, the initial weights and the order of the batches are the same from a run to the next. The applications call it with their `--seed` option; without it every run draws its own.
