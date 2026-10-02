@@ -341,7 +341,8 @@ def test_loss_refuses_what_pytorch_crf_refuses(arguments, message):
     "device,batch_size,num_tags,expected",
     [
         ("cuda", 30, 5, "cpu"),  # long sequences of few tags: reference-segmenter
-        ("cuda", 20, 34, "cpu"),
+        ("cuda", 10, 15, "cpu"),
+        ("cuda", 20, 34, "cuda"),  # a tie on one card, a small gain on another: left alone
         ("cuda", 200, 37, "cuda"),  # batches of short sequences: citation
         ("cuda:1", 200, 37, "cuda:1"),
         ("cuda", CPU_LOSS_MAX_SCORES_PER_STEP, 1, "cpu"),

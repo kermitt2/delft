@@ -169,17 +169,23 @@ LOSS_REDUCTIONS = ("none", "sum", "mean", "token_mean")
 
 # Under a model on a GPU, the loss of a batch with at most this many emission
 # scores per timestep (batch size x number of tags) is computed on the CPU.
-# On a GPU the recurrence costs its kernel launches, about 0.28 ms a timestep
-# whatever the batch (0.28 ms for 4 sequences of 37 tags, 0.29 ms for 2048 of
-# 5), while on the CPU it costs its arithmetic, which grows with the batch.
-# Measured on an RTX 3090, CPU over GPU time of a step of the loss by
-# batch x tags — 150: 0.56, 480: 0.72, 592: 0.84, 640: 0.74, 680: 0.82,
-# 960: 0.97, 1184: 1.25, 1920: 1.48, 2560: 1.62, 7400: 2.91. The crossover
-# sits between about 750 and 1000 for 5, 15 and 37 tags alike, at 100 positions
-# as at 2000, and below it one CPU thread does as well as six. The long
-# sequences of few tags (segmentation, reference-segmenter) sit at the left
-# end; batches of short ones (citation) at the right.
-CPU_LOSS_MAX_SCORES_PER_STEP = 768
+# On a GPU the recurrence costs its kernel launches, 0.24 to 0.28 ms a timestep
+# whatever the batch (the same for 4 sequences of 37 tags as for 2048 of 5),
+# while on the CPU it costs its arithmetic, which grows with the batch.
+# Measured as CPU over GPU time of a step of the loss, by batch x tags, on two
+# nodes with 6 CPU threads each:
+#   RTX 3090 — 150: 0.56, 296: 0.65, 480: 0.72, 592: 0.84, 680: 0.82,
+#              960: 0.97, 1184: 1.25, 1920: 1.48, 7400: 2.91
+#   A40      — 150: 0.64, 296: 0.79, 480: 0.88, 592: 1.00, 680: 0.99,
+#              960: 1.23, 1184: 1.11, 1920: 1.86, 7400: 2.85
+# for 5, 15 and 37 tags alike, at 100 positions as at 2000. The crossover is
+# near 600 on the faster card and between 750 and 1000 on the slower one, so
+# the bound is under both: at it the CPU wins on either node, and what it
+# gives up above it is a few milliseconds. Below it one CPU thread does as well
+# as six. The long sequences of few tags (segmentation, reference-segmenter)
+# sit at the left end, where the CPU takes about two thirds of the time;
+# batches of short ones (citation) at the right.
+CPU_LOSS_MAX_SCORES_PER_STEP = 512
 
 
 def loss_device(device: torch.device, batch_size: int, num_tags: int) -> torch.device:
