@@ -12,20 +12,23 @@ list_classes = ["negative", "neutral", "positive"]
 class_weights = {0: 25.0, 1: 1.0, 2: 9.0}
 
 
-def configure(architecture):
+def configure(architecture, max_epoch=-1):
     batch_size = 256
     maxlen = 150
     patience = 5
     early_stop = True
-    max_epoch = 60
+    o_max_epoch = 60
 
     # default bert model parameters
     if architecture == "bert":
         batch_size = 32
         early_stop = False
-        max_epoch = 3
+        o_max_epoch = 3
 
-    return batch_size, maxlen, patience, early_stop, max_epoch
+    if max_epoch != -1:
+        o_max_epoch = max_epoch
+
+    return batch_size, maxlen, patience, early_stop, o_max_epoch
 
 
 def train(
@@ -36,8 +39,9 @@ def train(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    max_epoch=-1,
 ):
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, max_epoch)
 
     model = Classifier(
         "citations_" + architecture,
@@ -78,8 +82,9 @@ def train_and_eval(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    max_epoch=-1,
 ):
-    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, max_epoch)
 
     model = Classifier(
         "citations_" + architecture,
@@ -190,6 +195,12 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
+        "--max-epoch",
+        type=int,
+        default=-1,
+        help="Maximum number of epochs for training.",
+    )
+    parser.add_argument(
         "--num-workers",
         type=int,
         default=None,
@@ -235,6 +246,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
+            max_epoch=args.max_epoch,
         )
 
     if args.action == "train_eval":
@@ -249,6 +261,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
+            max_epoch=args.max_epoch,
         )
 
     if args.action == "classify":

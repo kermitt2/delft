@@ -114,4 +114,22 @@ def configure_threads():
         pass
 
 
+def disable_jit_fusion():
+    """
+    Keep TorchScript from compiling fused kernels at run time.
+
+    DeBERTa computes its relative positions with scripted functions, which the
+    TorchScript fuser compiles into a CUDA kernel on their second call, with the run-time
+    compiler of CUDA (nvrtc). An environment where torch finds no nvrtc, as happens with
+    the CUDA libraries of a container or of pip, stopped every DeBERTa training at its
+    second batch: "nvrtc: error: failed to open libnvrtc-builtins.so". The functions are
+    a few operations on positions: run as they are written, they cost nothing that shows.
+    """
+    try:
+        torch._C._jit_set_texpr_fuser_enabled(False)
+    except (AttributeError, RuntimeError):  # a torch without that fuser
+        pass
+
+
 configure_threads()
+disable_jit_fusion()
