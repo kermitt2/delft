@@ -22,6 +22,11 @@ class ModelConfig(object):
         batch_size=64,
         dense_size=32,
         transformer_name=None,
+        features_indices=None,
+        features_vocabulary_size=12,
+        features_embedding_size=4,
+        continuous_features_indices=None,
+        whole_text_tokenization=False,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -46,6 +51,20 @@ class ModelConfig(object):
 
         self.transformer_name = transformer_name
         self.set_default_transformer()
+
+        # the features channel, see delft.textClassification.features: use_features is set
+        # when training with features, and the maps are what the preprocessor learned then
+        self.use_features = False
+        self.features_indices = features_indices
+        self.features_vocabulary_size = features_vocabulary_size
+        self.features_embedding_size = features_embedding_size
+        self.features_map_to_index = None
+        self.continuous_features_indices = continuous_features_indices
+        self.continuous_features_ranges = None
+
+        # contextual embeddings from a frozen transformer read the tokens of a text joined
+        # back into a text rather than one by one: see delft.sequenceLabelling.whole_text
+        self.whole_text_tokenization = whole_text_tokenization
 
     def set_default_transformer(self):
         """

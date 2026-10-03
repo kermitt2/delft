@@ -139,7 +139,14 @@ class ContextualEmbeddings:
         device=None,
         local_files_only=False,
         lang="en",
+        whole_text_tokenization=False,
     ):
+        """
+        With ``whole_text_tokenization`` the tokens of a sequence are joined back into
+        a text, with the usual spacing of punctuation, which the transformer reads as a
+        whole: see ``delft.sequenceLabelling.whole_text``. Otherwise it is given the
+        tokens one by one, a space before each.
+        """
         if layer_pooling not in LAYER_POOLINGS:
             raise ValueError("layer pooling must be one of %s, not %s" % (", ".join(LAYER_POOLINGS), layer_pooling))
         if subword_pooling not in SUBWORD_POOLINGS:
@@ -161,6 +168,7 @@ class ContextualEmbeddings:
         self.device_name = device
         self.local_files_only = local_files_only
         self.lang = lang
+        self.whole_text_tokenization = bool(whole_text_tokenization)
 
         self.embed_size = 0
         self.window = 0
@@ -346,12 +354,13 @@ class ContextualEmbeddings:
         self._lock = threading.RLock()
 
     def __repr__(self):
-        return "ContextualEmbeddings(%s, layers=%s, layer_pooling=%s, subword_pooling=%s, dimensions=%d)" % (
+        return "ContextualEmbeddings(%s, layers=%s, layer_pooling=%s, subword_pooling=%s, dimensions=%d%s)" % (
             self.model_reference,
             list(self.layers),
             self.layer_pooling,
             self.subword_pooling,
             self.embed_size,
+            ", whole_text_tokenization=True" if self.whole_text_tokenization else "",
         )
 
     # ------------------------------------------------------------------
@@ -359,15 +368,32 @@ class ContextualEmbeddings:
     # ------------------------------------------------------------------
 
     def _tokenize(self, tokens):
-        """Sub-word unit ids of a sentence and, for each of them, the index of its word."""
+        """
+        Sub-word unit ids of a sentence and, for each of them, the indices of the words
+        it stands for: its own word, and, with whole text tokenization, the words a unit
+        spanning several of them starts; none for a unit of whitespace alone.
+        """
         if self._tokenizer is None:
             self._load_tokenizer()
         if len(tokens) == 0:
             return [], []
+        if self.whole_text_tokenization:
+            from delft.sequenceLabelling.whole_text import subtokenize_whole_text
+
+            encoding, words_of_units, started = subtokenize_whole_text(
+                self._tokenizer, list(tokens), add_special_tokens=False
+            )
+            words = []
+            for word, begun in zip(words_of_units, started):
+                unit_words = list(begun)
+                if word is not None and word not in unit_words:
+                    unit_words.insert(0, word)
+                words.append(unit_words)
+            return encoding["input_ids"], words
         # verbose=False: a sequence longer than the transformer accepts is
         # expected here, it is what the windows are for
         encoding = self._tokenizer(list(tokens), is_split_into_words=True, add_special_tokens=False, verbose=False)
-        return encoding["input_ids"], encoding.word_ids()
+        return encoding["input_ids"], [[] if word is None else [word] for word in encoding.word_ids()]
 
     def _windows(self, nb_pieces):
         """Start of the windows covering a sequence of sub-word units."""
@@ -389,12 +415,18 @@ class ContextualEmbeddings:
             return stacked.sum(dim=0)
         return stacked.mean(dim=0)
 
-    def _pool_subwords(self, piece_vectors, word_ids, nb_words):
-        """One vector per word, a word without any sub-word unit gets a zero vector."""
+    def _pool_subwords(self, piece_vectors, words_of_units, nb_words):
+        """
+        One vector per word, from the vectors of its sub-word units, ``words_of_units``
+        giving the words of every unit (see ``_tokenize``). A word without any unit
+        gets a zero vector, and a unit standing for several words counts for each.
+        """
         vectors = np.zeros((nb_words, self.embed_size), dtype=np.float32)
-        if len(word_ids) == 0:
+        pairs = [(unit, word) for unit, words in enumerate(words_of_units) for word in words]
+        if len(pairs) == 0:
             return vectors
-        word_ids = np.asarray(word_ids, dtype=np.int64)
+        piece_vectors = piece_vectors[np.asarray([unit for unit, _ in pairs], dtype=np.int64)]
+        word_ids = np.asarray([word for _, word in pairs], dtype=np.int64)
         if self.subword_pooling == "mean":
             np.add.at(vectors, word_ids, piece_vectors)
             counts = np.bincount(word_ids, minlength=nb_words).astype(np.float32)
@@ -403,7 +435,7 @@ class ContextualEmbeddings:
             # a later sub-word unit of the same word overwrites the earlier one
             vectors[word_ids] = piece_vectors
         else:
-            # word ids are increasing: the first occurrence is the first unit
+            # the units come in order: the first occurrence of a word is its first unit
             _, first_positions = np.unique(word_ids, return_index=True)
             vectors[word_ids[first_positions]] = piece_vectors[first_positions]
         return vectors
@@ -478,7 +510,7 @@ class ContextualEmbeddings:
 
     def fingerprint(self):
         """Everything the vectors depend on, two different fingerprints never share a cache."""
-        return {
+        fingerprint = {
             "model": self._cache_model,
             "revision": self.revision,
             "layers": list(self.layers),
@@ -488,6 +520,10 @@ class ContextualEmbeddings:
             "stride": self.stride,
             "dtype": np.dtype(CACHE_DTYPE).name,
         }
+        if self.whole_text_tokenization:
+            # only when set: the caches of the usual tokenization keep their names
+            fingerprint["tokenization"] = "whole-text"
+        return fingerprint
 
     def cache_env_path(self):
         """Directory of the LMDB cache, or None when the vectors are only kept in memory."""

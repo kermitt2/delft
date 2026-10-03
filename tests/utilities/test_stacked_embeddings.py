@@ -103,6 +103,13 @@ class TestConcatenation:
         # padding
         assert not stacked[len(SENTENCE) :].any()
 
+    def test_whole_text_tokenization_reaches_the_contextual_component(self, resources):
+        embeddings = Embeddings(
+            "tiny-glove+tiny-contextual", resource_registry=resources["registry"], whole_text_tokenization=True
+        )
+        assert embeddings.components[1].model.whole_text_tokenization is True
+        assert _stack(resources).components[1].model.whole_text_tokenization is False
+
     def test_order_is_the_order_of_the_name(self, resources):
         forward = to_vector_single(SENTENCE, _stack(resources, "tiny-glove+tiny-contextual"), 8)
         backward = to_vector_single(SENTENCE, _stack(resources, "tiny-contextual+tiny-glove"), 8)
