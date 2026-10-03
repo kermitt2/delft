@@ -5,6 +5,11 @@ no longer delegates to ``torchcrf.CRF.decode``. It runs one of two
 reimplementations instead, for speed — a TorchScript one and a numpy twin,
 chosen by batch size. Both are only safe swaps as long as they return exactly
 the same tags, so pin them against the reference and against each other.
+
+The loss is not delegated to ``torchcrf.CRF.forward`` either. It cannot be
+bit-for-bit identical — the same sums are taken in another order — so it is
+pinned to rounding instead, gradients included, since a loss that matches while
+its gradients do not would train another model.
 """
 
 import logging
@@ -14,10 +19,13 @@ import torch
 from torch.optim import Adam
 
 from delft.utilities.crf_pytorch import (
+    CPU_LOSS_MAX_SCORES_PER_STEP,
     CRF,
     HAS_TORCHCRF,
     NUMPY_DECODE_MAX_BATCH,
     ChainCRF,
+    log_partition,
+    loss_device,
     viterbi_decode,
     viterbi_decode_numpy,
 )
@@ -28,6 +36,7 @@ IMPLEMENTATIONS = [("scripted", viterbi_decode), ("numpy", viterbi_decode_numpy)
 
 # Only the CRF suite needs pytorch-crf as a reference; ChainCRF is standalone.
 requires_torchcrf = pytest.mark.skipif(not HAS_TORCHCRF, reason="pytorch-crf not installed")
+requires_cuda = pytest.mark.skipif(not torch.cuda.is_available(), reason="no GPU")
 
 # (seq_length, batch_size, num_tags), covering the single-timestep edge case,
 # single-item batches (what GROBID sends) and long sequences.
@@ -149,6 +158,240 @@ def test_crf_wrapper_decode_matches_pytorch_crf(shape, batch_first):
     assert crf.decode(emissions) == ref.decode(emissions)
 
 
+REDUCTIONS = ["none", "sum", "mean", "token_mean"]
+
+# double precision leaves rounding far below any real difference
+DOUBLE_TOLERANCE = {"rtol": 1e-9, "atol": 1e-9}
+
+
+def _loss_inputs(shape, batch_first, variable_length, dtype=torch.float64):
+    """A reference pytorch-crf layer, a CRF with its parameters, and a batch for both."""
+    seq_length, batch_size, num_tags = shape
+    ref = _reference(num_tags, batch_first, seed=seq_length).to(dtype)
+    crf = CRF(num_tags, batch_first=batch_first).to(dtype)
+    crf.crf.load_state_dict(ref.state_dict())
+
+    emissions, mask = _emissions_and_mask(seq_length, batch_size, num_tags, variable_length)
+    emissions = emissions.to(dtype)
+    tags = torch.randint(0, num_tags, (seq_length, batch_size))
+    if batch_first:
+        emissions, mask, tags = emissions.transpose(0, 1), mask.transpose(0, 1), tags.transpose(0, 1)
+    return ref, crf, emissions.contiguous(), tags.contiguous(), mask.contiguous()
+
+
+def _loss_and_gradients(layer, emissions, tags, sign=1.0, **kwargs):
+    """The loss of a layer, with its gradients for the emissions and for each parameter."""
+    emissions = emissions.detach().clone().requires_grad_(True)
+    layer.zero_grad()
+    loss = sign * layer(emissions, tags, **kwargs)
+    loss.sum().backward()
+    # a parameter the loss does not reach has no gradient, which is a gradient of zero:
+    # the transitions of pytorch-crf over a single timestep
+    gradients = {
+        name: torch.zeros_like(parameter) if parameter.grad is None else parameter.grad.clone()
+        for name, parameter in layer.named_parameters()
+    }
+    gradients["emissions"] = emissions.grad
+    return loss.detach(), gradients
+
+
+def _assert_same_loss_and_gradients(ref, crf, emissions, tags, tolerance=DOUBLE_TOLERANCE, reduction="mean", **kwargs):
+    # pytorch-crf returns the log-likelihood, the layer its negation, and the two do not
+    # default to the same reduction
+    kwargs["reduction"] = reduction
+    expected_loss, expected_gradients = _loss_and_gradients(ref, emissions, tags, sign=-1.0, **kwargs)
+    loss, gradients = _loss_and_gradients(crf, emissions, tags, **kwargs)
+
+    torch.testing.assert_close(loss, expected_loss, **tolerance)
+    assert set(gradients) == {"emissions"} | {f"crf.{name}" for name in expected_gradients if name != "emissions"}
+    for name, expected in expected_gradients.items():
+        key = name if name == "emissions" else f"crf.{name}"
+        torch.testing.assert_close(gradients[key], expected, **tolerance)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("shape", SHAPES)
+@pytest.mark.parametrize("variable_length", [False, True])
+@pytest.mark.parametrize("batch_first", [False, True])
+def test_loss_and_gradients_match_pytorch_crf(shape, variable_length, batch_first):
+    ref, crf, emissions, tags, mask = _loss_inputs(shape, batch_first, variable_length)
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, mask=mask)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("reduction", REDUCTIONS)
+def test_loss_matches_pytorch_crf_for_every_reduction(reduction):
+    ref, crf, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=True, variable_length=True)
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, mask=mask, reduction=reduction)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("batch_first", [False, True])
+def test_loss_without_a_mask_takes_every_timestep_like_pytorch_crf(batch_first):
+    ref, crf, emissions, tags, _ = _loss_inputs((17, 3, 4), batch_first, variable_length=True)
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags)
+
+
+@requires_torchcrf
+def test_loss_in_single_precision_matches_pytorch_crf_to_rounding():
+    """What training runs: the two differ by the order of their sums and by no more."""
+    ref, crf, emissions, tags, mask = _loss_inputs(
+        (50, 32, 12), batch_first=True, variable_length=True, dtype=torch.float32
+    )
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, tolerance={"rtol": 1e-4, "atol": 1e-5}, mask=mask)
+
+
+@requires_torchcrf
+def test_loss_takes_the_mask_of_a_transformer():
+    """BERT_CRF passes its attention mask as floats."""
+    ref, crf, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=True, variable_length=True)
+
+    loss = crf(emissions, tags, mask=mask.float())
+
+    torch.testing.assert_close(loss, -ref(emissions, tags, mask=mask, reduction="mean"), **DOUBLE_TOLERANCE)
+
+
+@requires_torchcrf
+def test_loss_matches_pytorch_crf_without_pytorch_crf_installed(monkeypatch):
+    """Without pytorch-crf the layer holds the parameters itself, and computes the same loss."""
+    ref, _, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=True, variable_length=True)
+    monkeypatch.setattr("delft.utilities.crf_pytorch.HAS_TORCHCRF", False)
+    crf = CRF(4, batch_first=True).double()
+    assert not hasattr(crf, "crf")
+    crf.load_state_dict(ref.state_dict())
+
+    loss = crf(emissions, tags, mask=mask)
+
+    torch.testing.assert_close(loss, -ref(emissions, tags, mask=mask, reduction="mean"), **DOUBLE_TOLERANCE)
+
+
+def test_log_partition_does_not_depend_on_what_is_padded():
+    """Padding a batch must not move the loss of the sequences in it."""
+    torch.manual_seed(7)
+    num_tags, length, padding = 4, 6, 5
+    start, transitions, end = torch.randn(num_tags), torch.randn(num_tags, num_tags), torch.randn(num_tags)
+    emissions = torch.randn(3, length, num_tags, dtype=torch.float64)
+    padded = torch.cat([emissions, 100 * torch.randn(3, padding, num_tags, dtype=torch.float64)], dim=1)
+    mask = torch.arange(length + padding).unsqueeze(0).expand(3, -1) < length
+    start, transitions, end = start.double(), transitions.double(), end.double()
+
+    torch.testing.assert_close(
+        log_partition(padded, mask, start, transitions, end),
+        log_partition(emissions, None, start, transitions, end),
+        **DOUBLE_TOLERANCE,
+    )
+
+
+def test_backward_of_the_loss_does_not_index_the_emissions_per_timestep():
+    """
+    Indexing the emissions inside the loop is what made the loss slow: the
+    backward pass of each ``emissions[i]`` builds a gradient of the size of the
+    whole tensor. The timesteps are unbound once instead, so the graph of the
+    loss must hold as many selects for a long sequence as for a short one.
+    """
+    crf = CRF(4, batch_first=True)
+
+    def node_counts(seq_length):
+        emissions = torch.randn(3, seq_length, 4, requires_grad=True)
+        tags = torch.randint(0, 4, (3, seq_length))
+        mask = torch.arange(seq_length).unsqueeze(0) < torch.tensor([seq_length, 3, 2]).unsqueeze(1)
+
+        pending, seen, counts = [crf(emissions, tags, mask=mask).grad_fn], set(), {}
+        while pending:
+            node = pending.pop()
+            if node is None or node in seen:
+                continue
+            seen.add(node)
+            name = type(node).__name__.rstrip("0123456789")
+            counts[name] = counts.get(name, 0) + 1
+            pending.extend(parent for parent, _ in node.next_functions)
+        return counts
+
+    short, long = node_counts(5), node_counts(40)
+
+    assert long["LogsumexpBackward"] > short["LogsumexpBackward"]  # the recurrence is there
+    assert long.get("SelectBackward", 0) == short.get("SelectBackward", 0)
+    assert long.get("IndexBackward", 0) == short.get("IndexBackward", 0)
+    assert long["UnbindBackward"] == short["UnbindBackward"] == 1
+
+
+@pytest.mark.parametrize(
+    "arguments,message",
+    [
+        ({"reduction": "median"}, "invalid reduction"),
+        ({"mask": torch.tensor([[False, True, True], [True, True, False]])}, "first timestep"),
+        ({"mask": torch.ones(2, 4, dtype=torch.bool)}, "emissions and mask must match"),
+        ({"tags": torch.zeros(2, 4, dtype=torch.long)}, "emissions and tags must match"),
+        ({"emissions": torch.zeros(2, 3, 7)}, "last dimension of emissions"),
+    ],
+)
+def test_loss_refuses_what_pytorch_crf_refuses(arguments, message):
+    crf = CRF(NUM_TAGS, batch_first=True)
+    call = {"emissions": torch.zeros(2, 3, NUM_TAGS), "tags": torch.zeros(2, 3, dtype=torch.long), **arguments}
+
+    with pytest.raises(ValueError, match=message):
+        crf(call.pop("emissions"), call.pop("tags"), **call)
+
+
+@pytest.mark.parametrize(
+    "device,batch_size,num_tags,expected",
+    [
+        ("cuda", 30, 5, "cpu"),  # long sequences of few tags: reference-segmenter
+        ("cuda", 10, 15, "cpu"),
+        ("cuda", 20, 34, "cuda"),  # a tie on one card, a small gain on another: left alone
+        ("cuda", 200, 37, "cuda"),  # batches of short sequences: citation
+        ("cuda:1", 200, 37, "cuda:1"),
+        ("cuda", CPU_LOSS_MAX_SCORES_PER_STEP, 1, "cpu"),
+        ("cuda", CPU_LOSS_MAX_SCORES_PER_STEP + 1, 1, "cuda"),
+        ("cpu", 30, 5, "cpu"),
+        ("cpu", 200, 37, "cpu"),
+    ],
+)
+def test_loss_of_a_small_batch_on_a_gpu_is_computed_on_the_cpu(device, batch_size, num_tags, expected):
+    """The split is a measured performance crossover — keep it wired up."""
+    assert loss_device(torch.device(device), batch_size, num_tags) == torch.device(expected)
+
+
+@requires_torchcrf
+@pytest.mark.parametrize("with_mask", [False, True])
+def test_loss_computed_on_another_device_matches_pytorch_crf(with_mask, monkeypatch):
+    """
+    The path a small batch takes on a GPU, without one: ``cpu:0`` is the CPU under another
+    name, which is enough for the batch and the parameters to go through the move.
+    """
+    elsewhere = torch.device("cpu:0")
+    moved = []
+    monkeypatch.setattr(
+        "delft.utilities.crf_pytorch.loss_device",
+        lambda device, batch_size, num_tags: (moved.append((batch_size, num_tags)), elsewhere)[1],
+    )
+    ref, crf, emissions, tags, mask = _loss_inputs((17, 3, 4), batch_first=False, variable_length=True)
+    kwargs = {"mask": mask} if with_mask else {}
+
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, **kwargs)
+    assert moved and set(moved) == {(3, 4)}  # the batch size and not the length, whatever the layout
+
+
+@requires_torchcrf
+@requires_cuda
+@pytest.mark.parametrize("shape", [(50, 4, 12), (50, 128, 12)])
+def test_loss_on_a_gpu_matches_pytorch_crf_wherever_it_is_computed(shape):
+    """One batch under the crossover and one over it: the same loss, returned on the GPU either way."""
+    _, batch_size, num_tags = shape
+    ref, crf, emissions, tags, mask = _loss_inputs(shape, batch_first=True, variable_length=True)
+    ref, crf = ref.cuda(), crf.cuda()
+    emissions, tags, mask = emissions.cuda(), tags.cuda(), mask.cuda()
+    on_cpu = batch_size * num_tags <= CPU_LOSS_MAX_SCORES_PER_STEP
+    assert (loss_device(emissions.device, batch_size, num_tags).type == "cpu") == on_cpu
+
+    assert crf(emissions, tags, mask=mask).device == emissions.device
+    _assert_same_loss_and_gradients(ref, crf, emissions, tags, mask=mask)
+
+
 def _emissions_and_tags():
     torch.manual_seed(42)
     emissions = torch.randn(BATCH_SIZE, SEQUENCE_LENGTH, NUM_TAGS, requires_grad=True)
@@ -216,3 +459,177 @@ class TestChainCRF:
         decoded = chain_crf.decode(emissions, mask=mask)
         assert decoded[0][2:] == [0] * (SEQUENCE_LENGTH - 2)
         assert len(decoded[0]) == SEQUENCE_LENGTH
+
+
+# The loss and the decode of ChainCRF before they were made to share the CRF's functions:
+# the per-timestep loops of the Keras port, without a mask, which is how every model uses
+# the layer. What they computed is what the layer has to go on computing.
+def _chain_crf_reference_loss(emissions, tags, U, b_start, b_end):
+    x = emissions.clone()
+    x[:, 0, :] = x[:, 0, :] + b_start
+    x[:, -1, :] = x[:, -1, :] + b_end
+    num_tags = x.size(-1)
+    one_hot = torch.nn.functional.one_hot(tags, num_tags).to(x.dtype)
+    path = (x * one_hot).sum(dim=-1).sum(dim=1) + U.view(-1)[tags[:, :-1] * num_tags + tags[:, 1:]].sum(dim=1)
+    alpha = x[:, 0, :]
+    for t in range(1, x.size(1)):
+        alpha = torch.logsumexp(alpha.unsqueeze(2) + U.unsqueeze(0) + x[:, t, :].unsqueeze(1), dim=1)
+    return (torch.logsumexp(alpha, dim=1) - path).mean()
+
+
+def _chain_crf_reference_decode(emissions, U, b_start, b_end):
+    x = emissions.clone()
+    x[:, 0, :] = x[:, 0, :] + b_start
+    x[:, -1, :] = x[:, -1, :] + b_end
+    batch_size, seq_len, _ = x.shape
+    alpha = x[:, 0, :]
+    backpointers = []
+    for t in range(1, seq_len):
+        alpha, bp = (alpha.unsqueeze(2) + U.unsqueeze(0) + x[:, t, :].unsqueeze(1)).max(dim=1)
+        backpointers.append(bp)
+    best_paths = torch.zeros(batch_size, seq_len, dtype=torch.long)
+    best_paths[:, -1] = alpha.argmax(dim=1)
+    for t in range(seq_len - 2, -1, -1):
+        best_paths[:, t] = backpointers[t].gather(1, best_paths[:, t + 1 : t + 2]).squeeze(1)
+    return best_paths.tolist()
+
+
+def _chain_crf_inputs(shape, variable_length, dtype=torch.float64):
+    """A ChainCRF, a CRF with the same parameters, and a batch-first batch for both."""
+    seq_length, batch_size, num_tags = shape
+    torch.manual_seed(seq_length + batch_size)
+    chain_crf = ChainCRF(num_tags).to(dtype)
+    with torch.no_grad():
+        chain_crf.U.uniform_(-2, 2)
+        chain_crf.b_start.uniform_(-2, 2)
+        chain_crf.b_end.uniform_(-2, 2)
+    crf = CRF(num_tags, batch_first=True).to(dtype)
+    crf.load_state_dict(
+        {
+            "crf.transitions": chain_crf.U.detach(),
+            "crf.start_transitions": chain_crf.b_start.detach(),
+            "crf.end_transitions": chain_crf.b_end.detach(),
+        }
+    )
+    emissions, mask = _emissions_and_mask(seq_length, batch_size, num_tags, variable_length)
+    tags = torch.randint(0, num_tags, (seq_length, batch_size))
+    return (
+        chain_crf,
+        crf,
+        emissions.to(dtype).transpose(0, 1).contiguous(),
+        tags.transpose(0, 1).contiguous(),
+        mask.transpose(0, 1).contiguous(),
+    )
+
+
+def _assert_chain_crf_matches_crf(chain_crf, crf, emissions, tags, tolerance=DOUBLE_TOLERANCE, **kwargs):
+    expected_loss, expected_gradients = _loss_and_gradients(crf, emissions, tags, reduction="mean", **kwargs)
+    loss, gradients = _loss_and_gradients(chain_crf, emissions, tags, **kwargs)
+    torch.testing.assert_close(loss, expected_loss, **tolerance)
+    for name, expected in {
+        "emissions": expected_gradients["emissions"],
+        "U": expected_gradients["crf.transitions"],
+        "b_start": expected_gradients["crf.start_transitions"],
+        "b_end": expected_gradients["crf.end_transitions"],
+    }.items():
+        torch.testing.assert_close(gradients[name], expected, **tolerance)
+
+
+class TestChainCRFLoss:
+    """ChainCRF is the CRF under other parameter names, and its loss is computed as the CRF's."""
+
+    @pytest.mark.parametrize("shape", SHAPES)
+    def test_loss_and_gradients_are_those_of_the_keras_port(self, shape):
+        chain_crf, _, emissions, tags, _ = _chain_crf_inputs(shape, variable_length=False)
+        loss, gradients = _loss_and_gradients(chain_crf, emissions, tags)
+        emissions = emissions.clone().requires_grad_(True)
+        expected = _chain_crf_reference_loss(emissions, tags, chain_crf.U, chain_crf.b_start, chain_crf.b_end)
+        expected_gradients = torch.autograd.grad(
+            expected, [emissions, chain_crf.U, chain_crf.b_start, chain_crf.b_end], allow_unused=True
+        )
+        torch.testing.assert_close(loss, expected.detach(), **DOUBLE_TOLERANCE)
+        for name, expected_gradient in zip(["emissions", "U", "b_start", "b_end"], expected_gradients):
+            if expected_gradient is None:
+                expected_gradient = torch.zeros_like(gradients[name])
+            torch.testing.assert_close(gradients[name], expected_gradient, **DOUBLE_TOLERANCE)
+
+    @pytest.mark.parametrize("shape", SHAPES)
+    @pytest.mark.parametrize("variable_length", [False, True])
+    def test_loss_and_gradients_match_the_crf_layer(self, shape, variable_length):
+        chain_crf, crf, emissions, tags, mask = _chain_crf_inputs(shape, variable_length)
+        _assert_chain_crf_matches_crf(chain_crf, crf, emissions, tags, mask=mask)
+
+    def test_loss_without_a_mask_matches_the_crf_layer(self):
+        chain_crf, crf, emissions, tags, _ = _chain_crf_inputs((17, 3, 4), variable_length=True)
+        _assert_chain_crf_matches_crf(chain_crf, crf, emissions, tags)
+
+    def test_loss_in_single_precision_matches_the_crf_layer_to_rounding(self):
+        chain_crf, crf, emissions, tags, mask = _chain_crf_inputs(
+            (50, 32, 12), variable_length=True, dtype=torch.float32
+        )
+        _assert_chain_crf_matches_crf(
+            chain_crf, crf, emissions, tags, tolerance={"rtol": 1e-4, "atol": 1e-5}, mask=mask
+        )
+
+    def test_loss_takes_the_mask_of_a_transformer(self):
+        """BERT_ChainCRF would pass its attention mask as floats."""
+        chain_crf, crf, emissions, tags, mask = _chain_crf_inputs((17, 3, 4), variable_length=True)
+        torch.testing.assert_close(
+            chain_crf(emissions, tags, mask=mask.float()), crf(emissions, tags, mask=mask), **DOUBLE_TOLERANCE
+        )
+
+    def test_padding_does_not_move_the_loss(self):
+        """What the per-timestep loop got wrong: its normaliser summed over the padding."""
+        chain_crf, _, emissions, tags, mask = _chain_crf_inputs((17, 3, 4), variable_length=True)
+        lengths = mask.sum(dim=1).tolist()
+        one_by_one = torch.stack(
+            [chain_crf(emissions[i : i + 1, :n], tags[i : i + 1, :n]) for i, n in enumerate(lengths)]
+        ).mean()
+        torch.testing.assert_close(chain_crf(emissions, tags, mask=mask), one_by_one, **DOUBLE_TOLERANCE)
+
+    def test_loss_refuses_a_mask_off_at_the_first_timestep(self):
+        chain_crf, _, emissions, tags, mask = _chain_crf_inputs((17, 3, 4), variable_length=True)
+        mask[1, 0] = False
+        with pytest.raises(ValueError, match="first timestep"):
+            chain_crf(emissions, tags, mask=mask)
+
+    def test_loss_refuses_tags_of_another_shape(self):
+        chain_crf, _, emissions, tags, _ = _chain_crf_inputs((17, 3, 4), variable_length=False)
+        with pytest.raises(ValueError, match="emissions and tags"):
+            chain_crf(emissions, tags[:, :-1])
+
+    def test_loss_computed_on_another_device_comes_back(self, monkeypatch):
+        """The path a small batch takes on a GPU, without one: ``cpu:0`` is the CPU under
+        another name, which is enough for the batch and the parameters to go through the move."""
+        moved = []
+        monkeypatch.setattr(
+            "delft.utilities.crf_pytorch.loss_device",
+            lambda device, batch_size, num_tags: (moved.append((batch_size, num_tags)), torch.device("cpu:0"))[1],
+        )
+        chain_crf, crf, emissions, tags, mask = _chain_crf_inputs((17, 3, 4), variable_length=True)
+        _assert_chain_crf_matches_crf(chain_crf, crf, emissions, tags, mask=mask)
+        assert chain_crf(emissions, tags, mask=mask).device == emissions.device
+        assert set(moved) == {(3, 4)}
+
+
+class TestChainCRFDecode:
+    @pytest.mark.parametrize("shape", SHAPES)
+    def test_decode_is_that_of_the_keras_port(self, shape):
+        chain_crf, _, emissions, _, _ = _chain_crf_inputs(shape, variable_length=False)
+        expected = _chain_crf_reference_decode(emissions, chain_crf.U, chain_crf.b_start, chain_crf.b_end)
+        assert chain_crf.decode(emissions) == expected
+
+    @pytest.mark.parametrize("shape", SHAPES)
+    @pytest.mark.parametrize("variable_length", [False, True])
+    def test_decode_matches_the_crf_layer(self, shape, variable_length):
+        chain_crf, crf, emissions, _, mask = _chain_crf_inputs(shape, variable_length)
+        seq_len = emissions.size(1)
+        expected = [path + [0] * (seq_len - len(path)) for path in crf.decode(emissions, mask=mask)]
+        assert chain_crf.decode(emissions, mask=mask) == expected
+
+    def test_padding_does_not_move_the_decode(self):
+        chain_crf, _, emissions, _, mask = _chain_crf_inputs((17, 3, 4), variable_length=True)
+        decoded = chain_crf.decode(emissions, mask=mask)
+        for i, n in enumerate(mask.sum(dim=1).tolist()):
+            assert decoded[i][:n] == chain_crf.decode(emissions[i : i + 1, :n])[0]
+            assert decoded[i][n:] == [0] * (emissions.size(1) - n)
