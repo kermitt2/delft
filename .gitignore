@@ -20,6 +20,7 @@ data/db/*
 !data/db/.gitkeep
 data/download/*
 !data/download/.gitkeep
+data/test-runs
 data/training
 data/eval
 data/embeddings
