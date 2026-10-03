@@ -281,15 +281,32 @@ class Embeddings(object):
     def _saved_contextual_description(self, settings):
         """Combine portable saved settings with cache choices from the local registry."""
         local = self.get_description(self.name)
-        if str(settings.get("revision", "")).startswith("local-") and not is_contextual_transformer_description(local):
+        in_registry = is_contextual_transformer_description(local)
+        # Embeddings named ``contextual:<path>`` carry the path of their model in their
+        # name, which is saved with the model: it is where the model is on the machine
+        # that trained it, and the saved digest tells whether it still is that model.
+        # Such a model was trained and saved, and then could not be loaded back.
+        named = None
+        if not in_registry and isinstance(self.name, str) and self.name.startswith(CONTEXTUAL_NAME_PREFIX):
+            reference = self.name[len(CONTEXTUAL_NAME_PREFIX) :]
+            if os.path.isdir(reference):
+                named = reference
+        if str(settings.get("revision", "")).startswith("local-") and not in_registry and named is None:
             raise ValueError(
-                "the saved contextual embeddings use a local model; configure its path in the local embeddings registry"
+                "the saved contextual embeddings use a local model; configure its path in the local embeddings "
+                f"registry, under the name {self.name!r}"
+                + (
+                    f": there is no directory {self.name[len(CONTEXTUAL_NAME_PREFIX) :]} here"
+                    if isinstance(self.name, str) and self.name.startswith(CONTEXTUAL_NAME_PREFIX)
+                    else ""
+                )
             )
         description = {
             "format": CONTEXTUAL_TRANSFORMER_FORMAT,
             # A local path is machine-specific and is deliberately not saved. Resolve
-            # the model through this machine's registry, then verify its saved digest.
-            "model": local["model"] if is_contextual_transformer_description(local) else settings["model"],
+            # the model through this machine's registry, or through the path its name
+            # holds, then verify its saved digest.
+            "model": local["model"] if in_registry else named or settings["model"],
             "revision": settings.get("revision"),
             "layers": settings["layers"],
             "layer-pooling": settings["layer_pooling"],
@@ -297,7 +314,7 @@ class Embeddings(object):
             "window": settings["window"],
             "stride": settings["stride"],
         }
-        if is_contextual_transformer_description(local):
+        if in_registry:
             for key in ("cache", "cache-path", "batch-size"):
                 if key in local:
                     description[key] = local[key]

@@ -845,6 +845,56 @@ class TestSequenceLabelling:
         assert reloaded.embeddings.model.cache_path == str(local_cache)
         assert reloaded.embeddings.model.batch_size == 3
 
+    def test_a_model_trained_with_the_path_of_a_local_transformer_loads_back(self, tiny_bert, tmp_path, monkeypatch):
+        """
+        ``contextual:<path>`` trained and saved a model that could not be loaded: the path,
+        which the name of the embeddings holds, was only looked for in the registry.
+        """
+        import shutil
+
+        import delft.sequenceLabelling.wrapper as wrapper
+
+        registry = _registry(tmp_path, _entry(tiny_bert))
+        registry["embeddings"] = []
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: registry)
+        monkeypatch.chdir(tmp_path)
+        model_directory = str(tmp_path / "a-local-model")
+        shutil.copytree(tiny_bert, model_directory)
+
+        x = np.array([["the", "cat", "sat"], ["the", "dog", "ran", "far"]] * 6, dtype=object)
+        y = np.array([["O", "B-ANIMAL", "O"], ["O", "B-ANIMAL", "O", "O"]] * 6, dtype=object)
+        model = wrapper.Sequence(
+            "contextual-path-test",
+            architecture="BidLSTM_CRF",
+            embeddings_name="contextual:" + model_directory,
+            max_epoch=1,
+            batch_size=4,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+        model.train(x[:8], y[:8], x_valid=x[8:], y_valid=y[8:])
+        expected = model.tag(["the cat sat"], "json")["texts"]
+        model.save(str(tmp_path / "saved"))
+
+        loaded = wrapper.Sequence("contextual-path-test", embeddings_name=None, nb_workers=0, device="cpu")
+        loaded.load(str(tmp_path / "saved"))
+        assert loaded.embeddings.model.model_reference == model_directory
+        assert loaded.embeddings.model.saved_settings() == model.model_config.contextual_embedding_settings
+        assert loaded.tag(["the cat sat"], "json")["texts"] == expected
+
+        # another model in that directory is refused, and so is a directory that is gone
+        _retrained(model_directory)
+        with pytest.raises(ValueError, match="does not match the saved revision"):
+            wrapper.Sequence("contextual-path-test", embeddings_name=None, nb_workers=0, device="cpu").load(
+                str(tmp_path / "saved")
+            )
+        shutil.rmtree(model_directory)
+        with pytest.raises(ValueError, match="there is no directory .*a-local-model here"):
+            wrapper.Sequence("contextual-path-test", embeddings_name=None, nb_workers=0, device="cpu").load(
+                str(tmp_path / "saved")
+            )
+
 
 class TestDataLoader:
     @staticmethod
