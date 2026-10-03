@@ -707,7 +707,12 @@ For training:
 > python3 delft/applications/insultTagger.py train
 ```
 
-By default training uses the whole train set.
+By default training uses the whole train set. To hold out a tenth of it for the validation and evaluate on the
+validation set of the corpus, with several folds when `--fold-count` is given:
+
+```sh
+> python3 delft/applications/insultTagger.py train_eval
+```
 
 Example of a small tagging test:
 

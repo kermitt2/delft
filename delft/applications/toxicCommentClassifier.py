@@ -8,7 +8,7 @@ import pandas as pd
 from delft.textClassification import Classifier
 from delft.textClassification.models import architectures
 from delft.textClassification.reader import load_texts_and_classes_pandas, load_texts_pandas
-from delft.utilities.Utilities import set_random_seed
+from delft.utilities.Utilities import set_random_seed, split_data_and_labels
 
 list_classes = ["toxic", "severe_toxic", "obscene", "threat", "insult", "identity_hate"]
 class_weights = {0: 1.0, 1: 1.0, 2: 1.0, 3: 1.0, 4: 1.0, 5: 1.0}
@@ -75,6 +75,53 @@ def train(
     model.save()
 
 
+def train_and_eval(
+    embeddings_name=None,
+    fold_count=1,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    wandb_project=None,
+    num_workers=None,
+    max_epoch=-1,
+):
+    batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture, max_epoch)
+
+    model = Classifier(
+        "toxic_" + architecture,
+        architecture,
+        list_classes=list_classes,
+        max_epoch=max_epoch,
+        fold_number=fold_count,
+        class_weights=class_weights,
+        embeddings_name=embeddings_name,
+        batch_size=batch_size,
+        maxlen=maxlen,
+        patience=patience,
+        early_stop=early_stop,
+        transformer_name=transformer,
+        report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
+        nb_workers=num_workers,
+        short_model_name="toxic",
+    )
+
+    print("loading train dataset...")
+    xtr, y = load_texts_and_classes_pandas("data/textClassification/toxic/train.csv")
+
+    # the test set of the corpus has no labels: a part of the train set is held out to evaluate
+    x_train, y_train, x_test, y_test = split_data_and_labels(xtr, y, 0.9)
+
+    if fold_count == 1:
+        model.train(x_train, y_train)
+    else:
+        model.train_nfold(x_train, y_train)
+    # saving the model
+    model.save()
+
+    model.eval(x_test, y_test)
+
+
 def test(architecture="gru"):
     # load model
     model = Classifier("toxic_" + architecture)
@@ -112,7 +159,7 @@ if __name__ == "__main__":
         "allenai/scibert_scivocab_cased",
     ]
 
-    parser.add_argument("action", help="one of [train, test, classify]")
+    parser.add_argument("action", help="one of [train, train_eval, test, classify]")
     parser.add_argument("--fold-count", type=int, default=1)
     parser.add_argument(
         "--seed",
@@ -175,8 +222,8 @@ if __name__ == "__main__":
     set_random_seed(args.seed)
 
     action = args.action
-    if action not in ("train", "classify", "test"):
-        print("action not specifed, must be one of [train,test,classify]")
+    if action not in ("train", "train_eval", "classify", "test"):
+        print("action not specifed, must be one of [train,train_eval,test,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer
@@ -209,6 +256,20 @@ if __name__ == "__main__":
         if args.fold_count < 1:
             raise ValueError("fold-count should be equal or more than 1")
         train(
+            embeddings_name=embeddings_name,
+            fold_count=args.fold_count,
+            architecture=architecture,
+            transformer=transformer,
+            report_to_wandb=wandb,
+            wandb_project=wandb_project,
+            num_workers=num_workers,
+            max_epoch=args.max_epoch,
+        )
+
+    if action == "train_eval":
+        if args.fold_count < 1:
+            raise ValueError("fold-count should be equal or more than 1")
+        train_and_eval(
             embeddings_name=embeddings_name,
             fold_count=args.fold_count,
             architecture=architecture,

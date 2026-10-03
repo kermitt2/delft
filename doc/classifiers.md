@@ -55,11 +55,13 @@ To launch the training with default BiGRU model:
 > python3 delft/applications/toxicCommentClassifier.py train --embedding glove-840B
 ```
 
-To use for instance the BERT architecture, with `bert-base-cased` as pretrained model, and training data splitting for training and evaluating:
+To hold out a tenth of the training data and evaluate on it after the training:
 
 ```sh
-> python3 delft/applications/toxicCommentClassifier.py train_eval --architecture bert --transformer bert-base-cased
+> python3 delft/applications/toxicCommentClassifier.py train_eval --embedding glove-840B
 ```
+
+The transformer architecture (`bert`) is not supported by this classifier, which is multi-label.
 
 For training with n-folds and default BiGRU model, use the parameter `--fold-count`:
 

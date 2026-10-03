@@ -189,7 +189,11 @@ build_tasks() {
                     [[ "$architecture" == *FEATURES ]] || architectures+=("$architecture")
                 done
             else
-                architectures=("${CLASSIFIER_ARCHITECTURES[@]}")
+                architectures=()
+                for architecture in "${CLASSIFIER_ARCHITECTURES[@]}"; do
+                    # the toxic comment classifier is multi-label, which bert does not do
+                    [[ "$group" == toxic && "$architecture" == bert ]] || architectures+=("$architecture")
+                done
             fi
         fi
         for row in "${rows[@]}"; do
@@ -267,7 +271,8 @@ build_step_command() {
             ;;
         insult)
             case "$step" in
-                train) CMD=("${base[@]}" train "${training[@]}") ;;
+                train_eval | train) CMD=("${base[@]}" "$step" "${training[@]}") ;;
+                nfold) CMD=("${base[@]}" train_eval "${training[@]}" --fold-count "$FOLD_COUNT") ;;
                 tag) CMD=("${base[@]}" tag) ;;
             esac
             ;;
@@ -277,14 +282,6 @@ build_step_command() {
                 train_eval | train) CMD=("${base[@]}" "$step" "${training[@]}") ;;
                 nfold) CMD=("${base[@]}" train_eval "${training[@]}" --fold-count "$FOLD_COUNT") ;;
                 tag) CMD=("${base[@]}" tag) ;;
-            esac
-            ;;
-        toxic)
-            # no train_eval: the test set of the corpus has no labels
-            case "$step" in
-                train) CMD=("${base[@]}" train "${training[@]}") ;;
-                nfold) CMD=("${base[@]}" train "${training[@]}" --fold-count "$FOLD_COUNT") ;;
-                tag) CMD=("${base[@]}" classify) ;;
             esac
             ;;
         *)

@@ -199,10 +199,10 @@ A **task** is one row with one architecture, and runs up to five steps one after
 | `train` | `train` | `train` |
 | `eval` | `eval` on the training file (`grobid`), on the test set (`ner`) | |
 | `tag` | `tag` (`grobid` models with sample texts, `insult`, `dataset`) | `classify` |
-| `nfold` | `train_eval --fold-count N` | `train_eval --fold-count N` (`train` for `toxic`) |
+| `nfold` | `train_eval --fold-count N` | `train_eval --fold-count N` |
 
-An application runs the steps it has: `insult` only trains and tags, `toxic` has no
-`train_eval`, and an architecture with features is not used to tag. A task goes on after a
+An application runs the steps it has, an architecture with features is not used to tag, and
+`toxic` is not run with `bert`, which does not do multi-label classification. A task goes on after a
 failed step, apart from `eval` and `tag` which need the model of `train`, and fails when any
 of its steps did.
 
