@@ -39,8 +39,8 @@
 #   CLASSIFIER_ARCHITECTURES   text classification architectures (default: all)
 #   EMBEDDINGS                 embeddings to rotate over, `none` for no pre-trained ones
 #   TRANSFORMERS               transformers to rotate over
-# scilons/most-embed-sci, used both as a transformer and as contextual embeddings, is a
-# private model: export HF_ACCESS_TOKEN before submitting, the tasks inherit it.
+# scilons/most-embed-sci, an embedding model used as contextual embeddings, is a private
+# model: export HF_ACCESS_TOKEN before submitting, the tasks inherit it.
 #   STEPS                      steps to run (default: train_eval nfold train eval tag)
 #   MAX_EPOCH                  epochs of a training (default: 3 for smoke, unset for full)
 #   FOLD_COUNT                 folds of the nfold step (default: 2 for smoke, 5 for full)
@@ -88,7 +88,6 @@ DEFAULT_TRANSFORMERS=(
     answerdotai/ModernBERT-base
     microsoft/deberta-v3-base
     michiyasunaga/LinkBERT-base
-    scilons/most-embed-sci
 )
 
 usage() {
