@@ -199,9 +199,7 @@ class Sequence(object):
             text_features_indices=text_features_indices,
             continuous_features_indices=continuous_features_indices,
             contextual_embedding_settings=(
-                self.embeddings.model.saved_settings()
-                if self.embeddings is not None and self.embeddings.extension == "contextual-transformer"
-                else None
+                self.embeddings.saved_contextual_settings() if self.embeddings is not None else None
             ),
         )
         self.window_stride = window_stride

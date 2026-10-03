@@ -83,6 +83,8 @@ CONTEXTUAL_TRANSFORMER_FORMAT = "contextual-transformer"
 # stacked embeddings are several embeddings of any kind used together, their
 # vectors being concatenated, see delft/utilities/StackedEmbeddings.py
 STACKED_FORMAT = "stacked"
+# in the contextual settings saved with a model, those of the components of a stack
+SAVED_COMPONENTS = "components"
 
 # formats that are not a vector file compiled into a LMDB database of words
 MODEL_BACKED_FORMATS = (STATIC_TRANSFORMER_FORMAT, CONTEXTUAL_TRANSFORMER_FORMAT, STACKED_FORMAT)
@@ -100,6 +102,19 @@ def is_contextual_transformer_description(description):
     if not isinstance(description, dict):
         return False
     return CONTEXTUAL_TRANSFORMER_FORMAT in (description.get("format"), description.get("type"))
+
+
+def uses_contextual_vectors(embeddings):
+    """
+    Whether the vectors of the embeddings depend on the sentence: contextual embeddings,
+    or a stack holding some.
+    """
+    extension = getattr(embeddings, "extension", None)
+    if extension == CONTEXTUAL_TRANSFORMER_FORMAT:
+        return True
+    if extension == STACKED_FORMAT:
+        return any(uses_contextual_vectors(component) for component in embeddings.model.components)
+    return False
 
 
 def is_stacked_description(description):
@@ -280,8 +295,9 @@ class Embeddings(object):
             self.embedding_lmdb_path = self.registry["embedding-lmdb-path"]
         self.env = None
         if load:
-            if contextual_settings is None:
-                self.make_embeddings_simple(name)
+            if contextual_settings is None or SAVED_COMPONENTS in contextual_settings:
+                # the settings saved for a stack are those of its contextual components
+                self.make_embeddings_simple(name, (contextual_settings or {}).get(SAVED_COMPONENTS))
             else:
                 self.make_contextual_transformer_embeddings(
                     name, self._saved_contextual_description(contextual_settings)
@@ -289,6 +305,23 @@ class Embeddings(object):
         self.static_embed_size = self.embed_size
 
         self.use_cache = use_cache
+
+    def saved_contextual_settings(self):
+        """
+        What a saved model keeps to get the same contextual vectors when it is loaded: the
+        settings of contextual embeddings, those of every contextual component of a stack
+        under its name, None for the embeddings whose vectors do not depend on the sentence.
+        """
+        if self.extension == CONTEXTUAL_TRANSFORMER_FORMAT:
+            return self.model.saved_settings()
+        if self.extension == STACKED_FORMAT:
+            components = {
+                component.name: component.saved_contextual_settings()
+                for component in self.model.components
+                if uses_contextual_vectors(component)
+            }
+            return {SAVED_COMPONENTS: components} if components else None
+        return None
 
     def _saved_contextual_description(self, settings):
         """Combine portable saved settings with cache choices from the local registry."""
@@ -584,14 +617,15 @@ class Embeddings(object):
         self.embed_size = self.model.embed_size
         print("contextual embeddings from", model_reference, "with", self.embed_size, "dimensions")
 
-    def make_stacked_embeddings(self, name, description):
+    def make_stacked_embeddings(self, name, description, saved_settings=None):
         """
         Use several embeddings together, the vector of a word being the
         concatenation of their vectors: typically a static embedding and a
         contextual one. The components are either listed by a registry entry
         ("embeddings": ["glove-840B", "scibert-contextual"]) or given in the
         name itself (glove-840B+scibert-contextual). Each of them is anything
-        that is accepted as an embedding name.
+        that is accepted as an embedding name. ``saved_settings`` are the
+        contextual settings a saved model kept for its components, by name.
         """
         component_names = description.get("embeddings") or []
         if len(component_names) < 2:
@@ -608,8 +642,19 @@ class Embeddings(object):
                 )
         self.extension = STACKED_FORMAT
 
+        saved_settings = saved_settings or {}
+        unknown = sorted(set(saved_settings) - set(component_names))
+        if unknown:
+            raise ValueError(
+                "the saved contextual embeddings %s are not components of the stacked embeddings %s" % (unknown, name)
+            )
         components = [
-            Embeddings(component_name, resource_registry=self.registry, lang=self.lang)
+            Embeddings(
+                component_name,
+                resource_registry=self.registry,
+                lang=self.lang,
+                contextual_settings=saved_settings.get(component_name),
+            )
             for component_name in component_names
         ]
         self.model = StackedEmbeddings(components)
@@ -623,7 +668,7 @@ class Embeddings(object):
             "dimensions",
         )
 
-    def make_embeddings_simple(self, name="fasttext-crawl"):
+    def make_embeddings_simple(self, name="fasttext-crawl", saved_component_settings=None):
         description = self.get_description(name)
         if description is not None:
             self.extension = description.get("format", self.extension)
@@ -638,7 +683,7 @@ class Embeddings(object):
             description = {"embeddings": split_stacked_name(name), "format": STACKED_FORMAT}
 
         if is_stacked_description(description):
-            self.make_stacked_embeddings(name, description)
+            self.make_stacked_embeddings(name, description, saved_component_settings)
             return
 
         if description is None and isinstance(name, str) and name.startswith(CONTEXTUAL_NAME_PREFIX):

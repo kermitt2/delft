@@ -185,7 +185,7 @@ A stack can also be given a name in the embeddings registry:
 }
 ```
 
-A stack cannot be a part of another stack: list all the embeddings instead. The name of the embeddings is saved with the model, and the same embeddings are needed to use it.
+A stack cannot be a part of another stack: list all the embeddings instead. The name of the embeddings is saved with the model, and the same embeddings are needed to use it. A stack holding contextual embeddings follows their rules: a sequence model saves the settings and the revision of each contextual part in its `config.json`, which take precedence over later registry settings, and it cannot be exported to ONNX.
 
 ## Upgrading LMDB caches from 0.3.x to 0.4.x
 
