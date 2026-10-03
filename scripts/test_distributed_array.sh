@@ -83,9 +83,10 @@ DEFAULT_CLASSIFIER_ARCHITECTURES=(lstm bidLstm_simple cnn cnn2 cnn3 lstm_cnn gru
                                   dpcnn bert)
 MOST_EMBED_SCI=${MOST_EMBED_SCI:-/netscratch/lfoppiano/delft/embeddings/most-embed-sci}
 [[ -d "$MOST_EMBED_SCI" ]] || MOST_EMBED_SCI=scilons/most-embed-sci
-# static embeddings (compiled and not) and contextual ones, from the registry and outside it
+# static embeddings (compiled and not), contextual ones, from the registry and outside it,
+# and a stack of the two kinds
 DEFAULT_EMBEDDINGS=(none glove-840B potion-base-8M static-retrieval-mrl-en scibert-contextual
-                    "contextual:$MOST_EMBED_SCI")
+                    "contextual:$MOST_EMBED_SCI" glove-840B+scibert-contextual)
 DEFAULT_TRANSFORMERS=(
     allenai/scibert_scivocab_cased
     allenai/scibert_scivocab_uncased
