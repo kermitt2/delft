@@ -211,13 +211,15 @@ those without features for the other taggers, the 11 text classification ones fo
 classifiers. The embeddings and the transformers are not a dimension. They **rotate** over
 the tasks: an architecture without a transformer gets one of `none`, `glove-840B`,
 `potion-base-8M`, `static-retrieval-mrl-en`, `scibert-contextual` and
-`contextual:scilons/most-embed-sci`, a BERT one gets one of the five transformers of the `bert`
+`contextual:<most-embed-sci>`, a BERT one gets one of the five transformers of the `bert`
 profiles, and the choice shifts by one from a row to the next, so that every embedding meets
 every architecture as the rows go by. `PRODUCT=true` runs every architecture with every one
 of them instead, which is about six times as many tasks.
 
-`scilons/most-embed-sci`, an embedding model used as contextual embeddings, is a private model: export `HF_ACCESS_TOKEN` with a token that can
-read it before submitting, the tasks inherit the variable. Any other model of the hub is
+`scilons/most-embed-sci`, an embedding model used as contextual embeddings, is read from the
+directory `MOST_EMBED_SCI` (default: `/netscratch/lfoppiano/delft/embeddings/most-embed-sci`).
+Without that directory it is taken from the hub, where it is private: export `HF_ACCESS_TOKEN`
+with a token that can read it before submitting, the tasks inherit the variable. Any other model of the hub is
 tested the same way, with `TRANSFORMERS` or with `contextual:<identifier>` in `EMBEDDINGS`.
 
 Every task works in a directory of its own, `data/test-runs/<run>/task_<index>`, where the

@@ -39,8 +39,10 @@
 #   CLASSIFIER_ARCHITECTURES   text classification architectures (default: all)
 #   EMBEDDINGS                 embeddings to rotate over, `none` for no pre-trained ones
 #   TRANSFORMERS               transformers to rotate over
-# scilons/most-embed-sci, an embedding model used as contextual embeddings, is a private
-# model: export HF_ACCESS_TOKEN before submitting, the tasks inherit it.
+#   MOST_EMBED_SCI             local copy of scilons/most-embed-sci, an embedding model used as
+#                              contextual embeddings (default: under /netscratch). Without
+#                              that directory the model is taken from the hub, where it is
+#                              private: export HF_ACCESS_TOKEN, the tasks inherit it.
 #   STEPS                      steps to run (default: train_eval nfold train eval tag)
 #   MAX_EPOCH                  epochs of a training (default: 3 for smoke, unset for full)
 #   FOLD_COUNT                 folds of the nfold step (default: 2 for smoke, 5 for full)
@@ -79,9 +81,11 @@ GROBID_ARCHITECTURES=(BidLSTM BidLSTM_CRF BidLSTM_ChainCRF BidLSTM_CNN_CRF BidGR
                       BERT_ChainCRF_FEATURES)
 DEFAULT_CLASSIFIER_ARCHITECTURES=(lstm bidLstm_simple cnn cnn2 cnn3 lstm_cnn gru gru_simple gru_lstm
                                   dpcnn bert)
-# static embeddings (compiled and not) and contextual ones, from the registry and from the hub
+MOST_EMBED_SCI=${MOST_EMBED_SCI:-/netscratch/lfoppiano/delft/embeddings/most-embed-sci}
+[[ -d "$MOST_EMBED_SCI" ]] || MOST_EMBED_SCI=scilons/most-embed-sci
+# static embeddings (compiled and not) and contextual ones, from the registry and outside it
 DEFAULT_EMBEDDINGS=(none glove-840B potion-base-8M static-retrieval-mrl-en scibert-contextual
-                    contextual:scilons/most-embed-sci)
+                    "contextual:$MOST_EMBED_SCI")
 DEFAULT_TRANSFORMERS=(
     allenai/scibert_scivocab_cased
     allenai/scibert_scivocab_uncased
