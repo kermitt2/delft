@@ -15,7 +15,9 @@ import numpy as np
 import pytest
 
 import delft.utilities.ContextualEmbeddings as contextual_module
-from delft.sequenceLabelling.preprocess import to_vector_single
+from delft.sequenceLabelling.config import ModelConfig
+from delft.sequenceLabelling.data_loader import create_dataloader
+from delft.sequenceLabelling.preprocess import Preprocessor, to_vector_single
 from delft.utilities.ContextualEmbeddings import ContextualEmbeddings, local_model_revision
 from delft.utilities.Embeddings import Embeddings
 
@@ -156,12 +158,17 @@ class TestWordVectors:
         )
         np.testing.assert_allclose(total.embed_batch([SENTENCE])[0], 2 * mean_vectors, atol=1e-5)
 
-    def test_token_without_any_subword_unit_gets_a_zero_vector(self, tiny_bert):
+    def test_token_without_any_subword_unit_gets_a_zero_vector_and_a_rate_limited_warning(self, tiny_bert, capsys):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
         vectors = embeddings.embed_batch([["the", " ", "cat"]])[0]
         assert vectors.shape == (3, HIDDEN_SIZE)
         assert not vectors[1].any()
         assert vectors[0].any() and vectors[2].any()
+        warning = capsys.readouterr().out
+        assert "warning:" in warning
+        assert "' '" in warning
+        embeddings.embed_batch([["", "the"]])
+        assert "warning:" not in capsys.readouterr().out
 
     def test_empty_sentence(self, tiny_bert):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
@@ -214,6 +221,35 @@ class TestWindows:
 
 
 class TestCache:
+    def test_ordinary_sentence_key_stays_compatible_with_existing_caches(self):
+        assert ContextualEmbeddings.sentence_key(["the", "cat", "sat"]).hex() == (
+            "c4a48330f76ba7e3d37c99c6166d5db429d177af"
+        )
+
+    def test_sentence_key_escapes_tokens_that_used_to_collide(self):
+        assert ContextualEmbeddings.sentence_key(["a\x1fb", "c"]) != ContextualEmbeddings.sentence_key(["a", "b\x1fc"])
+
+    @pytest.mark.parametrize(("cached", "read"), [([], [""]), ([""], [])])
+    def test_empty_token_sequences_need_neither_cache_nor_model_in_a_worker(
+        self, tiny_bert, tmp_path, monkeypatch, cached, read
+    ):
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        assert embeddings.precompute([cached], verbose=False) == 0
+        monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: object())
+
+        vectors = embeddings.get_sentence_vectors(read)
+
+        assert vectors.shape == (len(read), HIDDEN_SIZE)
+        assert not vectors.any()
+        assert embeddings._model is None
+
+    def test_cache_miss_in_a_dataloader_worker_is_an_error(self, tiny_bert, monkeypatch):
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
+        monkeypatch.setattr(torch.utils.data, "get_worker_info", lambda: object())
+        with pytest.raises(RuntimeError, match="cache miss.*DataLoader worker.*precompute.*main process"):
+            embeddings.get_sentence_vectors(SENTENCE)
+        assert embeddings._model is None
+
     def test_precompute_fills_the_cache_once(self, tiny_bert, tmp_path):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
         sentences = [SENTENCE, LONG_SENTENCE, SENTENCE]
@@ -673,6 +709,59 @@ class TestEmbeddingsIntegration:
 
 
 class TestSequenceLabelling:
+    def test_dataloader_workers_read_precomputed_contextual_vectors(self, tiny_bert, tmp_path):
+        x = np.array([SENTENCE, SENTENCE[:3], SENTENCE[1:5], SENTENCE[2:]], dtype=object)
+        y = np.array([["O"] * len(tokens) for tokens in x], dtype=object)
+        preprocessor = Preprocessor()
+        preprocessor.fit(x, y)
+        config = ModelConfig(
+            architecture="BidLSTM_CRF",
+            embeddings_name="tiny-contextual",
+            word_embedding_size=HIDDEN_SIZE,
+            max_sequence_length=10,
+        )
+        embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
+        loader = create_dataloader(
+            x,
+            y,
+            preprocessor=preprocessor,
+            embeddings=embeddings,
+            batch_size=1,
+            shuffle=False,
+            model_config=config,
+            num_workers=2,
+        )
+
+        batches = list(loader)
+        assert loader.num_workers == 2
+        assert len(batches) == len(x)
+        assert all(batch[0]["word_input"].abs().sum() > 0 for batch in batches)
+
+    def test_nfold_training_with_contextual_embeddings(self, tiny_bert, tmp_path, monkeypatch):
+        import delft.sequenceLabelling.wrapper as wrapper
+
+        registry = _registry(tmp_path, _entry(tiny_bert, window=12, stride=5))
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: registry)
+        monkeypatch.chdir(tmp_path)
+        x = np.array([SENTENCE, SENTENCE[:3], SENTENCE[1:5], SENTENCE[2:]], dtype=object)
+        y = np.array([["B-ANIMAL" if token == "cat" else "O" for token in tokens] for tokens in x], dtype=object)
+        model = wrapper.Sequence(
+            "contextual-nfold-test",
+            architecture="BidLSTM_CRF",
+            embeddings_name="tiny-contextual",
+            fold_number=2,
+            max_epoch=1,
+            batch_size=2,
+            max_sequence_length=10,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+
+        model.train_nfold(x, y)
+        assert len(model.models) == 2
+        assert model.embeddings.model.precompute(x, max_sequence_length=10, verbose=False) == 0
+
     def test_rnn_architecture_trains_and_tags_with_contextual_embeddings(self, tiny_bert, tmp_path, monkeypatch):
         import delft.sequenceLabelling.wrapper as wrapper
 
@@ -715,6 +804,46 @@ class TestSequenceLabelling:
         other = ContextualEmbeddings(tiny_bert, device="cpu", window=12, stride=5, cache_path=contextual.cache_path)
         assert other.cache_env_path() == contextual.cache_env_path()
         assert other.precompute([tagged], verbose=False) == 1
+
+        model.save(str(tmp_path / "saved"))
+        saved_settings = model.model_config.contextual_embedding_settings
+        assert saved_settings == contextual.fingerprint()
+
+        # A machine-specific local model path is not written to config.json: a
+        # local registry entry is required to locate it when the model is loaded.
+        empty_cache = tmp_path / "empty-cache"
+        registry.clear()
+        registry.update(_registry(empty_cache, _entry(tiny_bert)))
+        registry["embeddings"] = []
+        loaded = wrapper.Sequence("contextual-test", embeddings_name=None, nb_workers=0, device="cpu")
+        with pytest.raises(ValueError, match="configure its path"):
+            loaded.load(str(tmp_path / "saved"))
+
+        # Vector settings still come from the saved model when the local entry
+        # changes, while machine-local cache and batching choices follow it.
+        import shutil
+
+        local_cache = tmp_path / "local-cache"
+        relocated_model = str(tmp_path / "relocated-model")
+        shutil.copytree(tiny_bert, relocated_model)
+        changed = _entry(
+            relocated_model,
+            layers=[-1],
+            **{
+                "layer-pooling": "sum",
+                "subword-pooling": "last",
+                "window": 32,
+                "stride": 16,
+                "cache-path": str(local_cache),
+                "batch-size": 3,
+            },
+        )
+        registry["embeddings"] = [changed]
+        reloaded = wrapper.Sequence("contextual-test", embeddings_name=None, nb_workers=0, device="cpu")
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.embeddings.model.saved_settings() == saved_settings
+        assert reloaded.embeddings.model.cache_path == str(local_cache)
+        assert reloaded.embeddings.model.batch_size == 3
 
 
 class TestDataLoader:
@@ -877,10 +1006,31 @@ class TestTextClassification:
 
         embeddings = Embeddings("tiny-contextual", resource_registry=_registry(tmp_path, _entry(tiny_bert)))
         config = ModelConfig(architecture="gru", embeddings_name="tiny-contextual", list_classes=["a", "b"], maxlen=4)
-        loader = create_dataloader(self.TEXTS, self.CLASSES, config, embeddings=embeddings, batch_size=4, shuffle=False)
+        loader = create_dataloader(
+            self.TEXTS,
+            self.CLASSES,
+            config,
+            embeddings=embeddings,
+            batch_size=4,
+            shuffle=False,
+            num_workers=2,
+        )
+        assert loader.num_workers > 0
         assert embeddings.model._model is None
         inputs, labels = next(iter(loader))
         assert inputs.shape == (4, 4, HIDDEN_SIZE) and labels.shape == (4, 2)
         assert embeddings.model._model is None, "the dataset found every text in the cache"
         # cut at the last 4 tokens, as the dataset cuts a text
         np.testing.assert_array_equal(inputs[0].numpy(), embeddings.get_sentence_vectors(["sat", "on", "the", "mat"]))
+
+        prediction_loader = create_dataloader(
+            self.TEXTS,
+            None,
+            config,
+            embeddings=embeddings,
+            batch_size=4,
+            shuffle=False,
+            num_workers=2,
+        )
+        assert prediction_loader.num_workers > 0
+        assert sum(len(batch) for batch in prediction_loader) == len(self.TEXTS)

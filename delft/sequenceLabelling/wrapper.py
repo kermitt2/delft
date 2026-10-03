@@ -198,6 +198,11 @@ class Sequence(object):
             window_stride=window_stride,
             text_features_indices=text_features_indices,
             continuous_features_indices=continuous_features_indices,
+            contextual_embedding_settings=(
+                self.embeddings.model.saved_settings()
+                if self.embeddings is not None and self.embeddings.extension == "contextual-transformer"
+                else None
+            ),
         )
         self.window_stride = window_stride
 
@@ -934,6 +939,7 @@ class Sequence(object):
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
                 use_cache=False,
+                contextual_settings=getattr(self.model_config, "contextual_embedding_settings", None),
             )
             self.model_config.word_embedding_size = self.embeddings.embed_size * tokens_per_position(
                 self.model_config.text_features_indices

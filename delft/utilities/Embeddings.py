@@ -253,6 +253,7 @@ class Embeddings(object):
         extension="vec",
         use_cache=True,
         load=True,
+        contextual_settings=None,
     ):
         self.name = name
         self.embed_size = 0
@@ -267,10 +268,40 @@ class Embeddings(object):
             self.embedding_lmdb_path = self.registry["embedding-lmdb-path"]
         self.env = None
         if load:
-            self.make_embeddings_simple(name)
+            if contextual_settings is None:
+                self.make_embeddings_simple(name)
+            else:
+                self.make_contextual_transformer_embeddings(
+                    name, self._saved_contextual_description(contextual_settings)
+                )
         self.static_embed_size = self.embed_size
 
         self.use_cache = use_cache
+
+    def _saved_contextual_description(self, settings):
+        """Combine portable saved settings with cache choices from the local registry."""
+        local = self.get_description(self.name)
+        if str(settings.get("revision", "")).startswith("local-") and not is_contextual_transformer_description(local):
+            raise ValueError(
+                "the saved contextual embeddings use a local model; configure its path in the local embeddings registry"
+            )
+        description = {
+            "format": CONTEXTUAL_TRANSFORMER_FORMAT,
+            # A local path is machine-specific and is deliberately not saved. Resolve
+            # the model through this machine's registry, then verify its saved digest.
+            "model": local["model"] if is_contextual_transformer_description(local) else settings["model"],
+            "revision": settings.get("revision"),
+            "layers": settings["layers"],
+            "layer-pooling": settings["layer_pooling"],
+            "subword-pooling": settings["subword_pooling"],
+            "window": settings["window"],
+            "stride": settings["stride"],
+        }
+        if is_contextual_transformer_description(local):
+            for key in ("cache", "cache-path", "batch-size"):
+                if key in local:
+                    description[key] = local[key]
+        return description
 
     def __getattr__(self, name):
         return getattr(self.model, name)
@@ -531,6 +562,7 @@ class Embeddings(object):
             ("window", "window"),
             ("stride", "stride"),
             ("batch_size", "batch-size"),
+            ("revision", "revision"),
         ):
             if description.get(key) is not None:
                 options[option] = description[key]

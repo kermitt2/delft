@@ -340,7 +340,14 @@ if __name__ == "__main__":
         "BidLSTM_ChainCRF_FEATURES",
     ]
 
-    word_embeddings_examples = ["glove-840B", "fasttext-crawl", "word2vec", "potion-base-8M"]
+    word_embeddings_examples = [
+        "glove-840B",
+        "fasttext-crawl",
+        "word2vec",
+        "potion-base-8M",
+        "scibert-contextual",
+        "bert-base-cased-contextual",
+    ]
 
     architectures_transformers_based = [
         "BERT",
@@ -384,7 +391,8 @@ if __name__ == "__main__":
         + "For local loading, use delft/resources-registry.json. "
         + "Be sure to use here the same name as in the registry, e.g. "
         + str(word_embeddings_examples)
-        + " and that the path in the registry to the embedding file is correct on your system.",
+        + ". Contextual embeddings can also be given as contextual:<HuggingFace model or local path>. "
+        + "Paths in the registry must be correct on your system.",
     )
     parser.add_argument(
         "--transformer",
