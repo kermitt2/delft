@@ -216,12 +216,6 @@ profiles, and the choice shifts by one from a row to the next, so that every emb
 every architecture as the rows go by. `PRODUCT=true` runs every architecture with every one
 of them instead, which is about six times as many tasks.
 
-`scilons/most-embed-sci`, an embedding model used as contextual embeddings, is read from the
-directory `MOST_EMBED_SCI` (default: `/netscratch/lfoppiano/delft/embeddings/most-embed-sci`).
-Without that directory it is taken from the hub, where it is private: export `HF_ACCESS_TOKEN`
-with a token that can read it before submitting, the tasks inherit the variable. Any other model of the hub is
-tested the same way, with `TRANSFORMERS` or with `contextual:<identifier>` in `EMBEDDINGS`.
-
 Every task works in a directory of its own, `data/test-runs/<run>/task_<index>`, where the
 data of the checkout is linked and the models are saved. A run therefore never replaces the
 models of `data/models`, two tasks never write the same model, and the directory is removed

@@ -61,7 +61,6 @@ To hold out a tenth of the training data and evaluate on it after the training:
 > python3 delft/applications/toxicCommentClassifier.py train_eval --embedding glove-840B
 ```
 
-The transformer architecture (`bert`) is not supported by this classifier, which is multi-label.
 
 For training with n-folds and default BiGRU model, use the parameter `--fold-count`:
 
