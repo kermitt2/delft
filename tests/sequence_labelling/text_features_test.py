@@ -48,6 +48,22 @@ class FakeEmbeddings:
         return np.array(self.VECTORS.get(word.lower(), [9, 9]), dtype=np.float32)
 
 
+class FakeContextualEmbeddings(FakeEmbeddings):
+    def __init__(self):
+        self.sentences = []
+
+    def get_sentence_vectors(self, words):
+        self.sentences.append(list(words))
+        return np.arange(1, len(words) + 1, dtype=np.float32)[:, None].repeat(self.embed_size, axis=1)
+
+    def precompute(self, sentences, **kwargs):
+        self.precomputed = [list(sentence) for sentence in sentences]
+        self.precompute_options = kwargs
+
+    def release_model(self):
+        pass
+
+
 class TestConcatenatedEmbeddings:
     def test_one_vector_per_token_of_a_position(self):
         vectors = to_vector_single(["Deep learning", "John Smith"], FakeEmbeddings(), 3, tokens_per_position=2)
@@ -59,6 +75,12 @@ class TestConcatenatedEmbeddings:
 
     def test_a_single_token_per_position_is_unchanged(self):
         assert to_vector_single(["Deep"], FakeEmbeddings(), 1).tolist() == [[1, 1]]
+
+    def test_contextual_words_are_embedded_as_one_sentence_and_laid_back_out(self):
+        embeddings = FakeContextualEmbeddings()
+        vectors = to_vector_single(["ignored ignored", "Deep ", "John Smith"], embeddings, 2, tokens_per_position=2)
+        assert embeddings.sentences == [["Deep", "John", "Smith"]]
+        assert vectors.tolist() == [[1, 1, 0, 0], [2, 2, 3, 3]]
 
 
 def _config(text_features_indices):
@@ -87,6 +109,26 @@ class TestLoader:
 
     def test_the_model_reads_the_columns_asked_for(self):
         assert _chars([0, 1]) == "Deep learning"
+
+    def test_precomputes_the_same_flattened_contextual_sentence_the_dataset_reads(self):
+        embeddings = FakeContextualEmbeddings()
+        config = _config([0, 1])
+        config.max_sequence_length = 1
+        preprocessor = Preprocessor()
+        texts = text_from_features(X, FEATURES, [0, 1])
+        preprocessor.fit(texts, Y)
+        loader = create_dataloader(
+            X,
+            Y,
+            preprocessor=preprocessor,
+            embeddings=embeddings,
+            features=FEATURES,
+            shuffle=False,
+            model_config=config,
+        )
+        next(iter(loader))
+        assert embeddings.precomputed == [["Deep", "learning"]]
+        assert embeddings.sentences == [["Deep", "learning"]]
 
 
 def _sequence(tmp_path, monkeypatch, **kwargs):

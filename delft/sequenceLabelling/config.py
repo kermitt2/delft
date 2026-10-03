@@ -32,6 +32,7 @@ class ModelConfig(object):
         window_stride=None,
         text_features_indices=None,
         continuous_features_indices=None,
+        contextual_embedding_settings=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -76,6 +77,9 @@ class ModelConfig(object):
         # Columns of the features the text of a token is taken from, column 0 being the
         # token itself; None for the token alone. See delft.sequenceLabelling.text_features.
         self.text_features_indices = text_features_indices
+        # Vector-defining contextual transformer settings are stored with the
+        # trained weights; cache paths remain local to the resource registry.
+        self.contextual_embedding_settings = contextual_embedding_settings
 
     def save(self, file):
         with open(file, "w") as f:
