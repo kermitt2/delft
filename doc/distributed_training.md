@@ -263,7 +263,7 @@ MODELS="date header" ARCHITECTURES="BidLSTM_CRF BidLSTM_CRF_FEATURES BidLSTM_Cha
 ./scripts/test_distributed_array.sh report ~/slurm_logs/test_smoke_20261003_101500
 ```
 
-The submitter prints the `report` command of its run. The report lists the tasks that failed
+The log of a task starts with the checkout and the commit whose code it runs. The submitter prints the `report` command of its run. The report lists the tasks that failed
 with their failed steps and their log, those that have no result (not run yet, still running,
 or stopped by the time limit), and exits with an error unless every task passed. The indices
 it prints are those to give to `ARRAY_SPEC` to run these tasks again: add `LOG_DIR=<the same

@@ -332,6 +332,13 @@ run_task() {
     [[ "$transformer" == - ]] || name+=" transformer=$transformer"
     echo ">>> [task $index] START $name"
 
+    # without the code of the checkout, python would run whatever delft its environment holds
+    if [[ ! -d "$CONTAINER_WORKDIR/delft" || ! -d "$CONTAINER_WORKDIR/data" ]]; then
+        echo ">>> [task $index] RESULT FAILED (no DeLFT checkout at $CONTAINER_WORKDIR) $name"
+        exit 1
+    fi
+    echo ">>> [task $index] CHECKOUT $CONTAINER_WORKDIR $(git -C "$CONTAINER_WORKDIR" log -1 --format='%h %s' 2>/dev/null || true)"
+
     local work_dir="$WORK_ROOT/task_$index"
     make_work_dir "$work_dir"
     cd "$work_dir"
@@ -411,6 +418,9 @@ if [[ "${1:-}" == __task ]]; then
             --work-root) WORK_ROOT=$2 ;;
             --keep-models) KEEP_MODELS=$2 ;;
             --python-bin) PYTHON_BIN=$2 ;;
+            # sbatch runs a copy of this script from its spool directory: the checkout cannot
+            # be told from where the script is, as it is on the login node
+            --checkout) CONTAINER_WORKDIR=$2 ;;
             --index) TASK_INDEX=$2 ;;
             *) echo "Unknown task setting: $1" >&2; exit 2 ;;
         esac
@@ -542,7 +552,7 @@ SBATCH_OPTS+=(--export=ALL
 
 TASK_ARGS=(--tasks-file "$TASKS_FILE" --steps "${STEPS[*]}" --max-epoch "$MAX_EPOCH"
            --fold-count "$FOLD_COUNT" --work-root "$WORK_ROOT" --keep-models "$KEEP_MODELS"
-           --python-bin "$PYTHON_BIN")
+           --python-bin "$PYTHON_BIN" --checkout "$CONTAINER_WORKDIR")
 
 job_id=$(sbatch --parsable "${SBATCH_OPTS[@]}" "$(readlink -f "$0")" __task "${TASK_ARGS[@]}" | cut -d';' -f1)
 
