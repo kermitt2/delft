@@ -23,8 +23,16 @@ special_character_removal = re.compile(r"[^A-Za-z\.\-\?\!\,\#\@\% ]", re.IGNOREC
 
 
 def uses_sentence_vectors(embeddings):
-    """Whether the embeddings are contextual: the vector of a word depends on its text."""
-    return embeddings is not None and hasattr(embeddings, "get_sentence_vectors")
+    """
+    Whether the embeddings are contextual, the vector of a word depending on its text,
+    or a stack holding contextual ones.
+    """
+    if embeddings is None:
+        return False
+    components = getattr(embeddings, "components", None)
+    if components:
+        return any(uses_sentence_vectors(component) for component in components)
+    return hasattr(embeddings, "get_sentence_vectors")
 
 
 def tokens_to_embed(text, maxlen=300):
@@ -48,8 +56,23 @@ def to_vector_single(text, embeddings, maxlen=300):
         # vector was the one of the word alone, without any context.
         x = np.zeros((maxlen, embeddings.embed_size), dtype=np.float32)
         window = tokens_to_embed(text, maxlen)
-        if len(window) > 0:
-            x[: len(window), :] = embeddings.get_sentence_vectors(window)
+        if len(window) == 0:
+            return x
+        # In a stack, the vectors of every part are those of the same tokens, the ones
+        # the contextual embeddings read: the other parts are given each of these
+        # tokens cleaned as the classifiers clean a text, and leave zeros for a token
+        # of which nothing remains (a number).
+        offset = 0
+        for component in getattr(embeddings, "components", None) or [embeddings]:
+            size = component.embed_size
+            if uses_sentence_vectors(component):
+                x[: len(window), offset : offset + size] = component.get_sentence_vectors(window)
+            else:
+                for i, word in enumerate(window):
+                    word = clean_text(word).strip()
+                    if word:
+                        x[i, offset : offset + size] = component.get_word_vector(word)
+            offset += size
         return x
 
     tokens = tokenizeAndFilterSimple(clean_text(text))

@@ -210,8 +210,8 @@ The matrix is rows × architectures: the 15 sequence labelling architectures for
 those without features for the other taggers, the 11 text classification ones for the
 classifiers. The embeddings and the transformers are not a dimension. They **rotate** over
 the tasks: an architecture without a transformer gets one of `none`, `glove-840B`,
-`potion-base-8M`, `static-retrieval-mrl-en`, `scibert-contextual` and
-`contextual:<most-embed-sci>`, a BERT one gets one of the five transformers of the `bert`
+`potion-base-8M`, `static-retrieval-mrl-en`, `scibert-contextual`,
+`contextual:<most-embed-sci>` and the stack `glove-840B+scibert-contextual`, a BERT one gets one of the five transformers of the `bert`
 profiles, and the choice shifts by one from a row to the next, so that every embedding meets
 every architecture as the rows go by. `PRODUCT=true` runs every architecture with every one
 of them instead, which is about six times as many tasks.

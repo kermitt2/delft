@@ -21,7 +21,7 @@ import numpy as np
 import torch
 
 from delft.sequenceLabelling.wrapper import Sequence
-from delft.utilities.Embeddings import CONTEXTUAL_TRANSFORMER_FORMAT
+from delft.utilities.Embeddings import uses_contextual_vectors
 
 
 class EncoderWrapper(torch.nn.Module):
@@ -235,7 +235,7 @@ def export_to_onnx(
     else:
         model_wrapper.load()
 
-    if getattr(model_wrapper.embeddings, "extension", None) == CONTEXTUAL_TRANSFORMER_FORMAT:
+    if uses_contextual_vectors(model_wrapper.embeddings):
         raise ValueError("ONNX export does not support models trained with contextual embeddings")
 
     os.makedirs(output_dir, exist_ok=True)
