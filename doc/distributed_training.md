@@ -243,7 +243,9 @@ the contextual vectors, under `data/db`, are shared with the checkout.
 | `WORK_ROOT` | Where the working directories go, in place of `data/test-runs/<run>`. |
 
 The [submission settings](#submission-settings) and the
-[cluster settings](#adapting-to-your-own-cluster) are those of the training submitter.
+[cluster settings](#adapting-to-your-own-cluster) are those of the training submitter, apart
+from the time limit of a task: one hour for `smoke`, 23 hours for `full`, unless `TIME_LIMIT`
+is set. A task stopped by the limit has no result in the report.
 
 ```sh
 # What a smoke run would do: every task with the command of each of its steps

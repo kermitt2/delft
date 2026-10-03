@@ -63,7 +63,7 @@ CONTAINER_MOUNTS=${CONTAINER_MOUNTS:-"/netscratch:/netscratch,$HOME:$HOME"}
 PARTITIONS=${PARTITIONS:-RTX3090,RTXA6000,RTXB6000,L40S}
 CPUS_PER_TASK=${CPUS_PER_TASK:-6}
 MEMORY=${MEMORY:-100G}
-TIME_LIMIT=${TIME_LIMIT:-1-00:00}
+TIME_LIMIT=${TIME_LIMIT:-}  # the default is the one of the profile
 SBATCH_EXTRA=${SBATCH_EXTRA:-}
 
 MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
@@ -437,10 +437,13 @@ case "$PROFILE" in
     smoke)
         MAX_EPOCH=${MAX_EPOCH-3}
         FOLD_COUNT=${FOLD_COUNT:-2}
+        # a few epochs: a task that takes longer hangs or is far slower than it should be
+        TIME_LIMIT=${TIME_LIMIT:-0-01:00}
         ;;
     full)
         MAX_EPOCH=${MAX_EPOCH-}
         FOLD_COUNT=${FOLD_COUNT:-5}
+        TIME_LIMIT=${TIME_LIMIT:-0-23:00}
         ;;
     report)
         [[ $# -eq 1 ]] || usage
