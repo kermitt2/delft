@@ -1,12 +1,15 @@
 # Training on a cluster (SLURM)
 
-DeLFT ships two shell scripts under [`scripts/`](https://github.com/kermitt2/delft/tree/master/scripts)
+DeLFT ships three shell scripts under [`scripts/`](https://github.com/kermitt2/delft/tree/master/scripts)
 for training on a GPU cluster:
 
 1. **`train_distributed_array.sh`**, a SLURM submitter run on the login node. One `sbatch`
    call submits a whole set of trainings as a throttled job array: the standard GROBID
    matrices, the license classifier, or a hyper-parameter sweep on one model.
-2. **`train_distributed.sh`**, a single-node, multi-GPU launcher: a thin wrapper around
+2. **`test_distributed_array.sh`**, the same kind of submitter for a test matrix: every
+   application with every architecture, trained, evaluated, trained with n folds and used,
+   see [Testing everything](#testing-everything).
+3. **`train_distributed.sh`**, a single-node, multi-GPU launcher: a thin wrapper around
    `torchrun` that you run *inside* an existing GPU allocation.
 
 > **Note on paths.** The submitter defaults to a specific cluster account: an enroot
@@ -169,6 +172,104 @@ ARCHITECTURES="gru lstm" ./scripts/train_distributed_array.sh license
 ./scripts/train_distributed_array.sh sweep date --architecture BidLSTM_CRF \
     --batch-size 8,16,32 --learning-rate 1e-3,5e-4
 ```
+
+## Testing everything
+
+```sh
+./scripts/test_distributed_array.sh {smoke|full} [GROUP ...]
+./scripts/test_distributed_array.sh report LOG_DIR
+```
+
+`test_distributed_array.sh` submits one array that exercises every application:
+
+- `smoke` limits every training to 3 epochs and the n-fold trainings to 2 folds. It tells
+  whether everything runs, not how well.
+- `full` trains with the epochs of every application and 5 folds, and gives scores to look at.
+
+A **group** is an application: `grobid` (one row per GROBID model with a training file),
+`ner`, `insult`, `dataset`, `citation`, `dataseer`, `license`, `software`, `software-context`
+and `toxic`. All of them run unless some are named after the profile. A group whose training
+data is not in the checkout is left out, with a note on the standard error.
+
+A **task** is one row with one architecture, and runs up to five steps one after the other:
+
+| Step | Taggers | Classifiers |
+|------|---------|-------------|
+| `train_eval` | `train_eval` | `train_eval` |
+| `train` | `train` | `train` |
+| `eval` | `eval` on the training file (`grobid`), on the test set (`ner`) | |
+| `tag` | `tag` (`grobid` models with sample texts, `insult`, `dataset`) | `classify` |
+| `nfold` | `train_eval --fold-count N` | `train_eval --fold-count N` (`train` for `toxic`) |
+
+An application runs the steps it has: `insult` only trains and tags, `toxic` has no
+`train_eval`, and an architecture with features is not used to tag. A task goes on after a
+failed step, apart from `eval` and `tag` which need the model of `train`, and fails when any
+of its steps did.
+
+The matrix is rows × architectures: the 15 sequence labelling architectures for `grobid`,
+those without features for the other taggers, the 11 text classification ones for the
+classifiers. The embeddings and the transformers are not a dimension. They **rotate** over
+the tasks: an architecture without a transformer gets one of `none`, `glove-840B`,
+`potion-base-8M`, `static-retrieval-mrl-en`, `scibert-contextual` and
+`contextual:scilons/most-embed-sci`, a BERT one gets one of the five transformers of the `bert`
+profiles or `scilons/most-embed-sci`, and the choice shifts by one from a row to the next, so that every embedding meets
+every architecture as the rows go by. `PRODUCT=true` runs every architecture with every one
+of them instead, which is about six times as many tasks.
+
+`scilons/most-embed-sci` is a private model: export `HF_ACCESS_TOKEN` with a token that can
+read it before submitting, the tasks inherit the variable. Any other model of the hub is
+tested the same way, with `TRANSFORMERS` or with `contextual:<identifier>` in `EMBEDDINGS`.
+
+Every task works in a directory of its own, `data/test-runs/<run>/task_<index>`, where the
+data of the checkout is linked and the models are saved. A run therefore never replaces the
+models of `data/models`, two tasks never write the same model, and the directory is removed
+when the task ends (`KEEP_MODELS=true` keeps it). The embeddings databases and the cache of
+the contextual vectors, under `data/db`, are shared with the checkout.
+
+| Variable | Effect |
+|----------|--------|
+| `MODELS` | GROBID models, in place of all those with a training file. |
+| `ARCHITECTURES` | Sequence labelling architectures, in place of all of them. |
+| `CLASSIFIER_ARCHITECTURES` | Text classification architectures, in place of all of them. |
+| `EMBEDDINGS` | Embeddings to rotate over, `none` standing for no pre-trained ones. |
+| `TRANSFORMERS` | Transformers to rotate over. |
+| `STEPS` | Steps to run, in place of `train_eval nfold train eval tag`. |
+| `MAX_EPOCH` | Epochs of every training: 3 for `smoke`, the default of the application for `full`. |
+| `FOLD_COUNT` | Folds of the `nfold` step: 2 for `smoke`, 5 for `full`. |
+| `PRODUCT=true` | Every embedding and transformer with every architecture. |
+| `KEEP_MODELS=true` | Keep the working directories and the models in them. |
+| `WORK_ROOT` | Where the working directories go, in place of `data/test-runs/<run>`. |
+
+The [submission settings](#submission-settings) and the
+[cluster settings](#adapting-to-your-own-cluster) are those of the training submitter.
+
+```sh
+# What a smoke run would do: every task with the command of each of its steps
+DRY_RUN=true ./scripts/test_distributed_array.sh smoke
+
+# Everything, 3 epochs, 8 tasks at a time
+MAX_PARALLEL_JOBS=8 ./scripts/test_distributed_array.sh smoke
+
+# The classifiers only
+./scripts/test_distributed_array.sh smoke citation license software software-context toxic
+
+# Two GROBID models, the architectures without a transformer, training and n folds only
+MODELS="date header" ARCHITECTURES="BidLSTM_CRF BidLSTM_CRF_FEATURES BidLSTM_ChainCRF" \
+    STEPS="train_eval nfold" ./scripts/test_distributed_array.sh full grobid
+
+# Which tasks passed, which failed and at which step
+./scripts/test_distributed_array.sh report ~/slurm_logs/test_smoke_20261003_101500
+```
+
+The submitter prints the `report` command of its run. The report lists the tasks that failed
+with their failed steps and their log, those that have no result (not run yet, still running,
+or stopped by the time limit), and exits with an error unless every task passed. The indices
+it prints are those to give to `ARRAY_SPEC` to run these tasks again: add `LOG_DIR=<the same
+directory>` so that the report covers both runs.
+
+Several tasks of a row need the same contextual vectors, and each computes them when they run
+at the same time on a corpus that is not cached yet. To compute them once, run the tasks with
+`scibert-contextual` of every row first (`DRY_RUN=true` gives their indices), then the rest.
 
 ## Running & monitoring
 
