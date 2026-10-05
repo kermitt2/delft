@@ -1,6 +1,6 @@
 # Training on a cluster (SLURM)
 
-DeLFT ships three shell scripts under [`scripts/`](https://github.com/kermitt2/delft/tree/master/scripts)
+DeLFT ships three shell scripts under [`scripts/`](https://github.com/kermitt2/delft/tree/dev/scripts)
 for training on a GPU cluster:
 
 1. **`train_distributed_array.sh`**, a SLURM submitter run on the login node. One `sbatch`

@@ -81,7 +81,7 @@ export WANDB_DIR=/path/to/wandb-logs
 
 ## On a cluster
 
-The SLURM submitter scripts under [`scripts/`](https://github.com/kermitt2/delft/tree/master/scripts)
+The SLURM submitter scripts under [`scripts/`](https://github.com/kermitt2/delft/tree/dev/scripts)
 already pass `--wandb` for their `train_eval` runs — see
 [Training on a cluster (SLURM)](distributed_training.md). Make sure `WANDB_API_KEY` is
 exported into the job environment (the scripts use `--export=ALL`, so exporting it on the
