@@ -33,6 +33,7 @@ class ModelConfig(object):
         text_features_indices=None,
         continuous_features_indices=None,
         whole_text_tokenization=False,
+        contextual_embedding_settings=None,
     ):
         self.model_name = model_name
         self.architecture = architecture
@@ -82,6 +83,9 @@ class ModelConfig(object):
         # delft.sequenceLabelling.whole_text. Saved with the model, which is tagged the
         # way it was trained.
         self.whole_text_tokenization = whole_text_tokenization
+        # Vector-defining contextual transformer settings are stored with the
+        # trained weights; cache paths remain local to the resource registry.
+        self.contextual_embedding_settings = contextual_embedding_settings
 
     def save(self, file):
         with open(file, "w") as f:

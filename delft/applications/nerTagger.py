@@ -818,7 +818,8 @@ if __name__ == "__main__":
         + "For local loading, use delft/resources-registry.json. "
         + "Be sure to use here the same name as in the registry, e.g. "
         + str(word_embeddings_examples)
-        + " and that the path in the registry to the embedding file is correct on your system.",
+        + ". Contextual embeddings include scibert-contextual and bert-base-cased-contextual, and can also be "
+        + "given as contextual:<HuggingFace model or local path>. Paths in the registry must be correct on your system.",
     )
     parser.add_argument(
         "--transformer",

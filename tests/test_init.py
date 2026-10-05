@@ -100,3 +100,12 @@ class TestDefaultNbWorkers:
         assert Classifier("test", device="cpu").nb_workers == 0
         # asked for, a number of workers is kept
         assert Sequence("test", embeddings_name=None, device="cpu", nb_workers=3).nb_workers == 3
+
+
+def test_torchscript_does_not_compile_fused_kernels():
+    """DeBERTa's scripted position functions were compiled with nvrtc, which a GPU environment may lack."""
+    import torch
+
+    import delft  # noqa: F401
+
+    assert not torch._C._jit_texpr_fuser_enabled()

@@ -226,6 +226,7 @@ def train_and_eval(
     architecture="gru",
     transformer=None,
     cascaded=False,
+    max_epoch=-1,
 ):
     if cascaded:
         return train_eval_cascaded(
@@ -236,7 +237,9 @@ def train_and_eval(
         )
 
     # classifier for deciding if we have a dataset or not in a sentence
-    train_and_eval_binary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
+    train_and_eval_binary(
+        embeddings_name, fold_count, architecture=architecture, transformer=transformer, max_epoch=max_epoch
+    )
 
     # classifier for deciding if the introduced dataset is a reuse of an existing one or is a new dataset
     # train_and_eval_reuse(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
@@ -248,7 +251,7 @@ def train_and_eval(
     # train_and_eval_secondary(embeddings_name, fold_count, architecture=architecture, transformer=transformer)
 
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None):
+def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None, max_epoch=-1):
     print("loading dataset type corpus...")
     # xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/all-binary.csv")
     xtr, y, _, _, list_classes, _, _ = load_dataseer_corpus_csv("data/textClassification/dataseer/phase1-2-binary.csv")
@@ -263,7 +266,7 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
 
     class_weights = None
 
-    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture)
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(architecture, max_epoch=max_epoch)
 
     model = Classifier(
         "dataseer-binary_" + architecture,
@@ -884,6 +887,7 @@ if __name__ == "__main__":
             architecture=architecture,
             transformer=transformer,
             cascaded=cascaded,
+            max_epoch=args.max_epoch,
         )
 
     if args.action == "classify":

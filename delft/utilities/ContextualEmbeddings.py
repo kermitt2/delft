@@ -140,6 +140,7 @@ class ContextualEmbeddings:
         local_files_only=False,
         lang="en",
         whole_text_tokenization=False,
+        revision=None,
     ):
         """
         With ``whole_text_tokenization`` the tokens of a sequence are joined back into
@@ -176,7 +177,8 @@ class ContextualEmbeddings:
         # the revision of the model the vectors come from, part of the identity of the
         # cache, and the commit of the Hub every file of the model is taken from
         self.revision = None
-        self._hub_revision = None
+        self._expected_revision = revision
+        self._hub_revision = None if os.path.isdir(str(model_reference)) else revision
         # what the model is to its cache: its identifier on the Hub, or, for a local
         # directory, its type alone, the revision telling which model of that type
         self._cache_model = str(model_reference)
@@ -191,7 +193,7 @@ class ContextualEmbeddings:
         self._shards = {}
         self._shards_pid = None
         self._memory = {}
-        self._warned_about_worker = False
+        self._warned_about_missing_subwords = False
         self._lock = threading.RLock()
 
         self._load_configuration()
@@ -259,6 +261,11 @@ class ContextualEmbeddings:
             # the commit the files of the Hub were resolved to, also from its cache
             self._hub_revision = getattr(config, "_commit_hash", None)
             self.revision = self._hub_revision
+        if self._expected_revision is not None and self.revision != self._expected_revision:
+            raise ValueError(
+                "contextual embedding model revision %r does not match the saved revision %r"
+                % (self.revision, self._expected_revision)
+            )
 
     def _load_tokenizer(self):
         transformers = _import_transformers()
@@ -295,14 +302,12 @@ class ContextualEmbeddings:
             if self._model is not None:
                 return
             torch = _import_torch()
-            transformers = _import_transformers()
-
-            if torch.utils.data.get_worker_info() is not None and not self._warned_about_worker:
-                self._warned_about_worker = True
-                print(
-                    "warning: contextual embeddings are computed in a DataLoader worker, "
-                    "call precompute() beforehand to avoid loading the transformer in every worker"
+            if torch.utils.data.get_worker_info() is not None:
+                raise RuntimeError(
+                    "a contextual embedding cache miss occurred in a DataLoader worker; "
+                    "precompute the sentence vectors in the main process before iterating the DataLoader"
                 )
+            transformers = _import_transformers()
 
             if self.device_name is not None:
                 device = torch.device(self.device_name)
@@ -415,7 +420,7 @@ class ContextualEmbeddings:
             return stacked.sum(dim=0)
         return stacked.mean(dim=0)
 
-    def _pool_subwords(self, piece_vectors, words_of_units, nb_words):
+    def _pool_subwords(self, piece_vectors, words_of_units, nb_words, tokens=None):
         """
         One vector per word, from the vectors of its sub-word units, ``words_of_units``
         giving the words of every unit (see ``_tokenize``). A word without any unit
@@ -423,21 +428,34 @@ class ContextualEmbeddings:
         """
         vectors = np.zeros((nb_words, self.embed_size), dtype=np.float32)
         pairs = [(unit, word) for unit, words in enumerate(words_of_units) for word in words]
-        if len(pairs) == 0:
-            return vectors
-        piece_vectors = piece_vectors[np.asarray([unit for unit, _ in pairs], dtype=np.int64)]
-        word_ids = np.asarray([word for _, word in pairs], dtype=np.int64)
-        if self.subword_pooling == "mean":
-            np.add.at(vectors, word_ids, piece_vectors)
-            counts = np.bincount(word_ids, minlength=nb_words).astype(np.float32)
-            vectors /= np.maximum(counts, 1.0)[:, None]
-        elif self.subword_pooling == "last":
-            # a later sub-word unit of the same word overwrites the earlier one
-            vectors[word_ids] = piece_vectors
+        if len(pairs) > 0:
+            piece_vectors = piece_vectors[np.asarray([unit for unit, _ in pairs], dtype=np.int64)]
+            word_ids = np.asarray([word for _, word in pairs], dtype=np.int64)
+            if self.subword_pooling == "mean":
+                np.add.at(vectors, word_ids, piece_vectors)
+                counts = np.bincount(word_ids, minlength=nb_words).astype(np.float32)
+                vectors /= np.maximum(counts, 1.0)[:, None]
+            elif self.subword_pooling == "last":
+                # a later sub-word unit of the same word overwrites the earlier one
+                vectors[word_ids] = piece_vectors
+            else:
+                # the units come in order: the first occurrence of a word is its first unit
+                _, first_positions = np.unique(word_ids, return_index=True)
+                vectors[word_ids[first_positions]] = piece_vectors[first_positions]
         else:
-            # the units come in order: the first occurrence of a word is its first unit
-            _, first_positions = np.unique(word_ids, return_index=True)
-            vectors[word_ids[first_positions]] = piece_vectors[first_positions]
+            word_ids = np.empty((0,), dtype=np.int64)
+
+        if tokens is not None and not self._warned_about_missing_subwords:
+            present = np.zeros((nb_words,), dtype=bool)
+            present[word_ids] = True
+            missing = [tokens[index] for index in np.flatnonzero(~present)]
+            if missing:
+                self._warned_about_missing_subwords = True
+                examples = ", ".join(repr(token) for token in missing[:5])
+                print(
+                    "warning: the contextual tokenizer produced no sub-word units for "
+                    f"tokens such as {examples}; their vectors stay zero"
+                )
         return vectors
 
     def embed_batch(self, token_lists):
@@ -500,7 +518,7 @@ class ContextualEmbeddings:
                 target_margin[better] = margin[better]
 
         return [
-            self._pool_subwords(piece_vectors[i], word_ids, len(token_lists[i]))
+            self._pool_subwords(piece_vectors[i], word_ids, len(token_lists[i]), token_lists[i])
             for i, (_, word_ids) in enumerate(tokenized)
         ]
 
@@ -525,6 +543,10 @@ class ContextualEmbeddings:
             fingerprint["tokenization"] = "whole-text"
         return fingerprint
 
+    def saved_settings(self):
+        """Portable settings needed to reproduce the vectors of a saved model."""
+        return self.fingerprint()
+
     def cache_env_path(self):
         """Directory of the LMDB cache, or None when the vectors are only kept in memory."""
         if not self.cache_path or self.cache_path == "None":
@@ -536,7 +558,12 @@ class ContextualEmbeddings:
 
     @staticmethod
     def sentence_key(tokens):
-        return hashlib.sha1("\x1f".join(tokens).encode("utf-8")).digest()
+        escape = "\x1e"
+        separator = "\x1f"
+        encoded = separator.join(
+            token.replace(escape, escape + escape).replace(separator, escape + separator) for token in tokens
+        )
+        return hashlib.sha1(encoded.encode("utf-8")).digest()
 
     # The cache is a directory of LMDB *shards*. A shard is written by a single
     # process in a temporary directory, and only becomes visible, through an
@@ -679,6 +706,8 @@ class ContextualEmbeddings:
             tokens = list(tokens)
             if max_sequence_length:
                 tokens = tokens[:max_sequence_length]
+            if not tokens or not any(tokens):
+                continue
             key = self.sentence_key(tokens)
             if key not in pending and key not in self._memory:
                 pending[key] = tokens
@@ -791,9 +820,17 @@ class ContextualEmbeddings:
         tokens = list(tokens)
         if len(tokens) == 0:
             return np.zeros((0, self.embed_size), dtype=np.float32)
+        if not any(tokens):
+            return np.zeros((len(tokens), self.embed_size), dtype=np.float32)
         vectors = self._lookup(self.sentence_key(tokens))
         if vectors is not None and vectors.shape[0] == len(tokens):
             return vectors
+        torch = _import_torch()
+        if torch.utils.data.get_worker_info() is not None:
+            raise RuntimeError(
+                "a contextual embedding cache miss occurred in a DataLoader worker; "
+                "precompute the sentence vectors in the main process before iterating the DataLoader"
+            )
         vectors = self.embed_batch([tokens])[0]
         return self._deserialize(self._serialize(vectors))
 

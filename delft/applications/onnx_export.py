@@ -21,6 +21,7 @@ import numpy as np
 import torch
 
 from delft.sequenceLabelling.wrapper import Sequence
+from delft.utilities.Embeddings import uses_contextual_vectors
 
 
 class EncoderWrapper(torch.nn.Module):
@@ -225,8 +226,6 @@ def export_to_onnx(
         max_char_length: Maximum character length per token
         model_path: Optional custom model path
     """
-    os.makedirs(output_dir, exist_ok=True)
-
     print(f"Loading model: {model_name}")
 
     # Load the model
@@ -235,6 +234,11 @@ def export_to_onnx(
         model_wrapper.load(dir_path=model_path)
     else:
         model_wrapper.load()
+
+    if uses_contextual_vectors(model_wrapper.embeddings):
+        raise ValueError("ONNX export does not support models trained with contextual embeddings")
+
+    os.makedirs(output_dir, exist_ok=True)
 
     model = model_wrapper.model
     preprocessor = model_wrapper.p

@@ -165,11 +165,126 @@ def viterbi_decode_numpy(
     return out
 
 
+LOSS_REDUCTIONS = ("none", "sum", "mean", "token_mean")
+
+# Under a model on a GPU, the loss of a batch with at most this many emission
+# scores per timestep (batch size x number of tags) is computed on the CPU.
+# On a GPU the recurrence costs its kernel launches, 0.24 to 0.28 ms a timestep
+# whatever the batch (the same for 4 sequences of 37 tags as for 2048 of 5),
+# while on the CPU it costs its arithmetic, which grows with the batch.
+# Measured as CPU over GPU time of a step of the loss, by batch x tags, on two
+# nodes with 6 CPU threads each:
+#   RTX 3090 — 150: 0.56, 296: 0.65, 480: 0.72, 592: 0.84, 680: 0.82,
+#              960: 0.97, 1184: 1.25, 1920: 1.48, 7400: 2.91
+#   A40      — 150: 0.64, 296: 0.79, 480: 0.88, 592: 1.00, 680: 0.99,
+#              960: 1.23, 1184: 1.11, 1920: 1.86, 7400: 2.85
+# for 5, 15 and 37 tags alike, at 100 positions as at 2000. The crossover is
+# near 600 on the faster card and between 750 and 1000 on the slower one, so
+# the bound is under both: at it the CPU wins on either node, and what it
+# gives up above it is a few milliseconds. Below it one CPU thread does as well
+# as six. The long sequences of few tags (segmentation, reference-segmenter)
+# sit at the left end, where the CPU takes about two thirds of the time;
+# batches of short ones (citation) at the right.
+CPU_LOSS_MAX_SCORES_PER_STEP = 512
+
+
+def loss_device(device: torch.device, batch_size: int, num_tags: int) -> torch.device:
+    """Where the loss of a batch given on ``device`` is computed: see ``CPU_LOSS_MAX_SCORES_PER_STEP``."""
+    if device.type == "cuda" and batch_size * num_tags <= CPU_LOSS_MAX_SCORES_PER_STEP:
+        return torch.device("cpu")
+    return device
+
+
+def gold_path_score(
+    emissions: torch.Tensor,
+    tags: torch.Tensor,
+    mask: torch.Tensor,
+    start_transitions: torch.Tensor,
+    transitions: torch.Tensor,
+    end_transitions: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Score of the gold tag sequences, the numerator of the CRF likelihood.
+
+    pytorch-crf walks the sequence for this, one timestep at a time. Nothing in
+    it depends on the previous timestep though — the tags are given — so it is
+    one gather over the emissions and one over the transitions.
+
+    Args:
+        emissions: [batch_size, seq_length, num_tags]
+        tags: [batch_size, seq_length]
+        mask: [batch_size, seq_length] bool, each sequence a prefix of valid
+            positions, the first one always valid.
+
+    Returns:
+        [batch_size]
+    """
+    mask_values = mask.to(emissions.dtype)
+    emitted = emissions.gather(2, tags.unsqueeze(2)).squeeze(2)  # [B,T]
+    moved = transitions[tags[:, :-1], tags[:, 1:]]  # [B,T-1]
+
+    score = start_transitions[tags[:, 0]] + emitted[:, 0]
+    score = score + ((moved + emitted[:, 1:]) * mask_values[:, 1:]).sum(dim=1)
+
+    last_positions = mask.long().sum(dim=1) - 1
+    last_tags = tags.gather(1, last_positions.unsqueeze(1)).squeeze(1)
+    return score + end_transitions[last_tags]
+
+
+def log_partition(
+    emissions: torch.Tensor,
+    mask: Optional[torch.Tensor],
+    start_transitions: torch.Tensor,
+    transitions: torch.Tensor,
+    end_transitions: torch.Tensor,
+) -> torch.Tensor:
+    """
+    Log partition function, the denominator of the CRF likelihood, by the
+    forward algorithm.
+
+    The recurrence has to run timestep by timestep, and what it costs is the
+    number of operations it dispatches rather than their arithmetic: measured on
+    a GPU, a step of the loss takes the same time for a batch of 200 as for a
+    batch of 20. So the loop is kept to as few operations as it can be:
+
+    - the timesteps are unbound once, ahead of the loop. Indexing the emissions
+      inside it, as pytorch-crf does, makes the backward pass build a gradient
+      of the size of the whole tensor at every timestep;
+    - the emission is added after the logsumexp rather than inside it, since it
+      does not depend on the previous tag;
+    - with ``mask=None`` nothing is padded and the torch.where is dropped.
+
+    Args:
+        emissions: [batch_size, seq_length, num_tags]
+        mask: [batch_size, seq_length] bool, or None when every position of
+            every sequence is valid.
+
+    Returns:
+        [batch_size]
+    """
+    steps = emissions.unbind(1)
+    score = start_transitions + steps[0]
+
+    if mask is None:
+        for i in range(1, len(steps)):
+            score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
+    else:
+        valid = mask.unsqueeze(2).unbind(1)
+        for i in range(1, len(steps)):
+            next_score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
+            score = torch.where(valid[i], next_score, score)
+
+    return torch.logsumexp(score + end_transitions, dim=1)
+
+
 class CRF(nn.Module):
     """
-    Conditional Random Field layer using pytorch-crf.
+    Conditional Random Field layer, with the parameters of pytorch-crf.
 
-    This is the primary CRF implementation for models like BidLSTM_CRF.
+    This is the primary CRF implementation for models like BidLSTM_CRF. The
+    transition parameters are held by a ``torchcrf.CRF``, so that a saved model
+    keeps its ``crf.crf.*`` weights; the loss and the decoding are this
+    module's own, computing what pytorch-crf computes in fewer operations.
 
     Args:
         num_tags: Number of tags/labels
@@ -210,23 +325,102 @@ class CRF(nn.Module):
             emissions: Emission scores [batch_size, seq_len, num_tags]
             tags: Gold tag sequence [batch_size, seq_len] (required for training)
             mask: Mask tensor [batch_size, seq_len] (1 = valid, 0 = pad)
-            reduction: Loss reduction method ('mean', 'sum', 'none')
+            reduction: Loss reduction method ('mean' and 'sum' over the
+                sequences, 'token_mean' over the valid positions, 'none')
 
         Returns:
             If tags is provided: negative log-likelihood loss
             If tags is None: best tag sequence
         """
-        if HAS_TORCHCRF:
-            if tags is not None:
-                # Training: compute negative log-likelihood
-                if mask is not None:
-                    mask = mask.bool()
-                return -self.crf(emissions, tags, mask=mask, reduction=reduction)
-            else:
-                # Inference: decode best sequence
-                return self.decode(emissions, mask=mask)
+        if tags is None:
+            # Inference: decode best sequence
+            return self.decode(emissions, mask=mask)
+        # Training: compute negative log-likelihood
+        return self.neg_log_likelihood(emissions, tags, mask=mask, reduction=reduction)
+
+    def _transition_parameters(self):
+        """The start, transition and end scores, from pytorch-crf's layer when there is one."""
+        holder = getattr(self, "crf", self)
+        return holder.start_transitions, holder.transitions, holder.end_transitions
+
+    def neg_log_likelihood(
+        self,
+        emissions: torch.Tensor,
+        tags: torch.Tensor,
+        mask: Optional[torch.Tensor] = None,
+        reduction: str = "mean",
+    ) -> torch.Tensor:
+        """
+        Negative log-likelihood of the gold tag sequences.
+
+        Computes ``-torchcrf.CRF.forward(...)`` with this module's own
+        :func:`gold_path_score` and :func:`log_partition` rather than
+        delegating to it: the same loss and the same gradients, to rounding,
+        computed in about a third of the time on a GPU.
+        ``tests/utilities/test_crf_pytorch.py`` pins both against pytorch-crf.
+
+        A small batch given on a GPU is moved to the CPU for it, as
+        :func:`loss_device` decides; the gradients flow back to the GPU and
+        the loss is returned there.
+
+        Arguments are those of :meth:`forward`, in the layout ``batch_first``
+        says.
+        """
+        if emissions.dim() != 3:
+            raise ValueError(f"emissions must have dimension of 3, got {emissions.dim()}")
+        if emissions.size(2) != self.num_tags:
+            raise ValueError(f"expected last dimension of emissions is {self.num_tags}, got {emissions.size(2)}")
+        if emissions.shape[:2] != tags.shape:
+            raise ValueError(
+                "the first two dimensions of emissions and tags must match, "
+                f"got {tuple(emissions.shape[:2])} and {tuple(tags.shape)}"
+            )
+        if mask is not None and emissions.shape[:2] != mask.shape:
+            raise ValueError(
+                "the first two dimensions of emissions and mask must match, "
+                f"got {tuple(emissions.shape[:2])} and {tuple(mask.shape)}"
+            )
+        if reduction not in LOSS_REDUCTIONS:
+            raise ValueError(f"invalid reduction: {reduction}")
+
+        if not self.batch_first:
+            emissions = emissions.transpose(0, 1)
+            tags = tags.transpose(0, 1)
+            if mask is not None:
+                mask = mask.transpose(0, 1)
+
+        device = emissions.device
+        computed_on = loss_device(device, emissions.size(0), self.num_tags)
+        parameters = self._transition_parameters()
+        if computed_on != device:
+            emissions, tags = emissions.to(computed_on), tags.to(computed_on)
+            mask = None if mask is None else mask.to(computed_on)
+            parameters = tuple(parameter.to(computed_on) for parameter in parameters)
+        start_transitions, transitions, end_transitions = parameters
+
+        padded_mask = None
+        if mask is not None:
+            mask = mask.bool()
+            # Both answers in one read, which is the one device sync of the loss.
+            nothing_padded, first_valid = torch.stack([mask.all(), mask[:, 0].all()]).tolist()
+            if not first_valid:
+                raise ValueError("mask of the first timestep must all be on")
+            if not nothing_padded:
+                padded_mask = mask
         else:
-            return self._forward_custom(emissions, tags, mask, reduction)
+            mask = torch.ones_like(tags, dtype=torch.bool)
+
+        numerator = gold_path_score(emissions, tags, mask, start_transitions, transitions, end_transitions)
+        denominator = log_partition(emissions, padded_mask, start_transitions, transitions, end_transitions)
+        nll = denominator - numerator
+
+        if reduction == "sum":
+            nll = nll.sum()
+        elif reduction == "mean":
+            nll = nll.mean()
+        elif reduction == "token_mean":
+            nll = nll.sum() / mask.to(emissions.dtype).sum()
+        return nll.to(device)
 
     def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """
@@ -271,74 +465,6 @@ class CRF(nn.Module):
             )
         else:
             return self._viterbi_decode_custom(emissions, mask)
-
-    def _forward_custom(
-        self,
-        emissions: torch.Tensor,
-        tags: torch.Tensor,
-        mask: Optional[torch.Tensor],
-        reduction: str,
-    ) -> torch.Tensor:
-        """Custom forward pass without pytorch-crf."""
-        if mask is None:
-            mask = torch.ones_like(tags, dtype=torch.bool)
-        else:
-            mask = mask.bool()
-
-        # Compute log-likelihood
-        numerator = self._compute_score(emissions, tags, mask)
-        denominator = self._compute_normalizer(emissions, mask)
-        llh = numerator - denominator
-
-        if reduction == "mean":
-            return -llh.mean()
-        elif reduction == "sum":
-            return -llh.sum()
-        else:
-            return -llh
-
-    def _compute_score(self, emissions: torch.Tensor, tags: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Compute the score of a tag sequence."""
-        batch_size, seq_length = tags.shape
-
-        # Start transition score
-        score = self.start_transitions[tags[:, 0]]
-
-        # Emission and transition scores
-        for i in range(seq_length):
-            score += emissions[:, i].gather(1, tags[:, i : i + 1]).squeeze(1) * mask[:, i].float()
-            if i < seq_length - 1:
-                transition_score = self.transitions[tags[:, i], tags[:, i + 1]]
-                score += transition_score * mask[:, i + 1].float()
-
-        # End transition score (at last valid position)
-        seq_ends = mask.long().sum(dim=1) - 1
-        last_tags = tags.gather(1, seq_ends.unsqueeze(1)).squeeze(1)
-        score += self.end_transitions[last_tags]
-
-        return score
-
-    def _compute_normalizer(self, emissions: torch.Tensor, mask: torch.Tensor) -> torch.Tensor:
-        """Compute the partition function using forward algorithm."""
-        batch_size, seq_length, num_tags = emissions.shape
-
-        # Initialize alpha with start transitions
-        alpha = self.start_transitions + emissions[:, 0]
-
-        for i in range(1, seq_length):
-            emit_score = emissions[:, i].unsqueeze(1)  # [batch, 1, num_tags]
-            trans_score = self.transitions.unsqueeze(0)  # [1, num_tags, num_tags]
-            alpha_expand = alpha.unsqueeze(2)  # [batch, num_tags, 1]
-
-            next_alpha = alpha_expand + trans_score + emit_score
-            next_alpha = torch.logsumexp(next_alpha, dim=1)
-
-            # Apply mask
-            alpha = torch.where(mask[:, i : i + 1].bool(), next_alpha, alpha)
-
-        # Add end transitions
-        alpha = alpha + self.end_transitions
-        return torch.logsumexp(alpha, dim=1)
 
     def _viterbi_decode_custom(self, emissions: torch.Tensor, mask: Optional[torch.Tensor]) -> List[List[int]]:
         """Viterbi decoding without pytorch-crf."""
@@ -466,170 +592,89 @@ class ChainCRF(nn.Module):
         """
         Compute CRF negative log-likelihood loss.
 
+        ``U``, ``b_start`` and ``b_end`` are the transitions, start transitions and end
+        transitions of ``CRF``, so the loss is the one of ``CRF.neg_log_likelihood`` with
+        them: the same gold-path score and log-partition functions, the same placement on a
+        GPU. Positions a mask leaves out take no part in either.
+
         Args:
             emissions: Emission scores [batch_size, seq_len, num_tags]
             tags: Gold tag sequence [batch_size, seq_len]
-            mask: Mask tensor [batch_size, seq_len]
+            mask: Mask tensor [batch_size, seq_len], on at the first timestep of every sequence
 
         Returns:
-            Scalar loss tensor
+            Scalar loss tensor, the mean over the batch
         """
-        # Add boundary energies
-        x = self._add_boundary_energy(emissions, mask)
+        if emissions.dim() != 3:
+            raise ValueError(f"emissions must have dimension of 3, got {emissions.dim()}")
+        if emissions.shape[:2] != tags.shape:
+            raise ValueError(
+                f"the first two dimensions of emissions and tags must match, got {tuple(emissions.shape[:2])} "
+                f"and {tuple(tags.shape)}"
+            )
+        if mask is not None and emissions.shape[:2] != mask.shape:
+            raise ValueError(
+                f"the first two dimensions of emissions and mask must match, got {tuple(emissions.shape[:2])} "
+                f"and {tuple(mask.shape)}"
+            )
 
-        # Compute path energy for gold sequence
-        path_e = self._path_energy(tags, x, mask)
+        device = emissions.device
+        computed_on = loss_device(device, emissions.size(0), emissions.size(-1))
+        parameters = (self.b_start, self.U, self.b_end)
+        if computed_on != device:
+            emissions, tags = emissions.to(computed_on), tags.to(computed_on)
+            mask = None if mask is None else mask.to(computed_on)
+            parameters = tuple(parameter.to(computed_on) for parameter in parameters)
+        b_start, U, b_end = parameters
 
-        # Compute partition function (log of sum of all path energies)
-        free_e = self._free_energy(x, mask)
+        padded_mask = None
+        if mask is not None:
+            mask = mask.bool()
+            # Both answers in one read, which is the one device sync of the loss.
+            nothing_padded, first_valid = torch.stack([mask.all(), mask[:, 0].all()]).tolist()
+            if not first_valid:
+                raise ValueError("mask of the first timestep must all be on")
+            if not nothing_padded:
+                padded_mask = mask
+        else:
+            mask = torch.ones_like(tags, dtype=torch.bool)
 
-        # NLL = -E(y, x) + log(Z)
-        nll = -path_e + free_e
-
-        return nll.mean()
+        numerator = gold_path_score(emissions, tags, mask, b_start, U, b_end)
+        denominator = log_partition(emissions, padded_mask, b_start, U, b_end)
+        return (denominator - numerator).mean().to(device)
 
     def decode(self, emissions: torch.Tensor, mask: Optional[torch.Tensor] = None) -> List[List[int]]:
         """
         Viterbi decoding to find best tag sequence.
 
+        Decodes as ``CRF.decode`` does, with the same two implementations chosen by batch
+        size, on the CPU whatever device the model sits on: the loop is latency-bound.
+
         Args:
             emissions: Emission scores [batch_size, seq_len, num_tags]
-            mask: Mask tensor [batch_size, seq_len]
+            mask: Mask tensor [batch_size, seq_len], the valid positions of a sequence
+                coming first
 
         Returns:
             Best tag sequence of each sequence of the batch, as lists like ``CRF.decode``
             so that the two layers can stand for each other. Every list has seq_len
             tags: the positions a mask leaves out hold the tag 0.
         """
-        batch_size, seq_len, num_tags = emissions.shape
-        device = emissions.device
-
-        # Add boundary energies
-        x = self._add_boundary_energy(emissions, mask)
-
-        # Forward pass with max instead of logsumexp
-        alpha = x[:, 0, :]  # [batch, num_tags]
-        backpointers = []
-
-        for t in range(1, seq_len):
-            # [batch, num_tags, 1] + [num_tags, num_tags] -> [batch, num_tags, num_tags]
-            broadcast_alpha = alpha.unsqueeze(2)
-            next_score = broadcast_alpha + self.U.unsqueeze(0) + x[:, t, :].unsqueeze(1)
-
-            # Max over previous tags
-            alpha, bp = next_score.max(dim=1)  # [batch, num_tags]
-            backpointers.append(bp)
-
-            # Apply mask if provided
-            if mask is not None:
-                alpha = torch.where(
-                    mask[:, t : t + 1].bool(),
-                    alpha,
-                    x[:, t, :],  # Reset for masked positions
-                )
-
-        # Backtrack
-        best_paths = torch.zeros(batch_size, seq_len, dtype=torch.long, device=device)
-        best_last = alpha.argmax(dim=1)
-        best_paths[:, -1] = best_last
-
-        for t in range(seq_len - 2, -1, -1):
-            best_paths[:, t] = backpointers[t].gather(1, best_paths[:, t + 1 : t + 2]).squeeze(1)
-
-        # Apply mask
-        if mask is not None:
-            best_paths = best_paths * mask.long()
-
-        return best_paths.tolist()
-
-    def _add_boundary_energy(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Add start and end boundary energies to emission scores."""
+        batch_size, seq_len, _ = emissions.shape
+        emissions = emissions.detach().cpu()
         if mask is None:
-            # Add start boundary to first position
-            x = x.clone()
-            x[:, 0, :] = x[:, 0, :] + self.b_start
-            x[:, -1, :] = x[:, -1, :] + self.b_end
+            mask = torch.ones(batch_size, seq_len, dtype=torch.bool)
         else:
-            x = x.clone()
-            # Add start boundary to first valid position
-            first_mask = self._get_first_mask(mask)
-            x = x + first_mask.unsqueeze(-1) * self.b_start
-
-            # Add end boundary to last valid position
-            last_mask = self._get_last_mask(mask)
-            x = x + last_mask.unsqueeze(-1) * self.b_end
-
-        return x
-
-    def _get_first_mask(self, mask: torch.Tensor) -> torch.Tensor:
-        """Get mask for first valid position in each sequence."""
-        # Shift mask right and compare
-        shifted = torch.cat([torch.zeros_like(mask[:, :1]), mask[:, :-1]], dim=1)
-        return (mask > shifted).float()
-
-    def _get_last_mask(self, mask: torch.Tensor) -> torch.Tensor:
-        """Get mask for last valid position in each sequence."""
-        # Shift mask left and compare
-        shifted = torch.cat([mask[:, 1:], torch.zeros_like(mask[:, -1:])], dim=1)
-        return (mask > shifted).float()
-
-    def _path_energy(self, tags: torch.Tensor, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Compute the energy of a tag path."""
-        batch_size, seq_len = tags.shape
-        num_tags = x.size(-1)
-
-        # Emission energy
-        tags_one_hot = torch.nn.functional.one_hot(tags, num_tags).float()
-        emission_energy = (x * tags_one_hot).sum(dim=-1)  # [batch, seq_len]
-
-        if mask is not None:
-            emission_energy = emission_energy * mask.float()
-
-        emission_energy = emission_energy.sum(dim=1)  # [batch]
-
-        # Transition energy
-        tags_from = tags[:, :-1]  # [batch, seq_len-1]
-        tags_to = tags[:, 1:]  # [batch, seq_len-1]
-
-        # Flatten transition indices
-        U_flat = self.U.view(-1)
-        trans_indices = tags_from * num_tags + tags_to
-        trans_energy = U_flat[trans_indices]  # [batch, seq_len-1]
-
-        if mask is not None:
-            trans_mask = mask[:, :-1] * mask[:, 1:]
-            trans_energy = trans_energy * trans_mask.float()
-
-        trans_energy = trans_energy.sum(dim=1)  # [batch]
-
-        return emission_energy + trans_energy
-
-    def _free_energy(self, x: torch.Tensor, mask: Optional[torch.Tensor] = None) -> torch.Tensor:
-        """Compute the partition function (log normalizer) using forward algorithm."""
-        batch_size, seq_len, num_tags = x.shape
-
-        # Initialize alpha with first emission
-        alpha = x[:, 0, :]  # [batch, num_tags]
-
-        for t in range(1, seq_len):
-            # [batch, num_tags, 1] + [num_tags, num_tags] + [batch, 1, num_tags]
-            broadcast_alpha = alpha.unsqueeze(2)
-            broadcast_emit = x[:, t, :].unsqueeze(1)
-            next_alpha = broadcast_alpha + self.U.unsqueeze(0) + broadcast_emit
-
-            # Log-sum-exp over previous tags
-            alpha = torch.logsumexp(next_alpha, dim=1)
-
-            # Apply mask
-            if mask is not None:
-                alpha = torch.where(
-                    mask[:, t : t + 1].bool(),
-                    alpha,
-                    alpha,  # Keep alpha unchanged for masked positions
-                )
-
-        # Final log-sum-exp over all tags
-        return torch.logsumexp(alpha, dim=1)
+            mask = mask.bool().cpu()
+        decode = viterbi_decode_numpy if batch_size <= NUMPY_DECODE_MAX_BATCH else viterbi_decode
+        paths = decode(
+            emissions.transpose(0, 1),
+            mask.transpose(0, 1),
+            self.b_start.detach().cpu(),
+            self.U.detach().cpu(),
+            self.b_end.detach().cpu(),
+        )
+        return [path + [0] * (seq_len - len(path)) for path in paths]
 
 
 def sparse_crf_loss_masked(emissions: torch.Tensor, tags: torch.Tensor, crf: CRF, mask_value: int = 0) -> torch.Tensor:

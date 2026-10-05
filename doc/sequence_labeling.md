@@ -1,6 +1,6 @@
 ## Sequence Labelling
 
-> ⚠️ **ELMo support was removed in DeLFT 0.4.x.** RNN architectures can no longer be combined with ELMo contextualised embeddings. From 0.4.x onwards, transformer-based architectures (`BERT_CRF`, `BERT_ChainCRF`, …) cover the same use case.
+> **ELMo support was removed in DeLFT 0.4.x.** RNN architectures can nevertheless use contextual embeddings from a frozen HuggingFace transformer with `--embedding scibert-contextual`, another contextual registry name, or `--embedding contextual:<model>`. Unlike the `BERT*` architectures, this keeps the transformer frozen and trains only the RNN; see [Embeddings](embeddings.md#contextual-embeddings-from-a-frozen-transformer).
 
 ### Available models
 

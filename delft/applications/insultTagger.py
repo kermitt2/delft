@@ -3,6 +3,8 @@ import json
 import os
 import time
 
+from sklearn.model_selection import train_test_split
+
 from delft.sequenceLabelling import Sequence
 from delft.sequenceLabelling.reader import load_data_and_labels_xml_file
 from delft.utilities.Utilities import set_random_seed, t_or_f
@@ -81,6 +83,65 @@ def train(
     )
     model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     print("training done")
+
+    # saving the model (must be called after eval for multiple fold training)
+    model.save()
+
+
+# train on a part of the training set and evaluate on the validation set
+def train_eval(
+    embeddings_name=None,
+    architecture="BidLSTM_CRF",
+    transformer=None,
+    fold_count=1,
+    learning_rate=None,
+    batch_size=-1,
+    max_epoch=-1,
+    early_stop=None,
+    multi_gpu=False,
+    report_to_wandb=False,
+    wandb_project=None,
+    num_workers=None,
+):
+    batch_size, maxlen, patience, early_stop, max_epoch, embeddings_name = configure(
+        architecture, embeddings_name, batch_size, max_epoch, early_stop
+    )
+    root = "data/sequenceLabelling/toxic/"
+
+    print("Loading data...")
+    x_all, y_all = load_data_and_labels_xml_file(os.path.join(root, "corrected.xml"))
+    x_eval, y_eval = load_data_and_labels_xml_file(os.path.join(root, "valid.xml"))
+    # the validation set of the corpus is the evaluation set: the one of the training is held out of the train set
+    x_train, x_valid, y_train, y_valid = train_test_split(x_all, y_all, test_size=0.1, shuffle=True)
+    print(len(x_train), "train sequences")
+    print(len(x_valid), "validation sequences")
+    print(len(x_eval), "evaluation sequences")
+
+    model = Sequence(
+        "insult-" + architecture,
+        max_epoch=max_epoch,
+        batch_size=batch_size,
+        max_sequence_length=maxlen,
+        embeddings_name=embeddings_name,
+        architecture=architecture,
+        fold_number=fold_count,
+        patience=patience,
+        early_stop=early_stop,
+        transformer_name=transformer,
+        learning_rate=learning_rate,
+        report_to_wandb=report_to_wandb,
+        wandb_project=wandb_project,
+        nb_workers=num_workers,
+        short_model_name="insult",
+    )
+    if fold_count == 1:
+        model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
+    else:
+        model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
+    print("training done")
+
+    print("\nEvaluation:")
+    model.eval(x_eval, y_eval)
 
     # saving the model (must be called after eval for multiple fold training)
     model.save()
@@ -170,7 +231,8 @@ if __name__ == "__main__":
         + "For local loading, use delft/resources-registry.json. "
         + "Be sure to use here the same name as in the registry, e.g. "
         + str(word_embeddings_examples)
-        + " and that the path in the registry to the embedding file is correct on your system.",
+        + ". Contextual embeddings include scibert-contextual and bert-base-cased-contextual, and can also be "
+        + "given as contextual:<HuggingFace model or local path>. Paths in the registry must be correct on your system.",
     )
     parser.add_argument(
         "--transformer",
@@ -223,8 +285,8 @@ if __name__ == "__main__":
     args = parser.parse_args()
     set_random_seed(args.seed)
 
-    if args.action not in ("train", "tag"):
-        print("action not specified, must be one of [train,tag]")
+    if args.action not in ("train", "train_eval", "tag"):
+        print("action not specified, must be one of [train,train_eval,tag]")
 
     embeddings_name = args.embedding
     architecture = args.architecture
@@ -239,7 +301,7 @@ if __name__ == "__main__":
     wandb_project = args.wandb_project
     num_workers = args.num_workers
 
-    if args.action == "train":
+    if args.action in ("train", "train_eval"):
         if embeddings_name is None and not (architecture and "BERT" in architecture):
             # No word embeddings, and no transformer inside the architecture: train character-only (issue #216).
             print("No --embedding given: training without word embeddings (char-only).")
@@ -254,6 +316,24 @@ if __name__ == "__main__":
             embeddings_name=embeddings_name,
             architecture=architecture,
             transformer=transformer,
+            learning_rate=learning_rate,
+            batch_size=batch_size,
+            max_epoch=max_epoch,
+            early_stop=early_stop,
+            multi_gpu=multi_gpu,
+            report_to_wandb=wandb,
+            wandb_project=wandb_project,
+            num_workers=num_workers,
+        )
+
+    if args.action == "train_eval":
+        if args.fold_count < 1:
+            raise ValueError("fold-count should be equal or more than 1")
+        train_eval(
+            embeddings_name=embeddings_name,
+            architecture=architecture,
+            transformer=transformer,
+            fold_count=args.fold_count,
             learning_rate=learning_rate,
             batch_size=batch_size,
             max_epoch=max_epoch,

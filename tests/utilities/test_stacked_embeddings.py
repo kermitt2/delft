@@ -364,6 +364,48 @@ class TestSequenceLabelling:
         assert reloaded.embeddings.embed_size == WORD_SIZE + HIDDEN_SIZE
         assert reloaded.tag([text], "json")["texts"] == expected
 
+    def test_the_settings_of_the_contextual_part_are_saved_with_the_model(self, resources, tmp_path, monkeypatch):
+        import delft.sequenceLabelling.wrapper as wrapper
+
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: resources["registry"])
+        monkeypatch.chdir(tmp_path)
+
+        model = wrapper.Sequence(
+            "stacked-test", architecture="BidLSTM_CRF", embeddings_name="tiny-glove+tiny-contextual", nb_workers=0
+        )
+        contextual = model.embeddings.components[1].model
+        saved = model.model_config.contextual_embedding_settings
+        # the static part has nothing to keep
+        assert saved == {"components": {"tiny-contextual": contextual.fingerprint()}}
+
+        x = np.array([["the", "cat", "sat"], ["a", "dog", "ran"]], dtype=object)
+        y = np.array([["O", "B-ANIMAL", "O"], ["O", "B-ANIMAL", "O"]], dtype=object)
+        model.model_config.max_epoch = model.training_config.max_epoch = 1
+        model.train(x, y, x_valid=x, y_valid=y)
+        text = "the cat sat on the mat"
+        expected = model.tag([text], "json")["texts"]
+        model.save(str(tmp_path / "saved"))
+
+        # the registry entry changes after the training: the vectors are still those of the saved model
+        entry = next(e for e in resources["registry"]["embeddings"] if e["name"] == "tiny-contextual")
+        entry.update({"layers": [-1], "subword-pooling": "last"})
+        assert _stack(resources).components[1].model.fingerprint() != contextual.fingerprint()
+
+        reloaded = wrapper.Sequence("stacked-test")
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.embeddings.components[1].model.saved_settings() == contextual.fingerprint()
+        assert reloaded.tag([text], "json")["texts"] == expected
+
+    def test_a_stack_of_static_embeddings_saves_no_contextual_settings(self, resources):
+        assert _stack(resources, "tiny-glove+tiny-static").saved_contextual_settings() is None
+
+    def test_saved_settings_of_an_embedding_that_is_not_in_the_stack_are_rejected(self, resources):
+        settings = {"components": {"another-contextual": _stack(resources).components[1].saved_contextual_settings()}}
+        with pytest.raises(ValueError, match="not components of the stacked embeddings"):
+            Embeddings(
+                "tiny-glove+tiny-contextual", resource_registry=resources["registry"], contextual_settings=settings
+            )
+
 
 class TestTextClassification:
     """
