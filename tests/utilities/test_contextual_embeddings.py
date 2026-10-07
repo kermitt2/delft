@@ -103,6 +103,32 @@ SENTENCE = ["the", "cats", "sat", "on", "the", "mat"]
 LONG_SENTENCE = [WORDS[i % len(WORDS)] for i in range(40)]
 
 
+def make_tiny_byte_level_model(directory):
+    """A tiny random BERT with the byte-level BPE tokenizer of the whole text tests."""
+    from tests.sequence_labelling.whole_text_test import _byte_level_tokenizer
+
+    directory = str(directory)
+    tokenizer = _byte_level_tokenizer()
+    tokenizer.model_max_length = MAX_POSITIONS
+    tokenizer.save_pretrained(directory)
+    torch.manual_seed(7)
+    config = transformers.BertConfig(
+        vocab_size=len(tokenizer),
+        hidden_size=HIDDEN_SIZE,
+        num_hidden_layers=NB_LAYERS,
+        num_attention_heads=2,
+        intermediate_size=32,
+        max_position_embeddings=MAX_POSITIONS,
+    )
+    transformers.BertModel(config).save_pretrained(directory)
+    return directory
+
+
+@pytest.fixture(scope="module")
+def tiny_byte_level(tmp_path_factory):
+    return make_tiny_byte_level_model(tmp_path_factory.mktemp("tiny-byte-level"))
+
+
 class TestWordVectors:
     def test_one_vector_per_token(self, tiny_bert):
         embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
@@ -182,6 +208,63 @@ class TestWordVectors:
             ContextualEmbeddings(tiny_bert, subword_pooling="max")
         with pytest.raises(ValueError):
             ContextualEmbeddings(tiny_bert, layers=(-12,))
+
+
+class TestWholeTextTokenization:
+    """The tokens joined back into a text, which the transformer reads as a whole (issue #128)."""
+
+    WORDS = ["Deep", "(", "John", ",", "50", "%", ")"]
+
+    def test_the_transformer_reads_the_tokens_as_one_text(self, tiny_byte_level):
+        embeddings = ContextualEmbeddings(tiny_byte_level, device="cpu", whole_text_tokenization=True)
+        ids, words = embeddings._tokenize(self.WORDS)
+        assert embeddings._tokenizer.convert_ids_to_tokens(ids) == ["ĠDeep", "Ġ(", "Jo", "hn", ",", "Ġ50%", "Ġ)"]
+        assert words == [[0], [1], [2], [2], [3], [4, 5], [6]]
+
+        usual = ContextualEmbeddings(tiny_byte_level, device="cpu")
+        ids, words = usual._tokenize(self.WORDS)
+        assert usual._tokenizer.convert_ids_to_tokens(ids) == ["ĠDeep", "Ġ(", "ĠJohn", "Ġ,", "Ġ50", "Ġ%", "Ġ)"]
+        assert words == [[word] for word in range(len(self.WORDS))]
+
+    def test_one_vector_per_token_the_tokens_of_a_shared_unit_taking_its_vector(self, tiny_byte_level):
+        embeddings = ContextualEmbeddings(tiny_byte_level, device="cpu", whole_text_tokenization=True)
+        vectors = embeddings.embed_batch([self.WORDS])[0]
+        assert vectors.shape == (len(self.WORDS), HIDDEN_SIZE)
+        assert vectors.any(axis=1).all()
+        np.testing.assert_array_equal(vectors[4], vectors[5])  # "50" and "%" are the unit "Ġ50%"
+        assert not np.allclose(vectors[0], vectors[1])
+
+        usual = ContextualEmbeddings(tiny_byte_level, device="cpu").embed_batch([self.WORDS])[0]
+        assert not np.allclose(usual[4], usual[5])
+        assert not np.allclose(usual[1], vectors[1])  # "(" read as "Ġ(" in another context
+
+    def test_the_sub_word_pooling_counts_a_shared_unit_for_each_of_its_words(self, tiny_bert):
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu")
+        units = np.arange(1, 4, dtype=np.float32)[:, None] * np.ones((3, HIDDEN_SIZE), dtype=np.float32)
+        words = [[0], [0, 1], [2]]  # the second unit stands for two words, the last for none
+        for pooling, expected in (
+            ("first", [1.0, 2.0, 3.0, 0.0]),
+            ("last", [2.0, 2.0, 3.0, 0.0]),
+            ("mean", [1.5, 2.0, 3.0, 0.0]),
+        ):
+            embeddings.subword_pooling = pooling
+            pooled = embeddings._pool_subwords(units, words, 4)
+            assert pooled[:, 0].tolist() == expected, pooling
+
+    def test_the_vectors_have_a_cache_of_their_own(self, tiny_bert, tmp_path):
+        usual = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        whole = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path), whole_text_tokenization=True)
+        assert whole.cache_env_path() != usual.cache_env_path()
+        # the caches of the usual tokenization keep their names
+        assert "tokenization" not in usual.fingerprint()
+        assert "whole_text_tokenization=True" in repr(whole) and "whole_text" not in repr(usual)
+
+    def test_the_option_is_given_to_the_embeddings_of_a_registry(self, tiny_bert, tmp_path):
+        registry = _registry(tmp_path, _entry(tiny_bert))
+        assert Embeddings("tiny-contextual", resource_registry=registry).model.whole_text_tokenization is False
+        embeddings = Embeddings("tiny-contextual", resource_registry=registry, whole_text_tokenization=True)
+        assert embeddings.model.whole_text_tokenization is True
+        assert Embeddings("contextual:" + tiny_bert, whole_text_tokenization=True).model.whole_text_tokenization
 
 
 class TestWindows:
@@ -709,6 +792,40 @@ class TestEmbeddingsIntegration:
 
 
 class TestSequenceLabelling:
+    def test_whole_text_tokenization_follows_the_model_config_into_the_embeddings(
+        self, tiny_bert, tmp_path, monkeypatch
+    ):
+        import delft.sequenceLabelling.wrapper as wrapper
+
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: _registry(tmp_path, _entry(tiny_bert)))
+        monkeypatch.chdir(tmp_path)
+        x = [["the", "cat", "sat"], ["dog", "ran", "away", "now"]] * 5
+        y = [["O", "B-ANIMAL", "O"], ["B-ANIMAL", "O", "O", "O"]] * 5
+
+        model = wrapper.Sequence(
+            "contextual-test",
+            architecture="BidLSTM_CRF",
+            embeddings_name="tiny-contextual",
+            max_epoch=1,
+            batch_size=5,
+            max_sequence_length=10,
+            early_stop=False,
+            nb_workers=0,
+            whole_text_tokenization=True,
+        )
+        assert model.embeddings.model.whole_text_tokenization is True
+        model.train(x, y)
+        model.save(str(tmp_path / "saved"))
+
+        reloaded = wrapper.Sequence("contextual-test")
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.model_config.whole_text_tokenization is True
+        assert reloaded.embeddings.model.whole_text_tokenization is True
+        assert reloaded.embeddings.model.cache_env_path() == model.embeddings.model.cache_env_path()
+
+        usual = wrapper.Sequence("contextual-test", architecture="BidLSTM_CRF", embeddings_name="tiny-contextual")
+        assert usual.embeddings.model.whole_text_tokenization is False
+
     def test_dataloader_workers_read_precomputed_contextual_vectors(self, tiny_bert, tmp_path):
         x = np.array([SENTENCE, SENTENCE[:3], SENTENCE[1:5], SENTENCE[2:]], dtype=object)
         y = np.array([["O"] * len(tokens) for tokens in x], dtype=object)
@@ -1049,6 +1166,40 @@ class TestTextClassification:
         assert contextual._model is not None
         other = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=contextual.cache_path)
         assert other.precompute([["the", "cat", "sat"]], verbose=False) == 1
+
+    def test_whole_text_tokenization_is_saved_with_the_classifier(self, tiny_bert, tmp_path, monkeypatch):
+        import delft.textClassification.wrapper as wrapper
+
+        registry = _registry(tmp_path, _entry(tiny_bert))
+        monkeypatch.setattr(wrapper, "load_resource_registry", lambda path: registry)
+        monkeypatch.chdir(tmp_path)
+        options = dict(
+            architecture="gru",
+            embeddings_name="tiny-contextual",
+            list_classes=["a", "b"],
+            maxlen=8,
+            max_epoch=1,
+            batch_size=4,
+            early_stop=False,
+            nb_workers=0,
+            device="cpu",
+        )
+        usual = wrapper.Classifier("contextual-classifier", **options)
+        assert usual.model_config.whole_text_tokenization is False
+        assert usual.embeddings.model.whole_text_tokenization is False
+
+        classifier = wrapper.Classifier("contextual-classifier", whole_text_tokenization=True, **options)
+        assert classifier.embeddings.model.whole_text_tokenization is True
+        assert classifier.embeddings.model.cache_env_path() != usual.embeddings.model.cache_env_path()
+        classifier.train(self.TEXTS, self.CLASSES)
+        scores = classifier.predict(["the cat sat", "dog ran far"], output_format="array")
+        classifier.save(str(tmp_path / "saved"))
+
+        reloaded = wrapper.Classifier("contextual-classifier", device="cpu")
+        reloaded.load(str(tmp_path / "saved"))
+        assert reloaded.model_config.whole_text_tokenization is True
+        assert reloaded.embeddings.model.whole_text_tokenization is True
+        np.testing.assert_allclose(reloaded.predict(["the cat sat", "dog ran far"], output_format="array"), scores)
 
     def test_the_dataset_reads_the_cache(self, tiny_bert, tmp_path):
         from delft.textClassification.config import ModelConfig

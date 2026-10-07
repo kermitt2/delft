@@ -280,9 +280,20 @@ class Embeddings(object):
         extension="vec",
         use_cache=True,
         load=True,
+        whole_text_tokenization=False,
         contextual_settings=None,
     ):
+        """
+        ``whole_text_tokenization`` is for the contextual embeddings from a frozen
+        transformer, alone or in a stack: the transformer then reads the tokens of a
+        sequence joined back into a text rather than one by one (see
+        ``delft.sequenceLabelling.whole_text``). The other embeddings ignore it.
+        """
         self.name = name
+        self.whole_text_tokenization = bool(whole_text_tokenization)
+        if isinstance(contextual_settings, dict) and contextual_settings.get("tokenization") == "whole-text":
+            # the settings saved with a model tell how its vectors were made
+            self.whole_text_tokenization = True
         self.embed_size = 0
         self.static_embed_size = 0
         self.vocab_size = 0
@@ -629,6 +640,7 @@ class Embeddings(object):
         ):
             if description.get(key) is not None:
                 options[option] = description[key]
+        options["whole_text_tokenization"] = self.whole_text_tokenization
 
         self.model = ContextualEmbeddings(model_reference, cache_path=cache_path, lang=self.lang, **options)
         self.embed_size = self.model.embed_size
@@ -670,6 +682,7 @@ class Embeddings(object):
                 component_name,
                 resource_registry=self.registry,
                 lang=self.lang,
+                whole_text_tokenization=self.whole_text_tokenization,
                 contextual_settings=saved_settings.get(component_name),
             )
             for component_name in component_names

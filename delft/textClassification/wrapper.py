@@ -125,11 +125,17 @@ class Classifier(object):
         features_vocabulary_size=12,
         features_embedding_size=4,
         continuous_features_indices=None,
+        whole_text_tokenization=False,
     ):
         """
         ``features_indices``, ``features_vocabulary_size``, ``features_embedding_size`` and
         ``continuous_features_indices`` set up the features channel, used when the
         training data comes with features: see ``delft.textClassification.features``.
+
+        ``whole_text_tokenization`` is for contextual embeddings from a frozen transformer
+        (``embeddings_name``): the transformer then reads the tokens of a text joined back
+        into a text, with the usual spacing of punctuation, rather than one by one with a
+        space before each. Saved with the model. See ``delft.sequenceLabelling.whole_text``.
         """
         self.short_model_name = short_model_name
         self.model_config = ModelConfig(
@@ -149,6 +155,7 @@ class Classifier(object):
             features_vocabulary_size=features_vocabulary_size,
             features_embedding_size=features_embedding_size,
             continuous_features_indices=continuous_features_indices,
+            whole_text_tokenization=whole_text_tokenization,
         )
 
         self.training_config = TrainingConfig(
@@ -182,7 +189,9 @@ class Classifier(object):
         self.registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
 
         if embeddings_name is not None:
-            self.embeddings = Embeddings(embeddings_name, resource_registry=self.registry)
+            self.embeddings = Embeddings(
+                embeddings_name, resource_registry=self.registry, whole_text_tokenization=whole_text_tokenization
+            )
             self.model_config.word_embedding_size = self.embeddings.embed_size
         else:
             self.model_config.word_embedding_size = 0
@@ -845,6 +854,7 @@ class Classifier(object):
             self.embeddings = Embeddings(
                 self.model_config.embeddings_name,
                 resource_registry=self.registry,
+                whole_text_tokenization=getattr(self.model_config, "whole_text_tokenization", False),
             )
         else:
             self.embeddings = None

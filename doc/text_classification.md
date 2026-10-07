@@ -37,6 +37,10 @@ classifier.predict(some_texts, features=some_features)
 
 `features_indices` selects the columns (all of them by default, a column with more than `features_vocabulary_size` distinct values being left out), `features_embedding_size` sizes the vector of a value. What the preprocessing learns is saved in the model config: a model trained with features expects them when classifying, and a model trained without refuses them. Trained over folds (see below), the features of a text go with it into its fold.
 
+### Contextual embeddings read the text as a whole
+
+With [contextual embeddings from a frozen transformer](embeddings.md#contextual-embeddings-from-a-frozen-transformer) (`--embedding scibert-contextual`, alone or in a stack), the transformer is given the tokens of a text one by one, a space before each. With `--whole-text-tokenization` (`whole_text_tokenization=True` for `Classifier`), the tokens are joined back into a text with the usual spacing of punctuation and the transformer reads that text, which is what a SentencePiece or byte-level BPE tokenizer was pretrained on: see [whole text sub-tokenization](sequence_labeling.md#whole-text-sub-tokenization). The option is saved with the model, and the vectors have a cache of their own. It has no effect on the `bert` architecture, which reads the text itself, nor on static embeddings.
+
 ### Training again with the same result
 
 `delft.utilities.Utilities.set_random_seed(seed)` seeds Python, NumPy and PyTorch, so that the split of the data, the initial weights and the order of the batches are the same from a run to the next. The applications call it with their `--seed` option; without it every run draws its own.

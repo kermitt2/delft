@@ -59,6 +59,7 @@ def train(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    whole_text_tokenization=False,
     max_epoch=-1,
 ):
     print("loading multiclass software context dataset...")
@@ -96,6 +97,7 @@ def train(
         report_to_wandb=report_to_wandb,
         wandb_project=wandb_project,
         nb_workers=num_workers,
+        whole_text_tokenization=whole_text_tokenization,
         short_model_name="software_context",
     )
 
@@ -115,6 +117,7 @@ def train_and_eval(
     report_to_wandb=False,
     wandb_project=None,
     num_workers=None,
+    whole_text_tokenization=False,
     max_epoch=-1,
 ):
     print("loading multiclass software context dataset...")
@@ -157,6 +160,7 @@ def train_and_eval(
         report_to_wandb=report_to_wandb,
         wandb_project=wandb_project,
         nb_workers=num_workers,
+        whole_text_tokenization=whole_text_tokenization,
         short_model_name="software_context",
     )
 
@@ -389,6 +393,15 @@ if __name__ == "__main__":
         help="Number of workers for data loading. Default: cpu_count - 1.",
     )
 
+    parser.add_argument(
+        "--whole-text-tokenization",
+        action="store_true",
+        help="With contextual embeddings from a frozen transformer (--embedding), sub-tokenize a text as a whole, "
+        + "its tokens joined back with the usual spacing of punctuation, rather than token by token with a space "
+        + "before each: a SentencePiece or byte-level BPE tokenizer (RoBERTa, CamemBERT, XLM-R...) then reads the "
+        + "text as it was pretrained on. Saved with the model.",
+    )
+
     args = parser.parse_args()
     set_random_seed(args.seed)
 
@@ -434,6 +447,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
+            whole_text_tokenization=args.whole_text_tokenization,
             max_epoch=args.max_epoch,
         )
 
@@ -461,6 +475,7 @@ if __name__ == "__main__":
             report_to_wandb=wandb,
             wandb_project=wandb_project,
             num_workers=num_workers,
+            whole_text_tokenization=args.whole_text_tokenization,
             max_epoch=args.max_epoch,
         )
 
