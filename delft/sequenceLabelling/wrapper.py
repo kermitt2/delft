@@ -770,7 +770,8 @@ class Sequence(object):
                 }
             )
             columns = ["fold", "precision", "recall", "f1"]
-            data = [[i, s["precision"], s["recall"], s["f1"]] for i, s in enumerate(scores)]
+            # the fold column holds "mean" and "std" too: a wandb table column has one type
+            data = [[str(i), s["precision"], s["recall"], s["f1"]] for i, s in enumerate(scores)]
             data.append(["mean", mean["precision"], mean["recall"], mean["f1"]])
             data.append(["std", std["precision"], std["recall"], std["f1"]])
             self.wandb.log({"Fold scores": self.wandb.Table(columns=columns, data=data)})

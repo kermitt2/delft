@@ -1,6 +1,7 @@
 """The training loop does what its configuration says."""
 
 import os
+from types import SimpleNamespace
 from unittest.mock import patch
 
 import numpy as np
@@ -241,6 +242,18 @@ class TestNFoldEvaluation:
         assert summary["std"]["f1"] >= 0
         assert sequence.model is sequence.models[summary["best_fold"]]
         assert "std" in capsys.readouterr().out
+
+    def test_eval_logs_the_fold_scores_to_wandb_as_one_table(self, tmp_path, monkeypatch):
+        """The fold column mixed numbers and "mean", which a wandb table refuses."""
+        wandb = pytest.importorskip("wandb")
+        sequence = _sequence(tmp_path, monkeypatch, fold_number=2, max_epoch=1)
+        sequence.train_nfold(X_ARRAY, Y_ARRAY)
+        logged = []
+        sequence.report_to_wandb = True
+        sequence.wandb = SimpleNamespace(log=logged.append, Table=wandb.Table)
+        sequence.eval(X_ARRAY, Y_ARRAY)
+        table = next(entry["Fold scores"] for entry in logged if "Fold scores" in entry)
+        assert [row[0] for row in table.data] == ["0", "1", "mean", "std"]
 
 
 class TestSeed:
