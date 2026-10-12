@@ -3,12 +3,13 @@
 # experiment, at most MAX_PARALLEL_JOBS running at once.
 #
 # Usage:
-#   train_distributed_array.sh {train|train-eval|bert|bert-eval|license} [EMBEDDING]
+#   train_distributed_array.sh {train|train-eval|nfold|bert|bert-eval|license} [EMBEDDING]
 #   train_distributed_array.sh sweep MODEL [--flag value[,value...] ...]
 #   train_distributed_array.sh __task ...   (what sbatch runs in every array task)
 #
 # The standard profiles run a matrix of GROBID models by architectures (or transformers)
-# with grobidTagger; `license` runs the license classifier. EMBEDDING defaults to glove-840B;
+# with grobidTagger, `nfold` the train-eval matrix with n-fold cross-validation; `license`
+# runs the license classifier. EMBEDDING defaults to glove-840B;
 # `none` trains without pre-trained word embeddings: on the character features alone for
 # the GROBID models, with word embeddings learned from the training texts for the classifier. `sweep` runs one model over the
 # cartesian product of every flag given several comma-separated values, the other flags
@@ -27,6 +28,7 @@
 #   ARCHITECTURES      space-separated architectures (train, train-eval, license)
 #   TRANSFORMERS       space-separated transformers (bert, bert-eval)
 #   INCREMENTAL        when "true", add --incremental to every task of a standard profile
+#   FOLD_COUNT         nfold only: folds of the cross-validation of every task (default: 10)
 #   SUFFIX             appended to the model name of every task, after the one the profile
 #                      or the sweep builds (train and train-eval have none by default)
 #   ACTION             sweep only: the tagger action (default: train_eval)
@@ -64,13 +66,14 @@ MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-4}
 DRY_RUN=${DRY_RUN:-false}
 PYTHON_BIN=${PYTHON_BIN:-.venv/bin/python}
 INCREMENTAL=${INCREMENTAL:-false}
+FOLD_COUNT=${FOLD_COUNT:-10}
 SUFFIX=${SUFFIX:-}
 ACTION=${ACTION:-train_eval}
 WANDB=${WANDB:-true}
 
 usage() {
     cat >&2 <<USAGE
-Usage: $0 {train|train-eval|bert|bert-eval|license} [EMBEDDING]
+Usage: $0 {train|train-eval|nfold|bert|bert-eval|license} [EMBEDDING]
        $0 sweep MODEL [--flag value[,value...] ...]
 USAGE
     exit 2
@@ -99,6 +102,7 @@ if [[ "${1:-}" == __task ]]; then
             --wandb) WANDB=$2 ;;
             --suffix) SUFFIX=$2 ;;
             --incremental) INCREMENTAL=$2 ;;
+            --fold-count) FOLD_COUNT=$2 ;;
             --python-bin) PYTHON_BIN=$2 ;;
             --) shift; TASK_ARGS=("$@"); break ;;
             *) echo "Unknown task setting: $1" >&2; exit 2 ;;
@@ -211,10 +215,14 @@ case "$PROFILE" in
                 name-header reference-segmenter figure table segmentation)
         list_from_env "$ENV_ARCHITECTURES" "${DEFAULT_ARCHITECTURES[@]}"
         ;;
-    train-eval)
+    train-eval | nfold)
         MODELS=(affiliation-address citation date funding-acknowledgement header name-citation
                 name-header reference-segmenter figure table segmentation fulltext)
         list_from_env "$ENV_ARCHITECTURES" "${DEFAULT_ARCHITECTURES[@]}"
+        if [[ "$PROFILE" == nfold ]] && ! [[ "$FOLD_COUNT" =~ ^[0-9]+$ && "$FOLD_COUNT" -ge 2 ]]; then
+            echo "FOLD_COUNT must be a number of folds of at least 2, got '$FOLD_COUNT'" >&2
+            exit 2
+        fi
         ;;
     bert)
         MODELS=(affiliation-address citation date figure funding-acknowledgement header
@@ -289,10 +297,11 @@ build_task_command() {
     fi
 
     local action=train
-    if [[ "$PROFILE" == train-eval || "$PROFILE" == bert-eval ]]; then
+    if [[ "$PROFILE" == train-eval || "$PROFILE" == nfold || "$PROFILE" == bert-eval ]]; then
         action=train_eval
         extra_args+=(--wandb)
     fi
+    [[ "$PROFILE" != nfold ]] || extra_args+=(--fold-count "$FOLD_COUNT")
 
     # The two largest models need more data loading workers; for plain training they also get
     # a longer sequence window.
@@ -410,7 +419,7 @@ if [[ "$PROFILE" == sweep ]]; then
         [[ -z "${SWEEP_VALUES[$flag]}" ]] || TASK_ARGS+=("${SWEEP_VALUES[$flag]}")
     done
 else
-    TASK_ARGS+=(--embedding "$EMBEDDING" --models "${MODELS[*]}" --items "${ITEMS[*]}" --incremental "$INCREMENTAL")
+    TASK_ARGS+=(--embedding "$EMBEDDING" --models "${MODELS[*]}" --items "${ITEMS[*]}" --incremental "$INCREMENTAL" --fold-count "$FOLD_COUNT")
 fi
 
 job_id=$(sbatch --parsable "${SBATCH_OPTS[@]}" "$(readlink -f "$0")" __task "${TASK_ARGS[@]}" | cut -d';' -f1)
