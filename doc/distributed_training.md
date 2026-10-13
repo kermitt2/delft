@@ -69,6 +69,20 @@ one after the other on its GPU (10 by default) and reports the scores over the f
 saves the best one. A task is thus about N times longer than its `train-eval` counterpart:
 raise `TIME_LIMIT` accordingly, e.g. `TIME_LIMIT=3-00:00` for `header` with 10 folds.
 
+The embedding name is anything `--embedding` accepts (see [embeddings](embeddings.md)),
+contextual embeddings from a frozen transformer included. A transformer that is not in the
+registry needs the `contextual:` prefix before its hub identifier or the path of a local
+copy, `contextual:/netscratch/lfoppiano/delft/embeddings/most-embed-sci`: without it, an
+`organisation/model` name or a path is taken as a static embedding model, and every task
+fails with "could not find a static embedding model". A model in a private repository,
+such as `scilons/most-embed-sci`, is best given by the path of a local copy; from the hub,
+it needs `HF_ACCESS_TOKEN` exported before submitting, which the tasks inherit. Contextual
+vectors are computed once per corpus and cached, and the tasks of one model running at the
+same time would each compute them: submit one architecture of every model first, with an
+`ARRAY_SPEC` stepping by the number of architectures, then the others once these are done.
+A model trained with a local copy does not save its path: tag with the same
+`contextual:` path.
+
 The models of the `bert` profiles are named after their transformer, with `--suffix`:
 `grobid-header-BERT_CRF-scibert_scivocab_cased`, `grobid-header-BERT_CRF-ModernBERT-base`
 (see [GROBID models](grobid.md)). Two transformers of a run with the same name under different
@@ -179,6 +193,14 @@ ARCHITECTURES="gru lstm" ./scripts/train_distributed_array.sh license
 # Compare no embeddings, glove and potion on the citation model
 ./scripts/train_distributed_array.sh sweep citation --architecture BidLSTM_CRF_FEATURES \
     --embedding none,glove-840B,potion-base-8M --num-workers 6
+
+# Three models with contextual embeddings from a local copy of a private model: the first
+# architecture of each model computes and caches the vectors, the second one reuses them
+EMBEDDING=contextual:/netscratch/lfoppiano/delft/embeddings/most-embed-sci
+export MODELS="header fulltext segmentation" SUFFIX=most-embed-sci \
+    ARCHITECTURES="BidLSTM_CRF_FEATURES BidLSTM_ChainCRF_FEATURES"
+ARRAY_SPEC=0-5:2 ./scripts/train_distributed_array.sh train-eval "$EMBEDDING"
+ARRAY_SPEC=1-5:2 ./scripts/train_distributed_array.sh train-eval "$EMBEDDING"  # once done
 
 # Sweep the batch size and the learning rate of the date model
 ./scripts/train_distributed_array.sh sweep date --architecture BidLSTM_CRF \
