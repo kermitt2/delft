@@ -623,7 +623,8 @@ def fetch_model(model_name, models_dir, registry, token=None):
         return None
 
     target = os.path.join(models_dir, model_name)
-    if _is_model_directory(target):
+    on_disk = _is_model_directory(target)
+    if on_disk:
         source = downloaded_from(target)
         if source is None or source in [str(reference) for reference in references]:
             return target
@@ -634,6 +635,37 @@ def fetch_model(model_name, models_dir, registry, token=None):
             return resolve_model(reference, cache_dir=models_dir, token=token)
         except HubModelNotFoundError as e:
             failures.append(str(e))
-    raise HubModelNotFoundError(
-        f"Model {model_name} is not in {models_dir} and could not be downloaded: " + "; ".join(failures)
-    )
+        except Exception as e:
+            # the Hub cannot be reached: a copy on disk, from another place, still does
+            if not on_disk:
+                raise
+            failures.append(f"{reference}: {e}")
+    if on_disk:
+        LOGGER.warning(
+            "Model %s could not be downloaded again (%s): using the copy in %s, downloaded from %s",
+            model_name,
+            "; ".join(failures),
+            target,
+            source,
+        )
+        return target
+
+    message = f"Model {model_name} is not in {models_dir} and could not be downloaded: " + "; ".join(failures)
+    variants = _variants(model_name, references, token)
+    if variants:
+        message += f". The Hub has these variants of it, named with a suffix: {', '.join(variants)}"
+    raise HubModelNotFoundError(message)
+
+
+def _variants(model_name, references, token=None):
+    """The models of the repositories of ``references`` named ``model_name`` followed by a suffix."""
+    variants = []
+    for reference in references:
+        if reference.bucket:
+            continue
+        try:
+            names = list_models(HubReference(reference.repo_id, revision=reference.revision), token=token)
+        except Exception:
+            continue
+        variants += [name for name in names if name.startswith(model_name + "-")]
+    return variants

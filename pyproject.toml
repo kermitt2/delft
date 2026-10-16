@@ -29,14 +29,17 @@ maintainers = [
     { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" },
     { name = "Luca Foppiano", email = "luca@sciencialab.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
 classifiers = [
     "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "numpy==1.26.4",
+    "numpy==2.2.6",
     "regex",
     "scikit-learn==1.7.2",
     "tqdm>=4.66",
@@ -77,7 +80,7 @@ dev = [
 [project.urls]
 Homepage = "https://github.com/kermitt2/delft"
 Repository = "https://github.com/kermitt2/delft"
-Changelog = "https://github.com/kermitt2/delft"
+Changelog = "https://github.com/kermitt2/delft/releases"
 
 [tool.ruff]
 line-length = 120
@@ -107,4 +110,4 @@ quote-style = "double"
 delft = ["resources-registry.json", "py.typed"]
 
 [tool.setuptools.packages.find]
-exclude = ["test", "*.test", "*.test.*"]
+exclude = ["tests", "tests.*", "build*"]

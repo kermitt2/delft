@@ -262,5 +262,34 @@ def test_shipped_registry_gives_the_grobid_models_a_repository():
 
     registry = load_resource_registry(os.path.join(DELFT_PROJECT_DIR, "resources-registry.json"))
     assert [str(r) for r in hub_references("grobid-header-BidLSTM_CRF_FEATURES", registry)] == [
-        "hf://lfoppiano/grobid-model-header/grobid-header-BidLSTM_CRF_FEATURES"
+        "hf://sciencialab/grobid-model-header/grobid-header-BidLSTM_CRF_FEATURES"
     ]
+
+
+class TestFetchFailures:
+    REGISTRY = {"models-hub": {"repo": "lfoppiano/grobid-model-{short_name}"}}
+
+    def test_a_model_without_its_suffix_is_told_the_variants_with_one(self, hub, models_dir):
+        """The published models are named with a suffix, the embeddings they were trained with for instance."""
+        with pytest.raises(HubModelNotFoundError) as error:
+            fetch_model("grobid-header-BERT_CRF", models_dir, self.REGISTRY)
+        assert "grobid-header-BERT_CRF-scibert_scivocab_cased" in str(error.value)
+
+    def test_the_copy_on_disk_is_used_when_the_hub_cannot_be_reached(self, hub, models_dir, monkeypatch):
+        registry = {"models-hub": {"repo": "lfoppiano/grobid-model-{short_name}", "revision": "v1.1.0"}}
+        directory = fetch_model("grobid-header-BidLSTM_CRF", models_dir, registry)
+
+        def offline(*args, **kwargs):
+            raise ConnectionError("no network")
+
+        monkeypatch.setattr("huggingface_hub.snapshot_download", offline)
+        registry["models-hub"]["revision"] = "v1.2.0"
+        assert fetch_model("grobid-header-BidLSTM_CRF", models_dir, registry) == directory
+
+    def test_without_a_copy_on_disk_the_network_error_is_raised(self, hub, models_dir, monkeypatch):
+        def offline(*args, **kwargs):
+            raise ConnectionError("no network")
+
+        monkeypatch.setattr("huggingface_hub.snapshot_download", offline)
+        with pytest.raises(ConnectionError):
+            fetch_model("grobid-header-BidLSTM_CRF", models_dir, self.REGISTRY)

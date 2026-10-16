@@ -1,2 +1,6 @@
+pytest
 bump-my-version
 wandb
+ruff<0.17.0
+onnx
+onnxruntime

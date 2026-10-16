@@ -1,7 +1,6 @@
 site_name: DeLFT Documentation
 repo_url: https://github.com/kermitt2/delft/
 repo_name: GitHub
-theme: readthedocs
 site_description: Documentation for DeLFT
 docs_dir: doc
 plugins:
@@ -20,13 +19,12 @@ nav:
     - 'Transformer models': 'model_transformers_embeddings_architectures.md'
   - Applications:
     - 'NER': 'ner.md'
+    - 'NER datasets': 'ner-datasets.md'
     - 'GROBID models': 'grobid.md'
+    - 'GROBID header features': 'features_header_eval_summary.md'
     - 'Snippet classification': 'classifiers.md'
   - 'Sequence Labeling': 'sequence_labeling.md'
   - 'Text Classification': 'text_classification.md'
   - 'Models on the Hugging Face Hub': 'hub_models.md'
   - 'Experiment tracking (W&B)': 'wandb.md'
   - 'Training on a cluster (SLURM)': 'distributed_training.md'
-  
-
-
