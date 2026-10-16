@@ -96,8 +96,18 @@ class CharacterEncoder(nn.Module):
             batch_first=True,
             enforce_sorted=False,
         )
-        _, (hidden, _) = self.bilstm(packed)
-        hidden = torch.cat([hidden[0], hidden[1]], dim=-1)
+        if torch.onnx.is_in_onnx_export():
+            # the TorchScript exporter fails on the final state of a packed LSTM whose lengths are not
+            # sorted, but not on its output: that state is the forward output at the last real character
+            # and the backward output at the first one
+            packed_output, _ = self.bilstm(packed)
+            output, _ = nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True, total_length=max_char_len)
+            size = self.output_size // 2
+            last = (lengths.clamp(min=1) - 1).view(-1, 1, 1).expand(-1, 1, size)
+            hidden = torch.cat([output[:, :, :size].gather(1, last).squeeze(1), output[:, 0, size:]], dim=-1)
+        else:
+            _, (hidden, _) = self.bilstm(packed)
+            hidden = torch.cat([hidden[0], hidden[1]], dim=-1)
         # a token that is entirely padding is masked out completely, leaving
         # the initial state rather than whatever a single step produced
         hidden = hidden * (lengths > 0).unsqueeze(-1).to(hidden.dtype)
