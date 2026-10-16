@@ -31,7 +31,7 @@ The submitter assumes an [enroot](https://github.com/NVIDIA/enroot)/Pyxis contai
 ## The array submitter
 
 ```sh
-./scripts/train_distributed_array.sh {train|train-eval|bert|bert-eval|license} [EMBEDDING]
+./scripts/train_distributed_array.sh {train|train-eval|nfold|bert|bert-eval|license} [EMBEDDING]
 ./scripts/train_distributed_array.sh sweep MODEL [--flag value[,value...] ...]
 ```
 
@@ -53,15 +53,35 @@ ModernBERT, DeBERTa-v3 and LinkBERT, all with the `BERT_CRF` architecture.
 |---------|--------|-------|---------|
 | `train` | 11 GROBID models × 4 BidLSTM architectures | 44 | `grobidTagger <model> train` |
 | `train-eval` | 12 models (+ `fulltext`) × 4 BidLSTM architectures | 48 | `grobidTagger <model> train_eval --wandb` |
+| `nfold` | 12 models × 4 BidLSTM architectures | 48 | `grobidTagger <model> train_eval --fold-count N --wandb` |
 | `bert` | 11 models × 5 transformers | 55 | `grobidTagger <model> train --architecture BERT_CRF` |
 | `bert-eval` | 15 models × 5 transformers | 75 | `grobidTagger <model> train_eval --architecture BERT_CRF --wandb` |
 | `license` | license classifier × `gru` | 1 | `licenseClassifier train` |
 
-The static-embedding profiles (`train`, `train-eval`, `license`) take an optional embedding
+The static-embedding profiles (`train`, `train-eval`, `nfold`, `license`) take an optional embedding
 name after the profile and default to `glove-840B`. `none` trains without pre-trained word
 embeddings: on the character features alone for the GROBID models, and with word embeddings
 learned from the training texts for the license classifier. The `header` and `citation`
 models get `--num-workers 6`, plus `--max-sequence-length 3000` in the `train` profile.
+
+`nfold` is `train-eval` with n-fold cross-validation: every task trains `FOLD_COUNT` models
+one after the other on its GPU (10 by default) and reports the scores over the folds, then
+saves the best one. A task is thus about N times longer than its `train-eval` counterpart:
+raise `TIME_LIMIT` accordingly, e.g. `TIME_LIMIT=3-00:00` for `header` with 10 folds.
+
+The embedding name is anything `--embedding` accepts (see [embeddings](embeddings.md)),
+contextual embeddings from a frozen transformer included. A transformer that is not in the
+registry needs the `contextual:` prefix before its hub identifier or the path of a local
+copy, `contextual:/netscratch/lfoppiano/delft/embeddings/most-embed-sci`: without it, an
+`organisation/model` name or a path is taken as a static embedding model, and every task
+fails with "could not find a static embedding model". A model in a private repository,
+such as `scilons/most-embed-sci`, is best given by the path of a local copy; from the hub,
+it needs `HF_ACCESS_TOKEN` exported before submitting, which the tasks inherit. Contextual
+vectors are computed once per corpus and cached, and the tasks of one model running at the
+same time would each compute them: submit one architecture of every model first, with an
+`ARRAY_SPEC` stepping by the number of architectures, then the others once these are done.
+A model trained with a local copy does not save its path: tag with the same
+`contextual:` path.
 
 The models of the `bert` profiles are named after their transformer, with `--suffix`:
 `grobid-header-BERT_CRF-scibert_scivocab_cased`, `grobid-header-BERT_CRF-ModernBERT-base`
@@ -75,9 +95,10 @@ A profile is adjusted from the environment:
 | Variable | Effect |
 |----------|--------|
 | `MODELS` | Space-separated subset of the models of the profile: `MODELS="header citation"` trains two models × 4 architectures. |
-| `ARCHITECTURES` | Space-separated architectures in place of the four BidLSTM ones (`train`, `train-eval`) or of `gru` (`license`). |
+| `ARCHITECTURES` | Space-separated architectures in place of the four BidLSTM ones (`train`, `train-eval`, `nfold`) or of `gru` (`license`). |
 | `TRANSFORMERS` | Space-separated transformers in place of the five default ones (`bert`, `bert-eval`). |
 | `INCREMENTAL=true` | Add `--incremental` to every task, to continue training the models already saved. |
+| `FOLD_COUNT` | Folds of the `nfold` profile, at least 2 (default: 10). |
 | `SUFFIX` | Appended to the name of every model of the run, after the transformer for the `bert` profiles: `SUFFIX=v2` gives `grobid-date-BidLSTM_CRF-v2`. Use it to train a second set without overwriting the first. |
 
 ### Sweeping the hyper-parameters of one model
@@ -152,6 +173,11 @@ SUFFIX=char-only ./scripts/train_distributed_array.sh train-eval none
 # Train and evaluate the citation model alone, with the four architectures
 MODELS=citation ./scripts/train_distributed_array.sh train-eval
 
+# 10-fold cross-validation of the header model with the two architectures with features,
+# keeping the models apart from the release ones with a suffix
+MODELS=header ARCHITECTURES="BidLSTM_CRF_FEATURES BidLSTM_ChainCRF_FEATURES" SUFFIX=glove_840B \
+    FOLD_COUNT=10 TIME_LIMIT=3-00:00 ./scripts/train_distributed_array.sh nfold glove-840B
+
 # Continue the training of every model already saved
 INCREMENTAL=true ./scripts/train_distributed_array.sh train
 
@@ -167,6 +193,14 @@ ARCHITECTURES="gru lstm" ./scripts/train_distributed_array.sh license
 # Compare no embeddings, glove and potion on the citation model
 ./scripts/train_distributed_array.sh sweep citation --architecture BidLSTM_CRF_FEATURES \
     --embedding none,glove-840B,potion-base-8M --num-workers 6
+
+# Three models with contextual embeddings from a local copy of a private model: the first
+# architecture of each model computes and caches the vectors, the second one reuses them
+EMBEDDING=contextual:/netscratch/lfoppiano/delft/embeddings/most-embed-sci
+export MODELS="header fulltext segmentation" SUFFIX=most-embed-sci \
+    ARCHITECTURES="BidLSTM_CRF_FEATURES BidLSTM_ChainCRF_FEATURES"
+ARRAY_SPEC=0-5:2 ./scripts/train_distributed_array.sh train-eval "$EMBEDDING"
+ARRAY_SPEC=1-5:2 ./scripts/train_distributed_array.sh train-eval "$EMBEDDING"  # once done
 
 # Sweep the batch size and the learning rate of the date model
 ./scripts/train_distributed_array.sh sweep date --architecture BidLSTM_CRF \
