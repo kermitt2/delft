@@ -122,6 +122,7 @@ def train(
     learning_rate=None,
     num_workers=None,
     incremental=False,
+    whole_text_tokenization=False,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -156,6 +157,7 @@ def train(
         short_model_name="copyright",
         learning_rate=learning_rate,
         nb_workers=num_workers,
+        whole_text_tokenization=whole_text_tokenization,
     )
 
     _train(model, xtr, y_copyrights, fold_count, incremental)
@@ -190,6 +192,7 @@ def train(
         short_model_name="license",
         learning_rate=learning_rate,
         nb_workers=num_workers,
+        whole_text_tokenization=whole_text_tokenization,
     )
 
     _train(model, xtr, y_licenses, fold_count, incremental)
@@ -212,6 +215,7 @@ def train_and_eval(
     learning_rate=None,
     num_workers=None,
     incremental=False,
+    whole_text_tokenization=False,
 ):
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
@@ -251,6 +255,7 @@ def train_and_eval(
         short_model_name="copyright",
         learning_rate=learning_rate,
         nb_workers=num_workers,
+        whole_text_tokenization=whole_text_tokenization,
     )
 
     _train(model, x_train, y_train, fold_count, incremental)
@@ -290,6 +295,7 @@ def train_and_eval(
         short_model_name="license",
         learning_rate=learning_rate,
         nb_workers=num_workers,
+        whole_text_tokenization=whole_text_tokenization,
     )
 
     _train(model, x_train, y_train, fold_count, incremental)
@@ -690,6 +696,15 @@ if __name__ == "__main__":
         help="Number of workers for data loading. Default: cpu_count - 1.",
     )
 
+    parser.add_argument(
+        "--whole-text-tokenization",
+        action="store_true",
+        help="With contextual embeddings from a frozen transformer (--embedding), sub-tokenize a text as a whole, "
+        + "its tokens joined back with the usual spacing of punctuation, rather than token by token with a space "
+        + "before each: a SentencePiece or byte-level BPE tokenizer (RoBERTa, CamemBERT, XLM-R...) then reads the "
+        + "text as it was pretrained on. Saved with the model.",
+    )
+
     args = parser.parse_args()
     set_random_seed(args.seed)
 
@@ -741,6 +756,7 @@ if __name__ == "__main__":
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
             num_workers=num_workers,
+            whole_text_tokenization=args.whole_text_tokenization,
             incremental=args.incremental,
         )
 
@@ -774,6 +790,7 @@ if __name__ == "__main__":
             max_epoch=args.max_epoch,
             learning_rate=args.learning_rate,
             num_workers=num_workers,
+            whole_text_tokenization=args.whole_text_tokenization,
             incremental=args.incremental,
         )
 

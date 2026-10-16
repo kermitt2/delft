@@ -11,6 +11,14 @@ from delft.utilities.Tokenizer import tokenizeAndFilter
 LOGGER = logging.getLogger(__name__)
 
 
+def word_positions(word_starts):
+    """
+    The sub-token position of every word, in the order of the words, given how many
+    words start on each sub-token: the words a sub-token spans all take its position.
+    """
+    return [position for position, nb_started in enumerate(word_starts) for _ in range(int(nb_started))]
+
+
 class Tagger(object):
     def __init__(self, model, model_config, embeddings=None, preprocessor=None, device=None, nb_workers=0):
         """
@@ -131,8 +139,8 @@ class Tagger(object):
                     tags = pred_indices.tolist()
                     probs = probs.tolist()
 
-                # transformers predict one label per sub-token: the data loader marks
-                # the first sub-token of each word, where the label of the word is
+                # transformers predict one label per sub-token: the data loader counts
+                # the words starting on each sub-token, where the label of the word is
                 word_starts = inputs["word_start_mask"].tolist() if "word_start_mask" in inputs else None
 
                 for i in range(len(tags)):
@@ -140,9 +148,7 @@ class Tagger(object):
                     current_probs = probs[i] if probs else None
 
                     if word_starts is not None:
-                        positions = [
-                            p for p, is_start in enumerate(word_starts[i][: len(pred_tags_indices)]) if is_start
-                        ]
+                        positions = word_positions(word_starts[i][: len(pred_tags_indices)])
                         pred_tags_indices = [pred_tags_indices[p] for p in positions]
                         if current_probs is not None:
                             current_probs = [current_probs[p] for p in positions]

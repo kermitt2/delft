@@ -125,3 +125,11 @@ Use the loaders in `delft/sequenceLabelling/reader.py` to read your training dat
 - `load_data_and_labels_ontonotes` — Ontonotes 5.0 corpus
 
 After training, the model can be applied with `model.tag(...)` or via a CLI wrapper modelled on `nerTagger.py`'s `train` / `train_eval` / `tag` actions.
+
+### Whole text sub-tokenization
+
+A transformer is given pre-tokenized sequences, and by default sub-tokenizes them token by token, as if a space came before every token. A SentencePiece or byte-level BPE tokenizer (RoBERTa, CamemBERT, XLM-R, ...) marks each token with its leading-space symbol, even a comma or a closing bracket that no space precedes in real text, which is not what the transformer was pretrained on. With `--whole-text-tokenization` (or `whole_text_tokenization=True` for `Sequence`), the tokens of a sequence are joined back into a text with the usual spacing of punctuation, the text is sub-tokenized as a whole, and every sub-token is aligned on the token its characters belong to with the offsets the tokenizer returns. When one sub-token spans several tokens (`50%)` as `50` and `%)`), those tokens share the label predicted for it.
+
+Two punctuation marks in a row are kept apart in the joined text (`J. ,` rather than `J.,`): glued, a byte-level BPE tokenizer makes one sub-token of them, which the two tokens would have to share with its label.
+
+The option is saved with the model, which is then tagged the way it was trained. It applies to a fine-tuned transformer (`--transformer`) as well as to a frozen one used as [contextual embeddings](embeddings.md#contextual-embeddings-from-a-frozen-transformer) (`--embedding scibert-contextual`), alone or in a stack. See `delft.sequenceLabelling.whole_text`.
