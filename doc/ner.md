@@ -4,9 +4,9 @@ See [here](https://delft.readthedocs.io/en/latest/sequence_labeling/) for the li
 
 > ⚠️ **ELMo support was removed in DeLFT 0.4.x.** ELMo-related results, scores and example commands (e.g. `--use-ELMo`) on this page are retained for historical reference; they apply to DeLFT 0.3.x and earlier. From 0.4.x onwards, prefer `BERT_CRF` with a domain-specific transformer (SciBERT, BioBERT, CamemBERT, …) or static embeddings (GloVe, fastText) for the best accuracy.
 
-In general, the best results will be obtained with `BidLSTM_CRF` architecture together with `ELMo` (ELMo is particularly good for sequence labeling, so don't forget ELMo!) or with `BERT_CRF` using a pretrained transformer model specialized in the NER domain of the application (e.g. SciBERT for scientific NER, CamemBERT for general NER on French, etc.).
+In general, the best results will be obtained with `BERT_CRF` using a pretrained transformer model specialized in the NER domain of the application (e.g. SciBERT for scientific NER, CamemBERT for general NER on French, etc.), or with the `BidLSTM_CRF` architecture and static embeddings (GloVe, fastText) for a much faster model.
 
-NER models can be trained and applied via the script `delft/applications/nerTagger.py`. We describe on this page some available models and results obtained with DeLFT applied to standard NER tasks. 
+NER models can be trained and applied via the script `delft/applications/nerTagger.py`. We describe on this page some models and results obtained with DeLFT applied to standard NER tasks. DeLFT 1.x does not ship trained NER models (those of 0.4.x were TensorFlow ones, which it cannot load): train one with the commands below, from the corpora described in [NER Datasets](ner-datasets.md), before tagging. 
 
 See [NER Datasets](ner-datasets.md) for more information on the datasets used in this section. 
 
@@ -57,10 +57,15 @@ _*_ reported f-score using Senna word embeddings and not Glove.
 Different datasets and languages are supported. They can be specified by the command line parameters. The general usage of the CLI is as follow: 
 
 ```
-usage: nerTagger.py [-h] [--fold-count FOLD_COUNT] [--lang LANG] [--dataset-type DATASET_TYPE]
-                    [--train-with-validation-set] [--architecture ARCHITECTURE] [--data-path DATA_PATH]
-                    [--file-in FILE_IN] [--file-out FILE_OUT] [--embedding EMBEDDING]
-                    [--transformer TRANSFORMER]
+usage: nerTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED] [--lang LANG]
+                    [--dataset-type DATASET_TYPE] [--train-with-validation-set]
+                    [--architecture ARCHITECTURE] [--data-path DATA_PATH] [--file-in FILE_IN]
+                    [--file-out FILE_OUT] [--embedding EMBEDDING] [--transformer TRANSFORMER]
+                    [--max-sequence-length MAX_SEQUENCE_LENGTH] [--batch-size BATCH_SIZE]
+                    [--patience PATIENCE] [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
+                    [--early-stop EARLY_STOP] [--multi-gpu] [--wandb]
+                    [--wandb-run-id WANDB_RUN_ID] [--wandb-project WANDB_PROJECT]
+                    [--num-workers NUM_WORKERS]
                     action
 
 Neural Named Entity Recognizers based on DeLFT
@@ -68,10 +73,13 @@ Neural Named Entity Recognizers based on DeLFT
 positional arguments:
   action                one of [train, train_eval, eval, tag]
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
                         number of folds or re-runs to be used when training
+  --seed SEED           Seed of the random number generators, to run a training again with the
+                        same split of the data, the same initial weights and the same order of the
+                        batches. Default: not seeded, every run differs.
   --lang LANG           language of the model as ISO 639-1 code (en, fr, de, etc.)
   --dataset-type DATASET_TYPE
                         dataset to be used for training the model
@@ -83,29 +91,56 @@ optional arguments:
                         'BidLSTM_CRF_CASING', 'BERT', 'BERT_CRF', 'BERT_ChainCRF',
                         'BERT_CRF_FEATURES']
   --data-path DATA_PATH
-                        path to the corpus of documents for training (only use currently with Ontonotes
-                        corpus in orginal XML format)
+                        path to the corpus of documents for training (only use currently with
+                        Ontonotes corpus in orginal XML format)
   --file-in FILE_IN     path to a text file to annotate
-  --file-out FILE_OUT   path for outputting the resulting JSON NER anotations
+  --file-out FILE_OUT   path for outputting the resulting JSON NER annotations
   --embedding EMBEDDING
-                        The desired pre-trained word embeddings using their descriptions in the file. For
-                        local loading, use delft/resources-registry.json. Be sure to use here the same
-                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec',
-                        'potion-base-8M'] and that the path in the registry to the embedding file is
-                        correct on your system.
+                        The desired pre-trained word embeddings using their descriptions in the
+                        file. For local loading, use delft/resources-registry.json. Be sure to use
+                        here the same name as in the registry, e.g. ['glove-840B', 'fasttext-
+                        crawl', 'word2vec', 'potion-base-8M']. Contextual embeddings include
+                        scibert-contextual and bert-base-cased-contextual, and can also be given
+                        as contextual:<HuggingFace model or local path>. Paths in the registry
+                        must be correct on your system.
   --transformer TRANSFORMER
-                        The desired pre-trained transformer to be used in the selected architecture. For
-                        local loading use, delft/resources-registry.json, and be sure to use here the
-                        same name as in the registry, e.g. ['bert-base-cased', 'bert-large-cased',
-                        'allenai/scibert_scivocab_cased'] and that the path in the registry to the model
-                        path is correct on your system. HuggingFace transformers hub will be used
-                        otherwise to fetch the model, see https://huggingface.co/models for model names
+                        The desired pre-trained transformer to be used in the selected
+                        architecture. For local loading use, delft/resources-registry.json, and be
+                        sure to use here the same name as in the registry, e.g. ['bert-base-
+                        cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased'] and that the
+                        path in the registry to the model path is correct on your system.
+                        HuggingFace transformers hub will be used otherwise to fetch the model,
+                        see https://huggingface.co/models for model names
+  --max-sequence-length MAX_SEQUENCE_LENGTH
+                        max-sequence-length parameter to be used.
+  --batch-size BATCH_SIZE
+                        batch-size parameter to be used.
+  --patience PATIENCE   patience, number of extra epochs to perform after the best epoch before
+                        stopping a training.
+  --learning-rate LEARNING_RATE
+                        Initial learning rate
+  --max-epoch MAX_EPOCH
+                        Maximum number of epochs.
+  --early-stop EARLY_STOP
+                        Force early training termination when metrics scores are not improving
+                        after a number of epochs equals to the patience parameter.
+  --multi-gpu           Enable the support for distributed computing (the batch size needs to be
+                        set accordingly using --batch-size)
+  --wandb               Enable logging to Weights and Biases
+  --wandb-run-id WANDB_RUN_ID
+                        Wandb run ID to resume for eval (only valid with eval action)
+  --wandb-project WANDB_PROJECT
+                        Wandb project name. If unset, falls back to the WANDB_PROJECT env var,
+                        then to wandb's default.
+  --num-workers NUM_WORKERS
+                        Number of DataLoader worker processes. Default: min(4, cpu_count - 1) for
+                        train/eval, 0 (in-process) for tagging.
 ```
 
 
 ## CONLL 2003
 
-DeLFT comes with various trained models for the CoNLL-2003 NER dataset.
+DeLFT 0.4.x came with trained models for the CoNLL-2003 NER dataset, which are to be trained again with DeLFT 1.x, as described below.
 
 By default, the `BidLSTM_CRF` architecture is used.  
 
@@ -282,12 +317,12 @@ For English NER tagging, when used, the default static embeddings is Glove (`glo
 
 ## Ontonotes 5.0 CONLL 2012
 
-DeLFT comes with pre-trained models with the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Static embeddings for Ontonotes can be set with parameter `--embedding`.
+DeLFT supports the [Ontonotes 5.0 CoNLL-2012 NER dataset](http://cemantix.org/data/ontonotes.html). As dataset-type identifier, use `conll2012`. All the options valid for CoNLL-2003 NER dataset are usable for this dataset. Static embeddings for Ontonotes can be set with parameter `--embedding`.
 
 For re-training, the assembled Ontonotes datasets following CoNLL-2012 must be available and converted into IOB2 tagging scheme, see [here](https://github.com/kermitt2/delft/tree/master/delft/utilities) for more details. To train and evaluate following the traditional approach (training with the train set without validation set, and evaluating on test set), with `BidLSTM_CRF` architecture use:
 
 ```sh
-> python3 nerTagger.py --dataset-type conll2012 train_eval --architecture BidLSTM_CRF --embedding glove-840B
+> python3 delft/applications/nerTagger.py --dataset-type conll2012 train_eval --architecture BidLSTM_CRF --embedding glove-840B
 ```
 
 ```text
@@ -391,7 +426,7 @@ all (micro avg.)     0.8943    0.8956    0.8949     11257
 
 ## French model (based on Le Monde corpus)
 
-Note that Le Monde corpus is subject to copyrights and is limited to research usage only, it is usually referred to as "corpus FTB". The corpus file `ftb6_ALL.EN.docs.relinked.xml` must be located under `delft/data/sequenceLabelling/leMonde/`. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type ftb`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
+Note that Le Monde corpus is subject to copyrights and is limited to research usage only, it is usually referred to as "corpus FTB". The corpus file `ftb6_ALL.EN.docs.relinked.xml` must be located under `data/sequenceLabelling/leMonde/`. This is the default French model, so it will be used by simply indicating the language as parameter: `--lang fr`, but you can also indicate explicitly the dataset with `--dataset-type ftb`. Default static embeddings for French language models are `wiki.fr`, which can be changed with parameter `--embedding`.
 
 Similarly as before, for training and evaluating use:
 
@@ -514,7 +549,7 @@ Using `camembert-base` as transformer layer in a `BERT_CRF` architecture:
 all (micro avg.)     0.9102    0.9162    0.9132      1217
 ```
 
-For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `delft/data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
+For historical reason, we can also consider a particular split of the FTB corpus into train, dev and set set and with a forced tokenization (like the old CoNLL 2013 NER), that was used in previous work for comparison. Obviously the evaluation is dependent to this particular set and the n-fold cross validation is a much better practice and should be prefered (as well as a format that do not force a tokenization). For using the forced split FTB (using the files `ftb6_dev.conll`, `ftb6_test.conll` and `ftb6_train.conll` located under `data/sequenceLabelling/leMonde/`), use as parameter `--dataset-type ftb_force_split`:
 
 ```sh
 > python3 delft/applications/nerTagger.py --lang fr --dataset-type ftb_force_split --fold-count 10 train_eval
@@ -669,8 +704,11 @@ This above work is licensed under a [Creative Commons Attribution-Noncommercial 
 A small experimental model for recognising insults and threats in texts, based on the Wikipedia comment from the Kaggle _Wikipedia Toxic Comments_ dataset, English only. This uses a small dataset labelled manually.
 
 ```
-usage: insultTagger.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
+usage: insultTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED] [--architecture ARCHITECTURE]
                        [--embedding EMBEDDING] [--transformer TRANSFORMER]
+                       [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
+                       [--batch-size BATCH_SIZE] [--early-stop EARLY_STOP] [--multi-gpu] [--wandb]
+                       [--wandb-project WANDB_PROJECT] [--num-workers NUM_WORKERS]
                        action
 
 Experimental insult recognizer for the Wikipedia toxic comments dataset
@@ -678,27 +716,50 @@ Experimental insult recognizer for the Wikipedia toxic comments dataset
 positional arguments:
   action
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
+  --seed SEED           Seed of the random number generators, to run a training again with the
+                        same split of the data, the same initial weights and the same order of the
+                        batches. Default: not seeded, every run differs.
   --architecture ARCHITECTURE
                         Type of model architecture to be used, one of ['BidLSTM', 'BidLSTM_CRF',
                         'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN',
                         'BidLSTM_CRF_CASING', 'BERT', 'BERT_CRF', 'BERT_ChainCRF',
                         'BERT_CRF_FEATURES']
   --embedding EMBEDDING
-                        The desired pre-trained word embeddings using their descriptions in the file. For
-                        local loading, use delft/resources-registry.json. Be sure to use here the same
-                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec',
-                        'potion-base-8M'] and that the path in the registry to the embedding file is
-                        correct on your system.
+                        The desired pre-trained word embeddings using their descriptions in the
+                        file. For local loading, use delft/resources-registry.json. Be sure to use
+                        here the same name as in the registry, e.g. ['glove-840B', 'fasttext-
+                        crawl', 'word2vec', 'potion-base-8M']. Contextual embeddings include
+                        scibert-contextual and bert-base-cased-contextual, and can also be given
+                        as contextual:<HuggingFace model or local path>. Paths in the registry
+                        must be correct on your system.
   --transformer TRANSFORMER
-                        The desired pre-trained transformer to be used in the selected architecture. For
-                        local loading use, delft/resources-registry.json, and be sure to use here the
-                        same name as in the registry, e.g. ['bert-base-cased', 'bert-large-cased',
-                        'allenai/scibert_scivocab_cased'] and that the path in the registry to the model
-                        path is correct on your system. HuggingFace transformers hub will be used
-                        otherwise to fetch the model, see https://huggingface.co/models for model names
+                        The desired pre-trained transformer to be used in the selected
+                        architecture. For local loading use, delft/resources-registry.json, and be
+                        sure to use here the same name as in the registry, e.g. ['bert-base-
+                        cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased'] and that the
+                        path in the registry to the model path is correct on your system.
+                        HuggingFace transformers hub will be used otherwise to fetch the model,
+                        see https://huggingface.co/models for model names
+  --learning-rate LEARNING_RATE
+                        Initial learning rate
+  --max-epoch MAX_EPOCH
+                        Maximum number of epochs.
+  --batch-size BATCH_SIZE
+                        batch-size parameter to be used.
+  --early-stop EARLY_STOP
+                        Force early training termination when metrics scores are not improving
+                        after a number of epochs equals to the patience parameter.
+  --multi-gpu           Enable the support for distributed computing (the batch size needs to be
+                        set accordingly using --batch-size)
+  --wandb               Enable logging to Weights and Biases
+  --wandb-project WANDB_PROJECT
+                        Wandb project name. If unset, falls back to the WANDB_PROJECT env var,
+                        then to wandb's default.
+  --num-workers NUM_WORKERS
+                        Number of workers for data loading. Default: cpu_count - 1 for train.
 ```
 
 For training:

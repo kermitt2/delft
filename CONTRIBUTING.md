@@ -17,7 +17,7 @@ Thank you for your interest in contributing to DeLFT! This guide will help you g
 
 ## Development Setup
 
-**Requirements:** Python 3.10 or 3.11
+**Requirements:** Python 3.10 to 3.13
 
 Set up a virtual environment and install in editable mode:
 
@@ -75,15 +75,15 @@ All pull requests must pass:
 2. **Formatting:** `ruff format --check .`
 3. **Tests:** `pytest`
 
-CI runs on both Ubuntu and macOS with Python 3.10 and 3.11.
+CI runs on both Ubuntu and macOS with Python 3.10 to 3.13.
 
 ## Pull Request Process
 
 1. Ensure there is an open issue to refer to
-2. Branch from `master`
+2. Branch from `dev`, the development branch
 2. Make your changes and ensure all CI checks pass locally
 3. Write a clear description of what your changes do and why
-4. Submit your pull request against the `master` branch
+4. Submit your pull request against the `dev` branch
 5. Squash and merge
 
 

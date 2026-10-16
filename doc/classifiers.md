@@ -8,6 +8,8 @@ The word embeddings of the RNN and CNN architectures are given with `--embedding
 
 With `--fold-count` above 1, one model is trained per fold and the models classify together, as an ensemble: see [Training over folds](text_classification.md#training-over-folds).
 
+No text classification model comes with DeLFT: `classify` uses the model that `train` saved before, under `data/models/textClassification/`.
+
 With `--incremental`, the license classifier (`licenseClassifier.py`) goes on training from the models already saved instead of starting new ones; `Classifier.train(..., incremental=True)` does the same after a `load()`.
 
 #### Toxic comment classification
@@ -17,36 +19,51 @@ The dataset of the [Kaggle Toxic Comment Classification challenge](https://www.k
 This is a multi-label regression problem, where a Wikipedia comment (or any similar short texts) should be associated to 6 possible types of toxicity (`toxic`, `severe_toxic`, `obscene`, `threat`, `insult`, `identity_hate`).
 
 ```
-usage: delft/applications/toxicCommentClassifier.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
-                                 [--embedding EMBEDDING] [--transformer TRANSFORMER]
+usage: toxicCommentClassifier.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
+                                 [--architecture ARCHITECTURE] [--embedding EMBEDDING]
+                                 [--transformer TRANSFORMER] [--wandb]
+                                 [--wandb-project WANDB_PROJECT] [--max-epoch MAX_EPOCH]
+                                 [--num-workers NUM_WORKERS]
                                  action
 
-Classification of comments/short texts in toxicity types (toxic, severe_toxic, obscene, threat, insult,
-identity_hate) based on DeLFT
+Classification of comments/short texts in toxicity types (toxic, severe_toxic, obscene, threat,
+insult, identity_hate) based on DeLFT
 
 positional arguments:
-  action
+  action                one of [train, train_eval, test, classify]
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
+  --seed SEED           Seed of the random number generators, to run a training again with the
+                        same split of the data, the same initial weights and the same order of the
+                        batches. Default: not seeded, every run differs.
   --architecture ARCHITECTURE
-                        type of model architecture to be used, one of ['lstm', 'bidLstm_simple', 'cnn',
-                        'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', 'gru', 'gru_simple', 'lstm_cnn', 'han',
-                        'bert']
+                        type of model architecture to be used, one of ['lstm', 'bidLstm_simple',
+                        'cnn', 'cnn2', 'cnn3', 'lstm_cnn', 'gru', 'gru_simple', 'gru_lstm',
+                        'dpcnn', 'bert']
   --embedding EMBEDDING
-                        The desired pre-trained word embeddings using their descriptions in the file. For
-                        local loading, use delft/resources-registry.json. Be sure to use here the same
-                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec',
-                        'potion-base-8M'] and that the path in the registry to the embedding file is
-                        correct on your system.
+                        The desired pre-trained word embeddings using their descriptions in the
+                        file. For local loading, use delft/resources-registry.json. Be sure to use
+                        here the same name as in the registry, e.g. ['glove-840B', 'fasttext-
+                        crawl', 'word2vec', 'potion-base-8M'] and that the path in the registry to
+                        the embedding file is correct on your system.
   --transformer TRANSFORMER
-                        The desired pre-trained transformer to be used in the selected architecture. For
-                        local loading use, delft/resources-registry.json, and be sure to use here the
-                        same name as in the registry, e.g. ['bert-base-cased', 'bert-large-cased',
-                        'allenai/scibert_scivocab_cased'] and that the path in the registry to the model
-                        path is correct on your system. HuggingFace transformers hub will be used
-                        otherwise to fetch the model, see https://huggingface.co/models for model names
+                        The desired pre-trained transformer to be used in the selected
+                        architecture. For local loading use, delft/resources-registry.json, and be
+                        sure to use here the same name as in the registry, e.g. ['bert-base-
+                        cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased'] and that the
+                        path in the registry to the model path is correct on your system.
+                        HuggingFace transformers hub will be used otherwise to fetch the model,
+                        see https://huggingface.co/models for model names
+  --wandb               Enable logging to Weights and Biases
+  --wandb-project WANDB_PROJECT
+                        Wandb project name. If unset, falls back to the WANDB_PROJECT env var,
+                        then to wandb's default.
+  --max-epoch MAX_EPOCH
+                        Maximum number of epochs for training.
+  --num-workers NUM_WORKERS
+                        Number of workers for data loading. Default: cpu_count - 1.
 ```
 
 To launch the training with default BiGRU model:
@@ -96,35 +113,49 @@ In this example, we formulate the problem as a 3 class regression (`negative`. `
 
 
 ```
-usage: delft/applications/citationClassifier.py [-h] [--fold-count FOLD_COUNT] [--architecture ARCHITECTURE]
-                             [--embedding EMBEDDING] [--transformer TRANSFORMER]
+usage: citationClassifier.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
+                             [--architecture ARCHITECTURE] [--embedding EMBEDDING]
+                             [--transformer TRANSFORMER] [--wandb] [--wandb-project WANDB_PROJECT]
+                             [--max-epoch MAX_EPOCH] [--num-workers NUM_WORKERS]
                              action
 
 Sentiment classification of citation contexts based on DeLFT
 
 positional arguments:
-  action
+  action                one of [train, train_eval, classify]
 
-optional arguments:
+options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
+  --seed SEED           Seed of the random number generators, to run a training again with the
+                        same split of the data, the same initial weights and the same order of the
+                        batches. Default: not seeded, every run differs.
   --architecture ARCHITECTURE
-                        type of model architecture to be used, one of ['lstm', 'bidLstm_simple', 'cnn',
-                        'cnn2', 'cnn3', 'mix1', 'dpcnn', 'conv', 'gru', 'gru_simple', 'lstm_cnn', 'han',
-                        'bert']
+                        type of model architecture to be used, one of ['lstm', 'bidLstm_simple',
+                        'cnn', 'cnn2', 'cnn3', 'lstm_cnn', 'gru', 'gru_simple', 'gru_lstm',
+                        'dpcnn', 'bert']
   --embedding EMBEDDING
-                        The desired pre-trained word embeddings using their descriptions in the file. For
-                        local loading, use delft/resources-registry.json. Be sure to use here the same
-                        name as in the registry, e.g. ['glove-840B', 'fasttext-crawl', 'word2vec',
-                        'potion-base-8M'] and that the path in the registry to the embedding file is
-                        correct on your system.
+                        The desired pre-trained word embeddings using their descriptions in the
+                        file. For local loading, use delft/resources-registry.json. Be sure to use
+                        here the same name as in the registry, e.g. ['glove-840B', 'fasttext-
+                        crawl', 'word2vec', 'potion-base-8M'] and that the path in the registry to
+                        the embedding file is correct on your system.
   --transformer TRANSFORMER
-                        The desired pre-trained transformer to be used in the selected architecture. For
-                        local loading use, delft/resources-registry.json, and be sure to use here the
-                        same name as in the registry, e.g. ['bert-base-cased', 'bert-large-cased',
-                        'allenai/scibert_scivocab_cased'] and that the path in the registry to the model
-                        path is correct on your system. HuggingFace transformers hub will be used
-                        otherwise to fetch the model, see https://huggingface.co/models for model names
+                        The desired pre-trained transformer to be used in the selected
+                        architecture. For local loading use, delft/resources-registry.json, and be
+                        sure to use here the same name as in the registry, e.g. ['bert-base-
+                        cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased'] and that the
+                        path in the registry to the model path is correct on your system.
+                        HuggingFace transformers hub will be used otherwise to fetch the model,
+                        see https://huggingface.co/models for model names
+  --wandb               Enable logging to Weights and Biases
+  --wandb-project WANDB_PROJECT
+                        Wandb project name. If unset, falls back to the WANDB_PROJECT env var,
+                        then to wandb's default.
+  --max-epoch MAX_EPOCH
+                        Maximum number of epochs for training.
+  --num-workers NUM_WORKERS
+                        Number of workers for data loading. Default: cpu_count - 1.
 ```
 
 Examples:

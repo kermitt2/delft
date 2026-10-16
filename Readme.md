@@ -38,14 +38,14 @@ Some contributions include:
 
 A native Java integration of the library has been realized in [GROBID](https://github.com/kermitt2/grobid) via [JEP](https://github.com/ninia/jep).
 
-The DeLFT __1.0.x__ release line is built on PyTorch and has been tested successfully with Python 3.10/3.11 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
+DeLFT 1.x is built on PyTorch and is tested with Python 3.10 to 3.13 (see the PyPI badge above for the exact current version). As always, GPU(s) are required for decent training time. For example, a GeForce GTX 1050 Ti (4GB) is working very well for running RNN models and BERT or RoBERTa base models. Using BERT large model is no problem with a GeForce GTX 1080 Ti (11GB), including training with modest batch size. Using multiple GPUs (training and inference) is supported.
 
-## Migrating to PyTorch (0.4.x → 1.0.x)
+## Migrating to PyTorch (0.4.x → 1.x)
 
-The **1.0.x** release line replaces the TensorFlow/Keras backend (used up to 0.4.x) with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and saved weights are not. See the [Upgrading section of the installation guide](doc/Install-DeLFT.md#upgrading) for the full step-by-step. Highlights:
+The **1.x** release lines replace the TensorFlow/Keras backend (used up to 0.4.x) with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and saved weights are not. See the [Upgrading section of the installation guide](doc/Install-DeLFT.md#upgrading) for the full step-by-step. Highlights:
 
-- **PyTorch backend**: `torch` 2.11, `transformers` 5.7 (native, no Keras-layer wrapping), and [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) replace TensorFlow / `tf_keras` / `tensorflow-addons`. Newer transformers such as ModernBERT are supported.
-- **Retrain custom models**: TensorFlow weights cannot be loaded into the PyTorch models and there is **no automatic converter** (the previous `convert_model` utility was removed). Bundled application models have been regenerated for PyTorch; custom models must be retrained with their original `train` / `train_eval` command.
+- **PyTorch backend**: `torch` 2.11, `transformers` 5 (native, no Keras-layer wrapping), and [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) replace TensorFlow / `tf_keras` / `tensorflow-addons`. Newer transformers such as ModernBERT are supported.
+- **Retrain custom models**: TensorFlow weights cannot be loaded into the PyTorch models and there is **no automatic converter** (the previous `convert_model` utility was removed). The GROBID models under `data/models` and on the Hugging Face Hub have been regenerated for PyTorch; the other models of 0.4.x (NER, dataset mentions, text classifiers) were removed, and these, like custom models, must be retrained with their original `train` / `train_eval` command. Loading a model of 0.4.x fails with a message saying so.
 - **GPU / CUDA 12.8**: GPU builds target CUDA 12.8 via the `[gpu]` extra (see installation below). Reinstall into a fresh virtual environment to avoid leftover `tensorflow` packages.
 - **ELMo support removed**: the `--use-ELMo` flag and `use_ELMo` parameter are gone. Use transformer-based models (BERT, SciBERT, …) or static embeddings (GloVe, fastText) instead.
 - **LMDB embedding caches** built before 0.4.x use the legacy pickle format; convert them once with `python -m delft.utilities.convert_lmdb_embeddings --input <old> --output <new>` (or simply rebuild).
@@ -77,7 +77,7 @@ pip install "delft[gpu]" --extra-index-url https://download.pytorch.org/whl/cu12
 
 ## DeLFT Installation
 
-To work from source (current `master`), clone the repo, set up a virtual environment, and install in editable mode:
+To work from source, clone the repo (development happens on the `dev` branch), set up a virtual environment, and install in editable mode:
 
 ```sh
 git clone https://github.com/kermitt2/delft
@@ -97,7 +97,7 @@ For NVIDIA GPU (CUDA) wheels, older pre-Turing GPUs (V100/P100), the `[dev]` ext
 
 ### ONNX Export
 
-DeLFT supports exporting trained sequence labeling models (`BidLSTM_CRF` and `BidLSTM_CRF_FEATURES`) to ONNX format for inference in Java or other runtimes.
+DeLFT supports exporting trained sequence labeling models (`BidLSTM_CRF`, `BidLSTM_CRF_FEATURES`, `BidLSTM_ChainCRF` and `BidLSTM_ChainCRF_FEATURES`, with static or no word embeddings) to ONNX format for inference in Java or other runtimes.
 
 **Export a model:**
 
@@ -108,7 +108,7 @@ python -m delft.applications.onnx_export \
 ```
 
 This creates:
-- `encoder.onnx` - BiLSTM encoder model
+- `encoder.onnx` - BiLSTM encoder model, which gives the emissions of the CRF, for any batch size and sequence length
 - `crf_params.json` - CRF transition matrices
 - `vocab.json` - Character and label vocabularies
 - `config.json` - Model configuration
@@ -121,11 +121,13 @@ A Java inference library is available in `java/delft-onnx/`. Build and run:
 cd java/delft-onnx
 ./gradlew build
 ./gradlew run --args="--model ../../exported_models/date-features \
-    --embeddings ../../data/db/glove-840B-raw \
+    --embeddings ../../data/db/glove-840B \
     --input 'December 25, 2024'"
 ```
 
 Note: For feature models, sample features are auto-generated for demo purposes.
+
+The demo pads every sequence to `--max-seq-length` (512 by default). The `BidLSTM_CRF*` models ignore the padding; the `BidLSTM_ChainCRF*` ones run their LSTM over it, as they did in DeLFT 0.4.x, so give them unpadded sequences to get the results of DeLFT.
 
 ## License and contact
 
