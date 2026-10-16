@@ -70,3 +70,26 @@ def test_decodes_to_labels(architecture):
     predictions = model.decode(_inputs())
     assert len(predictions) == BATCH
     assert all(0 <= tag < NTAGS for sequence in predictions for tag in sequence)
+
+
+@pytest.mark.parametrize("architecture", BERT_ARCHITECTURES)
+def test_a_model_to_load_weights_into_does_not_need_the_pretrained_ones(architecture):
+    """Its transformer is built from its configuration: no download of the pretrained weights."""
+    trained = _model(architecture)
+    config = ModelConfig(
+        architecture=architecture,
+        embeddings_name=None,
+        transformer_name="tiny-random",
+        max_sequence_length=LENGTH,
+        features_indices=list(range(NB_FEATURES)),
+    )
+    with (
+        patch("transformers.AutoModel.from_pretrained", side_effect=AssertionError("pretrained weights loaded")),
+        patch("transformers.AutoConfig.from_pretrained", return_value=trained.transformer.config),
+    ):
+        model = get_model(config, NTAGS, load_pretrained_weights=False)
+    model.load_state_dict(trained.state_dict())
+    model.eval(), trained.eval()
+    with torch.no_grad():
+        torch.testing.assert_close(model(_inputs())["logits"], trained(_inputs())["logits"])
+    assert next(model.transformer.parameters()).dtype == torch.float32

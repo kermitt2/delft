@@ -505,6 +505,22 @@ def train_eval(
 
 
 # split data, train a GROBID model and evaluate it
+def model_name_to_load(model, architecture, suffix=None, input_model_path=None):
+    """
+    The name of the model eval and tag load: the GROBID one, unless the models directory they are told to
+    load from holds the model under the name train gives it there, without the prefix, when saving it
+    under --output.
+    """
+    model_name = build_model_name(model, architecture, suffix)
+    if input_model_path is not None and os.path.isdir(input_model_path):
+        unprefixed = build_model_name(model, architecture, suffix, prefix="")
+        if not os.path.isdir(os.path.join(input_model_path, model_name)) and os.path.isdir(
+            os.path.join(input_model_path, unprefixed)
+        ):
+            return unprefixed
+    return model_name
+
+
 def eval_(
     model,
     input_path=None,
@@ -529,7 +545,7 @@ def eval_(
 
     print("max evaluation sequence length:", str(longest_row(x_all)))
 
-    model_name = build_model_name(model, architecture, suffix)
+    model_name = model_name_to_load(model, architecture, suffix, input_model_path)
 
     start_time = time.time()
 
@@ -568,7 +584,7 @@ def annotate_text(
     annotations = []
 
     # load model
-    model_name = build_model_name(model, architecture, suffix)
+    model_name = model_name_to_load(model, architecture, suffix, input_model_path)
 
     model = Sequence(model_name, nb_workers=num_workers)
     if input_model_path is not None:

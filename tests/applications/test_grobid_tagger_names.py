@@ -64,3 +64,21 @@ class TestLoadingActions:
         ):
             grobidTagger.eval_("date", input_path="some.data", input_model_path="hf://owner/repository@v1")
         sequence.return_value.load.assert_called_once_with("hf://owner/repository@v1")
+
+
+class TestModelSavedUnderOutput:
+    """train --output saves a model without the GROBID prefix: eval and tag find it there."""
+
+    def test_the_unprefixed_model_of_a_models_directory_is_loaded(self, tmp_path):
+        (tmp_path / "date-BidLSTM_CRF-v2").mkdir()
+        name = grobidTagger.model_name_to_load("date", "BidLSTM_CRF", "v2", str(tmp_path))
+        assert name == "date-BidLSTM_CRF-v2"
+
+    def test_the_grobid_model_is_preferred_when_both_are_there(self, tmp_path):
+        (tmp_path / "date-BidLSTM_CRF").mkdir()
+        (tmp_path / "grobid-date-BidLSTM_CRF").mkdir()
+        assert grobidTagger.model_name_to_load("date", "BidLSTM_CRF", None, str(tmp_path)) == "grobid-date-BidLSTM_CRF"
+
+    def test_the_grobid_name_is_kept_for_the_hub(self):
+        name = grobidTagger.model_name_to_load("date", "BidLSTM_CRF", None, "hf://owner/repository")
+        assert name == "grobid-date-BidLSTM_CRF"

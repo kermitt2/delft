@@ -34,6 +34,7 @@ from delft.utilities.weights import (
     find_weight_file,
     fold_weight_file,
     load_weights,
+    refuse_tensorflow_model,
     save_weights,
 )
 
@@ -827,6 +828,7 @@ class Classifier(object):
         self._load_from_directory(model_path)
 
     def _load_from_directory(self, model_path):
+        refuse_tensorflow_model(model_path)
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
         self.features_preprocessor = features_preprocessor_from_config(self.model_config)
@@ -855,14 +857,14 @@ class Classifier(object):
             self.models = []
             for fold_id in range(self.model_config.fold_number):
                 weight_path = find_fold_weight_file(model_path, fold_id)
-                model = getModel(self.model_config, self.training_config)
+                model = getModel(self.model_config, self.training_config, load_pretrained_weights=False)
                 load_weights(model, weight_path, device=self.device)
                 model.to("cpu" if self._parks_fold_models() else self.device)
                 self.models.append(model)
             print(f"Models of {len(self.models)} folds loaded from {model_path}")
         else:
             # Init model
-            self.model = getModel(self.model_config, self.training_config)
+            self.model = getModel(self.model_config, self.training_config, load_pretrained_weights=False)
             self.models = None
 
             # Load weights

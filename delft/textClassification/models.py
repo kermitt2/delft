@@ -24,6 +24,7 @@ import torch.nn.functional as F
 
 from delft.textClassification.config import DEFAULT_TRANSFORMER_NAME
 from delft.textClassification.features import features_size, features_vocabulary
+from delft.utilities.transformer_models import load_transformer
 
 # size of the word vectors when the configuration gives none, and of the word embeddings
 # a model learns when it is given no pre-trained ones
@@ -734,19 +735,10 @@ class bert(BaseTextClassifier):
     ):
         super().__init__(model_config, training_config)
 
-        from transformers import AutoConfig, AutoModel
-
-        transformer_name = model_config.transformer_name or DEFAULT_TRANSFORMER_NAME
-
-        # Pin fp32: some HF checkpoints (e.g. deberta-v3) ship as fp16, and recent
-        # transformers versions honor that, which clashes with the fp32 classifier head below.
-        if local_path:
-            self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-        elif load_pretrained_weights:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            config = AutoConfig.from_pretrained(transformer_name)
-            self.transformer = AutoModel.from_config(config)
+        # a local directory holding the transformer, when given, rather than its name
+        transformer_name = local_path or model_config.transformer_name or DEFAULT_TRANSFORMER_NAME
+        # without its pretrained weights when the weights of the trained model are loaded next
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
 
         hidden_size = self.transformer.config.hidden_size
 

@@ -17,7 +17,6 @@ Model architectures implemented:
 """
 
 import inspect
-import os
 from typing import Dict, List, Optional
 
 import torch
@@ -25,6 +24,7 @@ import torch.nn as nn
 
 from delft.sequenceLabelling.config import ModelConfig
 from delft.utilities.crf_pytorch import CRF, ChainCRF
+from delft.utilities.transformer_models import load_transformer
 
 
 class CharacterEncoder(nn.Module):
@@ -113,6 +113,19 @@ class CharacterEncoder(nn.Module):
         hidden = hidden * (lengths > 0).unsqueeze(-1).to(hidden.dtype)
 
         return hidden.view(batch_size, seq_len, -1)
+
+
+def grow_char_embeddings(model: nn.Module, size: int) -> None:
+    """Gives the character embeddings of ``model`` a row for each character added to its vocabulary, which
+    incremental training does, the rows of the characters it knows being kept."""
+    for module in model.modules():
+        embeddings = getattr(module, "char_embeddings", None)
+        if isinstance(embeddings, nn.Embedding) and embeddings.num_embeddings < size:
+            grown = nn.Embedding(size, embeddings.embedding_dim, padding_idx=embeddings.padding_idx)
+            grown.to(device=embeddings.weight.device, dtype=embeddings.weight.dtype)
+            with torch.no_grad():
+                grown.weight[: embeddings.num_embeddings] = embeddings.weight
+            module.char_embeddings = grown
 
 
 def get_token_mask(char_input: torch.Tensor) -> torch.Tensor:
@@ -1105,25 +1118,10 @@ class BERT(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
 
-        # Load transformer
-        # Note: local_path is for loading a locally-stored transformer (not from HuggingFace)
-        # When load_pretrained_weights=False, we load from transformer_name since fine-tuned
-        # weights will be loaded separately by the wrapper via load_state_dict()
-        # Pin fp32: some HF checkpoints (e.g. deberta-v3) ship as fp16, and recent
-        # transformers versions honor that, which clashes with the fp32 head below.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                # Check if local_path is a valid transformer directory
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            # Load pretrained transformer (weights will be replaced by load_state_dict later)
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        # without its pretrained weights when the weights of the trained model are loaded next
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1189,18 +1187,8 @@ class BERT_CRF(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1271,18 +1259,8 @@ class BERT_ChainCRF(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1342,18 +1320,8 @@ class BERT_FEATURES(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1459,18 +1427,8 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)

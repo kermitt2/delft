@@ -119,7 +119,7 @@ Upgrade steps:
 3. **Replace ELMo usages.** The `--use-ELMo` flag and the `use_ELMo` parameter are gone; use a transformer architecture (`BERT_CRF`, `BERT_ChainCRF`, …) with a domain-specific model (SciBERT, BioBERT, CamemBERT, …), or static embeddings (GloVe, fastText).
 4. **LMDB caches** built before 0.4.x: convert (or rebuild) them as in the previous section. Caches already in the 0.4.x `float32` format are reused as-is.
 
-> If you imported DeLFT internals directly (rather than the `Sequence` / `Classifier` wrappers), note that the TensorFlow modules have been removed. The PyTorch equivalents are `delft/utilities/crf_pytorch.py`, `delft/utilities/attention_pytorch.py`, `delft/sequenceLabelling/models.py`, and `delft/sequenceLabelling/data_loader.py`. The DataLoader worker policy shared by both task families lives in `delft/utilities/dataloader_utils.py`.
+> If you imported DeLFT internals directly (rather than the `Sequence` / `Classifier` wrappers), note that the TensorFlow modules have been removed. The PyTorch equivalents are `delft/utilities/crf_pytorch.py`, `delft/sequenceLabelling/models.py`, and `delft/sequenceLabelling/data_loader.py`. The DataLoader worker policy shared by both task families lives in `delft/utilities/dataloader_utils.py`.
 
 ## Loading resources locally
 

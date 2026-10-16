@@ -252,15 +252,19 @@ class TestTransformer:
         monkeypatch.chdir(tmp_path)
         with (
             patch("transformers.AutoTokenizer.from_pretrained", side_effect=lambda *a, **k: _tokenizer()),
-            patch("transformers.AutoModel.from_pretrained", side_effect=_tiny_transformer),
+            patch("transformers.AutoModel.from_pretrained", side_effect=_tiny_transformer) as pretrained,
+            patch("transformers.AutoConfig.from_pretrained", side_effect=lambda *a, **k: _tiny_transformer().config),
         ):
             classifier = _classifier(embeddings=False, architecture="bert", transformer_name="in-memory", fold_number=2)
             classifier.train(TEXTS, CLASSES)
             scores = classifier.predict(TEXTS, output_format="array")
             classifier.save(str(tmp_path))
+            pretrained.reset_mock()
             loaded = _loaded(tmp_path, embeddings=False)
             np.testing.assert_allclose(loaded.predict(TEXTS, output_format="array"), scores, rtol=1e-5)
         assert len(classifier.models) == 2
+        # the weights of the folds are loaded over the transformers, the pretrained ones are not needed
+        pretrained.assert_not_called()
 
     def test_fold_transformers_are_kept_out_of_a_gpu_between_their_runs(self):
         """Several transformers may not fit in it together: on a CPU there is nothing to keep them out of."""

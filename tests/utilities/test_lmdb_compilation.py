@@ -342,3 +342,27 @@ def test_a_database_put_there_by_another_process_meanwhile_is_kept(tmp_path, sma
         _assert_usable(tmp_path, embeddings)
     finally:
         close_lmdb_env(_database(tmp_path))
+
+
+def test_lines_that_are_not_a_word_and_its_vector_are_skipped(tmp_path, small_and_quick):
+    """A line that did not parse used to store the vector of the previous word under its own."""
+    registry = _registry(tmp_path)
+    path = tmp_path / "vectors.vec"
+    lines = path.read_text(encoding="utf-8").splitlines(keepends=True)
+    lines.insert(8, "broken " + " ".join(["x"] * DIMENSIONS) + "\n")
+    lines.insert(9, "short 1.0 2.0\n")
+    path.write_text("".join(lines), encoding="utf-8")
+
+    embeddings = Embeddings(NAME, resource_registry=registry, use_cache=False)
+
+    assert embeddings.get_word_vector("broken") is None or not np.any(embeddings.get_word_vector("broken"))
+    assert embeddings.get_word_vector("short") is None or not np.any(embeddings.get_word_vector("short"))
+    _assert_usable(tmp_path, embeddings)
+    close_lmdb_env(_database(tmp_path))
+
+
+def test_a_file_without_any_vector_is_refused(tmp_path, small_and_quick):
+    registry = _registry(tmp_path)
+    (tmp_path / "vectors.vec").write_text("not a vector file\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="No embeddings could be read"):
+        Embeddings(NAME, resource_registry=registry, use_cache=False)
