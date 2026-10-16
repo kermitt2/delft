@@ -833,6 +833,8 @@ if __name__ == "__main__":
 
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
+    if architecture not in architectures:
+        parser.error("unknown model architecture, must be one of " + str(architectures))
 
     if action in (Tasks.TRAIN, Tasks.TRAIN_EVAL):
         if embeddings_name is None and not (architecture and "BERT" in architecture):

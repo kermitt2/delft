@@ -299,7 +299,25 @@ def train_and_eval(
     model.save()
 
 
-def train_binary(embeddings_name, fold_count, architecture="gru", transformer=None, incremental=False):
+def train_binary(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    wandb_project=None,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+    num_workers=None,
+    incremental=False,
+):
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
@@ -313,8 +331,6 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
 
         # we could experiment with binary weighting the class maybe
         class_weights = None
-
-        batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
         y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_copyrights]
         y_train_class_rank = np.array(y_train_class_rank)
@@ -338,6 +354,10 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
             early_stop=early_stop,
             class_weights=class_weights,
             transformer_name=transformer,
+            report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
+            learning_rate=learning_rate,
+            nb_workers=num_workers,
         )
 
         _train(model, xtr, y_train_class_rank, fold_count, incremental)
@@ -353,8 +373,6 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
 
         # we could experiment with binary weighting the class maybe
         class_weights = None
-
-        batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
         y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_licenses]
         y_train_class_rank = np.array(y_train_class_rank)
@@ -378,6 +396,10 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
             early_stop=early_stop,
             class_weights=class_weights,
             transformer_name=transformer,
+            report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
+            learning_rate=learning_rate,
+            nb_workers=num_workers,
         )
 
         _train(model, xtr, y_train_class_rank, fold_count, incremental)
@@ -385,7 +407,25 @@ def train_binary(embeddings_name, fold_count, architecture="gru", transformer=No
         model.save()
 
 
-def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", transformer=None, incremental=False):
+def train_and_eval_binary(
+    embeddings_name,
+    fold_count,
+    architecture="gru",
+    transformer=None,
+    report_to_wandb=False,
+    wandb_project=None,
+    batch_size=-1,
+    maxlen=-1,
+    patience=-1,
+    early_stop=None,
+    max_epoch=-1,
+    learning_rate=None,
+    num_workers=None,
+    incremental=False,
+):
+    batch_size, maxlen, patience, early_stop, max_epoch, learning_rate = configure(
+        architecture, batch_size, maxlen, patience, early_stop, max_epoch, learning_rate
+    )
     print("loading multiclass copyright/license dataset...")
     xtr, y_copyrights = _read_data(
         "data/textClassification/licenses/copyrights-licenses-data-validated.csv",
@@ -400,8 +440,6 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     for class_rank in range(len(list_classes_copyright)):
         model_name = "copyright_" + list_classes_copyright[class_rank] + "_" + architecture
         class_weights = None
-
-        batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
         y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
@@ -428,6 +466,10 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
             early_stop=early_stop,
             class_weights=class_weights,
             transformer_name=transformer,
+            report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
+            learning_rate=learning_rate,
+            nb_workers=num_workers,
         )
 
         _train(model, x_train, y_train_class_rank, fold_count, incremental)
@@ -447,8 +489,6 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
     for class_rank in range(len(list_classes_licenses)):
         model_name = "licenses_" + list_classes_licenses[class_rank] + "_" + architecture
         class_weights = None
-
-        batch_size, maxlen, patience, early_stop, max_epoch = configure(architecture)
 
         y_train_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_train]
         y_test_class_rank = [[1, 0] if y[class_rank] == 1.0 else [0, 1] for y in y_test]
@@ -475,6 +515,10 @@ def train_and_eval_binary(embeddings_name, fold_count, architecture="gru", trans
             early_stop=early_stop,
             class_weights=class_weights,
             transformer_name=transformer,
+            report_to_wandb=report_to_wandb,
+            wandb_project=wandb_project,
+            learning_rate=learning_rate,
+            nb_workers=num_workers,
         )
 
         _train(model, x_train, y_train_class_rank, fold_count, incremental)
@@ -700,14 +744,14 @@ if __name__ == "__main__":
         "train_binary",
         "train_eval_binary",
     ):
-        print("action not specified, must be one of [train,train_binary,train_eval,train_eval_binary,classify]")
+        parser.error("action must be one of [train,train_binary,train_eval,train_eval_binary,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer
 
     architecture = args.architecture
     if architecture not in architectures:
-        print("unknown model architecture, must be one of " + str(architectures))
+        parser.error("unknown model architecture, must be one of " + str(architectures))
 
     if args.action.startswith("train") and transformer is None and embeddings_name is None and architecture != "bert":
         # as for sequence labelling: no pre-trained word embeddings unless some are asked for
@@ -753,6 +797,15 @@ if __name__ == "__main__":
             args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            report_to_wandb=wandb,
+            wandb_project=wandb_project,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
+            num_workers=num_workers,
             incremental=args.incremental,
         )
 
@@ -786,6 +839,15 @@ if __name__ == "__main__":
             args.fold_count,
             architecture=architecture,
             transformer=transformer,
+            report_to_wandb=wandb,
+            wandb_project=wandb_project,
+            batch_size=args.batch_size,
+            maxlen=args.maxlen,
+            patience=args.patience,
+            early_stop=args.early_stop,
+            max_epoch=args.max_epoch,
+            learning_rate=args.learning_rate,
+            num_workers=num_workers,
             incremental=args.incremental,
         )
 

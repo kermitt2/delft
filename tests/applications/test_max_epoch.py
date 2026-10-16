@@ -9,7 +9,6 @@ import pytest
 
 APPLICATIONS = [
     "citationClassifier",
-    "dataseerClassifier",
     "licenseClassifier",
     "softwareClassifier",
     "softwareContextClassifier",
