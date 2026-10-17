@@ -501,6 +501,7 @@ class Embeddings(object):
         # batch_size = 1024
         i = 0
         nb_lines = 0
+        skipped = 0
 
         # read number of lines first
         embedding_file = open_embedding_file(embeddings_path)
@@ -532,13 +533,16 @@ class Embeddings(object):
                     vector = np.array([float(val) for val in line[1 : len(line) - 1]], dtype="float32")
                 else:
                     vector = np.array([float(val) for val in line[1 : len(line)]], dtype="float32")
-
-            except Exception:
-                print(len(line))
-                print(line[1 : len(line)])
+            except ValueError:
+                # the previous vector would otherwise be stored under this word
+                skipped += 1
+                continue
 
             if self.embed_size == 0:
                 self.embed_size = len(vector)
+            if len(vector) != self.embed_size:
+                skipped += 1
+                continue
 
             if len(word.encode(encoding="UTF-8")) < self.env.max_key_size():
                 txn.put(word.encode(encoding="UTF-8"), _serialize_float32(vector))
@@ -546,6 +550,11 @@ class Embeddings(object):
 
         embedding_file.close()
 
+        if skipped:
+            print(f"Warning: {skipped} lines of {embeddings_path} could not be read as a word and its vector, skipped")
+        if i == 0:
+            txn.abort()
+            raise ValueError(f"No embeddings could be read from {embeddings_path}")
         # if i % batch_size != 0:
         txn.commit()
         if nbWords == 0:

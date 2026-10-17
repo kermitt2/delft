@@ -17,7 +17,6 @@ Model architectures implemented:
 """
 
 import inspect
-import os
 from typing import Dict, List, Optional
 
 import torch
@@ -25,6 +24,7 @@ import torch.nn as nn
 
 from delft.sequenceLabelling.config import ModelConfig
 from delft.utilities.crf_pytorch import CRF, ChainCRF
+from delft.utilities.transformer_models import load_transformer
 
 
 class CharacterEncoder(nn.Module):
@@ -96,13 +96,36 @@ class CharacterEncoder(nn.Module):
             batch_first=True,
             enforce_sorted=False,
         )
-        _, (hidden, _) = self.bilstm(packed)
-        hidden = torch.cat([hidden[0], hidden[1]], dim=-1)
+        if torch.onnx.is_in_onnx_export():
+            # the TorchScript exporter fails on the final state of a packed LSTM whose lengths are not
+            # sorted, but not on its output: that state is the forward output at the last real character
+            # and the backward output at the first one
+            packed_output, _ = self.bilstm(packed)
+            output, _ = nn.utils.rnn.pad_packed_sequence(packed_output, batch_first=True, total_length=max_char_len)
+            size = self.output_size // 2
+            last = (lengths.clamp(min=1) - 1).view(-1, 1, 1).expand(-1, 1, size)
+            hidden = torch.cat([output[:, :, :size].gather(1, last).squeeze(1), output[:, 0, size:]], dim=-1)
+        else:
+            _, (hidden, _) = self.bilstm(packed)
+            hidden = torch.cat([hidden[0], hidden[1]], dim=-1)
         # a token that is entirely padding is masked out completely, leaving
         # the initial state rather than whatever a single step produced
         hidden = hidden * (lengths > 0).unsqueeze(-1).to(hidden.dtype)
 
         return hidden.view(batch_size, seq_len, -1)
+
+
+def grow_char_embeddings(model: nn.Module, size: int) -> None:
+    """Gives the character embeddings of ``model`` a row for each character added to its vocabulary, which
+    incremental training does, the rows of the characters it knows being kept."""
+    for module in model.modules():
+        embeddings = getattr(module, "char_embeddings", None)
+        if isinstance(embeddings, nn.Embedding) and embeddings.num_embeddings < size:
+            grown = nn.Embedding(size, embeddings.embedding_dim, padding_idx=embeddings.padding_idx)
+            grown.to(device=embeddings.weight.device, dtype=embeddings.weight.dtype)
+            with torch.no_grad():
+                grown.weight[: embeddings.num_embeddings] = embeddings.weight
+            module.char_embeddings = grown
 
 
 def get_token_mask(char_input: torch.Tensor) -> torch.Tensor:
@@ -1081,7 +1104,7 @@ class BERT(BaseSequenceLabeler):
         config: Model configuration (must include transformer_name)
         ntags: Number of output tags
         load_pretrained_weights: Whether to load pretrained transformer weights
-        local_path: Local path to load transformer from
+        local_path: the directory of the trained model being loaded, whose saved transformer configuration is used
     """
 
     name = "BERT"
@@ -1095,25 +1118,10 @@ class BERT(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
 
-        # Load transformer
-        # Note: local_path is for loading a locally-stored transformer (not from HuggingFace)
-        # When load_pretrained_weights=False, we load from transformer_name since fine-tuned
-        # weights will be loaded separately by the wrapper via load_state_dict()
-        # Pin fp32: some HF checkpoints (e.g. deberta-v3) ship as fp16, and recent
-        # transformers versions honor that, which clashes with the fp32 head below.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                # Check if local_path is a valid transformer directory
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            # Load pretrained transformer (weights will be replaced by load_state_dict later)
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        # without its pretrained weights when the weights of the trained model are loaded next
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1179,18 +1187,8 @@ class BERT_CRF(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1261,18 +1259,8 @@ class BERT_ChainCRF(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1332,18 +1320,8 @@ class BERT_FEATURES(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1449,18 +1427,8 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
     ):
         super().__init__(config, ntags)
 
-        from transformers import AutoModel
-
         transformer_name = config.transformer_name or "bert-base-uncased"
-
-        # Pin fp32: see BERT class for rationale.
-        if load_pretrained_weights:
-            if local_path and os.path.exists(os.path.join(local_path, "config.json")):
-                self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-            else:
-                self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1642,7 +1610,7 @@ def get_model(
         config: Model configuration with architecture name
         ntags: Number of output tags
         load_pretrained_weights: Whether to load pretrained transformer weights
-        local_path: Local path for transformer models
+        local_path: the directory of the trained model being loaded, whose saved transformer configuration is used
 
     Returns:
         Model instance

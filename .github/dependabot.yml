@@ -20,7 +20,6 @@ updates:
           - "tokenizers"
           - "huggingface*"
           - "safetensors"
-          - "accelerate"
       documentation:
         patterns:
           - "mkdocs*"

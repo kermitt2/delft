@@ -14,12 +14,19 @@ safe to call from several of them: a call sets the truncation and the padding it
 asked for on the tokenizer, where a call of another thread may find them instead of its
 own, and return a sequence cut at another length, or not cut. Call a shared tokenizer
 with ``call_tokenizer``, which lets one call through at a time.
+
+The tokenizer of a loaded model is the one it saved, when it saved it (``use_saved_tokenizer``).
 """
 
+import os
 import threading
+
+from delft.utilities.transformer_models import TRANSFORMER_TOKENIZER_DIR
 
 _load_lock = threading.Lock()
 _tokenizers = {}
+# the directory a loaded model saved the tokenizer of a transformer in, by transformer name
+_saved_tokenizers = {}
 
 # held for the time of a call: tokenizing a sequence takes a millisecond or so, which is
 # nothing next to the forward pass of the transformer that follows it
@@ -37,9 +44,20 @@ def get_tokenizer(name, **kwargs):
         if tokenizer is None:
             from transformers import AutoTokenizer
 
-            tokenizer = AutoTokenizer.from_pretrained(name, **kwargs)
+            tokenizer = AutoTokenizer.from_pretrained(_saved_tokenizers.get(str(name), name), **kwargs)
             _tokenizers[key] = tokenizer
     return tokenizer
+
+
+def use_saved_tokenizer(name, model_dir):
+    """
+    Read the tokenizer of the transformer ``name`` from the model directory ``model_dir``, when the
+    model saved it there, rather than from the Hub.
+    """
+    directory = os.path.join(model_dir, TRANSFORMER_TOKENIZER_DIR)
+    if os.path.isdir(directory):
+        with _load_lock:
+            _saved_tokenizers[str(name)] = directory
 
 
 def call_tokenizer(tokenizer, *args, **kwargs):
@@ -52,3 +70,4 @@ def clear_tokenizers():
     """Forget the tokenizers loaded so far: the next ``get_tokenizer`` loads again."""
     with _load_lock:
         _tokenizers.clear()
+        _saved_tokenizers.clear()

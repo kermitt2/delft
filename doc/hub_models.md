@@ -9,8 +9,8 @@ A model is a folder of either
 - a **model repository**, one per task, holding the models of that task. It is versioned, and is the place for the models a release depends on:
 
     ```
-    hf://lfoppiano/grobid-model-header/grobid-header-BidLSTM_CRF_FEATURES
-    hf://lfoppiano/grobid-model-header@v1.1.0/grobid-header-BidLSTM_CRF_FEATURES
+    hf://sciencialab/grobid-model-header/grobid-header-BidLSTM_CRF_FEATURES-glove_840B
+    hf://sciencialab/grobid-model-header@main/grobid-header-BidLSTM_CRF_FEATURES-glove_840B
     ```
 
 - a **[bucket](https://huggingface.co/docs/hub/storage-buckets)**, the mutable, unversioned storage of the Hub, mirroring a models directory. It is the place for the models of experiments:
@@ -19,7 +19,7 @@ A model is a folder of either
     hf://buckets/lfoppiano/delft-models/grobid-header-BidLSTM_CRF_FEATURES
     ```
 
-This is the `hf://` syntax of `huggingface_hub`, the revision (`@v1.1.0`, a branch, a tag or a commit) being optional and for repositories only.
+This is the `hf://` syntax of `huggingface_hub`, the revision (`@main`, a branch, a tag or a commit) being optional and for repositories only.
 
 The folder is named as [model names](grobid.md#model-names) says: `grobid-{task}-{architecture}`, with an optional `-{suffix}`. A repository of a task therefore holds a folder per architecture and variant of it, and only the folder that is asked for is downloaded: the models with a transformer inside weigh hundreds of megabytes each.
 
@@ -30,9 +30,11 @@ Nothing changes in the way a model is loaded by name. When it is not in the mode
 ```python
 from delft.sequenceLabelling import Sequence
 
-model = Sequence("grobid-header-BidLSTM_CRF_FEATURES")
+model = Sequence("grobid-header-BidLSTM_CRF_FEATURES-glove_840B")
 model.load()  # downloaded to data/models/sequenceLabelling/ if it is not there
 ```
+
+The models published by DeLFT are named with a suffix telling what they were trained with: `grobid-header-BidLSTM_CRF_FEATURES-glove_840B` with GloVe, `grobid-header-BidLSTM_CRF_FEATURES-no_embeddings` without word embeddings (`python -m delft.applications.hub_models list header` lists them). Asking for a model without its suffix fails with an error listing the variants with one. When the Hub cannot be reached, a model downloaded before is loaded from the models directory.
 
 This also holds for the `eval` and `tag` actions of the applications, and for GROBID, which loads models this way.
 
@@ -41,16 +43,18 @@ This also holds for the `eval` and `tag` actions of the applications, and for GR
 `load()` also takes the place of the model instead of the models directory, whatever the registry says. This is the way to load a given revision, from a private repository with a `token`, or for an application embedding DeLFT, which has the place of its models and no DeLFT directory layout:
 
 ```python
-model = Sequence("grobid-header-BidLSTM_CRF_FEATURES", nb_workers=0)
+model = Sequence("grobid-header-BidLSTM_CRF_FEATURES-glove_840B", nb_workers=0)
 
 # a repository or a bucket: the model is looked for there under its name
-model.load("hf://lfoppiano/grobid-model-header@v1.1.0", cache_dir="~/.cache/my-application/models")
+model.load("hf://sciencialab/grobid-model-header@main", cache_dir="~/.cache/my-application/models")
 
 # the model itself, whatever the name given to the Sequence
-model.load("hf://lfoppiano/grobid-model-header@v1.1.0/grobid-header-BidLSTM_CRF_FEATURES")
+model.load("hf://sciencialab/grobid-model-header@main/grobid-header-BidLSTM_CRF_FEATURES-glove_840B")
 
 # the same, as the address bar of a browser gives it
-model.load("https://huggingface.co/lfoppiano/grobid-model-header/tree/v1.1.0/grobid-header-BidLSTM_CRF_FEATURES")
+model.load(
+    "https://huggingface.co/sciencialab/grobid-model-header/tree/main/grobid-header-BidLSTM_CRF_FEATURES-glove_840B"
+)
 
 # an archive of the model directory, anywhere over HTTP
 model.load("https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip")
@@ -92,18 +96,16 @@ The `models-hub` section of `delft/resources-registry.json` tells where the mode
 
 ```json
 "models-hub": {
-    "repo": "lfoppiano/grobid-model-{short_name}",
-    "revision": "v1.1.0",
-    "bucket": "lfoppiano/delft-models",
-    "overrides": {
-        "datasets": "lfoppiano/delft-model-datasets"
-    }
+    "repo": "sciencialab/grobid-model-{short_name}",
+    "revision": null,
+    "bucket": null,
+    "overrides": {}
 }
 ```
 
 | Key | Meaning |
 |---|---|
-| `repo` | Repository of the models whose name starts with `grobid-`, `{short_name}` being the task: `grobid-header-BidLSTM_CRF` is looked for in `lfoppiano/grobid-model-header`. |
+| `repo` | Repository of the models whose name starts with `grobid-`, `{short_name}` being the task: `grobid-header-BidLSTM_CRF` is looked for in `sciencialab/grobid-model-header`. |
 | `revision` | Branch, tag or commit of the repositories to take the models from. Pin it for reproducible installs. `null` follows the default branch. |
 | `bucket` | Looked in when the repository does not have the model. `null` for none. |
 | `overrides` | Repository of the models `repo` does not apply to, or to take from somewhere else, by their name or by the start of it up to a dash. The longest start wins. |
@@ -123,7 +125,7 @@ python -m delft.applications.hub_models pull header --architecture BidLSTM_CRF_F
 python -m delft.applications.hub_models pull header --architecture BERT_CRF
 
 # by pattern, from a given repository and revision
-python -m delft.applications.hub_models pull hf://lfoppiano/grobid-model-header@v1.1.0 --match "*potion*"
+python -m delft.applications.hub_models pull hf://sciencialab/grobid-model-header@main --match "*glove*"
 
 # everything
 python -m delft.applications.hub_models pull header --all
@@ -138,7 +140,7 @@ The same is available from Python, in `delft.utilities.hub_models`: `resolve_mod
 ## Publishing a model
 
 ```sh
-# to the repository of its task, lfoppiano/grobid-model-header with the registry above
+# to the repository of its task, sciencialab/grobid-model-header with the registry above
 python -m delft.applications.hub_models push grobid-header-BidLSTM_CRF_FEATURES-potion-base-8M
 
 # to the bucket of the registry

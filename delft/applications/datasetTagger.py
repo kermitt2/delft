@@ -232,6 +232,7 @@ def train_eval(
         max_epoch,
         multiprocessing,
         early_stop,
+        patience,
     ) = configure(
         architecture,
         output_path,
@@ -266,12 +267,7 @@ def train_eval(
     start_time = time.time()
 
     if fold_count == 1:
-        model.train(
-            x_train,
-            y_train,
-            x_valid=x_valid,
-            y_valid=y_valid,
-        )
+        model.train(x_train, y_train, x_valid=x_valid, y_valid=y_valid, multi_gpu=multi_gpu)
     else:
         model.train_nfold(x_train, y_train, x_valid=x_valid, y_valid=y_valid)
 
@@ -289,8 +285,16 @@ def train_eval(
         model.save()
 
 
-def eval_(input_path=None, architecture=None):
-    return
+def eval_(input_path=None, architecture="BidLSTM_CRF"):
+    x_all, y_all = load_data_and_labels_json_offsets(input_path)
+    print(len(x_all), "evaluation sequences")
+
+    model = Sequence("datasets-" + architecture)
+    model.load()
+
+    start_time = time.time()
+    model.eval(x_all, y_all)
+    print("runtime: %s seconds " % (round(time.time() - start_time, 3)))
 
 
 # annotate a list of texts
@@ -465,6 +469,8 @@ if __name__ == "__main__":
 
     action = args.action
     architecture = args.architecture
+    if architecture not in architectures:
+        parser.error("unknown model architecture, must be one of " + str(architectures))
     output = args.output
     input_path = args.input
     embeddings_name = args.embedding

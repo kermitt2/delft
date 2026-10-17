@@ -26,6 +26,8 @@ LOSS_PREFIX = "loss_fn."
 # the names the wrappers give to the weights of a model
 WEIGHT_FILE_NAMES = (SAFETENSORS_WEIGHT_FILE_NAME, "model_weights.pt", "model_weights.pth")
 PICKLED_WEIGHTS_EXTENSIONS = (".pt", ".pth")
+# the weights of the models of DeLFT 0.x, which used TensorFlow
+TENSORFLOW_WEIGHT_FILE_NAME = "model_weights.hdf5"
 
 # the weights of the model of a fold, of a text classifier trained over several folds
 FOLD_WEIGHT_FILE_PATTERN = re.compile(r"(?P<stem>.+)_fold(?P<fold>\d+)(?P<extension>\.[A-Za-z]+)")
@@ -114,6 +116,18 @@ def load_weights(model, path, device=None):
         )
 
 
+def refuse_tensorflow_model(model_path):
+    """Fails on a model of DeLFT 0.x, which has TensorFlow weights only: DeLFT 1.x cannot load it."""
+    if not os.path.isdir(model_path) or not os.path.isfile(os.path.join(model_path, TENSORFLOW_WEIGHT_FILE_NAME)):
+        return
+    if any(name.endswith((SAFETENSORS_EXTENSION, *PICKLED_WEIGHTS_EXTENSIONS)) for name in os.listdir(model_path)):
+        return
+    raise ValueError(
+        f"{model_path} holds a model of DeLFT 0.x, trained with TensorFlow ({TENSORFLOW_WEIGHT_FILE_NAME}), "
+        "which DeLFT 1.x cannot load: train it again"
+    )
+
+
 def find_weight_file(model_path, weight_file):
     """
     Path of the weights of the model in the directory ``model_path``: ``weight_file``
@@ -135,6 +149,7 @@ def find_weight_file(model_path, weight_file):
         if os.path.isfile(path):
             return path
 
+    refuse_tensorflow_model(model_path)
     # let the caller fail on the file it asked for
     return requested
 

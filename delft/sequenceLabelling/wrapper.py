@@ -4,6 +4,7 @@ PyTorch-based Sequence Labeling Wrapper for DeLFT.
 This module replaces the TensorFlow-based wrapper with PyTorch implementations.
 """
 
+import copy
 import os
 import time
 import warnings
@@ -22,7 +23,7 @@ from delft import DELFT_PROJECT_DIR, default_nb_workers
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
 from delft.sequenceLabelling.data_loader import create_dataloader
 from delft.sequenceLabelling.evaluation import classification_report
-from delft.sequenceLabelling.models import get_model
+from delft.sequenceLabelling.models import get_model, grow_char_embeddings
 from delft.sequenceLabelling.preprocess import Preprocessor, prepare_preprocessor
 from delft.sequenceLabelling.text_features import text_from_features, tokens_per_position
 from delft.sequenceLabelling.trainer import (
@@ -38,11 +39,14 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
+from delft.utilities.transformer_models import save_transformer_files
+from delft.utilities.transformer_tokenizers import get_tokenizer, use_saved_tokenizer
 from delft.utilities.Utilities import pick_device
 from delft.utilities.weights import (
     SAFETENSORS_WEIGHT_FILE_NAME,
     find_weight_file,
     load_weights,
+    refuse_tensorflow_model,
     remove_other_weights,
     save_weights,
 )
@@ -203,6 +207,7 @@ class Sequence(object):
             ),
         )
         self.window_stride = window_stride
+        self.fold_number = fold_number
 
         self.training_config = TrainingConfig(
             learning_rate,
@@ -410,7 +415,7 @@ class Sequence(object):
                 print("Error: you must load a model first for incremental training")
                 return
             print("Incremental training from loaded model", self.model_config.model_name)
-            self.p.extend(x_all, y_all)
+            self._extend_for_incremental(x_all, y_all)
         else:
             # Initialize preprocessor
             self.p = prepare_preprocessor(x_all, y_all, features=features_all, model_config=self.model_config)
@@ -507,7 +512,14 @@ class Sequence(object):
         model_output_dir = os.path.join("data/models/sequenceLabelling/", self.model_config.model_name)
         os.makedirs(model_output_dir, exist_ok=True)
 
-        if not incremental:
+        if incremental:
+            if self.model is None:
+                raise ValueError("Incremental training needs a model: load one first")
+            print("Incremental training from loaded model", self.model_config.model_name)
+            self._extend_for_incremental(x_all, y_all)
+            self.models = []
+            self.fold_preprocessors = []
+        else:
             # The labels and the feature columns of the models come from the whole set, so
             # that every fold model has the same outputs and inputs. The characters and the
             # feature values a fold model knows are those of its own training data, as the
@@ -518,6 +530,8 @@ class Sequence(object):
             self.fold_preprocessors = []
 
         fold_count = self.model_config.fold_number
+        if fold_count < 2:
+            raise ValueError(f"n-fold training needs at least 2 folds, not {fold_count}")
         fold_size = len(x_train) // fold_count
 
         for fold_id in range(fold_count):
@@ -543,8 +557,13 @@ class Sequence(object):
             self.fold_preprocessors.append(fold_preprocessor)
             self._configure_for_preprocessor(fold_preprocessor)
 
-            # Create model for this fold
-            fold_model = get_model(self.model_config, len(fold_preprocessor.vocab_tag), load_pretrained_weights=True)
+            # Create model for this fold, which goes on from the loaded one in incremental training
+            if incremental:
+                fold_model = copy.deepcopy(self.model)
+            else:
+                fold_model = get_model(
+                    self.model_config, len(fold_preprocessor.vocab_tag), load_pretrained_weights=True
+                )
             fold_model.to(self.device)
 
             if fold_id == 0:
@@ -589,6 +608,22 @@ class Sequence(object):
             trainer.train(train_loader, valid_loader)
 
             self.models.append(fold_model)
+
+    def _extend_for_incremental(self, x_all, y_all):
+        """
+        Make the loaded model and its preprocessor ready for the data of an incremental training: the
+        characters they do not know are added, while a label they do not know cannot be, the model having
+        no output for it.
+        """
+        unknown_labels = sorted({label for labels in y_all for label in labels} - set(self.p.vocab_tag))
+        if unknown_labels:
+            raise ValueError(
+                f"Incremental training cannot add labels to model {self.model_config.model_name}, which does not "
+                f"know {unknown_labels}: train a new model instead"
+            )
+        self.p.extend(x_all, y_all)
+        self.model_config.char_vocab_size = len(self.p.vocab_char)
+        grow_char_embeddings(self.model, self.model_config.char_vocab_size)
 
     def _fold_preprocessor(self, x_train, y_all, f_train):
         """
@@ -867,6 +902,12 @@ class Sequence(object):
         ``delft.utilities.weights``). Weights the directory holds in the other format,
         from a previous training, are removed.
         """
+        if self.model is None:
+            # nothing is written, a model directory without weights would not load
+            if self.model_config.fold_number > 1:
+                raise ValueError("No model to save: run eval first, to select the model of the best fold")
+            raise ValueError("No model to save: train or load one first")
+
         directory = os.path.join(dir_path, self.model_config.model_name)
         if not os.path.exists(directory):
             os.makedirs(directory)
@@ -877,14 +918,17 @@ class Sequence(object):
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print("Preprocessor saved")
 
-        if self.model is None and self.model_config.fold_number > 1:
-            print("Error: model not saved. Run eval first to select best fold model.")
-        else:
-            # Save PyTorch model
-            weight_path = os.path.join(directory, weight_file)
-            save_weights(self.model, weight_path)
-            remove_other_weights(directory, weight_file)
-            print(f"Model weights saved to {weight_path}")
+        # what the model needs of its transformer, besides its weights, to load without the Hub
+        transformer = getattr(getattr(self.model, "module", self.model), "transformer", None)
+        if transformer is not None and self.model_config.transformer_name:
+            tokenizer = get_tokenizer(self.model_config.transformer_name, add_prefix_space=True)
+            save_transformer_files(directory, transformer, tokenizer)
+            print("Transformer configuration and tokenizer saved")
+
+        weight_path = os.path.join(directory, weight_file)
+        save_weights(self.model, weight_path)
+        remove_other_weights(directory, weight_file)
+        print(f"Model weights saved to {weight_path}")
 
     def load(
         self,
@@ -929,9 +973,13 @@ class Sequence(object):
         self._load_from_directory(model_path, weight_file)
 
     def _load_from_directory(self, model_path, weight_file=SAFETENSORS_WEIGHT_FILE_NAME):
+        refuse_tensorflow_model(model_path)
         self.model_config = ModelConfig.load(os.path.join(model_path, CONFIG_FILE_NAME))
         if self.window_stride is not None:
             self.model_config.window_stride = self.window_stride
+        # a saved model is a single one, the best fold of an n-fold training: the number of folds it was
+        # trained with does not apply to it, while the one asked for applies to its incremental training
+        self.model_config.fold_number = self.fold_number
 
         if self.model_config.embeddings_name is not None:
             self.embeddings = Embeddings(
@@ -948,6 +996,8 @@ class Sequence(object):
             self.model_config.word_embedding_size = 0
 
         self.p = Preprocessor.load(os.path.join(model_path, PROCESSOR_FILE_NAME))
+        if self.model_config.transformer_name:
+            use_saved_tokenizer(self.model_config.transformer_name, model_path)
 
         self.model = get_model(
             self.model_config,

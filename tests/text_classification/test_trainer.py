@@ -237,6 +237,20 @@ class TestTrainingConfiguration:
         _configured_trainer(tmp_path, clip_gradients=0).train(_loader())
         assert calls == []
 
+    def test_a_model_clipping_as_its_keras_version_did_is_clipped_at_its_own_norm(self, tmp_path, monkeypatch):
+        calls = []
+        monkeypatch.setattr(torch.nn.utils, "clip_grad_norm_", lambda parameters, max_norm: calls.append(max_norm))
+        model = _LossFnClassifier()
+        model.optimizer_name, model.max_grad_norm = "rmsprop", 1.0
+        trainer = _configured_trainer(tmp_path, model=model, clip_gradients=5.0)
+        assert isinstance(trainer.optimizer, torch.optim.RMSprop)
+        assert trainer.optimizer.defaults["alpha"] == 0.9 and trainer.optimizer.defaults["eps"] == 1e-7
+        trainer.train(_loader())
+        assert calls == [1.0, 1.0]
+
+    def test_the_optimizer_is_adam_by_default(self, tmp_path):
+        assert isinstance(_configured_trainer(tmp_path).optimizer, torch.optim.Adam)
+
     def test_class_weights_weigh_the_loss_of_each_class(self, tmp_path):
         trainer = _configured_trainer(tmp_path, class_weights={0: 1.5, 1: 1.0})
         assert trainer.model.loss_fn.weight.tolist() == [1.5, 1.0]

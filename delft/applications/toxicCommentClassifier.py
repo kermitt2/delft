@@ -1,6 +1,5 @@
 import argparse
 import json
-import sys
 import time
 
 import pandas as pd
@@ -223,14 +222,14 @@ if __name__ == "__main__":
 
     action = args.action
     if action not in ("train", "train_eval", "classify", "test"):
-        print("action not specifed, must be one of [train,train_eval,test,classify]")
+        parser.error("action must be one of [train,train_eval,test,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer
 
     architecture = args.architecture
     if architecture not in architectures:
-        print("unknown model architecture, must be one of " + str(architectures))
+        parser.error("unknown model architecture, must be one of " + str(architectures))
 
     if args.action.startswith("train") and transformer is None and embeddings_name is None and architecture != "bert":
         # as for sequence labelling: no pre-trained word embeddings unless some are asked for
@@ -247,10 +246,9 @@ if __name__ == "__main__":
     num_workers = args.num_workers
 
     if architecture.find("bert") != -1:
-        print(
+        parser.error(
             "BERT models are not supported for multi-label labelling, at least for the moment. Please choose a RNN architecture."
         )
-        sys.exit(0)
 
     if action == "train":
         if args.fold_count < 1:
@@ -281,7 +279,7 @@ if __name__ == "__main__":
         )
 
     if action == "test":
-        y_test = test()
+        y_test = test(architecture=architecture)
 
         # write test predictions as a submission file
         sample_submission = pd.read_csv("data/textClassification/toxic/sample_submission.csv")

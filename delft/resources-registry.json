@@ -1,6 +1,6 @@
 {
     "models-hub": {
-        "repo": "lfoppiano/grobid-model-{short_name}",
+        "repo": "sciencialab/grobid-model-{short_name}",
         "revision": null,
         "bucket": null,
         "overrides": {}

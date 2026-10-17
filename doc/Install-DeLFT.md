@@ -32,7 +32,7 @@ uv pip install -e ".[gpu-pre-turing]" --extra-index-url https://download.pytorch
 
 > **For training a model:** add the `[dev]` extras (which include `wandb`, `pytest`, `ruff`) — e.g. `uv pip install -e ".[gpu,dev]"`. The base install does not include `wandb`, so training with W&B tracking (`--wandb`) requires the dev extras (or `pip install wandb` ad-hoc). Inference-only setups don't need this.
 
-DeLFT __1.0.x__ is built on PyTorch and has been tested successfully with Python 3.10/3.11. It will exploit your available GPU with the condition that a compatible CUDA 12.8 driver is installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
+DeLFT 1.x is built on PyTorch and is tested with Python 3.10 to 3.13. It will exploit your available GPU with the condition that a compatible CUDA 12.8 driver is installed. The exact patch version on PyPI may be ahead of this page; check the PyPI badge in the [README](https://github.com/kermitt2/delft#readme) for the current release.
 
 For the PyTorch / CUDA compatibility matrix, see the [PyTorch installation guide](https://pytorch.org/get-started/locally/).
 
@@ -84,22 +84,22 @@ The 0.4.x line modernized the (then TensorFlow-based) stack:
   ```
 - **ELMo support was removed** — use transformer models or static embeddings instead.
 
-0.4.x is the last TensorFlow-based release line. If you are still on 0.3.x today, you can upgrade straight to 1.0.x (PyTorch): apply the LMDB note above, then follow the next section.
+0.4.x is the last TensorFlow-based release line. If you are still on 0.3.x today, you can upgrade straight to 1.x (PyTorch): apply the LMDB note above, then follow the next section.
 
-### From 0.4.x to 1.0.x (migration to PyTorch)
+### From 0.4.x to 1.x (migration to PyTorch)
 
-The 1.0.x line replaces the TensorFlow/Keras backend with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and the saved weights are not.
+The 1.x lines replace the TensorFlow/Keras backend with **PyTorch**. The public API, CLI entrypoints, architecture names and data formats are unchanged, but the runtime and the saved weights are not.
 
 What changed under the hood:
 
-| Area | 0.4.x (TensorFlow) | 1.0.x (PyTorch) |
+| Area | 0.4.x (TensorFlow) | 1.x (PyTorch) |
 |------|--------------------|-----------------|
 | DL backend | `tensorflow` 2.17 / `tf_keras` 2.17 | `torch` 2.11 |
-| Transformers | `transformers` 4.x, wrapped as Keras layers | `transformers` 5.7, native PyTorch |
+| Transformers | `transformers` 4.x, wrapped as Keras layers | `transformers` 5, native PyTorch |
 | CRF layer | `tensorflow-addons` CRF + custom ChainCRF | [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) + custom ChainCRF (`crf_pytorch.py`) |
 | GPU / CUDA | CUDA 12.1 | CUDA 12.8 (`torch==…+cu128`) |
 | ELMo | supported (`--use-ELMo`) | removed |
-| New | — | ModernBERT, ONNX export, W&B resume, SLURM / `accelerate` |
+| New | — | ModernBERT, ONNX export, W&B resume, SLURM / `torchrun` |
 
 Upgrade steps:
 
@@ -115,11 +115,11 @@ Upgrade steps:
    ```sh
    python -m delft.applications.grobidTagger header train_eval --architecture BERT_CRF
    ```
-   Bundled application models (GROBID, NER, …) have already been regenerated for PyTorch and work out of the box.
+   The GROBID models (under `data/models` and on the Hugging Face Hub) have been regenerated for PyTorch and work out of the box. The other models of 0.4.x (NER, dataset mentions, text classifiers) were not, and were removed: retrain them. Loading a model of 0.4.x fails with a message saying so.
 3. **Replace ELMo usages.** The `--use-ELMo` flag and the `use_ELMo` parameter are gone; use a transformer architecture (`BERT_CRF`, `BERT_ChainCRF`, …) with a domain-specific model (SciBERT, BioBERT, CamemBERT, …), or static embeddings (GloVe, fastText).
 4. **LMDB caches** built before 0.4.x: convert (or rebuild) them as in the previous section. Caches already in the 0.4.x `float32` format are reused as-is.
 
-> If you imported DeLFT internals directly (rather than the `Sequence` / `Classifier` wrappers), note that the TensorFlow modules have been removed. The PyTorch equivalents are `delft/utilities/crf_pytorch.py`, `delft/utilities/attention_pytorch.py`, `delft/sequenceLabelling/models.py`, and `delft/sequenceLabelling/data_loader.py`. The DataLoader worker policy shared by both task families lives in `delft/utilities/dataloader_utils.py`.
+> If you imported DeLFT internals directly (rather than the `Sequence` / `Classifier` wrappers), note that the TensorFlow modules have been removed. The PyTorch equivalents are `delft/utilities/crf_pytorch.py`, `delft/sequenceLabelling/models.py`, and `delft/sequenceLabelling/data_loader.py`. The DataLoader worker policy shared by both task families lives in `delft/utilities/dataloader_utils.py`.
 
 ## Loading resources locally
 

@@ -15,7 +15,6 @@ import delft.utilities.Utilities as utilities
 
 SEEDED_ON_START = {
     "citationClassifier": "train",
-    "dataseerClassifier": "train",
     "datasetTagger": "train",
     "insultTagger": "train",
     "licenseClassifier": "train",
