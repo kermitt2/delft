@@ -92,8 +92,12 @@ class Trainer(object):
             from torch.optim import AdamW
 
             self.optimizer = AdamW(self.model.parameters(), lr=learning_rate)
+        elif getattr(self.model, "optimizer_name", "adam") == "rmsprop":
+            # Keras' RMSprop: its rho and epsilon differ from the PyTorch defaults
+            self.optimizer = torch.optim.RMSprop(self.model.parameters(), lr=learning_rate, alpha=0.9, eps=1e-7)
         else:
             self.optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        self.clip_gradients = getattr(self.model, "max_grad_norm", None) or training_config.clip_gradients
 
         self.criterion = nn.BCEWithLogitsLoss()
         self._apply_class_weights()
@@ -158,8 +162,8 @@ class Trainer(object):
                 outputs = self.model(inputs, labels=labels)
                 loss = outputs["loss"]
                 loss.backward()
-                if self.training_config.clip_gradients:
-                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.training_config.clip_gradients)
+                if self.clip_gradients:
+                    torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.clip_gradients)
                 self.optimizer.step()
 
                 train_loss += loss.item() * (labels.size(0) if labels is not None else 1)

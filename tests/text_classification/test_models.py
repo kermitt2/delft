@@ -294,3 +294,33 @@ class TestModelRegistry:
         model = getModel(config, training_config)
 
         assert isinstance(model, lstm)
+
+
+class TestKerasInitialisation:
+    """
+    With the PyTorch initialisation, the GRU classifiers learnt so slowly that early
+    stopping kept a model of the first epochs (license classifier).
+    """
+
+    def test_the_layers_are_initialised_as_keras_does(self):
+        for architecture in ["gru", "lstm", "cnn"]:
+            config = MockModelConfig()
+            config.architecture = architecture
+            model = getModel(config, MockTrainingConfig())
+            for name, parameter in model.named_parameters():
+                if "bias" in name:
+                    assert torch.count_nonzero(parameter) == 0, name
+            recurrent = next(m for m in model.modules() if isinstance(m, (torch.nn.GRU, torch.nn.LSTM)))
+            gate = recurrent.weight_hh_l0.data.chunk(3 if isinstance(recurrent, torch.nn.GRU) else 4, 0)[0]
+            assert torch.allclose(gate @ gate.T, torch.eye(gate.shape[0]), atol=1e-5)
+
+    def test_the_gru_classifiers_use_the_optimizer_of_their_keras_version(self):
+        for architecture, optimizer, max_grad_norm in [
+            ("gru", "rmsprop", 1.0),
+            ("gru_simple", "rmsprop", 1.0),
+            ("gru_lstm", "rmsprop", 1.0),
+            ("lstm", "adam", None),
+            ("cnn", "adam", None),
+        ]:
+            assert MODEL_REGISTRY[architecture].optimizer_name == optimizer
+            assert MODEL_REGISTRY[architecture].max_grad_norm == max_grad_norm
