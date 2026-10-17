@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.bumpversion]
@@ -30,12 +30,13 @@ maintainers = [
     { name = "Luca Foppiano", email = "luca@sciencialab.com" }
 ]
 requires-python = ">=3.10,<3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
 classifiers = [
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
 dependencies = [
@@ -53,11 +54,6 @@ dependencies = [
     "huggingface_hub>=1.5.0",
     "torch==2.11.0",
     "pytorch-crf>=0.7.2",
-    "sentencepiece",
-    "protobuf",
-    "blingfire2==0.2.1",
-    "accelerate>=0.20.3",
-    "Pillow",
     "python-dotenv",
 ]
 

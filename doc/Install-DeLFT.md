@@ -99,7 +99,7 @@ What changed under the hood:
 | CRF layer | `tensorflow-addons` CRF + custom ChainCRF | [`pytorch-crf`](https://pypi.org/project/pytorch-crf/) + custom ChainCRF (`crf_pytorch.py`) |
 | GPU / CUDA | CUDA 12.1 | CUDA 12.8 (`torch==…+cu128`) |
 | ELMo | supported (`--use-ELMo`) | removed |
-| New | — | ModernBERT, ONNX export, W&B resume, SLURM / `accelerate` |
+| New | — | ModernBERT, ONNX export, W&B resume, SLURM / `torchrun` |
 
 Upgrade steps:
 
