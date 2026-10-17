@@ -113,21 +113,7 @@ This creates:
 - `vocab.json` - Character and label vocabularies
 - `config.json` - Model configuration
 
-**Java inference:**
-
-A Java inference library is available in `java/delft-onnx/`. Build and run:
-
-```sh
-cd java/delft-onnx
-./gradlew build
-./gradlew run --args="--model ../../exported_models/date-features \
-    --embeddings ../../data/db/glove-840B \
-    --input 'December 25, 2024'"
-```
-
-Note: For feature models, sample features are auto-generated for demo purposes.
-
-The demo pads every sequence to `--max-seq-length` (512 by default). The `BidLSTM_CRF*` models ignore the padding; the `BidLSTM_ChainCRF*` ones run their LSTM over it, as they did in DeLFT 0.4.x, so give them unpadded sequences to get the results of DeLFT.
+The exported encoder runs with [onnxruntime](https://onnxruntime.ai/) or any other ONNX runtime, followed by a Viterbi decoding with the start, end and pairwise transitions of `crf_params.json`. The `BidLSTM_ChainCRF*` models run their LSTM over the padding, as they did in DeLFT 0.4.x: give them unpadded sequences to get the results of DeLFT.
 
 ## License and contact
 
