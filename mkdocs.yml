@@ -28,3 +28,6 @@ nav:
   - 'Models on the Hugging Face Hub': 'hub_models.md'
   - 'Experiment tracking (W&B)': 'wandb.md'
   - 'Training on a cluster (SLURM)': 'distributed_training.md'
+  - 'TensorFlow vs PyTorch':
+    - 'Performance findings': 'tf-vs-pytorch-findings.md'
+    - 'Thread pools': 'tf-vs-pytorch-threads.md'
