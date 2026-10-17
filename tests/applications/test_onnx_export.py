@@ -10,7 +10,7 @@ def test_refuses_contextual_embeddings_before_creating_export_files(tmp_path, mo
         embeddings=SimpleNamespace(extension="contextual-transformer"),
         load=lambda **kwargs: None,
     )
-    monkeypatch.setattr(onnx_export, "Sequence", lambda name: wrapper)
+    monkeypatch.setattr(onnx_export, "Sequence", lambda name, **kwargs: wrapper)
     output = tmp_path / "onnx"
 
     with pytest.raises(ValueError, match="ONNX export does not support.*contextual embeddings"):
@@ -27,7 +27,7 @@ def test_refuses_a_stack_holding_contextual_embeddings(tmp_path, monkeypatch):
         ),
     )
     wrapper = SimpleNamespace(embeddings=stack, load=lambda **kwargs: None)
-    monkeypatch.setattr(onnx_export, "Sequence", lambda name: wrapper)
+    monkeypatch.setattr(onnx_export, "Sequence", lambda name, **kwargs: wrapper)
     output = tmp_path / "onnx"
 
     with pytest.raises(ValueError, match="ONNX export does not support.*contextual embeddings"):
@@ -50,13 +50,19 @@ LABELS = ["O", "B-<day>", "B-<month>", "B-<year>", "O", "O", "B-<day>", "B-<mont
 
 
 @pytest.mark.parametrize("architecture", ["BidLSTM_CRF", "BidLSTM_ChainCRF"])
-def test_the_exported_encoder_gives_the_emissions_of_the_model(tmp_path, architecture):
-    """Sequences of different lengths, unpadded, and padded as the Java runner pads them for the architectures
-    that mask the padding (the ChainCRF ones run their LSTM over it, as their Keras counterparts did)."""
+def test_the_exported_encoder_gives_the_emissions_of_the_model(tmp_path, monkeypatch, architecture):
+    """Sequences of different lengths, unpadded, and padded for the architectures that mask the padding (the
+    ChainCRF ones run their LSTM over it, as their Keras counterparts did).
+
+    The default device is one no CPU tensor runs on, as MPS or CUDA where there is one: the export loaded the
+    model there and traced it with inputs on the CPU, which failed ("Placeholder storage has not been allocated
+    on MPS device")."""
     ort = pytest.importorskip("onnxruntime")
     pytest.importorskip("onnx")
     import numpy as np
     import torch
+
+    monkeypatch.setattr("delft.utilities.Utilities.best_device", lambda: torch.device("meta"))
 
     from delft.sequenceLabelling.data_loader import create_dataloader
     from delft.sequenceLabelling.models import get_model
@@ -102,6 +108,6 @@ def test_refuses_an_architecture_it_does_not_support(tmp_path, monkeypatch):
         model_config=SimpleNamespace(architecture="BidLSTM_CRF_CASING"),
         training_config=None,
     )
-    monkeypatch.setattr(onnx_export, "Sequence", lambda name: wrapper)
+    monkeypatch.setattr(onnx_export, "Sequence", lambda name, **kwargs: wrapper)
     with pytest.raises(ValueError, match="not BidLSTM_CRF_CASING"):
         onnx_export.export_to_onnx("casing-model", str(tmp_path / "onnx"))

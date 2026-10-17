@@ -228,8 +228,9 @@ def export_to_onnx(
     """
     print(f"Loading model: {model_name}")
 
-    # Load the model
-    model_wrapper = Sequence(model_name)
+    # Load the model on the CPU, where it is traced: on the default device (CUDA, MPS) it would not run on
+    # the dummy inputs below
+    model_wrapper = Sequence(model_name, device="cpu")
     if model_path:
         model_wrapper.load(dir_path=model_path)
     else:
