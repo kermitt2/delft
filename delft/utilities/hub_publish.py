@@ -12,6 +12,7 @@ import tempfile
 
 from delft.utilities.hub_models import HubReference, hub_references, list_models, parse_reference
 from delft.utilities.model_names import split_model_name
+from delft.utilities.transformer_models import TRANSFORMER_TOKENIZER_DIR
 from delft.utilities.weights import (
     FOLD_WEIGHT_FILE_PATTERN,
     PICKLED_WEIGHTS_EXTENSIONS,
@@ -70,7 +71,8 @@ def prepare_model(model_dir, staging_dir, safetensors=True):
     """
     Copy to ``staging_dir`` what is published of the model in ``model_dir``, and return
     the names of the files: everything but the hidden files, such as the record of
-    where a model was downloaded from, with the weights as safetensors instead of
+    where a model was downloaded from, and the folders, but the one of the tokenizer
+    of a transformer, with the weights as safetensors instead of
     pickled unless ``safetensors`` is False. The weights of a text classifier trained
     over several folds, one file per fold, keep their fold: ``model_weights_fold0.pt``
     is published as ``model_fold0.safetensors``.
@@ -101,6 +103,11 @@ def prepare_model(model_dir, staging_dir, safetensors=True):
             continue
         shutil.copy(os.path.join(model_dir, name), os.path.join(staging_dir, name))
         published.append(name)
+
+    tokenizer_dir = os.path.join(model_dir, TRANSFORMER_TOKENIZER_DIR)
+    if os.path.isdir(tokenizer_dir):
+        shutil.copytree(tokenizer_dir, os.path.join(staging_dir, TRANSFORMER_TOKENIZER_DIR))
+        published += [f"{TRANSFORMER_TOKENIZER_DIR}/{name}" for name in os.listdir(tokenizer_dir)]
     return sorted(published)
 
 
@@ -166,7 +173,11 @@ def _upload(location, staging_dir, model_name, readme, token, commit_message):
     if location.bucket:
         from huggingface_hub import batch_bucket_files
 
-        files = [(os.path.join(staging_dir, name), f"{model_name}/{name}") for name in sorted(os.listdir(staging_dir))]
+        files = [
+            (os.path.join(root, name), f"{model_name}/{os.path.relpath(os.path.join(root, name), staging_dir)}")
+            for root, _, names in sorted(os.walk(staging_dir))
+            for name in sorted(names)
+        ]
         if readme is not None:
             files.append((readme.encode("utf-8"), README_FILE_NAME))
         batch_bucket_files(location.repo_id, add=files, token=token)

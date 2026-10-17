@@ -1104,7 +1104,7 @@ class BERT(BaseSequenceLabeler):
         config: Model configuration (must include transformer_name)
         ntags: Number of output tags
         load_pretrained_weights: Whether to load pretrained transformer weights
-        local_path: Local path to load transformer from
+        local_path: the directory of the trained model being loaded, whose saved transformer configuration is used
     """
 
     name = "BERT"
@@ -1121,7 +1121,7 @@ class BERT(BaseSequenceLabeler):
         transformer_name = config.transformer_name or "bert-base-uncased"
 
         # without its pretrained weights when the weights of the trained model are loaded next
-        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1188,7 +1188,7 @@ class BERT_CRF(BaseSequenceLabeler):
         super().__init__(config, ntags)
 
         transformer_name = config.transformer_name or "bert-base-uncased"
-        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1260,7 +1260,7 @@ class BERT_ChainCRF(BaseSequenceLabeler):
         super().__init__(config, ntags)
 
         transformer_name = config.transformer_name or "bert-base-uncased"
-        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1321,7 +1321,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
         super().__init__(config, ntags)
 
         transformer_name = config.transformer_name or "bert-base-uncased"
-        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1428,7 +1428,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         super().__init__(config, ntags)
 
         transformer_name = config.transformer_name or "bert-base-uncased"
-        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         # Check if transformer accepts token_type_ids
         forward_signature = inspect.signature(self.transformer.forward)
@@ -1610,7 +1610,7 @@ def get_model(
         config: Model configuration with architecture name
         ntags: Number of output tags
         load_pretrained_weights: Whether to load pretrained transformer weights
-        local_path: Local path for transformer models
+        local_path: the directory of the trained model being loaded, whose saved transformer configuration is used
 
     Returns:
         Model instance

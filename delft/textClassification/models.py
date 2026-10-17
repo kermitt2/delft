@@ -746,10 +746,10 @@ class bert(BaseTextClassifier):
     ):
         super().__init__(model_config, training_config)
 
-        # a local directory holding the transformer, when given, rather than its name
-        transformer_name = local_path or model_config.transformer_name or DEFAULT_TRANSFORMER_NAME
-        # without its pretrained weights when the weights of the trained model are loaded next
-        self.transformer = load_transformer(transformer_name, load_pretrained_weights)
+        transformer_name = model_config.transformer_name or DEFAULT_TRANSFORMER_NAME
+        # without its pretrained weights when the weights of the trained model are loaded next, the
+        # configuration of the transformer being then the one the model saved in local_path
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         hidden_size = self.transformer.config.hidden_size
 
@@ -813,7 +813,7 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model_config: Model configuration
         training_config: Training configuration
         load_pretrained_weights: Whether to load pretrained transformer weights
-        local_path: Local path for transformer models
+        local_path: the directory of the trained model being loaded, whose saved transformer configuration is used
 
     Returns:
         Model instance

@@ -24,7 +24,8 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import shuffle_triple_with_view
-from delft.utilities.transformer_tokenizers import get_tokenizer
+from delft.utilities.transformer_models import save_transformer_files
+from delft.utilities.transformer_tokenizers import get_tokenizer, use_saved_tokenizer
 from delft.utilities.Utilities import pick_device
 from delft.utilities.weights import (
     FOLD_WEIGHT_FILE_PATTERN,
@@ -794,6 +795,12 @@ class Classifier(object):
         for model, name in zip(models, weight_files):
             save_weights(model, os.path.join(directory, name))
         remove_weights_except(directory, weight_files)
+
+        # what the model needs of its transformer, besides its weights, to load without the Hub
+        transformer = getattr(getattr(models[0], "module", models[0]), "transformer", None)
+        if transformer is not None and self.model_config.transformer_name:
+            save_transformer_files(directory, transformer, get_tokenizer(self.model_config.transformer_name))
+            print("Transformer configuration and tokenizer saved")
         print(f"Model saved to {directory}" + (f" ({len(models)} folds)" if len(models) > 1 else ""))
 
     def load(self, dir_path="data/models/textClassification/", cache_dir=None, token=None):
@@ -832,6 +839,8 @@ class Classifier(object):
         # Load config
         self.model_config = ModelConfig.load(os.path.join(model_path, self.config_file))
         self.features_preprocessor = features_preprocessor_from_config(self.model_config)
+        if self.model_config.transformer_name is not None:
+            use_saved_tokenizer(self.model_config.transformer_name, model_path)
 
         # The vocabulary of a model that learned its word embeddings. A model that reads
         # pre-trained ones or a transformer has none, whatever file an earlier training
@@ -857,14 +866,18 @@ class Classifier(object):
             self.models = []
             for fold_id in range(self.model_config.fold_number):
                 weight_path = find_fold_weight_file(model_path, fold_id)
-                model = getModel(self.model_config, self.training_config, load_pretrained_weights=False)
+                model = getModel(
+                    self.model_config, self.training_config, load_pretrained_weights=False, local_path=model_path
+                )
                 load_weights(model, weight_path, device=self.device)
                 model.to("cpu" if self._parks_fold_models() else self.device)
                 self.models.append(model)
             print(f"Models of {len(self.models)} folds loaded from {model_path}")
         else:
             # Init model
-            self.model = getModel(self.model_config, self.training_config, load_pretrained_weights=False)
+            self.model = getModel(
+                self.model_config, self.training_config, load_pretrained_weights=False, local_path=model_path
+            )
             self.models = None
 
             # Load weights

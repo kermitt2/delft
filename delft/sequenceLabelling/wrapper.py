@@ -39,6 +39,8 @@ from delft.utilities.Embeddings import Embeddings, load_resource_registry
 from delft.utilities.hub_models import fetch_model, is_remote, resolve_model
 from delft.utilities.misc import print_parameters, to_wandb_table
 from delft.utilities.numpy import concatenate_or_none
+from delft.utilities.transformer_models import save_transformer_files
+from delft.utilities.transformer_tokenizers import get_tokenizer, use_saved_tokenizer
 from delft.utilities.Utilities import pick_device
 from delft.utilities.weights import (
     SAFETENSORS_WEIGHT_FILE_NAME,
@@ -916,6 +918,13 @@ class Sequence(object):
         self.p.save(os.path.join(directory, PROCESSOR_FILE_NAME))
         print("Preprocessor saved")
 
+        # what the model needs of its transformer, besides its weights, to load without the Hub
+        transformer = getattr(getattr(self.model, "module", self.model), "transformer", None)
+        if transformer is not None and self.model_config.transformer_name:
+            tokenizer = get_tokenizer(self.model_config.transformer_name, add_prefix_space=True)
+            save_transformer_files(directory, transformer, tokenizer)
+            print("Transformer configuration and tokenizer saved")
+
         weight_path = os.path.join(directory, weight_file)
         save_weights(self.model, weight_path)
         remove_other_weights(directory, weight_file)
@@ -987,6 +996,8 @@ class Sequence(object):
             self.model_config.word_embedding_size = 0
 
         self.p = Preprocessor.load(os.path.join(model_path, PROCESSOR_FILE_NAME))
+        if self.model_config.transformer_name:
+            use_saved_tokenizer(self.model_config.transformer_name, model_path)
 
         self.model = get_model(
             self.model_config,
