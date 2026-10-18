@@ -8,9 +8,13 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from types import SimpleNamespace
 
-import httpx
 import pytest
 from huggingface_hub import errors
+
+try:  # huggingface_hub 2.x moved from httpx to its httpx2 fork
+    import httpx2 as httpx
+except ImportError:
+    import httpx
 
 HEADER_MODELS = [
     "grobid-header-BidLSTM_CRF",

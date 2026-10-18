@@ -14,12 +14,6 @@ def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_
     maxlen = 300
     patience = 5
     o_early_stop = True
-    if max_epoch == -1:
-        max_epoch = 50
-
-    if batch_size == -1:
-        batch_size = 20
-
     # default bert model parameters
     if architecture.find("BERT") != -1:
         if batch_size == -1:
@@ -29,6 +23,12 @@ def configure(architecture, embeddings_name, batch_size=-1, max_epoch=-1, early_
             max_epoch = 3
 
         embeddings_name = None
+
+    if max_epoch == -1:
+        max_epoch = 50
+
+    if batch_size == -1:
+        batch_size = 20
 
     if early_stop is not None:
         o_early_stop = early_stop
@@ -286,7 +286,9 @@ if __name__ == "__main__":
     set_random_seed(args.seed)
 
     if args.action not in ("train", "train_eval", "tag"):
-        print("action not specified, must be one of [train,train_eval,tag]")
+        parser.error("action must be one of [train,train_eval,tag]")
+    if args.architecture not in architectures:
+        parser.error("unknown model architecture, must be one of " + str(architectures))
 
     embeddings_name = args.embedding
     architecture = args.architecture

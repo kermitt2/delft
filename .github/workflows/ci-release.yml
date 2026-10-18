@@ -11,7 +11,7 @@ jobs:
     strategy:
       matrix:
         os: [ ubuntu-latest, macos-latest ]
-        python-version: [ '3.10', '3.11' ]
+        python-version: [ '3.10', '3.11', '3.12', '3.13' ]
     steps:
       - name: Cleanup more disk space
         run: |
@@ -55,13 +55,20 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v7
         with:
-          python-version: '3.11'
+          python-version: '3.12'
+      - name: Check that the tag is the version of the package
+        run: |
+          version="$(sed -n 's/^version = "\(.*\)"$/\1/p' pyproject.toml | head -1)"
+          if [ "${GITHUB_REF_NAME}" != "v${version}" ]; then
+            echo "tag ${GITHUB_REF_NAME} but pyproject.toml has version ${version}" >&2
+            exit 1
+          fi
       - name: Install build tools
         run: |
           python -m pip install --upgrade pip
-          pip install build
-      - name: Build package
+          pip install build twine
+      - name: Build, check and install the wheel
         run: |
-          python -m build
+          scripts/check_wheel.sh dist
       - name: Publish to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1

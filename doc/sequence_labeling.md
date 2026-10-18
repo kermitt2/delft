@@ -4,7 +4,7 @@
 
 ### Available models
 
-The following DL architectures are supported by DeLFT, and can be selected with the `--architecture` parameter of any application script:
+The following DL architectures are supported by DeLFT, and can be selected with the `--architecture` parameter of the application scripts (the `--help` of a script lists the ones it accepts):
 
 | RNN architectures | Transformer architectures |
 |---|---|

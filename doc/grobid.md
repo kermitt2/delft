@@ -5,11 +5,9 @@
 ## General command line for training GROBID models in DeLFT
 
 ```
-usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
-                       [--architecture ARCHITECTURE] [--output OUTPUT]
-                       [--embedding EMBEDDING] [--transformer TRANSFORMER]
-                       [--input INPUT] [--incremental]
-                       [--input-model INPUT_MODEL]
+usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED] [--architecture ARCHITECTURE]
+                       [--embedding EMBEDDING] [--transformer TRANSFORMER] [--output OUTPUT]
+                       [--input INPUT] [--incremental] [--input-model INPUT_MODEL]
                        [--max-sequence-length MAX_SEQUENCE_LENGTH]
                        [--features-indices FEATURES_INDICES]
                        [--features-vocabulary-size FEATURES_VOCABULARY_SIZE]
@@ -18,8 +16,9 @@ usage: grobidTagger.py [-h] [--fold-count FOLD_COUNT] [--seed SEED]
                        [--continuous-features-indices CONTINUOUS_FEATURES_INDICES]
                        [--batch-size BATCH_SIZE] [--patience PATIENCE]
                        [--learning-rate LEARNING_RATE] [--max-epoch MAX_EPOCH]
-                       [--early-stop EARLY_STOP] [--multi-gpu]
-                       [--num-workers NUM_WORKERS] [--suffix SUFFIX] [--wandb]
+                       [--early-stop EARLY_STOP] [--multi-gpu] [--wandb]
+                       [--wandb-run-id WANDB_RUN_ID] [--wandb-project WANDB_PROJECT]
+                       [--suffix SUFFIX] [--num-workers NUM_WORKERS]
                        model {train,train_eval,eval,tag}
 
 Trainer for GROBID models using the DeLFT library
@@ -32,93 +31,92 @@ options:
   -h, --help            show this help message and exit
   --fold-count FOLD_COUNT
                         Number of fold to use when evaluating with n-fold cross validation.
-  --seed SEED           Seed of the random number generators, to run a training
-                        again with the same split of the data, the same
-                        initial weights and the same order of the batches.
-                        Default: not seeded, every run differs.
+  --seed SEED           Seed of the random number generators, to run a training again with the
+                        same split of the data, the same initial weights and the same order of the
+                        batches. Default: not seeded, every run differs.
   --architecture ARCHITECTURE
-                        Type of model architecture to be used, one of
-                        ['BidLSTM', 'BidLSTM_CRF', 'BidLSTM_ChainCRF',
-                        'BidLSTM_CNN_CRF', 'BidGRU_CRF',
-                        'BidLSTM_CNN', 'BidLSTM_CRF_CASING',
-                        'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES',
-                        'BERT', 'BERT_FEATURES', 'BERT_CRF', 'BERT_ChainCRF',
-                        'BERT_CRF_FEATURES', 'BERT_ChainCRF_FEATURES']
-  --output OUTPUT       Directory where to save a trained model.
+                        Type of model architecture to be used, one of ['BidLSTM', 'BidLSTM_CRF',
+                        'BidLSTM_ChainCRF', 'BidLSTM_CNN_CRF', 'BidGRU_CRF', 'BidLSTM_CNN',
+                        'BidLSTM_CRF_CASING', 'BidLSTM_CRF_FEATURES', 'BidLSTM_ChainCRF_FEATURES',
+                        'BERT', 'BERT_FEATURES', 'BERT_CRF', 'BERT_ChainCRF', 'BERT_CRF_FEATURES',
+                        'BERT_ChainCRF_FEATURES']
   --embedding EMBEDDING
-                        The desired pre-trained word embeddings, see --help
-                        and `delft/resources-registry.json` (e.g. 'glove-840B',
-                        'fasttext-crawl', 'word2vec').
+                        The desired pre-trained word embeddings using their descriptions in the
+                        file. For local loading, use delft/resources-registry.json. Be sure to use
+                        here the same name as in the registry, e.g. ['glove-840B', 'fasttext-
+                        crawl', 'word2vec', 'potion-base-8M', 'scibert-contextual', 'bert-base-
+                        cased-contextual']. Contextual embeddings can also be given as
+                        contextual:<HuggingFace model or local path>. Paths in the registry must
+                        be correct on your system.
   --transformer TRANSFORMER
-                        The desired pre-trained transformer to be used in the
-                        selected architecture, either a local entry from
-                        `delft/resources-registry.json` or a HuggingFace Hub
-                        model id (e.g. 'bert-base-cased',
-                        'allenai/scibert_scivocab_cased').
-  --input INPUT         Grobid data file to be used for training (train action),
-                        for training and evaluation (train_eval action) or just
-                        for evaluation (eval action).
-  --incremental         training is incremental, starting from existing model
-                        if present.
+                        The desired pre-trained transformer to be used in the selected
+                        architecture. For local loading use, delft/resources-registry.json, and be
+                        sure to use here the same name as in the registry, e.g. ['bert-base-
+                        cased', 'bert-large-cased', 'allenai/scibert_scivocab_cased'] and that the
+                        path in the registry to the model path is correct on your system.
+                        HuggingFace transformers hub will be used otherwise to fetch the model,
+                        see https://huggingface.co/models for model names
+  --output OUTPUT       Directory where to save a trained model.
+  --input INPUT         Grobid data file to be used for training (train action), for training and
+                        evaluation (train_eval action) or just for evaluation (eval action).
+  --incremental         training is incremental, starting from existing model if present
   --input-model INPUT_MODEL
-                        In case of incremental training, path to an existing
-                        model to be used to start the training, instead of the
-                        default one.
+                        Where to take the model from, instead of the default models directory: for
+                        eval and tag, the model to use, and for incremental training, the one to
+                        start from. Either a models directory, the directory of the model, a
+                        repository or a bucket of the Hugging Face Hub
+                        (hf://owner/repository[@revision], hf://buckets/owner/bucket), where the
+                        model is looked for under its name, or the URL of an archive of the model.
   --max-sequence-length MAX_SEQUENCE_LENGTH
                         max-sequence-length parameter to be used.
   --features-indices FEATURES_INDICES
-                        Columns of the training file to use as features with
-                        a FEATURES architecture, the token being column 0,
-                        e.g. 9-25,28. Default: every column with at most
-                        features-vocabulary-size distinct values.
+                        Columns of the training file to use as features with a FEATURES
+                        architecture, the token being column 0, e.g. 9-25,28. Default: every
+                        column with at most features-vocabulary-size distinct values.
   --features-vocabulary-size FEATURES_VOCABULARY_SIZE
-                        Maximum number of distinct values of a feature column
-                        (default: 12).
+                        Maximum number of distinct values of a feature column (default: 12).
   --window-stride WINDOW_STRIDE
-                        Cut the training sequences longer than
-                        max-sequence-length into windows of that length, one
-                        every window-stride (in tokens, or in sub-tokens with
-                        a transformer), instead of truncating them. A stride
-                        smaller than max-sequence-length makes the windows
-                        overlap. The validation and evaluation sets are
-                        then scored on whole sequences too.
+                        Cut the training sequences longer than max-sequence-length into windows of
+                        that length, one every window-stride (in tokens, or in sub-tokens with a
+                        transformer), instead of truncating them. A stride smaller than max-
+                        sequence-length makes the windows overlap. The validation and evaluation
+                        sets are then scored on whole sequences too.
   --text-features-indices TEXT_FEATURES_INDICES
-                        Columns of the training file the text of a token is
-                        taken from, the token being column 0. For the models
-                        that label lines, 0,1 reads the first two tokens of a
-                        line rather than the first one.
+                        Columns of the training file the text of a token is taken from, the token
+                        being column 0. For the models that label lines, 0,1 reads the first two
+                        tokens of a line rather than the first one.
   --continuous-features-indices CONTINUOUS_FEATURES_INDICES
-                        Columns of the training file that hold numbers, given
-                        to a FEATURES architecture as numbers scaled to [0, 1]
-                        rather than as categories, the token being column 0,
-                        e.g. 20,21.
+                        Columns of the training file that hold numbers, given to a FEATURES
+                        architecture as numbers scaled to [0, 1] rather than as categories, the
+                        token being column 0, e.g. 20,21.
   --batch-size BATCH_SIZE
                         batch-size parameter to be used.
-  --patience PATIENCE   patience, number of extra epochs to perform after the
-                        best epoch before stopping a training.
+  --patience PATIENCE   patience, number of extra epochs to perform after the best epoch before
+                        stopping a training.
   --learning-rate LEARNING_RATE
-                        Initial learning rate.
+                        Initial learning rate
   --max-epoch MAX_EPOCH
                         Maximum number of epochs for training.
   --early-stop EARLY_STOP
-                        Force early training termination when metrics scores
-                        are not improving after a number of epochs equals to
-                        the patience parameter.
-  --multi-gpu           Enable distributed computing across multiple GPUs (the
-                        batch size needs to be set accordingly using
-                        --batch-size).
+                        Force early training termination when metrics scores are not improving
+                        after a number of epochs equals to the patience parameter.
+  --multi-gpu           Enable the support for distributed computing (the batch size needs to be
+                        set accordingly using --batch-size)
+  --wandb               Enable the logging of the training using Weights and Biases
+  --wandb-run-id WANDB_RUN_ID
+                        Wandb run ID to resume for eval (only valid with eval action)
+  --wandb-project WANDB_PROJECT
+                        Wandb project name. If unset, falls back to the WANDB_PROJECT env var,
+                        then to wandb's default.
+  --suffix SUFFIX       Suffix appended to the model name, as in grobid-header-
+                        BidLSTM_CRF-<suffix>, to keep several models of the same task and
+                        architecture side by side, e.g. one per embeddings, transformer or hyper-
+                        parameter setting. Pass the same value to eval and tag to select that
+                        model.
   --num-workers NUM_WORKERS
-                        Number of DataLoader worker processes (default:
-                        min(4, cpu_count - 1) for train/eval, 0 for tagging;
-                        use 0 for no multiprocessing at all).
-  --suffix SUFFIX       Suffix appended to the model name, as in
-                        grobid-header-BidLSTM_CRF-<suffix>, to keep several
-                        models of the same task and architecture side by
-                        side, e.g. one per embeddings, transformer or
-                        hyper-parameter setting. Pass the same value to eval
-                        and tag to select that model.
-  --wandb               Enable the logging of the training using Weights and
-                        Biases.
+                        Number of DataLoader worker processes. Default: min(4, cpu_count - 1) for
+                        train/eval, 0 (in-process) for tagging. Use 0 to disable multiprocessing
+                        entirely, which is what an embedding host such as GROBID needs.
 ```
 
 
@@ -143,7 +141,7 @@ Without `--suffix` the name is what it always was, which is also the name GROBID
 
 ## GROBID models
 
-DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. Default static embeddings for GROBID models are `glove-840B`, which can be changed with parameter `--embedding`. 
+DeLFT supports [GROBID](https://github.com/kermitt2/grobid) training data (originally for CRF) and GROBID feature matrix to be labelled. Without `--embedding`, a RNN model is trained without word embeddings, from the characters (and the features) of the tokens only; give for instance `--embedding glove-840B` to use static embeddings. 
 
 For an end-to-end comparison of architectures on the `header` model (F1-score and runtime on the PMC evaluation set), see [Header model evaluation summary](features_header_eval_summary.md).
 
@@ -249,7 +247,7 @@ python3 delft/applications/grobidTagger.py date tag --architecture BidLSTM_CRF
 }
 ```
 
-As usual, depending of the architecture to be used you can indicate wither which embeddings whould be used for a RNN model (default is glove-840B):
+As usual, depending of the architecture to be used you can indicate which embeddings should be used for a RNN model (by default none, the model reading the characters of the tokens only):
 
 ```sh
 python3 delft/applications/grobidTagger.py citation train_eval --architecture BidLSTM_CRF_FEATURES --embedding glove-840B

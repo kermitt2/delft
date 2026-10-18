@@ -21,7 +21,7 @@
 # `eval` and `tag` which need the model of `train`, and fails when any of its steps did.
 #
 # The groups are the applications: grobid (one row per GROBID model), ner, insult, dataset,
-# citation, dataseer, license, software, software-context and toxic. All of them by default;
+# citation, license, software, software-context and toxic. All of them by default;
 # a group whose training data is not in the checkout is left out, with a note.
 #
 # The matrix is rows x architectures. The embeddings (for the architectures without a
@@ -72,7 +72,7 @@ PYTHON_BIN=${PYTHON_BIN:-.venv/bin/python}
 PRODUCT=${PRODUCT:-false}
 KEEP_MODELS=${KEEP_MODELS:-false}
 
-ALL_GROUPS=(grobid ner insult dataset citation dataseer license software software-context toxic)
+ALL_GROUPS=(grobid ner insult dataset citation license software software-context toxic)
 ALL_STEPS=(train_eval nfold train eval tag)
 
 GROBID_ARCHITECTURES=(BidLSTM BidLSTM_CRF BidLSTM_ChainCRF BidLSTM_CNN_CRF BidGRU_CRF BidLSTM_CNN
@@ -147,7 +147,6 @@ group_data() {
         insult) echo data/sequenceLabelling/toxic/train.xml ;;
         dataset) echo data/sequenceLabelling/datasets/dataseer_sentences.json ;;
         citation) echo data/textClassification/citations/citation_sentiment_corpus.txt ;;
-        dataseer) echo data/textClassification/dataseer/all-binary.csv ;;
         license) echo data/textClassification/licenses/copyrights-licenses-data-validated.csv ;;
         software) echo data/textClassification/software/software-use.json.gz ;;
         software-context) echo data/textClassification/software/software-contexts.json.gz ;;
@@ -162,7 +161,6 @@ group_module() {
         insult) echo insultTagger ;;
         dataset) echo datasetTagger ;;
         citation) echo citationClassifier ;;
-        dataseer) echo dataseerClassifier ;;
         license) echo licenseClassifier ;;
         software) echo softwareClassifier ;;
         software-context) echo softwareContextClassifier ;;

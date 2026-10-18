@@ -872,13 +872,13 @@ if __name__ == "__main__":
 
     action = args.action
     if action not in ("train", "tag", "eval", "train_eval"):
-        print("action not specified, must be one of [train, train_eval, eval, tag]")
+        parser.error("action must be one of [train, train_eval, eval, tag]")
     lang = args.lang
     dataset_type = args.dataset_type
     train_with_validation_set = args.train_with_validation_set
     architecture = args.architecture
     if architecture not in architectures:
-        print("unknown model architecture, must be one of", architectures)
+        parser.error("unknown model architecture, must be one of " + str(architectures))
     transformer = args.transformer
     data_path = args.data_path
     file_in = args.file_in

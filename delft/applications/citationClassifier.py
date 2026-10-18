@@ -211,14 +211,14 @@ if __name__ == "__main__":
     set_random_seed(args.seed)
 
     if args.action not in ("train", "train_eval", "classify"):
-        print("action not specifed, must be one of [train,train_eval,classify]")
+        parser.error("action must be one of [train,train_eval,classify]")
 
     embeddings_name = args.embedding
     transformer = args.transformer
 
     architecture = args.architecture
     if architecture not in architectures:
-        print("unknown model architecture, must be one of " + str(architectures))
+        parser.error("unknown model architecture, must be one of " + str(architectures))
 
     if args.action.startswith("train") and transformer is None and embeddings_name is None and architecture != "bert":
         # as for sequence labelling: no pre-trained word embeddings unless some are asked for

@@ -228,8 +228,9 @@ def export_to_onnx(
     """
     print(f"Loading model: {model_name}")
 
-    # Load the model
-    model_wrapper = Sequence(model_name)
+    # Load the model on the CPU, where it is traced: on the default device (CUDA, MPS) it would not run on
+    # the dummy inputs below
+    model_wrapper = Sequence(model_name, device="cpu")
     if model_path:
         model_wrapper.load(dir_path=model_path)
     else:
@@ -254,7 +255,9 @@ def export_to_onnx(
         "BidLSTM_ChainCRF_FEATURES",
     ]
     if arch not in supported_archs:
-        print(f"Warning: Architecture {arch} may not be fully supported. Proceeding anyway.")
+        raise ValueError(f"ONNX export supports the architectures {supported_archs}, not {arch}")
+    if getattr(model_config, "continuous_features_indices", None):
+        raise ValueError("ONNX export does not support models trained with continuous features")
 
     print(f"Architecture: {arch}")
 
@@ -296,10 +299,10 @@ def export_to_onnx(
     else:
         dummy_inputs = (dummy_word_input, dummy_char_input)
 
-    # Export to ONNX (using static shapes for compatibility)
+    # Export to ONNX, the batch size and the sequence length being free
     onnx_path = os.path.join(output_dir, "encoder.onnx")
     print(f"Exporting to ONNX: {onnx_path}")
-    print(f"  Static shapes: batch=1, seq_len={seq_len}, word_emb={word_emb_size}, max_char={max_char}")
+    print(f"  Dynamic batch size and sequence length, word_emb={word_emb_size}, max_char={max_char}")
 
     # Use dynamo=False for older-style export that's more compatible
     torch.onnx.export(
@@ -308,6 +311,7 @@ def export_to_onnx(
         onnx_path,
         input_names=input_names,
         output_names=output_names,
+        dynamic_axes=dynamic_axes,
         opset_version=14,
         do_constant_folding=True,
         verbose=False,

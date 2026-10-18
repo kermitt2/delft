@@ -221,7 +221,7 @@ ARRAY_SPEC=1-5:2 ./scripts/train_distributed_array.sh train-eval "$EMBEDDING"  #
 - `full` trains with the epochs of every application and 5 folds, and gives scores to look at.
 
 A **group** is an application: `grobid` (one row per GROBID model with a training file),
-`ner`, `insult`, `dataset`, `citation`, `dataseer`, `license`, `software`, `software-context`
+`ner`, `insult`, `dataset`, `citation`, `license`, `software`, `software-context`
 and `toxic`. All of them run unless some are named after the profile. A group whose training
 data is not in the checkout is left out, with a note on the standard error.
 

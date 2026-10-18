@@ -16,7 +16,7 @@ from delft.utilities.weights import SAFETENSORS_WEIGHT_FILE_NAME
 WORDS = ["Jim", "Henson", "was", "a", "puppeteer", "in", "Mississippi", "today"]
 LABELS = ["B-per", "I-per", "O", "O", "O", "O", "B-loc", "O"]
 MODEL_NAME = "grobid-date-BidLSTM_CRF-test"
-REPOSITORY = "lfoppiano/grobid-model-date"
+REPOSITORY = "sciencialab/grobid-model-date"
 
 
 def _trained(model_name):
@@ -76,7 +76,9 @@ def test_load_prefers_the_model_on_disk(published, tmp_path, monkeypatch):
 
 def test_load_of_a_model_that_is_nowhere_tells_where_it_looked(published, tmp_path):
     sequence = Sequence("grobid-date-BidLSTM_CRF-unknown", device="cpu")
-    with pytest.raises(HubModelNotFoundError, match="hf://lfoppiano/grobid-model-date/grobid-date-BidLSTM_CRF-unknown"):
+    with pytest.raises(
+        HubModelNotFoundError, match="hf://sciencialab/grobid-model-date/grobid-date-BidLSTM_CRF-unknown"
+    ):
         sequence.load(str(tmp_path / "models"))
 
 

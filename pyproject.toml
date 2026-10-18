@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=42", "wheel"]
+requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [tool.bumpversion]
@@ -29,14 +29,18 @@ maintainers = [
     { name = "Patrice Lopez", email = "patrice.lopez@science-miner.com" },
     { name = "Luca Foppiano", email = "luca@sciencialab.com" }
 ]
-requires-python = ">=3.10"
+requires-python = ">=3.10,<3.14"
+license = "Apache-2.0"
+license-files = ["LICENSE.txt"]
 classifiers = [
     "Programming Language :: Python :: 3.10",
-    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
     "Operating System :: OS Independent",
 ]
 dependencies = [
-    "numpy==1.26.4",
+    "numpy==2.2.6",
     "regex",
     "scikit-learn==1.7.2",
     "tqdm>=4.66",
@@ -50,11 +54,6 @@ dependencies = [
     "huggingface_hub>=1.5.0",
     "torch==2.11.0",
     "pytorch-crf>=0.7.2",
-    "sentencepiece",
-    "protobuf",
-    "blingfire2==0.2.1",
-    "accelerate>=0.20.3",
-    "Pillow",
     "python-dotenv",
 ]
 
@@ -70,12 +69,14 @@ dev = [
     "bump-my-version",
     "wandb",
     "ruff<0.17.0",
+    "onnx",
+    "onnxruntime",
 ]
 
 [project.urls]
 Homepage = "https://github.com/kermitt2/delft"
 Repository = "https://github.com/kermitt2/delft"
-Changelog = "https://github.com/kermitt2/delft"
+Changelog = "https://github.com/kermitt2/delft/releases"
 
 [tool.ruff]
 line-length = 120
@@ -105,4 +106,4 @@ quote-style = "double"
 delft = ["resources-registry.json", "py.typed"]
 
 [tool.setuptools.packages.find]
-exclude = ["test", "*.test", "*.test.*"]
+exclude = ["tests", "tests.*", "build*"]

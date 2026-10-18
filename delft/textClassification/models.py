@@ -24,6 +24,7 @@ import torch.nn.functional as F
 
 from delft.textClassification.config import DEFAULT_TRANSFORMER_NAME
 from delft.textClassification.features import features_size, features_vocabulary
+from delft.utilities.transformer_models import load_transformer
 
 # size of the word vectors when the configuration gives none, and of the word embeddings
 # a model learns when it is given no pre-trained ones
@@ -45,6 +46,11 @@ class BaseTextClassifier(nn.Module):
     """
 
     name = "BaseTextClassifier"
+
+    # the optimizer the architecture was tuned with in Keras, and the gradient norm it
+    # clipped at there; None leaves the clipping to the training configuration
+    optimizer_name = "adam"
+    max_grad_norm = None
 
     def __init__(self, model_config, training_config, vocab_size: int = None):
         super().__init__()
@@ -487,6 +493,8 @@ class gru(BaseTextClassifier):
     """
 
     name = "gru"
+    optimizer_name = "rmsprop"
+    max_grad_norm = 1.0
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
@@ -539,6 +547,8 @@ class gru_simple(BaseTextClassifier):
     """
 
     name = "gru_simple"
+    optimizer_name = "rmsprop"
+    max_grad_norm = 1.0
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
@@ -581,6 +591,8 @@ class gru_lstm(BaseTextClassifier):
     """
 
     name = "gru_lstm"
+    optimizer_name = "rmsprop"
+    max_grad_norm = 1.0
 
     def __init__(self, model_config, training_config):
         super().__init__(model_config, training_config)
@@ -734,19 +746,10 @@ class bert(BaseTextClassifier):
     ):
         super().__init__(model_config, training_config)
 
-        from transformers import AutoConfig, AutoModel
-
         transformer_name = model_config.transformer_name or DEFAULT_TRANSFORMER_NAME
-
-        # Pin fp32: some HF checkpoints (e.g. deberta-v3) ship as fp16, and recent
-        # transformers versions honor that, which clashes with the fp32 classifier head below.
-        if local_path:
-            self.transformer = AutoModel.from_pretrained(local_path, torch_dtype=torch.float32)
-        elif load_pretrained_weights:
-            self.transformer = AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
-        else:
-            config = AutoConfig.from_pretrained(transformer_name)
-            self.transformer = AutoModel.from_config(config)
+        # without its pretrained weights when the weights of the trained model are loaded next, the
+        # configuration of the transformer being then the one the model saved in local_path
+        self.transformer = load_transformer(transformer_name, load_pretrained_weights, local_path)
 
         hidden_size = self.transformer.config.hidden_size
 
@@ -810,7 +813,7 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
         model_config: Model configuration
         training_config: Training configuration
         load_pretrained_weights: Whether to load pretrained transformer weights
-        local_path: Local path for transformer models
+        local_path: the directory of the trained model being loaded, whose saved transformer configuration is used
 
     Returns:
         Model instance
@@ -824,5 +827,33 @@ def getModel(model_config, training_config, load_pretrained_weights=True, local_
 
     if architecture == "bert":
         return model_class(model_config, training_config, load_pretrained_weights, local_path)
-    else:
-        return model_class(model_config, training_config)
+    model = model_class(model_config, training_config)
+    init_like_keras(model)
+    return model
+
+
+def init_like_keras(model):
+    """
+    Initialise the dense, convolutional and recurrent layers of ``model`` as Keras does,
+    with which these architectures were tuned: Glorot uniform kernels, orthogonal
+    recurrent kernels, one for each gate, and zero biases. With the PyTorch defaults,
+    the GRU classifiers learnt so slowly that early stopping kept a model of the first
+    epochs, which predicted the most frequent classes only (license classifier).
+    Embedding layers are left as they are.
+    """
+    for module in model.modules():
+        if isinstance(module, (nn.Linear, nn.Conv1d)):
+            nn.init.xavier_uniform_(module.weight)
+            if module.bias is not None:
+                nn.init.zeros_(module.bias)
+        elif isinstance(module, (nn.GRU, nn.LSTM)):
+            gates = 3 if isinstance(module, nn.GRU) else 4
+            for name, parameter in module.named_parameters():
+                if name.startswith("weight_ih"):
+                    for gate in parameter.data.chunk(gates, 0):
+                        nn.init.xavier_uniform_(gate)
+                elif name.startswith("weight_hh"):
+                    for gate in parameter.data.chunk(gates, 0):
+                        nn.init.orthogonal_(gate)
+                else:
+                    nn.init.zeros_(parameter)

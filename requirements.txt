@@ -1,4 +1,4 @@
-numpy==1.26.4
+numpy==2.2.6
 regex
 scikit-learn==1.7.2
 tqdm>=4.66
@@ -12,9 +12,4 @@ safetensors>=0.4.3
 huggingface_hub>=1.5.0
 torch==2.11.0
 pytorch-crf>=0.7.2
-sentencepiece
-protobuf
-blingfire2==0.2.1
-accelerate>=0.20.3
-Pillow
 python-dotenv

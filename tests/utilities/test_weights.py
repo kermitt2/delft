@@ -5,10 +5,12 @@ import torch
 
 from delft.utilities.weights import (
     SAFETENSORS_WEIGHT_FILE_NAME,
+    TENSORFLOW_WEIGHT_FILE_NAME,
     find_fold_weight_file,
     find_weight_file,
     fold_weight_file,
     load_weights,
+    refuse_tensorflow_model,
     save_weights,
 )
 
@@ -221,3 +223,20 @@ class TestFindFoldWeightFile:
         assert find_fold_weight_file(str(tmp_path), 1) == os.path.join(str(tmp_path), "model_fold1.safetensors")
         missing = str(tmp_path / "no-such-model")
         assert find_fold_weight_file(missing, 0) == os.path.join(missing, "model_fold0.safetensors")
+
+
+class TestModelsOfTensorFlow:
+    """DeLFT 0.x saved its models with TensorFlow weights, which 1.x cannot load: it says so."""
+
+    @pytest.mark.parametrize("load", [find_weight_file, lambda path, name: refuse_tensorflow_model(path)])
+    def test_a_model_with_tensorflow_weights_only_is_refused(self, tmp_path, load):
+        (tmp_path / "config.json").write_text("{}")
+        (tmp_path / TENSORFLOW_WEIGHT_FILE_NAME).write_bytes(b"\x89HDF")
+        with pytest.raises(ValueError, match="TensorFlow"):
+            load(str(tmp_path), "model.safetensors")
+
+    def test_a_model_with_weights_of_delft_1_too_is_loaded(self, tmp_path):
+        (tmp_path / TENSORFLOW_WEIGHT_FILE_NAME).write_bytes(b"\x89HDF")
+        (tmp_path / "model_weights.pt").write_bytes(b"")
+        assert find_weight_file(str(tmp_path), "model.safetensors") == str(tmp_path / "model_weights.pt")
+        refuse_tensorflow_model(str(tmp_path))
