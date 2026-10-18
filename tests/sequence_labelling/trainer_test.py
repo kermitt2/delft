@@ -56,6 +56,20 @@ class TestConfiguration:
         sequence = _sequence(tmp_path, monkeypatch)
         assert sequence.training_config.clip_gradients == 1.0
         assert sequence.training_config.lr_decay == 0.5
+        assert sequence.training_config.lr_schedule == "plateau"
+
+    def test_the_exponential_schedule_decays_to_a_tenth_over_max_epoch(self, tmp_path, monkeypatch):
+        """As the ExponentialDecay of the Keras trainer: 4 sequences in batches of 2 make 4 steps in 2 epochs."""
+        rates = []
+        sequence = _sequence(tmp_path, monkeypatch, lr_schedule="exponential")
+        with patch("delft.sequenceLabelling.trainer.ReduceLROnPlateau") as plateau:
+            _train(sequence, callbacks=[lambda epoch, logs: rates.append(logs["learning_rate"])])
+        plateau.assert_not_called()
+        assert rates == pytest.approx([0.001 * 0.1**0.5, 0.001 * 0.1])
+
+    def test_an_unknown_schedule_is_an_error(self, tmp_path, monkeypatch):
+        with pytest.raises(ValueError, match="lr_schedule"):
+            _train(_sequence(tmp_path, monkeypatch, lr_schedule="cosine"))
 
 
 class TestEarlyStopping:

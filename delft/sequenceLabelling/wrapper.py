@@ -120,6 +120,7 @@ class Sequence(object):
         window_stride: int = None,
         text_features_indices=None,
         continuous_features_indices=None,
+        lr_schedule="plateau",
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -220,6 +221,7 @@ class Sequence(object):
             patience,
             max_checkpoints_to_keep,
             multiprocessing,
+            lr_schedule=lr_schedule,
         )
 
         if report_to_wandb:

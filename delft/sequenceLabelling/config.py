@@ -109,6 +109,7 @@ class TrainingConfig(object):
         patience=5,
         max_checkpoints_to_keep=0,
         multiprocessing=True,
+        lr_schedule="plateau",
     ):
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
@@ -123,3 +124,7 @@ class TrainingConfig(object):
         # above 0, the weights of the last epochs are kept in the checkpoint directory
         self.max_checkpoints_to_keep = max_checkpoints_to_keep
         self.multiprocessing = multiprocessing
+        # "plateau": the learning rate is multiplied by lr_decay when the validation F1 stops
+        # improving; "exponential": it decays at every step to a tenth over max_epoch epochs,
+        # as the Keras trainer of DeLFT 0.4 did
+        self.lr_schedule = lr_schedule

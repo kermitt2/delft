@@ -14,7 +14,7 @@ import torch
 import torch.nn as nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.optim import Adam, AdamW
-from torch.optim.lr_scheduler import ReduceLROnPlateau
+from torch.optim.lr_scheduler import LambdaLR, ReduceLROnPlateau
 from tqdm import tqdm
 
 from delft.sequenceLabelling.config import ModelConfig, TrainingConfig
@@ -250,12 +250,23 @@ class Trainer:
         else:
             self.optimizer = Adam(self.model.parameters(), lr=self.training_config.learning_rate)
 
-        # Learning rate scheduler
-        # num_training_steps = (train_size // self.training_config.batch_size) * self.training_config.max_epoch
-
-        # lr_decay is the factor the learning rate is multiplied by when the validation F1
-        # has not improved for two epochs
-        self.scheduler = ReduceLROnPlateau(self.optimizer, mode="max", factor=self.training_config.lr_decay, patience=2)
+        # Learning rate scheduler, stepped at every batch or with the validation F1 of every epoch
+        self.scheduler_steps_per_batch = self.training_config.lr_schedule == "exponential"
+        if self.training_config.lr_schedule == "exponential":
+            # the ExponentialDecay of the Keras trainer: a tenth of the initial rate after
+            # max_epoch epochs, stepped at every batch
+            num_training_steps = max(
+                1, (train_size // self.training_config.batch_size) * self.training_config.max_epoch
+            )
+            self.scheduler = LambdaLR(self.optimizer, lambda step: 0.1 ** (step / num_training_steps))
+        elif self.training_config.lr_schedule == "plateau":
+            # lr_decay is the factor the learning rate is multiplied by when the validation F1
+            # has not improved for two epochs
+            self.scheduler = ReduceLROnPlateau(
+                self.optimizer, mode="max", factor=self.training_config.lr_decay, patience=2
+            )
+        else:
+            raise ValueError(f"unknown lr_schedule: {self.training_config.lr_schedule}")
 
     def train(self, train_loader, valid_loader=None, callbacks: List[Callable] = None) -> Dict[str, Any]:
         """
@@ -336,6 +347,8 @@ class Trainer:
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.training_config.clip_gradients)
 
                 self.optimizer.step()
+                if self.scheduler_steps_per_batch:
+                    self.scheduler.step()
 
                 train_loss += loss.item()
                 num_batches += 1
@@ -361,7 +374,8 @@ class Trainer:
                 )
 
                 # Update learning rate
-                self.scheduler.step(val_metrics["f1"])
+                if not self.scheduler_steps_per_batch:
+                    self.scheduler.step(val_metrics["f1"])
 
                 # Model checkpoint - only on main process
                 if is_main and checkpoint(self._unwrapped_model, val_metrics["f1"]):

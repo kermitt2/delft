@@ -257,6 +257,8 @@ def train(
     window_stride=None,
     text_features_indices=None,
     continuous_features_indices=None,
+    lr_schedule="plateau",
+    clip_gradients=1.0,
 ):
     short_model_name = model
     print("Loading data...")
@@ -324,6 +326,8 @@ def train(
         window_stride=window_stride,
         text_features_indices=text_features_indices,
         continuous_features_indices=continuous_features_indices,
+        lr_schedule=lr_schedule,
+        clip_gradients=clip_gradients,
     )
 
     if incremental:
@@ -384,6 +388,8 @@ def train_eval(
     window_stride=None,
     text_features_indices=None,
     continuous_features_indices=None,
+    lr_schedule="plateau",
+    clip_gradients=1.0,
 ):
     short_model_name = model
     print("Loading data...")
@@ -455,6 +461,8 @@ def train_eval(
         window_stride=window_stride,
         text_features_indices=text_features_indices,
         continuous_features_indices=continuous_features_indices,
+        lr_schedule=lr_schedule,
+        clip_gradients=clip_gradients,
     )
 
     if incremental:
@@ -765,6 +773,20 @@ if __name__ == "__main__":
         help="patience, number of extra epochs to perform after the best epoch before stopping a training.",
     )
     parser.add_argument("--learning-rate", type=float, default=None, help="Initial learning rate")
+    parser.add_argument(
+        "--lr-schedule",
+        choices=["plateau", "exponential"],
+        default="plateau",
+        help="How the learning rate goes down: 'plateau' halves it when the validation f1 has not improved "
+        + "for two epochs, 'exponential' decays it at every step to a tenth over max-epoch epochs, as the "
+        + "Keras trainer of DeLFT 0.4 did.",
+    )
+    parser.add_argument(
+        "--clip-gradients",
+        type=float,
+        default=1.0,
+        help="Maximum norm of the gradients, 0 for no clipping (the Keras trainer of DeLFT 0.4 did not clip).",
+    )
 
     parser.add_argument(
         "--max-epoch",
@@ -889,6 +911,8 @@ if __name__ == "__main__":
             window_stride=args.window_stride,
             text_features_indices=args.text_features_indices,
             continuous_features_indices=args.continuous_features_indices,
+            lr_schedule=args.lr_schedule,
+            clip_gradients=args.clip_gradients,
         )
 
     if action == Tasks.EVAL:
@@ -942,6 +966,8 @@ if __name__ == "__main__":
             window_stride=args.window_stride,
             text_features_indices=args.text_features_indices,
             continuous_features_indices=args.continuous_features_indices,
+            lr_schedule=args.lr_schedule,
+            clip_gradients=args.clip_gradients,
         )
 
     if action == Tasks.TAG:
