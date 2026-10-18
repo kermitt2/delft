@@ -131,16 +131,91 @@ def grow_char_embeddings(model: nn.Module, size: int) -> None:
 def features_embedding(vocab_size: int, embedding_size: int) -> nn.Embedding:
     """Embeddings of the discrete features, initialised like the Keras ones they replace.
 
-    Keras drew them uniformly in [-0.05, 0.05], PyTorch draws them from N(0, 1), and
-    with that much larger start the feature branch of a trained model stayed close to
-    its initial noise: the models learnt to ignore the layout features, which e.g. the
-    reference segmenter needs to separate references that have no label.
+    Keras drew them uniformly in [-0.05, 0.05], PyTorch draws them from N(0, 1), twenty
+    times as spread: the feature embeddings of the trained PyTorch models were still at
+    that spread, where the Keras ones had moved to about 0.07.
     """
     embeddings = nn.Embedding(vocab_size, embedding_size, padding_idx=0)
     with torch.no_grad():
         nn.init.uniform_(embeddings.weight, -0.05, 0.05)
         embeddings.weight[0].zero_()
     return embeddings
+
+
+def reverse_padded(x: torch.Tensor, lengths: torch.Tensor) -> torch.Tensor:
+    """Reverses each sequence of ``x`` [batch, steps, size] over its first ``lengths`` steps, leaving
+    the padding after them in place."""
+    steps = torch.arange(x.shape[1], device=x.device).unsqueeze(0)
+    lengths = lengths.to(x.device).unsqueeze(1)
+    index = torch.where(steps < lengths, lengths - 1 - steps, steps)
+    return x.gather(1, index.unsqueeze(-1).expand_as(x))
+
+
+class RecurrentDropoutLSTM(nn.LSTM):
+    """A single-layer nn.LSTM with the recurrent dropout of the Keras LSTM.
+
+    The dropout of nn.LSTM only acts between stacked layers, so a single-layer
+    one has none, where Keras dropped the previous hidden state on its way into
+    each of the four gates, with one mask per gate and per sequence kept over all
+    its steps. In training this runs the recurrence step by step to apply those
+    masks; in evaluation it is nn.LSTM, with the same parameters, so the saved
+    weights do not change.
+    """
+
+    def __init__(self, input_size: int, hidden_size: int, recurrent_dropout: float = 0.0, **kwargs):
+        super().__init__(input_size, hidden_size, **kwargs)
+        if self.num_layers != 1 or not self.batch_first:
+            raise ValueError("RecurrentDropoutLSTM supports a single batch-first layer only")
+        self.recurrent_dropout = recurrent_dropout
+
+    def forward(self, input, hx=None):
+        if not (self.training and 0 < self.recurrent_dropout < 1) or hx is not None:
+            return super().forward(input, hx)
+        packed = isinstance(input, nn.utils.rnn.PackedSequence)
+        if packed:
+            x, lengths = nn.utils.rnn.pad_packed_sequence(input, batch_first=True)
+        else:
+            x = input
+            lengths = torch.full((x.shape[0],), x.shape[1], dtype=torch.long)
+        directions = [self._run_direction(x, lengths, "")]
+        if self.bidirectional:
+            output, (h, c) = self._run_direction(reverse_padded(x, lengths), lengths, "_reverse")
+            directions.append((reverse_padded(output, lengths), (h, c)))
+        output = torch.cat([output for output, _ in directions], dim=-1)
+        h_n = torch.stack([h for _, (h, _) in directions])
+        c_n = torch.stack([c for _, (_, c) in directions])
+        if packed:
+            output = nn.utils.rnn.pack_padded_sequence(output, lengths, batch_first=True, enforce_sorted=False)
+        return output, (h_n, c_n)
+
+    def _run_direction(self, x: torch.Tensor, lengths: torch.Tensor, suffix: str):
+        batch_size, steps, _ = x.shape
+        size = self.hidden_size
+        weight_hh = getattr(self, "weight_hh_l0" + suffix).view(4, size, size)
+        inputs = nn.functional.linear(x, getattr(self, "weight_ih_l0" + suffix), getattr(self, "bias_ih_l0" + suffix))
+        inputs = inputs + getattr(self, "bias_hh_l0" + suffix)
+        keep = 1 - self.recurrent_dropout
+        masks = torch.bernoulli(x.new_full((4, batch_size, size), keep)) / keep
+
+        h = x.new_zeros(batch_size, size)
+        c = x.new_zeros(batch_size, size)
+        hs, cs = [], []
+        for step in range(steps):
+            # [4, batch, size]: the dropped previous state through each gate's recurrent weights
+            recurrent = torch.bmm(h.unsqueeze(0) * masks, weight_hh.transpose(1, 2))
+            gates = inputs[:, step].view(batch_size, 4, size).transpose(0, 1) + recurrent
+            c = torch.sigmoid(gates[1]) * c + torch.sigmoid(gates[0]) * torch.tanh(gates[2])
+            h = torch.sigmoid(gates[3]) * torch.tanh(c)
+            hs.append(h)
+            cs.append(c)
+
+        output = torch.stack(hs, dim=1)
+        last = (lengths.clamp(min=1) - 1).to(x.device)
+        rows = torch.arange(batch_size, device=x.device)
+        h_n = output[rows, last]
+        c_n = torch.stack(cs, dim=1)[rows, last]
+        valid = torch.arange(steps, device=x.device).unsqueeze(0) < lengths.to(x.device).unsqueeze(1)
+        return output * valid.unsqueeze(-1).to(output.dtype), (h_n, c_n)
 
 
 def get_token_mask(char_input: torch.Tensor) -> torch.Tensor:
@@ -320,12 +395,12 @@ class BidLSTM(BaseSequenceLabeler):
         input_size = config.word_embedding_size + self.char_encoder.output_size
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)
@@ -407,12 +482,12 @@ class BidLSTM_CRF(BaseSequenceLabeler):
         input_size = config.word_embedding_size + self.char_encoder.output_size
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)
@@ -498,12 +573,12 @@ class BidLSTM_ChainCRF(BaseSequenceLabeler):
         input_size = config.word_embedding_size + self.char_encoder.output_size
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)
@@ -578,12 +653,12 @@ class BidLSTM_CNN(BaseSequenceLabeler):
         input_size = config.word_embedding_size + self.char_encoder.output_size + config.case_embedding_size
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)
@@ -659,12 +734,12 @@ class BidLSTM_CNN_CRF(BaseSequenceLabeler):
         input_size = config.word_embedding_size + self.char_encoder.output_size
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)
@@ -859,12 +934,12 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         )
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)
@@ -1036,12 +1111,12 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         input_size = config.word_embedding_size + self.char_encoder.output_size + config.case_embedding_size
 
         # Main BiLSTM
-        self.bilstm = nn.LSTM(
+        self.bilstm = RecurrentDropoutLSTM(
             input_size,
             config.num_word_lstm_units,
             batch_first=True,
             bidirectional=True,
-            dropout=config.recurrent_dropout if config.recurrent_dropout else 0,
+            recurrent_dropout=config.recurrent_dropout or 0.0,
         )
 
         self.dropout = nn.Dropout(config.dropout)

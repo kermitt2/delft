@@ -9,6 +9,7 @@ from delft.sequenceLabelling.models import (
     MODEL_REGISTRY,
     BidLSTM_CRF,
     CharacterEncoder,
+    RecurrentDropoutLSTM,
     get_token_mask,
     run_masked_lstm,
 )
@@ -153,6 +154,52 @@ class TestFeaturesEmbeddingInitialisation:
         model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
         assert torch.count_nonzero(model.features_embedding.weight[0]) == 0
         assert model.features_embedding.padding_idx == 0
+
+
+class TestRecurrentDropoutLSTM:
+    @staticmethod
+    def _lstm(recurrent_dropout: float) -> RecurrentDropoutLSTM:
+        torch.manual_seed(0)
+        return RecurrentDropoutLSTM(5, 3, recurrent_dropout=recurrent_dropout, batch_first=True, bidirectional=True)
+
+    @staticmethod
+    def _inputs():
+        torch.manual_seed(1)
+        mask = torch.tensor([[True] * 7, [True] * 4 + [False] * 3, [True] + [False] * 6])
+        return torch.randn(3, 7, 5), mask
+
+    def test_should_run_the_same_recurrence_as_nn_lstm_when_nothing_is_dropped(self):
+        lstm = self._lstm(1e-12)
+        x, mask = self._inputs()
+        lstm.eval()
+        expected = run_masked_lstm(lstm, x, mask)
+        expected_unmasked, (expected_h, expected_c) = lstm(x)
+        lstm.train()
+        actual_unmasked, (actual_h, actual_c) = lstm(x)
+        torch.testing.assert_close(run_masked_lstm(lstm, x, mask), expected)
+        torch.testing.assert_close(actual_unmasked, expected_unmasked)
+        torch.testing.assert_close(actual_h, expected_h)
+        torch.testing.assert_close(actual_c, expected_c)
+
+    def test_should_drop_the_recurrent_state_in_training_only(self):
+        lstm = self._lstm(0.5)
+        x, mask = self._inputs()
+        lstm.eval()
+        expected = run_masked_lstm(lstm, x, mask)
+        torch.testing.assert_close(run_masked_lstm(lstm, x, mask), expected)
+        lstm.train()
+        assert not torch.allclose(run_masked_lstm(lstm, x, mask), expected)
+
+    def test_should_leave_the_padding_at_zero(self):
+        lstm = self._lstm(0.5)
+        x, mask = self._inputs()
+        output = run_masked_lstm(lstm, x, mask)
+        assert torch.count_nonzero(output[~mask]) == 0
+
+    def test_should_keep_the_parameters_of_nn_lstm(self):
+        assert set(dict(self._lstm(0.5).named_parameters())) == set(
+            dict(nn.LSTM(5, 3, batch_first=True, bidirectional=True).named_parameters())
+        )
 
 
 class TestGetTokenMask:
