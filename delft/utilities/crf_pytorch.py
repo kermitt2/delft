@@ -254,6 +254,16 @@ def log_partition(
       does not depend on the previous tag;
     - with ``mask=None`` nothing is padded and the torch.where is dropped.
 
+    The score is brought back to a maximum of zero before every step, and what
+    it is moved by is added back at the end. Left to grow, it reaches thousands
+    over the sequences of GROBID, and the backward pass of torch.logsumexp,
+    ``exp(x - result)``, then takes weights from a ``result`` rounded at that
+    magnitude: in single precision they no longer sum to one, and the error
+    compounds from step to step. Over 3000 tokens the gradients of the
+    emissions came out wrong by more than their own size, and those of the
+    transitions by a hundred times theirs. The shifts are detached, which is
+    exact: the log partition does not depend on them.
+
     Args:
         emissions: [batch_size, seq_length, num_tags]
         mask: [batch_size, seq_length] bool, or None when every position of
@@ -264,17 +274,24 @@ def log_partition(
     """
     steps = emissions.unbind(1)
     score = start_transitions + steps[0]
+    shifts = []
 
     if mask is None:
         for i in range(1, len(steps)):
-            score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
+            shift = score.amax(dim=1, keepdim=True).detach()
+            shifts.append(shift)
+            score = torch.logsumexp((score - shift).unsqueeze(2) + transitions, dim=1) + steps[i]
     else:
         valid = mask.unsqueeze(2).unbind(1)
         for i in range(1, len(steps)):
+            shift = score.amax(dim=1, keepdim=True).detach()
+            shifts.append(shift)
+            score = score - shift
             next_score = torch.logsumexp(score.unsqueeze(2) + transitions, dim=1) + steps[i]
             score = torch.where(valid[i], next_score, score)
 
-    return torch.logsumexp(score + end_transitions, dim=1)
+    log_z = torch.logsumexp(score + end_transitions, dim=1)
+    return log_z + torch.cat(shifts, dim=1).sum(dim=1) if shifts else log_z
 
 
 class CRF(nn.Module):

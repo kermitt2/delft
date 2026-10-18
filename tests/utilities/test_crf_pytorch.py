@@ -286,6 +286,36 @@ def test_log_partition_does_not_depend_on_what_is_padded():
     )
 
 
+@pytest.mark.parametrize("with_mask", [False, True])
+def test_single_precision_gradients_of_a_long_sequence_are_those_of_double_precision(with_mask):
+    """
+    Over the 3000 tokens of a GROBID sequence the forward score reaches thousands, and the
+    single precision gradients came out wrong by more than their own size, those of the
+    transitions by a hundred times theirs: the reference segmenter learned from noise.
+    """
+    torch.manual_seed(3)
+    batch_size, seq_length, num_tags = 4, 3000, 6
+    emissions = 5 * torch.randn(batch_size, seq_length, num_tags, dtype=torch.float64)
+    tags = torch.randint(0, num_tags, (batch_size, seq_length))
+    mask = torch.arange(seq_length).unsqueeze(0) < torch.tensor([[3000], [2500], [1800], [3000]]) if with_mask else None
+    # drawn once: normal_ draws other values for a float32 tensor than for a float64 one
+    weights = {
+        name: torch.randn(parameter.shape, dtype=torch.float64)
+        for name, parameter in CRF(num_tags).state_dict().items()
+    }
+
+    def gradients(dtype):
+        crf = CRF(num_tags, batch_first=True).to(dtype)
+        crf.load_state_dict({name: weight.to(dtype) for name, weight in weights.items()})
+        e = emissions.to(dtype).requires_grad_(True)
+        crf(e, tags, mask=mask).backward()
+        start, transitions, end = crf._transition_parameters()
+        return [g.double() for g in (e.grad, transitions.grad, start.grad, end.grad)]
+
+    for single, double in zip(gradients(torch.float32), gradients(torch.float64)):
+        torch.testing.assert_close(single, double, rtol=1e-3, atol=1e-4)
+
+
 def test_backward_of_the_loss_does_not_index_the_emissions_per_timestep():
     """
     Indexing the emissions inside the loop is what made the loss slow: the
