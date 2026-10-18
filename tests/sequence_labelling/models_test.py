@@ -136,6 +136,25 @@ class TestCharacterMaskZeroByArchitecture:
         assert model.char_encoder.mask_zero is expected_mask_zero
 
 
+class TestFeaturesEmbeddingInitialisation:
+    """The feature embeddings start like the Keras ones, uniform in [-0.05, 0.05]:
+    from the PyTorch default N(0, 1) the trained models ignored the layout features."""
+
+    @pytest.mark.parametrize("architecture", ["BidLSTM_CRF_FEATURES", "BidLSTM_ChainCRF_FEATURES"])
+    def test_should_start_in_the_keras_range(self, architecture):
+        torch.manual_seed(0)
+        model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
+        weights = model.features_embedding.weight
+        assert weights[1:].abs().max() <= 0.05
+        assert weights[1:].abs().max() > 0
+
+    @pytest.mark.parametrize("architecture", ["BidLSTM_CRF_FEATURES", "BidLSTM_ChainCRF_FEATURES"])
+    def test_should_keep_the_padding_row_at_zero(self, architecture):
+        model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
+        assert torch.count_nonzero(model.features_embedding.weight[0]) == 0
+        assert model.features_embedding.padding_idx == 0
+
+
 class TestGetTokenMask:
     def test_should_mark_a_token_with_at_least_one_character_as_real(self):
         mask = get_token_mask(torch.tensor([[[1, 0], [0, 2]]]))

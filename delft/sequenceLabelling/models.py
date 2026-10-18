@@ -128,6 +128,21 @@ def grow_char_embeddings(model: nn.Module, size: int) -> None:
             module.char_embeddings = grown
 
 
+def features_embedding(vocab_size: int, embedding_size: int) -> nn.Embedding:
+    """Embeddings of the discrete features, initialised like the Keras ones they replace.
+
+    Keras drew them uniformly in [-0.05, 0.05], PyTorch draws them from N(0, 1), and
+    with that much larger start the feature branch of a trained model stayed close to
+    its initial noise: the models learnt to ignore the layout features, which e.g. the
+    reference segmenter needs to separate references that have no label.
+    """
+    embeddings = nn.Embedding(vocab_size, embedding_size, padding_idx=0)
+    with torch.no_grad():
+        nn.init.uniform_(embeddings.weight, -0.05, 0.05)
+        embeddings.weight[0].zero_()
+    return embeddings
+
+
 def get_token_mask(char_input: torch.Tensor) -> torch.Tensor:
     """Marks the token positions that are not padding.
 
@@ -827,7 +842,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         # Features embedding
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = nn.Embedding(features_vocab_size, config.features_embedding_size, padding_idx=0)
+        self.features_embedding = features_embedding(features_vocab_size, config.features_embedding_size)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -1332,7 +1347,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
         # Features embedding
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = nn.Embedding(features_vocab_size, config.features_embedding_size, padding_idx=0)
+        self.features_embedding = features_embedding(features_vocab_size, config.features_embedding_size)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -1439,7 +1454,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         # Features
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = nn.Embedding(features_vocab_size, config.features_embedding_size, padding_idx=0)
+        self.features_embedding = features_embedding(features_vocab_size, config.features_embedding_size)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
