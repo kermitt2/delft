@@ -51,7 +51,7 @@ class CharacterEncoder(nn.Module):
         mask_zero: bool = False,
     ):
         super().__init__()
-        self.char_embeddings = nn.Embedding(char_vocab_size, char_embedding_size, padding_idx=0)
+        self.char_embeddings = keras_embedding(char_vocab_size, char_embedding_size)
         self.bilstm = nn.LSTM(char_embedding_size, hidden_size, batch_first=True, bidirectional=True)
         self.output_size = hidden_size * 2
         self.mask_zero = mask_zero
@@ -121,19 +121,24 @@ def grow_char_embeddings(model: nn.Module, size: int) -> None:
     for module in model.modules():
         embeddings = getattr(module, "char_embeddings", None)
         if isinstance(embeddings, nn.Embedding) and embeddings.num_embeddings < size:
-            grown = nn.Embedding(size, embeddings.embedding_dim, padding_idx=embeddings.padding_idx)
+            grown = keras_embedding(size, embeddings.embedding_dim)
             grown.to(device=embeddings.weight.device, dtype=embeddings.weight.dtype)
             with torch.no_grad():
                 grown.weight[: embeddings.num_embeddings] = embeddings.weight
             module.char_embeddings = grown
 
 
-def features_embedding(vocab_size: int, embedding_size: int) -> nn.Embedding:
-    """Embeddings of the discrete features, initialised like the Keras ones they replace.
+def keras_embedding(vocab_size: int, embedding_size: int) -> nn.Embedding:
+    """Embeddings of characters, casings or discrete features, initialised like the Keras ones
+    they replace, the row 0 of the padding staying at zero.
 
     Keras drew them uniformly in [-0.05, 0.05], PyTorch draws them from N(0, 1), twenty
-    times as spread: the feature embeddings of the trained PyTorch models were still at
-    that spread, where the Keras ones had moved to about 0.07.
+    times as spread, and the trained PyTorch models were still at that spread, where the
+    Keras ones had moved to about 0.07. From N(0, 1), the feature embeddings left the
+    layout features ignored, and the character embeddings left a character encoding that
+    the models could not do without the word embeddings: a reference segmenter given
+    words that the embeddings do not know, as the glued words of some PDFs, found 21% of
+    the references where the Keras one found 88%.
     """
     embeddings = nn.Embedding(vocab_size, embedding_size, padding_idx=0)
     with torch.no_grad():
@@ -262,7 +267,7 @@ class CharacterCNNEncoder(nn.Module):
         kernel_size: int = 3,
     ):
         super().__init__()
-        self.char_embeddings = nn.Embedding(char_vocab_size, char_embedding_size, padding_idx=0)
+        self.char_embeddings = keras_embedding(char_vocab_size, char_embedding_size)
         self.conv = nn.Conv1d(char_embedding_size, num_filters, kernel_size, padding="same")
         self.output_size = num_filters
 
@@ -647,7 +652,7 @@ class BidLSTM_CNN(BaseSequenceLabeler):
         self.char_encoder = CharacterCNNEncoder(config.char_vocab_size, config.char_embedding_size)
 
         # Casing embedding
-        self.casing_embedding = nn.Embedding(config.case_vocab_size, config.case_embedding_size, padding_idx=0)
+        self.casing_embedding = keras_embedding(config.case_vocab_size, config.case_embedding_size)
 
         # Input size
         input_size = config.word_embedding_size + self.char_encoder.output_size + config.case_embedding_size
@@ -917,7 +922,7 @@ class BidLSTM_CRF_FEATURES(BaseSequenceLabeler):
         # Features embedding
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = features_embedding(features_vocab_size, config.features_embedding_size)
+        self.features_embedding = keras_embedding(features_vocab_size, config.features_embedding_size)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -1105,7 +1110,7 @@ class BidLSTM_CRF_CASING(BaseSequenceLabeler):
         )
 
         # Casing embedding
-        self.casing_embedding = nn.Embedding(config.case_vocab_size, config.case_embedding_size, padding_idx=0)
+        self.casing_embedding = keras_embedding(config.case_vocab_size, config.case_embedding_size)
 
         # Input size
         input_size = config.word_embedding_size + self.char_encoder.output_size + config.case_embedding_size
@@ -1422,7 +1427,7 @@ class BERT_FEATURES(BaseSequenceLabeler):
         # Features embedding
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = features_embedding(features_vocab_size, config.features_embedding_size)
+        self.features_embedding = keras_embedding(features_vocab_size, config.features_embedding_size)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,
@@ -1529,7 +1534,7 @@ class BERT_CRF_FEATURES(BaseSequenceLabeler):
         # Features
         num_features = len(config.features_indices) if config.features_indices else 1
         features_vocab_size = config.features_vocabulary_size * num_features + 1
-        self.features_embedding = features_embedding(features_vocab_size, config.features_embedding_size)
+        self.features_embedding = keras_embedding(features_vocab_size, config.features_embedding_size)
         self.features_lstm = nn.LSTM(
             config.features_embedding_size,
             config.features_lstm_units,

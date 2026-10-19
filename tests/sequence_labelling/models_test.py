@@ -11,6 +11,7 @@ from delft.sequenceLabelling.models import (
     CharacterEncoder,
     RecurrentDropoutLSTM,
     get_token_mask,
+    grow_char_embeddings,
     run_masked_lstm,
 )
 
@@ -154,6 +155,45 @@ class TestFeaturesEmbeddingInitialisation:
         model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
         assert torch.count_nonzero(model.features_embedding.weight[0]) == 0
         assert model.features_embedding.padding_idx == 0
+
+
+# the architectures with a character, or a casing, embedding
+CHARACTER_ARCHITECTURES = sorted(CHARACTER_MASK_ZERO_BY_ARCHITECTURE) + ["BidLSTM_CNN", "BidLSTM_CNN_CRF"]
+CASING_ARCHITECTURES = ["BidLSTM_CNN", "BidLSTM_CRF_CASING"]
+
+
+class TestCharacterAndCasingEmbeddingInitialisation:
+    """The character and casing embeddings start like the Keras ones, uniform in [-0.05, 0.05]:
+    from the PyTorch default N(0, 1) the trained reference segmenters could not do without
+    the word embeddings, and fused the references of PDFs whose words are glued together."""
+
+    @pytest.mark.parametrize("architecture", CHARACTER_ARCHITECTURES)
+    def test_should_start_the_character_embeddings_in_the_keras_range(self, architecture):
+        torch.manual_seed(0)
+        model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
+        weights = model.char_encoder.char_embeddings.weight
+        assert weights[1:].abs().max() <= 0.05
+        assert weights[1:].abs().max() > 0
+        assert torch.count_nonzero(weights[0]) == 0
+
+    @pytest.mark.parametrize("architecture", CASING_ARCHITECTURES)
+    def test_should_start_the_casing_embeddings_in_the_keras_range(self, architecture):
+        torch.manual_seed(0)
+        model = MODEL_REGISTRY[architecture](get_model_config(architecture), ntags=NTAGS)
+        weights = model.casing_embedding.weight
+        assert weights[1:].abs().max() <= 0.05
+        assert weights[1:].abs().max() > 0
+        assert torch.count_nonzero(weights[0]) == 0
+
+    def test_should_start_the_characters_added_by_incremental_training_in_the_keras_range(self):
+        torch.manual_seed(0)
+        model = MODEL_REGISTRY["BidLSTM_CRF"](get_model_config("BidLSTM_CRF"), ntags=NTAGS)
+        known = model.char_encoder.char_embeddings.weight.detach().clone()
+        grow_char_embeddings(model, CHAR_VOCAB_SIZE + 6)
+        weights = model.char_encoder.char_embeddings.weight
+        assert torch.equal(weights[:CHAR_VOCAB_SIZE], known)
+        assert weights[CHAR_VOCAB_SIZE:].abs().max() <= 0.05
+        assert weights[CHAR_VOCAB_SIZE:].abs().max() > 0
 
 
 class TestRecurrentDropoutLSTM:
