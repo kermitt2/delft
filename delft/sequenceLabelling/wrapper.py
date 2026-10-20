@@ -121,6 +121,7 @@ class Sequence(object):
         text_features_indices=None,
         continuous_features_indices=None,
         lr_schedule="plateau",
+        augment=None,
     ):
         self.short_model_name = short_model_name
         if model_name is None:
@@ -222,6 +223,7 @@ class Sequence(object):
             max_checkpoints_to_keep,
             multiprocessing,
             lr_schedule=lr_schedule,
+            augment=augment,
         )
 
         if report_to_wandb:
@@ -448,6 +450,7 @@ class Sequence(object):
             distributed=distributed,
             role="train",
             window_stride=self.model_config.window_stride,
+            augment=self.training_config.augment,
         )
 
         valid_loader = None
@@ -584,6 +587,7 @@ class Sequence(object):
                 num_workers=self.nb_workers,
                 role=f"fold{fold_id}-train",
                 window_stride=self.model_config.window_stride,
+                augment=self.training_config.augment,
             )
             valid_loader = create_dataloader(
                 fold_x_valid,

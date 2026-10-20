@@ -145,6 +145,8 @@ class SequenceLabelingDataset(Dataset):
         tokenize: Whether to tokenize input texts
         features: Optional additional features
         use_chain_crf: Whether using ChainCRF (affects label encoding)
+        augment: Optional callable changing each labelled sequence when it is read,
+            ``(tokens, labels, features) -> (tokens, labels, features)``
     """
 
     def __init__(
@@ -159,6 +161,7 @@ class SequenceLabelingDataset(Dataset):
         features: Optional[List] = None,
         use_chain_crf: bool = False,
         tokens_per_position: int = 1,
+        augment=None,
     ):
         self.x = x
         self.y = y
@@ -170,6 +173,7 @@ class SequenceLabelingDataset(Dataset):
         self.max_sequence_length = max_sequence_length
         self.tokenize = tokenize
         self.use_chain_crf = use_chain_crf
+        self.augment = augment
 
         if preprocessor:
             self.labels = preprocessor.vocab_tag
@@ -194,6 +198,9 @@ class SequenceLabelingDataset(Dataset):
             x_tokens = tokenizeAndFilterSimple(x_item)
         else:
             x_tokens = x_item
+
+        if self.augment is not None and y_item is not None:
+            x_tokens, y_item, f_item = self.augment(x_tokens, y_item, f_item)
 
         # Truncate if needed
         seq_len = len(x_tokens)
@@ -487,6 +494,7 @@ def create_dataloader(
     distributed: bool = False,
     role: str = "loader",
     window_stride: Optional[int] = None,
+    augment=None,
 ) -> DataLoader:
     """
     Create a DataLoader for a DeLFT dataset.
@@ -499,6 +507,9 @@ def create_dataloader(
             (see ``delft.sequenceLabelling.windows``). Both are counted in tokens, or in
             sub-tokens with a transformer. The dataset then holds the ``window_bounds`` and
             ``window_counts`` of each sequence, to put the predictions back together.
+        augment: Optional callable changing each labelled sequence every time it is read
+            (see ``delft.sequenceLabelling.augmentation``), for a training set. Not
+            available with a transformer.
     """
     if features is None and getattr(preprocessor, "return_features", False) is True:
         # they were replaced by zeros, of another shape than the features the model was
@@ -519,6 +530,8 @@ def create_dataloader(
     x = text_from_features(x, features, getattr(model_config, "text_features_indices", None))
 
     if model_config and model_config.transformer_name:
+        if augment is not None:
+            raise ValueError("The training sequences cannot be augmented with a transformer")
         # Initialize BERT/Transformer preprocessor
         # add_prefix_space: the sequences are already split into words, and the byte-level BPE
         # tokenizers (RoBERTa, GPT2...) only mark the start of a word with a leading space.
@@ -613,6 +626,7 @@ def create_dataloader(
         max_sequence_length=model_config.max_sequence_length if model_config else None,
         use_chain_crf=model_config.use_crf if model_config else False,
         tokens_per_position=tokens_per_position(getattr(model_config, "text_features_indices", None)),
+        augment=augment,
     )
     _set_windows(dataset, window_bounds)
 

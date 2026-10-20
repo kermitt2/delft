@@ -10,6 +10,7 @@ from datetime import datetime
 from sklearn.model_selection import train_test_split
 
 from delft.sequenceLabelling import Sequence
+from delft.sequenceLabelling.augmentation import REFERENCE_SEGMENTER_COLUMNS, GluedWords
 from delft.sequenceLabelling.reader import load_data_and_labels_crf_file
 from delft.utilities.model_names import GROBID_PREFIX, build_model_name, validate_suffix
 from delft.utilities.Utilities import longest_row, parse_number_ranges, set_random_seed, t_or_f
@@ -259,6 +260,7 @@ def train(
     continuous_features_indices=None,
     lr_schedule="plateau",
     clip_gradients=1.0,
+    glue_words=0.0,
 ):
     short_model_name = model
     print("Loading data...")
@@ -328,6 +330,7 @@ def train(
         continuous_features_indices=continuous_features_indices,
         lr_schedule=lr_schedule,
         clip_gradients=clip_gradients,
+        augment=GluedWords(glue_words, REFERENCE_SEGMENTER_COLUMNS) if glue_words else None,
     )
 
     if incremental:
@@ -390,6 +393,7 @@ def train_eval(
     continuous_features_indices=None,
     lr_schedule="plateau",
     clip_gradients=1.0,
+    glue_words=0.0,
 ):
     short_model_name = model
     print("Loading data...")
@@ -463,6 +467,7 @@ def train_eval(
         continuous_features_indices=continuous_features_indices,
         lr_schedule=lr_schedule,
         clip_gradients=clip_gradients,
+        augment=GluedWords(glue_words, REFERENCE_SEGMENTER_COLUMNS) if glue_words else None,
     )
 
     if incremental:
@@ -787,6 +792,13 @@ if __name__ == "__main__":
         default=1.0,
         help="Maximum norm of the gradients, 0 for no clipping (the Keras trainer of DeLFT 0.4 did not clip).",
     )
+    parser.add_argument(
+        "--glue-words",
+        type=float,
+        default=0.0,
+        help="Share of the training sequences shown, in each epoch, with words glued together as in the text "
+        + 'of some PDFs ("UngerR" for "Unger R"), reference-segmenter only. Default: 0, none.',
+    )
 
     parser.add_argument(
         "--max-epoch",
@@ -869,6 +881,11 @@ if __name__ == "__main__":
     num_workers = args.num_workers
     suffix = validate_suffix(args.suffix)
 
+    if args.glue_words and model != "reference-segmenter":
+        parser.error("--glue-words knows the features of the reference-segmenter only")
+    if not 0 <= args.glue_words <= 1:
+        parser.error("--glue-words must be between 0 and 1")
+
     if architecture is None:
         raise ValueError("A model architecture has to be specified: " + str(architectures))
     if architecture not in architectures:
@@ -913,6 +930,7 @@ if __name__ == "__main__":
             continuous_features_indices=args.continuous_features_indices,
             lr_schedule=args.lr_schedule,
             clip_gradients=args.clip_gradients,
+            glue_words=args.glue_words,
         )
 
     if action == Tasks.EVAL:
@@ -968,6 +986,7 @@ if __name__ == "__main__":
             continuous_features_indices=args.continuous_features_indices,
             lr_schedule=args.lr_schedule,
             clip_gradients=args.clip_gradients,
+            glue_words=args.glue_words,
         )
 
     if action == Tasks.TAG:

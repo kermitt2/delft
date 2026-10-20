@@ -110,6 +110,7 @@ class TrainingConfig(object):
         max_checkpoints_to_keep=0,
         multiprocessing=True,
         lr_schedule="plateau",
+        augment=None,
     ):
         self.batch_size = batch_size  # this is the batch size for training
         self.optimizer = optimizer
@@ -128,3 +129,6 @@ class TrainingConfig(object):
         # improving; "exponential": it decays at every step to a tenth over max_epoch epochs,
         # as the Keras trainer of DeLFT 0.4 did
         self.lr_schedule = lr_schedule
+        # callable changing each training sequence when it is read, as GluedWords of
+        # delft.sequenceLabelling.augmentation does; not saved with the model
+        self.augment = augment
