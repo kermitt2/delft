@@ -1,0 +1,92 @@
+{
+ "citation/latin-en (149912/283212 tok)": {
+  "glove-840B": 94.5,
+  "bpemb-multi": 100.0,
+  "cc-en": 94.4,
+  "cc-merged": 95.9,
+  "ft-aligned": 96.2,
+  "numberbatch": 89.3,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 100.0
+ },
+ "citation/latin-non-en (5873/10915 tok)": {
+  "glove-840B": 85.7,
+  "bpemb-multi": 100.0,
+  "cc-en": 84.8,
+  "cc-merged": 94.9,
+  "ft-aligned": 95.8,
+  "numberbatch": 87.6,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 100.0
+ },
+ "citation/cjk (3586/8559 tok)": {
+  "glove-840B": 8.8,
+  "bpemb-multi": 100.0,
+  "cc-en": 24.7,
+  "cc-merged": 73.3,
+  "ft-aligned": 63.7,
+  "numberbatch": 36.0,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 100.0
+ },
+ "citation/cyrillic (100/209 tok)": {
+  "glove-840B": 17.0,
+  "bpemb-multi": 100.0,
+  "cc-en": 43.0,
+  "cc-merged": 92.0,
+  "ft-aligned": 94.0,
+  "numberbatch": 75.0,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 100.0
+ },
+ "affiliation-address/latin-en (28145/41791 tok)": {
+  "glove-840B": 96.8,
+  "bpemb-multi": 100.0,
+  "cc-en": 96.6,
+  "cc-merged": 97.8,
+  "ft-aligned": 97.5,
+  "numberbatch": 94.0,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 99.8
+ },
+ "affiliation-address/latin-non-en (4571/6877 tok)": {
+  "glove-840B": 91.2,
+  "bpemb-multi": 100.0,
+  "cc-en": 91.0,
+  "cc-merged": 97.4,
+  "ft-aligned": 97.2,
+  "numberbatch": 91.9,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 99.0
+ },
+ "header/latin-en (279107/390432 tok)": {
+  "glove-840B": 96.4,
+  "bpemb-multi": 100.0,
+  "cc-en": 96.6,
+  "cc-merged": 97.4,
+  "ft-aligned": 97.5,
+  "numberbatch": 94.5,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 99.9
+ },
+ "header/latin-non-en (2308/3251 tok)": {
+  "glove-840B": 86.6,
+  "bpemb-multi": 100.0,
+  "cc-en": 85.8,
+  "cc-merged": 95.8,
+  "ft-aligned": 96.1,
+  "numberbatch": 92.5,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 100.0
+ },
+ "header/cyrillic (151/177 tok)": {
+  "glove-840B": 64.2,
+  "bpemb-multi": 100.0,
+  "cc-en": 64.9,
+  "cc-merged": 74.2,
+  "ft-aligned": 68.2,
+  "numberbatch": 64.9,
+  "potion-multilingual-128M": 100.0,
+  "static-similarity-mrl-multilingual": 100.0
+ }
+}

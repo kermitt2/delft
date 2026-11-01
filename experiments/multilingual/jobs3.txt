@@ -1,0 +1,3 @@
+affiliation-address amgix-static-multi-69m 0
+affiliation-address amgix-static-multi-69m 1
+affiliation-address amgix-static-multi-69m 2

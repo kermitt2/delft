@@ -1,0 +1,53 @@
+{
+  "_comment": "entries added to delft/resources-registry.json for the runs; paths are relative to the repository root, make them absolute or compile the tables first",
+  "embeddings": [
+    {
+      "name": "ft-aligned",
+      "path": "experiments/multilingual/tables/ft-aligned.vec",
+      "type": "fasttext",
+      "format": "vec",
+      "lang": "multi",
+      "item": "word"
+    },
+    {
+      "name": "cc-merged",
+      "path": "experiments/multilingual/tables/cc-merged.vec",
+      "type": "fasttext",
+      "format": "vec",
+      "lang": "multi",
+      "item": "word"
+    },
+    {
+      "name": "cc-en",
+      "path": "experiments/multilingual/tables/cc-en.vec",
+      "type": "fasttext",
+      "format": "vec",
+      "lang": "multi",
+      "item": "word"
+    },
+    {
+      "name": "bpemb-multi",
+      "path": "experiments/multilingual/tables/bpemb-multi.vec",
+      "type": "fasttext",
+      "format": "vec",
+      "lang": "multi",
+      "item": "word"
+    },
+    {
+      "name": "numberbatch",
+      "path": "experiments/multilingual/tables/numberbatch.vec",
+      "type": "fasttext",
+      "format": "vec",
+      "lang": "multi",
+      "item": "word"
+    },
+    {
+      "name": "amgix-static-multi-69m",
+      "model": "amgix/static-retrieval-multilingual-69m-v1",
+      "type": "model2vec",
+      "format": "static-transformer",
+      "lang": "multi",
+      "item": "word"
+    }
+  ]
+}

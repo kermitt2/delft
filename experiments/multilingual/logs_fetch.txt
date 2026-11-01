@@ -1,0 +1,28 @@
+parts/aligned_en.LANG.tmp: read 2519371 kept 44248
+parts/aligned_de.LANG.tmp: read 2275234 kept 38790
+parts/aligned_es.LANG.tmp: read 985668 kept 35555
+parts/aligned_it.LANG.tmp: read 871054 kept 34775
+parts/aligned_pt.LANG.tmp: read 592109 kept 32548
+parts/aligned_nl.LANG.tmp: read 871023 kept 31691
+parts/aligned_zh.LANG.tmp: read 332648 kept 28055
+curl: (22) The requested URL returned error: 403
+parts/aligned_ja.LANG.tmp: read 0 kept 0
+FAILED aligned_ja
+parts/aligned_ru.LANG.tmp: read 1888424 kept 30368
+parts/aligned_fr.LANG.tmp: read 1152450 kept 37457
+parts/cc_en.LANG.tmp: read 2000001 kept 61682
+parts/aligned_ko.LANG.tmp: read 879130 kept 21728
+parts/cc_fr.LANG.tmp: read 2000001 kept 52580
+parts/aligned_ar.LANG.tmp: read 610978 kept 21666
+parts/cc_de.LANG.tmp: read 2000001 kept 46629
+parts/cc_es.LANG.tmp: read 2000001 kept 51714
+parts/cc_it.LANG.tmp: read 2000001 kept 52008
+parts/cc_pt.LANG.tmp: read 2000001 kept 50702
+parts/cc_nl.LANG.tmp: read 2000001 kept 48667
+parts/cc_ru.LANG.tmp: read 2000001 kept 32387
+parts/cc_ja.LANG.tmp: read 2000001 kept 46040
+parts/cc_zh.LANG.tmp: read 2000001 kept 36029
+parts/cc_ko.LANG.tmp: read 2000001 kept 35088
+parts/cc_ar.LANG.tmp: read 2000001 kept 35923
+parts/numberbatch_LANG.vec: read 9161913 kept 147084
+ALL_STREAMS_DONE

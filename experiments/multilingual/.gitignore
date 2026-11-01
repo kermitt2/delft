@@ -1,0 +1,12 @@
+# derived or downloaded artefacts, rebuilt by prepare.py / fetch_all.sh / merge.py / build_bpemb.py / convert_bpemb.py
+data/
+dl_bpemb/
+parts/
+tables/
+models/
+work/
+runs/
+logs/
+__pycache__/
+# per-epoch training logs with progress bars (eval logs and timings are kept)
+results/*/train.log
