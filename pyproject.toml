@@ -106,4 +106,4 @@ quote-style = "double"
 delft = ["resources-registry.json", "py.typed"]
 
 [tool.setuptools.packages.find]
-exclude = ["tests", "tests.*", "build*"]
+exclude = ["tests", "tests.*", "build*", "experiments", "experiments.*"]
