@@ -4,6 +4,7 @@
 Nothing but the filtered lines reaches the disk. With --numberbatch the keys are
 /c/<lang>/<word> and one output per language is written next to the given path.
 """
+
 import sys
 
 vocab_path, out_path = sys.argv[1], sys.argv[2]

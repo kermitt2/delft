@@ -31,16 +31,20 @@ EN = set(
     "the of and in for on with from by to at an is are was were this that these those as using study "
     "analysis based between effect effects patients".split()
 )
-OTHER = set(
-    # fr
-    "le la les des du une et pour dans sur avec par au aux est sont cette ces étude université "
-    # de
-    "der die das und für von mit im ein eine zur zum bei über auf nach universität "
-    # es / pt / it
-    "el los las del y en para con por una un de que estudio universidad "
-    "os as dos das da do em uma um com universidade "
-    "il di della delle dei per con nel nella università studio".split()
-) - EN - {"de", "en"}  # both are too common in names and affiliations to vote
+OTHER = (
+    set(
+        # fr
+        "le la les des du une et pour dans sur avec par au aux est sont cette ces étude université "
+        # de
+        "der die das und für von mit im ein eine zur zum bei über auf nach universität "
+        # es / pt / it
+        "el los las del y en para con por una un de que estudio universidad "
+        "os as dos das da do em uma um com universidade "
+        "il di della delle dei per con nel nella università studio".split()
+    )
+    - EN
+    - {"de", "en"}
+)  # both are too common in names and affiliations to vote
 
 
 def script_of(ch):
@@ -75,9 +79,7 @@ def stratum(tokens):
     lower = [t.lower() for t in tokens]
     en = sum(t in EN for t in lower)
     other = sum(t in OTHER for t in lower)
-    accented = sum(
-        unicodedata.normalize("NFD", ch) != ch and script_of(ch) == "latin" for t in tokens for ch in t
-    )
+    accented = sum(unicodedata.normalize("NFD", ch) != ch and script_of(ch) == "latin" for t in tokens for ch in t)
     if other >= 2 and other > en:
         return "latin-non-en"
     if accented >= 3 and accented / letters >= 0.03 and en <= other:
@@ -132,7 +134,11 @@ def main():
             tests = {}
             with open(fd / "train.txt", "w", **enc) as train:
                 for block, s, h, _ in blocks:
-                    is_test = (h % EN_TEST_BUCKETS) in (fold, fold + FOLDS, fold + 2 * FOLDS) if s == "latin-en" else h % FOLDS == fold
+                    is_test = (
+                        (h % EN_TEST_BUCKETS) in (fold, fold + FOLDS, fold + 2 * FOLDS)
+                        if s == "latin-en"
+                        else h % FOLDS == fold
+                    )
                     if not is_test:
                         train.writelines(block)
                         train.write("\n")
