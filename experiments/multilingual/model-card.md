@@ -79,7 +79,7 @@ text classification applications by Hub id or local directory:
 ```bash
 python -m delft.applications.grobidTagger affiliation-address train_eval \
     --architecture BidLSTM_CRF_FEATURES \
-    --embedding <hub id or path of this repository>
+    --embedding sciencialab/bpemb-multi-1M
 ```
 
 or through an entry of `delft/resources-registry.json`:
@@ -87,7 +87,7 @@ or through an entry of `delft/resources-registry.json`:
 ```json
 {
     "name": "bpemb-multi",
-    "model": "<hub id of this repository>",
+    "model": "sciencialab/bpemb-multi-1M",
     "type": "bpemb",
     "format": "static-transformer",
     "lang": "multi",

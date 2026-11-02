@@ -161,6 +161,14 @@
             "item": "word"
         },
         {
+            "name": "bpemb-multi",
+            "model": "sciencialab/bpemb-multi-1M",
+            "type": "bpemb",
+            "format": "static-transformer",
+            "lang": "multi",
+            "item": "word"
+        },
+        {
             "name": "scibert-contextual",
             "model": "allenai/scibert_scivocab_cased",
             "type": "contextual-embedding",

@@ -35,7 +35,8 @@ The file is kept in the usual HuggingFace cache (`HF_HOME`), shared with the tra
 The embeddings above (glove, word2vec, fasttext `.vec`) are word-level embedding files of several GB, distributed between 2014 and 2018. DeLFT also supports the recent generation of static embeddings, which are distilled from a transformer and distributed on the HuggingFace hub as a small embedding matrix plus a tokenizer:
 
 - the [sentence-transformers static embeddings](https://huggingface.co/blog/static-embeddings), `static-retrieval-mrl-en-v1` and `static-similarity-mrl-multilingual-v1`,
-- the [Model2Vec](https://github.com/MinishLab/model2vec) *potion* models, `potion-base-8M`, `potion-base-32M` and `potion-multilingual-128M`.
+- the [Model2Vec](https://github.com/MinishLab/model2vec) *potion* models, `potion-base-8M`, `potion-base-32M` and `potion-multilingual-128M`,
+- the multilingual [BPEmb](https://bpemb.h-its.org/) sub-word embeddings of Heinzerling & Strube, `bpemb-multi` (GloVe vectors of 1M BPE pieces trained on 265 Wikipedias, repackaged at [sciencialab/bpemb-multi-1M](https://huggingface.co/sciencialab/bpemb-multi-1M)).
 
 They are one to two orders of magnitude smaller than glove (30MB to 500MB instead of 4GB), they load in a couple of seconds, they report clearly better quality on similarity and retrieval benchmarks, and - because the vocabulary is made of sub-word units - **there is no out-of-vocabulary word at all**, which the older embeddings handle with a zero vector.
 
@@ -54,6 +55,7 @@ python3 delft/applications/nerTagger.py --dataset-type conll2003 train_eval --ar
 | `potion-base-8M` | `minishlab/potion-base-8M` | 256 | en |
 | `potion-base-32M` | `minishlab/potion-base-32M` | 512 | en |
 | `potion-multilingual-128M` | `minishlab/potion-multilingual-128M` | 256 | multilingual |
+| `bpemb-multi` | `sciencialab/bpemb-multi-1M` | 300 | multilingual (265 languages) |
 
 The model files are downloaded on first usage and kept in the usual HuggingFace cache (`HF_HOME`), so nothing is compiled into LMDB for these embeddings, and `embedding-lmdb-path` has no effect on them. Set `HF_HUB_OFFLINE=1` to work from the cache only.
 
