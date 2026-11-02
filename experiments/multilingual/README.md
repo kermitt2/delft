@@ -53,3 +53,8 @@ outside the BPEmb vocabulary, which the table dropped and the package maps to `<
 3. `build_bpemb.py` / `convert_bpemb.py` build the BPEmb table and the packaged model.
 4. Add `registry-entries.json` to `delft/resources-registry.json`.
 5. `xargs -P 4 -L 1 ./job.sh < jobs.txt`, then `summarize.py`.
+
+## Model card
+
+`model-card.md` is the README of the packaged model (`models/bpemb-multi-1M/README.md`),
+with the attribution to the original authors, for the Hugging Face upload.
