@@ -56,6 +56,9 @@ model.load(
     "https://huggingface.co/sciencialab/grobid-model-header/tree/main/grobid-header-BidLSTM_CRF_FEATURES-glove_840B"
 )
 
+# the folder of the model anywhere in a repository, as the Hub serves its files
+model.load("https://huggingface.co/owner/repository/resolve/main/experiments/2026-10/grobid-header-BidLSTM_CRF")
+
 # an archive of the model directory, anywhere over HTTP
 model.load("https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip")
 
@@ -80,9 +83,9 @@ python -m delft.applications.grobidTagger header eval --architecture BidLSTM_CRF
 
 An archive is a `.zip`, `.tar.gz`, `.tgz` or `.tar` file named after the model, holding the files of the model at its root or in a single folder. `token`, when given, is sent as a bearer token.
 
-A URL that is not the one of an archive is looked at as a local directory is: the model directory itself when it holds `config.json`, else its folder with the name of the model, else the archive `{name of the model}.zip` in it. HTTP cannot list what a folder holds, so the files of a model are asked for by their names: `config.json`, then the first of `preprocessor.json` and `preprocessor.pkl` that is there, and the first of `model.safetensors`, `model_weights.pt`, `model_weights.pth` and `model_weights.hdf5`. A text classifier trained over several folds has no such file: the weights of each of its folds are then asked for under the same names, `model_fold0.safetensors` or `model_weights_fold0.pt` and so on. The `.pkl` and `.hdf5` files are the ones of the models saved before PyTorch, as GROBID serves them: DeLFT does not read them, but applications embedding it may. A model with a transformer is refused from a folder, as its tokenizer is a folder of files named after the tokenizer: take it from an archive or from the Hub.
+A URL that is not the one of an archive is looked at as a local directory is: the model directory itself when it holds `config.json`, else its folder with the name of the model, else the archive `{name of the model}.zip` in it. HTTP cannot list what a folder holds, so the files of a model are asked for by their names: `config.json`, then the first of `preprocessor.json` and `preprocessor.pkl` that is there, and the first of `model.safetensors`, `model_weights.pt`, `model_weights.pth` and `model_weights.hdf5`. A text classifier trained over several folds has no such file: the weights of each of its folds are then asked for under the same names, `model_fold0.safetensors` or `model_weights_fold0.pt` and so on. The `.pkl` and `.hdf5` files are the ones of the models saved before PyTorch, as GROBID serves them: DeLFT does not read them, but applications embedding it may. A model with a transformer is refused from a folder, as its tokenizer is a folder of files named after the tokenizer: take it from an archive or from the Hub. A `/resolve/{revision}/{path}` URL of the Hub, the files of a repository as it serves them, is read as such a folder, or as an archive: this is how a model is loaded from a repository that keeps its models in folders of its own, where a reference takes the model directly under the revision.
 
-What is downloaded goes to `cache_dir`, else to the directory the `DELFT_MODELS_DIR` environment variable names, else to `~/.cache/delft/models`. `Classifier.load` does the same for text classification. Private repositories of the Hub are read with the token of `huggingface-cli login`, or the `token` argument.
+What is downloaded goes to `cache_dir`, else to the directory the `DELFT_MODELS_DIR` environment variable names, else to `~/.cache/delft/models`. A model of a reference goes there under its name, as in a models directory. A model of a URL goes to a directory of its own under it, named after the URL (`url-` and a digest): the last segment of a URL is not the name of a model, the header models of two GROBID releases are both `.../models/header/`, and two URLs ending the same must not download over each other. `Classifier.load` does the same for text classification. Private repositories of the Hub are read with the token of `huggingface-cli login`, or the `token` argument.
 
 ### What is on disk wins, except for another revision
 
