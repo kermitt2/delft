@@ -9,6 +9,7 @@ import zipfile
 
 import pytest
 
+from delft.utilities import hub_models
 from delft.utilities.hub_models import (
     SOURCE_FILE_NAME,
     HubModelNotFoundError,
@@ -58,16 +59,37 @@ class TestHubUrl:
     @pytest.mark.parametrize(
         "url",
         [
+            "https://huggingface.co/owner/repository/resolve/main/grobid-date-BidLSTM_CRF",
+            "https://huggingface.co/owner/repository/resolve/0123abc/date/delft/grobid-date-BidLSTM_CRF",
+            "https://huggingface.co/owner/repository/resolve/main/models/grobid-date-BidLSTM_CRF.zip",
+        ],
+    )
+    def test_files_of_a_repository_are_not_a_reference(self, url):
+        """A model may sit anywhere in the repository: its files are read as a folder of anywhere."""
+        assert hub_reference_of_url(url) is None
+
+    @pytest.mark.parametrize(
+        "url",
+        [
             "https://huggingface.co/owner",
             "https://huggingface.co/datasets/owner/name",
             "https://huggingface.co/buckets/owner/name",
             "https://huggingface.co/owner/repository/blob/main/model/config.json",
             "https://huggingface.co/owner/repository/tree/main/model/config.json",
+            "https://huggingface.co/owner/repository/resolve/main",
         ],
     )
     def test_other_pages_of_the_hub(self, url):
         with pytest.raises(ValueError, match="Invalid URL"):
             hub_reference_of_url(url)
+
+    def test_files_of_a_repository_are_resolved_as_a_folder(self, monkeypatch, models_dir):
+        url = "https://huggingface.co/owner/repository/resolve/0123abc/date/delft/grobid-date-BidLSTM_CRF"
+        calls = []
+        monkeypatch.setattr(hub_models, "_resolve_url", lambda *args: calls.append(args) or "resolved")
+
+        assert resolve_model(url, cache_dir=models_dir, model_name=MODEL_NAME) == "resolved"
+        assert calls == [(url, MODEL_NAME, models_dir, None, False)]
 
     def test_is_downloaded_as_the_reference_is(self, hub, models_dir):
         url = "https://huggingface.co/lfoppiano/grobid-model-header/tree/main/grobid-header-BidLSTM_CRF"

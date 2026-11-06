@@ -19,6 +19,11 @@ A model is also taken over HTTP, from
 - the page of a repository of the Hub, as a browser shows it:
   ``https://huggingface.co/lfoppiano/grobid-model-header/tree/v1.1.0/grobid-header-...``,
   which stands for the ``hf://`` reference of the same model;
+- the files of a repository of the Hub, as it serves them:
+  ``https://huggingface.co/owner/repository/resolve/v1.1.0/experiments/grobid-header-...``,
+  which is read as a folder, or an archive, of anywhere else (below), so that the model
+  may sit anywhere in the repository, where a reference takes it directly under the
+  revision;
 - anywhere else, an archive of the model directory, named after the model:
   ``https://example.org/models/grobid-header-BidLSTM_CRF_FEATURES.zip``, a ``.zip``,
   ``.tar.gz``, ``.tgz`` or ``.tar`` file holding the files of the model, at its root or
@@ -57,6 +62,8 @@ HTTP_SCHEMES = ("http://", "https://")
 HUB_HOSTS = ("huggingface.co", "www.huggingface.co")
 # what the Hub serves under the same paths as the model repositories
 HUB_NOT_MODELS = (BUCKETS, "datasets", "spaces")
+# where the Hub serves the files of a repository as they are: /resolve/{revision}/{path}
+HUB_RAW_FILES = "resolve"
 
 ARCHIVE_EXTENSIONS = (".zip", ".tar.gz", ".tgz", ".tar")
 # the one of the archive looked for under a URL that names none
@@ -122,17 +129,26 @@ def is_remote(value):
 def hub_reference_of_url(url):
     """
     The reference of ``https://huggingface.co/{owner}/{repository}[/tree/{revision}[/{model}]]``,
-    the page of a model repository, or None for a URL that is not one of the Hub.
+    the page of a model repository, or None for a URL that is not one: of somewhere else
+    than the Hub, or ``https://huggingface.co/{owner}/{repository}/resolve/{revision}/{path}``,
+    the files of a repository as the Hub serves them, which are read as a folder or an
+    archive of anywhere, the model being wherever ``path`` says.
     """
     parsed = urlparse(url)
     if parsed.netloc.lower() not in HUB_HOSTS:
         return None
 
     parts = [unquote(part) for part in parsed.path.split("/") if part]
-    expected = f"expected https://{HUB_HOSTS[0]}/owner/repository[/tree/revision[/model]]"
+    expected = (
+        f"expected https://{HUB_HOSTS[0]}/owner/repository[/tree/revision[/model]], "
+        f"or /{HUB_RAW_FILES}/revision/path for the files of a folder or an archive of the repository"
+    )
     if len(parts) < 2 or parts[0] in HUB_NOT_MODELS:
         raise ValueError(f"Invalid URL {url!r}, {expected}: for a bucket, use {HF_SCHEME}{BUCKETS}/owner/bucket")
     rest = parts[2:]
+    if rest and rest[0] == HUB_RAW_FILES and len(rest) >= 3:
+        # a revision and a path: a folder or an archive, as of any other host
+        return None
     if rest and (rest[0] != "tree" or len(rest) not in (2, 3)):
         raise ValueError(f"Invalid URL {url!r}, {expected}")
     revision = rest[1] if rest else None
