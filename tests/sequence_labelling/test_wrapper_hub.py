@@ -120,7 +120,9 @@ def test_load_takes_the_url_of_an_archive(published, tmp_path, http_server):
     sequence = Sequence("whatever", device="cpu")
     sequence.load(f"{http_server.url}/{MODEL_NAME}.zip", cache_dir=str(tmp_path / "cache"))
 
-    assert os.path.isdir(tmp_path / "cache" / MODEL_NAME)
+    # in a directory of the URL, under the cache
+    [url_directory] = os.listdir(tmp_path / "cache")
+    assert os.path.isdir(tmp_path / "cache" / url_directory / MODEL_NAME)
     _assert_same_model(sequence, published)
 
 

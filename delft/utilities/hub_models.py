@@ -33,12 +33,19 @@ A model is also taken over HTTP, from
   either. HTTP cannot list a folder, so a model folder is known by its configuration,
   and its other files are looked for under the names DeLFT gives them.
 
+A model of a reference goes to ``{cache_dir}/{model name}``, the layout of a models
+directory, where a name is one model. A model of a URL goes to a directory of its own
+under ``cache_dir``, named after the URL: the last segment of a URL is no name of a
+model, the header models of two GROBID releases being both ``.../models/header/``, and
+two URLs ending the same must not download over each other.
+
 Nothing here depends on the working directory, nor reads the DeLFT resources registry
 unless given one: an application embedding DeLFT passes references and a ``cache_dir``
 of its own.
 """
 
 import fnmatch
+import hashlib
 import json
 import logging
 import os
@@ -80,6 +87,9 @@ LEGACY_WEIGHT_FILE_NAMES = ("model_weights.hdf5",)
 
 # section of the resources registry telling where the models are on the Hub
 REGISTRY_SECTION = "models-hub"
+
+# the start of the name of the directory of a URL under the cache
+URL_DIRECTORY_PREFIX = "url-"
 
 # Written in a downloaded model, it holds the reference the model comes from. A model on
 # disk is otherwise known by its name alone, and asking for another revision of it
@@ -248,17 +258,23 @@ def downloaded_from(model_path):
         return None
 
 
-def _install(source, model_name, cache_dir, force, download):
-    """
-    Return ``{cache_dir}/{model_name}``, after ``download(directory)`` has left the model
-    in ``{directory}/{model_name}`` when it is not there, was downloaded from somewhere
-    else than ``source``, or ``force`` is set.
+def _url_directory(url):
+    """The directory of the model of ``url`` under the cache: one per URL."""
+    return URL_DIRECTORY_PREFIX + hashlib.sha256(url.encode("utf-8")).hexdigest()[:16]
 
-    A model is downloaded next to its place and moved there when complete, so that an
-    interrupted download never leaves a directory passing for a model.
+
+def _install(source, model_name, cache_dir, force, download, subdirectory=None):
+    """
+    Return ``{cache_dir}/[{subdirectory}/]{model_name}``, after ``download(directory)``
+    has left the model in ``{directory}/{model_name}`` when it is not there, was
+    downloaded from somewhere else than ``source``, or ``force`` is set.
+
+    A model is downloaded into ``cache_dir`` and moved to its place when complete, so
+    that an interrupted download never leaves a directory passing for a model, nor a
+    ``subdirectory`` holding none.
     """
     cache_dir = _models_dir(cache_dir)
-    target = os.path.join(cache_dir, model_name)
+    target = os.path.join(cache_dir, subdirectory or "", model_name)
     if _is_model_directory(target) and not force:
         previous = downloaded_from(target)
         if previous is None or previous == source:
@@ -281,6 +297,7 @@ def _install(source, model_name, cache_dir, force, download):
 
         if os.path.isdir(target):
             shutil.rmtree(target)
+        os.makedirs(os.path.dirname(target), exist_ok=True)
         try:
             os.replace(downloaded, target)
         except OSError:
@@ -295,9 +312,10 @@ def _install(source, model_name, cache_dir, force, download):
 
 def resolve_model(reference, cache_dir=None, token=None, force=False, model_name=None):
     """
-    Return the local directory of the model ``reference`` points to,
-    ``{cache_dir}/{model name}``, downloading it when it is not there. ``reference`` is
-    a ``hf://`` reference, or a URL (see the top of this module). When it is the one of
+    Return the local directory of the model ``reference`` points to, downloading it
+    when it is not there: ``{cache_dir}/{model name}`` for a ``hf://`` reference, and
+    ``{cache_dir}/{directory of the URL}/{model name}`` for a URL (see the top of this
+    module). When it is the one of
     a place holding models, a repository, a bucket or the URL of a folder that is not a
     model itself, the model is the one named ``model_name`` there.
 
@@ -428,13 +446,14 @@ def _resolve_url(url, model_name, cache_dir, token, force):
     if not force:
         places = folders + ([(archive, model_name)] if archive else [])
         for source, name in places:
-            target = os.path.join(_models_dir(cache_dir), name)
+            target = os.path.join(_models_dir(cache_dir), _url_directory(source), name)
             if _is_model_directory(target) and downloaded_from(target) == source:
                 return target
 
     for folder, name in folders:
         if _is_there(folder + CONFIG_FILE_NAME, token):
-            return _install(folder, name, cache_dir, force, partial(_download_folder, folder, name, token))
+            download = partial(_download_folder, folder, name, token)
+            return _install(folder, name, cache_dir, force, download, subdirectory=_url_directory(folder))
 
     if archive is None:
         raise ValueError(
@@ -525,7 +544,7 @@ def _resolve_archive(url, model_name, extension, cache_dir, token, force):
             )
         os.replace(model_root, os.path.join(directory, model_name))
 
-    return _install(url, model_name, cache_dir, force, download)
+    return _install(url, model_name, cache_dir, force, download, subdirectory=_url_directory(url))
 
 
 def list_models(location, token=None) -> List[str]:

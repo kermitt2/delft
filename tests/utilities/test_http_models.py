@@ -12,6 +12,7 @@ import pytest
 from delft.utilities import hub_models
 from delft.utilities.hub_models import (
     SOURCE_FILE_NAME,
+    URL_DIRECTORY_PREFIX,
     HubModelNotFoundError,
     HubReference,
     hub_reference_of_url,
@@ -35,6 +36,21 @@ def model(tmp_path):
 
 def _files(model_path):
     return sorted(name for name in os.listdir(model_path) if name != SOURCE_FILE_NAME)
+
+
+def _url_models(models_dir):
+    """The models under ``models_dir``, as ``{directory of a URL: [model names]}``."""
+    return {name: os.listdir(os.path.join(models_dir, name)) for name in os.listdir(models_dir)}
+
+
+def _is_url_model_path(model_path, models_dir, model_name):
+    """Whether ``model_path`` is ``{models_dir}/{directory of a URL}/{model_name}``."""
+    url_directory = os.path.basename(os.path.dirname(model_path))
+    return (
+        os.path.basename(model_path) == model_name
+        and url_directory.startswith(URL_DIRECTORY_PREFIX)
+        and os.path.dirname(os.path.dirname(model_path)) == models_dir
+    )
 
 
 class TestHubUrl:
@@ -122,11 +138,11 @@ class TestArchive:
 
         model_path = resolve_model(url, cache_dir=models_dir)
 
-        assert model_path == os.path.join(models_dir, MODEL_NAME)
+        assert _is_url_model_path(model_path, models_dir, MODEL_NAME)
         assert _files(model_path) == sorted(FILES)
         with open(os.path.join(model_path, SOURCE_FILE_NAME)) as f:
             assert f.read().strip() == url
-        assert os.listdir(models_dir) == [MODEL_NAME]
+        assert list(_url_models(models_dir).values()) == [[MODEL_NAME]]
 
     def test_holding_the_files_of_the_model(self, model, http_server, models_dir):
         shutil.make_archive(str(http_server.directory / MODEL_NAME), "zip", model / MODEL_NAME)
@@ -150,25 +166,35 @@ class TestArchive:
     def test_is_downloaded_once(self, model, http_server, models_dir):
         shutil.make_archive(str(http_server.directory / MODEL_NAME), "zip", model, MODEL_NAME)
         url = f"{http_server.url}/{MODEL_NAME}.zip"
-        resolve_model(url, cache_dir=models_dir)
+        model_path = resolve_model(url, cache_dir=models_dir)
         os.remove(http_server.directory / (MODEL_NAME + ".zip"))
 
-        assert resolve_model(url, cache_dir=models_dir) == os.path.join(models_dir, MODEL_NAME)
+        assert resolve_model(url, cache_dir=models_dir) == model_path
         with pytest.raises(HubModelNotFoundError):
             resolve_model(url, cache_dir=models_dir, force=True)
         # the model that was there is still
-        assert _files(os.path.join(models_dir, MODEL_NAME)) == sorted(FILES)
+        assert _files(model_path) == sorted(FILES)
 
-    def test_from_another_url_replaces_the_model(self, model, http_server, models_dir):
+    def test_from_another_url_goes_beside_the_model(self, model, http_server, models_dir):
+        """Two archives named the same are two models: neither downloads over the other."""
         shutil.make_archive(str(http_server.directory / MODEL_NAME), "zip", model, MODEL_NAME)
         (http_server.directory / "v2").mkdir()
         (model / MODEL_NAME / "config.json").write_text("v2")
         shutil.make_archive(str(http_server.directory / "v2" / MODEL_NAME), "zip", model, MODEL_NAME)
 
-        resolve_model(f"{http_server.url}/{MODEL_NAME}.zip", cache_dir=models_dir)
-        model_path = resolve_model(f"{http_server.url}/v2/{MODEL_NAME}.zip", cache_dir=models_dir)
-        with open(os.path.join(model_path, "config.json")) as f:
+        model_path = resolve_model(f"{http_server.url}/{MODEL_NAME}.zip", cache_dir=models_dir)
+        v2_model_path = resolve_model(f"{http_server.url}/v2/{MODEL_NAME}.zip", cache_dir=models_dir)
+
+        assert v2_model_path != model_path
+        assert os.path.basename(v2_model_path) == os.path.basename(model_path) == MODEL_NAME
+        with open(os.path.join(v2_model_path, "config.json")) as f:
             assert f.read() == "v2"
+        with open(os.path.join(model_path, "config.json")) as f:
+            assert f.read() == "config.json"
+        # neither is asked for again
+        shutil.rmtree(http_server.directory)
+        assert resolve_model(f"{http_server.url}/{MODEL_NAME}.zip", cache_dir=models_dir) == model_path
+        assert resolve_model(f"{http_server.url}/v2/{MODEL_NAME}.zip", cache_dir=models_dir) == v2_model_path
 
     def test_that_is_not_there(self, http_server, models_dir):
         with pytest.raises(HubModelNotFoundError, match="HTTP 404"):
@@ -241,7 +267,7 @@ class TestFolder:
 
         model_path = resolve_model(f"{http_server.url}/models/{MODEL_NAME}{slash}", cache_dir=models_dir)
 
-        assert model_path == os.path.join(models_dir, MODEL_NAME)
+        assert _is_url_model_path(model_path, models_dir, MODEL_NAME)
         assert _files(model_path) == ["config.json", "model.safetensors", "preprocessor.json"]
         with open(os.path.join(model_path, SOURCE_FILE_NAME)) as f:
             assert f.read().strip() == f"{http_server.url}/models/{MODEL_NAME}/"
@@ -254,8 +280,25 @@ class TestFolder:
     def test_of_the_model_that_is_named_in_a_folder(self, http_server, models_dir):
         _serve_model(http_server.directory / "models" / MODEL_NAME)
         model_path = resolve_model(f"{http_server.url}/models/", cache_dir=models_dir, model_name=MODEL_NAME)
-        assert model_path == os.path.join(models_dir, MODEL_NAME)
+        assert _is_url_model_path(model_path, models_dir, MODEL_NAME)
         assert "config.json" in _files(model_path)
+
+    def test_sharing_its_name_with_the_folder_of_another_url_keeps_both(self, http_server, models_dir):
+        """The header models of two GROBID releases are both .../models/header/."""
+        _serve_model(http_server.directory / "0.5.6" / "header", config={"version": "0.5.6"})
+        _serve_model(http_server.directory / "0.6.0" / "header", config={"version": "0.6.0"})
+
+        first = resolve_model(f"{http_server.url}/0.5.6/header/", cache_dir=models_dir)
+        second = resolve_model(f"{http_server.url}/0.6.0/header/", cache_dir=models_dir)
+
+        assert first != second
+        assert os.path.basename(first) == os.path.basename(second) == "header"
+        assert sorted(_url_models(models_dir).values()) == [["header"], ["header"]]
+        # the first is still there, and not asked for again
+        shutil.rmtree(http_server.directory / "0.5.6")
+        assert resolve_model(f"{http_server.url}/0.5.6/header/", cache_dir=models_dir) == first
+        with open(os.path.join(first, "config.json")) as f:
+            assert json.load(f) == {"version": "0.5.6"}
 
     def test_is_the_folder_itself_before_the_one_named_in_it(self, http_server, models_dir):
         # as with a local directory
