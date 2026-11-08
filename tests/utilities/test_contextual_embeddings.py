@@ -79,6 +79,33 @@ def tiny_bert(tmp_path_factory):
     return make_tiny_bert(tmp_path_factory.mktemp("tiny-bert"))
 
 
+def make_tiny_roberta(directory):
+    """A tiny RoBERTa whose generic tokenizer adds no space before the words, as SciLaD-M-custom's."""
+    from tests.utilities.test_transformer_tokenizers import byte_level_tokenizer
+
+    directory = str(directory)
+    os.makedirs(directory, exist_ok=True)
+    tokenizer = byte_level_tokenizer(model_max_length=MAX_POSITIONS)
+    tokenizer.save_pretrained(directory)
+    torch.manual_seed(7)
+    config = transformers.RobertaConfig(
+        vocab_size=len(tokenizer),
+        hidden_size=HIDDEN_SIZE,
+        num_hidden_layers=NB_LAYERS,
+        num_attention_heads=2,
+        intermediate_size=32,
+        max_position_embeddings=MAX_POSITIONS + 2,
+        pad_token_id=tokenizer.pad_token_id,
+    )
+    transformers.RobertaModel(config).save_pretrained(directory)
+    return directory
+
+
+@pytest.fixture(scope="module")
+def tiny_roberta(tmp_path_factory):
+    return make_tiny_roberta(tmp_path_factory.mktemp("tiny-roberta"))
+
+
 def _registry(tmp_path, entry):
     return {
         "embedding-lmdb-path": str(tmp_path / "db"),
@@ -1084,3 +1111,44 @@ class TestTextClassification:
         )
         assert prediction_loader.num_workers > 0
         assert sum(len(batch) for batch in prediction_loader) == len(self.TEXTS)
+
+
+class TestWordStarts:
+    """
+    A byte-level BPE tokenizer that adds no space before the words of a split sequence
+    glued a whole sentence into one word, which the transformer never saw in pretraining
+    (scilons/SciLaD-M-custom, and any RoBERTa with transformers 5).
+    """
+
+    def test_each_word_starts_with_a_space_mark(self, tiny_roberta):
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu")
+        assert embeddings.word_starts_marked
+        piece_ids, word_ids = embeddings._tokenize(SENTENCE)
+        pieces = embeddings._tokenizer.convert_ids_to_tokens(piece_ids)
+        firsts = [pieces[i] for i in range(len(pieces)) if i == 0 or word_ids[i] != word_ids[i - 1]]
+        assert len(firsts) == len(SENTENCE) and all(piece.startswith("Ġ") for piece in firsts)
+
+    def test_a_word_vector_does_not_depend_on_how_the_words_are_given(self, tiny_roberta):
+        # the sentence written whole, as the transformer was trained on it
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu")
+        piece_ids, _ = embeddings._tokenize(SENTENCE)
+        whole = embeddings._tokenizer(" " + " ".join(SENTENCE), add_special_tokens=False)["input_ids"]
+        assert piece_ids == whole
+
+    def test_the_marking_is_part_of_the_fingerprint(self, tiny_roberta, tmp_path):
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu", cache_path=str(tmp_path))
+        assert embeddings.fingerprint()["word_starts"] == "marked"
+        assert embeddings.saved_settings()["word_starts"] == "marked"
+
+    def test_a_tokenizer_keeping_word_starts_keeps_its_cache(self, tiny_bert, tmp_path):
+        # no new key for the models that did not need it: their caches stay valid
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        assert not embeddings.word_starts_marked
+        assert "word_starts" not in embeddings.fingerprint()
+
+    def test_unpickled_embeddings_tokenize_the_same(self, tiny_roberta):
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu")
+        expected = embeddings._tokenize(SENTENCE)
+        copy = pickle.loads(pickle.dumps(embeddings))
+        assert copy._tokenizer is None
+        assert copy._tokenize(SENTENCE) == expected

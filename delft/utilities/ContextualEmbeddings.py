@@ -40,6 +40,7 @@ import uuid
 import numpy as np
 
 from delft.utilities.StaticEmbeddings import HUB_TOKEN_VARIABLE
+from delft.utilities.transformer_tokenizers import mark_word_starts
 
 # hidden layers used for the word vectors, as indices in the hidden states
 # returned by the transformer (embedding layer first, last layer last)
@@ -180,6 +181,9 @@ class ContextualEmbeddings:
         self._suffix_ids = []
         self._prefix_length = 0
         self._special_tokens = 0
+        # whether the tokenizer had to be made to mark the start of every word (see
+        # _load_tokenizer), which changes the vectors and is part of the fingerprint
+        self.word_starts_marked = False
         self._model = None
         self._device = None
         self._shards = {}
@@ -274,6 +278,12 @@ class ContextualEmbeddings:
             raise ValueError(
                 "%s has no fast tokenizer, which is required to map sub-word units to words" % self.model_reference
             )
+        # A byte-level BPE tokenizer does not always fail on split words without a prefix
+        # space (transformers 5 never does, and a generic PreTrainedTokenizerFast ignores
+        # add_prefix_space): it then glues the words together, and the transformer reads
+        # a whole header as a single word, a text it never saw in pretraining.
+        if mark_word_starts(tokenizer):
+            self.word_starts_marked = True
         self._tokenizer = tokenizer
 
         # special tokens the tokenizer puts before and after a sequence, the
@@ -496,7 +506,7 @@ class ContextualEmbeddings:
 
     def fingerprint(self):
         """Everything the vectors depend on, two different fingerprints never share a cache."""
-        return {
+        fingerprint = {
             "model": self._cache_model,
             "revision": self.revision,
             "layers": list(self.layers),
@@ -506,6 +516,11 @@ class ContextualEmbeddings:
             "stride": self.stride,
             "dtype": np.dtype(CACHE_DTYPE).name,
         }
+        if self.word_starts_marked:
+            # only when it is the case: the caches of the other models stay valid, and
+            # those computed from words glued together are not read any more
+            fingerprint["word_starts"] = "marked"
+        return fingerprint
 
     def saved_settings(self):
         """Portable settings needed to reproduce the vectors of a saved model."""
