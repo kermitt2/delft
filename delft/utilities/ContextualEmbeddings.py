@@ -40,6 +40,7 @@ import uuid
 import numpy as np
 
 from delft.utilities.StaticEmbeddings import HUB_TOKEN_VARIABLE
+from delft.utilities.transformer_models import pretrained_transformer
 from delft.utilities.transformer_tokenizers import mark_word_starts
 
 # hidden layers used for the word vectors, as indices in the hidden states
@@ -309,7 +310,6 @@ class ContextualEmbeddings:
                     "a contextual embedding cache miss occurred in a DataLoader worker; "
                     "precompute the sentence vectors in the main process before iterating the DataLoader"
                 )
-            transformers = _import_transformers()
 
             if self.device_name is not None:
                 device = torch.device(self.device_name)
@@ -320,9 +320,7 @@ class ContextualEmbeddings:
 
             print("loading transformer", self.model_reference, "for contextual embeddings on", device, "...")
             # fp32 is pinned, some checkpoints are shipped as fp16
-            model = transformers.AutoModel.from_pretrained(
-                self.model_reference, torch_dtype=torch.float32, **self._hub_options()
-            )
+            model = pretrained_transformer(self.model_reference, torch_dtype=torch.float32, **self._hub_options())
             model.eval()
             model.requires_grad_(False)
             model.to(device)

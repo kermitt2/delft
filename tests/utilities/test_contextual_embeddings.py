@@ -1152,3 +1152,56 @@ class TestWordStarts:
         copy = pickle.loads(pickle.dumps(embeddings))
         assert copy._tokenizer is None
         assert copy._tokenize(SENTENCE) == expected
+
+
+def make_roberta_saved_with_its_output_layer_only(directory):
+    """
+    A tiny masked language model saved as SciLaD-M-custom: the input embeddings, which the output
+    layer shares, are not in the checkpoint, the output layer is.
+    """
+    from safetensors.torch import save_file
+
+    directory = make_tiny_roberta(directory)
+    config = transformers.RobertaConfig.from_pretrained(directory)
+    config.architectures = ["RobertaForMaskedLM"]
+    model = transformers.RobertaForMaskedLM(config)
+    weights = {
+        name: tensor.detach().clone().contiguous()
+        for name, tensor in model.state_dict().items()
+        if name != "roberta.embeddings.word_embeddings.weight"
+    }
+    assert "lm_head.decoder.weight" in weights
+    save_file(weights, os.path.join(directory, "model.safetensors"), metadata={"format": "pt"})
+    config.save_pretrained(directory)
+    return directory
+
+
+class TestInputEmbeddings:
+    """SciLaD-M-custom was read with random input embeddings, a different draw at every load."""
+
+    def test_contextual_embeddings_refuse_a_checkpoint_without_input_embeddings(self, tmp_path):
+        directory = make_roberta_saved_with_its_output_layer_only(tmp_path / "model")
+        with pytest.raises(ValueError, match="no input embeddings"):
+            ContextualEmbeddings(directory, device="cpu").embed_batch([SENTENCE])
+
+    def test_a_tagger_refuses_a_checkpoint_without_input_embeddings(self, tmp_path):
+        from delft.utilities.transformer_models import load_transformer
+
+        directory = make_roberta_saved_with_its_output_layer_only(tmp_path / "model")
+        with pytest.raises(ValueError, match="no input embeddings"):
+            load_transformer(directory)
+
+    def test_saved_again_the_checkpoint_has_its_input_embeddings(self, tmp_path):
+        # the repair the error suggests
+        directory = make_roberta_saved_with_its_output_layer_only(tmp_path / "model")
+        masked_lm = transformers.AutoModelForMaskedLM.from_pretrained(directory)
+        masked_lm.save_pretrained(directory)
+        embeddings = ContextualEmbeddings(directory, device="cpu")
+        embeddings.embed_batch([SENTENCE])
+        expected = masked_lm.get_input_embeddings().weight
+        assert torch.equal(embeddings._model.get_input_embeddings().weight, expected)
+
+    def test_vectors_do_not_change_from_one_load_to_the_next(self, tiny_roberta):
+        first = ContextualEmbeddings(tiny_roberta, device="cpu").embed_batch([SENTENCE])[0]
+        second = ContextualEmbeddings(tiny_roberta, device="cpu").embed_batch([SENTENCE])[0]
+        np.testing.assert_array_equal(first, second)

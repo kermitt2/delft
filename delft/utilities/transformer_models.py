@@ -30,11 +30,49 @@ def load_transformer(transformer_name, load_pretrained_weights=True, model_dir=N
     from transformers import AutoConfig, AutoModel
 
     if load_pretrained_weights:
-        return AutoModel.from_pretrained(transformer_name, torch_dtype=torch.float32)
+        return pretrained_transformer(transformer_name, torch_dtype=torch.float32)
     config_path = os.path.join(model_dir, TRANSFORMER_CONFIG_FILE_NAME) if model_dir else None
     if config_path is None or not os.path.isfile(config_path):
         config_path = transformer_name
     return AutoModel.from_config(AutoConfig.from_pretrained(config_path)).to(torch.float32)
+
+
+def pretrained_transformer(transformer_name, **options):
+    """
+    The transformer ``transformer_name`` with its pretrained weights, loaded by ``AutoModel`` with
+    ``options``. A checkpoint without the input embeddings is refused, see
+    ``check_input_embeddings``.
+    """
+    from transformers import AutoModel
+
+    loaded = AutoModel.from_pretrained(transformer_name, output_loading_info=True, **options)
+    # a stand-in for from_pretrained may give the model alone
+    model, loading_info = loaded if isinstance(loaded, tuple) else (loaded, {})
+    check_input_embeddings(transformer_name, model, loading_info.get("missing_keys", ()))
+    return model
+
+
+def check_input_embeddings(transformer_name, model, missing_keys):
+    """
+    Raise a ValueError when ``model`` got its input embeddings from none of the weights of its
+    checkpoint: they are then random, and so is what the transformer reads.
+
+    A masked language model whose output layer shares its weights with the input embeddings
+    may be saved with the output layer alone (SciLaD-M-custom). The bare transformer, which
+    has no output layer, is then built with random input embeddings: transformers only
+    warns. Its hidden states still look sound, and a model trained on them learns a little.
+    """
+    if not missing_keys or not hasattr(model, "get_input_embeddings"):
+        return
+    weight = model.get_input_embeddings().weight
+    names = {name for name, parameter in model.named_parameters(remove_duplicate=False) if parameter is weight}
+    if names and names <= set(missing_keys):
+        raise ValueError(
+            "the checkpoint of %s has no input embeddings (%s), they would be random. When it is a "
+            "masked language model saved with its output layer only, load it with "
+            "AutoModelForMaskedLM and save it again with save_pretrained: the input embeddings are "
+            "then written." % (transformer_name, ", ".join(sorted(names)))
+        )
 
 
 def save_transformer_files(directory, transformer, tokenizer):
