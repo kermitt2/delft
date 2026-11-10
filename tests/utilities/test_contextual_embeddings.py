@@ -79,6 +79,33 @@ def tiny_bert(tmp_path_factory):
     return make_tiny_bert(tmp_path_factory.mktemp("tiny-bert"))
 
 
+def make_tiny_roberta(directory):
+    """A tiny RoBERTa whose generic tokenizer adds no space before the words, as SciLaD-M-custom's."""
+    from tests.utilities.test_transformer_tokenizers import byte_level_tokenizer
+
+    directory = str(directory)
+    os.makedirs(directory, exist_ok=True)
+    tokenizer = byte_level_tokenizer(model_max_length=MAX_POSITIONS)
+    tokenizer.save_pretrained(directory)
+    torch.manual_seed(7)
+    config = transformers.RobertaConfig(
+        vocab_size=len(tokenizer),
+        hidden_size=HIDDEN_SIZE,
+        num_hidden_layers=NB_LAYERS,
+        num_attention_heads=2,
+        intermediate_size=32,
+        max_position_embeddings=MAX_POSITIONS + 2,
+        pad_token_id=tokenizer.pad_token_id,
+    )
+    transformers.RobertaModel(config).save_pretrained(directory)
+    return directory
+
+
+@pytest.fixture(scope="module")
+def tiny_roberta(tmp_path_factory):
+    return make_tiny_roberta(tmp_path_factory.mktemp("tiny-roberta"))
+
+
 def _registry(tmp_path, entry):
     return {
         "embedding-lmdb-path": str(tmp_path / "db"),
@@ -1084,3 +1111,97 @@ class TestTextClassification:
         )
         assert prediction_loader.num_workers > 0
         assert sum(len(batch) for batch in prediction_loader) == len(self.TEXTS)
+
+
+class TestWordStarts:
+    """
+    A byte-level BPE tokenizer that adds no space before the words of a split sequence
+    glued a whole sentence into one word, which the transformer never saw in pretraining
+    (scilons/SciLaD-M-custom, and any RoBERTa with transformers 5).
+    """
+
+    def test_each_word_starts_with_a_space_mark(self, tiny_roberta):
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu")
+        assert embeddings.word_starts_marked
+        piece_ids, word_ids = embeddings._tokenize(SENTENCE)
+        pieces = embeddings._tokenizer.convert_ids_to_tokens(piece_ids)
+        firsts = [pieces[i] for i in range(len(pieces)) if i == 0 or word_ids[i] != word_ids[i - 1]]
+        assert len(firsts) == len(SENTENCE) and all(piece.startswith("Ġ") for piece in firsts)
+
+    def test_a_word_vector_does_not_depend_on_how_the_words_are_given(self, tiny_roberta):
+        # the sentence written whole, as the transformer was trained on it
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu")
+        piece_ids, _ = embeddings._tokenize(SENTENCE)
+        whole = embeddings._tokenizer(" " + " ".join(SENTENCE), add_special_tokens=False)["input_ids"]
+        assert piece_ids == whole
+
+    def test_the_marking_is_part_of_the_fingerprint(self, tiny_roberta, tmp_path):
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu", cache_path=str(tmp_path))
+        assert embeddings.fingerprint()["word_starts"] == "marked"
+        assert embeddings.saved_settings()["word_starts"] == "marked"
+
+    def test_a_tokenizer_keeping_word_starts_keeps_its_cache(self, tiny_bert, tmp_path):
+        # no new key for the models that did not need it: their caches stay valid
+        embeddings = ContextualEmbeddings(tiny_bert, device="cpu", cache_path=str(tmp_path))
+        assert not embeddings.word_starts_marked
+        assert "word_starts" not in embeddings.fingerprint()
+
+    def test_unpickled_embeddings_tokenize_the_same(self, tiny_roberta):
+        embeddings = ContextualEmbeddings(tiny_roberta, device="cpu")
+        expected = embeddings._tokenize(SENTENCE)
+        copy = pickle.loads(pickle.dumps(embeddings))
+        assert copy._tokenizer is None
+        assert copy._tokenize(SENTENCE) == expected
+
+
+def make_roberta_saved_with_its_output_layer_only(directory):
+    """
+    A tiny masked language model saved as SciLaD-M-custom: the input embeddings, which the output
+    layer shares, are not in the checkpoint, the output layer is.
+    """
+    from safetensors.torch import save_file
+
+    directory = make_tiny_roberta(directory)
+    config = transformers.RobertaConfig.from_pretrained(directory)
+    config.architectures = ["RobertaForMaskedLM"]
+    model = transformers.RobertaForMaskedLM(config)
+    weights = {
+        name: tensor.detach().clone().contiguous()
+        for name, tensor in model.state_dict().items()
+        if name != "roberta.embeddings.word_embeddings.weight"
+    }
+    assert "lm_head.decoder.weight" in weights
+    save_file(weights, os.path.join(directory, "model.safetensors"), metadata={"format": "pt"})
+    config.save_pretrained(directory)
+    return directory
+
+
+class TestInputEmbeddings:
+    """SciLaD-M-custom was read with random input embeddings, a different draw at every load."""
+
+    def test_contextual_embeddings_refuse_a_checkpoint_without_input_embeddings(self, tmp_path):
+        directory = make_roberta_saved_with_its_output_layer_only(tmp_path / "model")
+        with pytest.raises(ValueError, match="no input embeddings"):
+            ContextualEmbeddings(directory, device="cpu").embed_batch([SENTENCE])
+
+    def test_a_tagger_refuses_a_checkpoint_without_input_embeddings(self, tmp_path):
+        from delft.utilities.transformer_models import load_transformer
+
+        directory = make_roberta_saved_with_its_output_layer_only(tmp_path / "model")
+        with pytest.raises(ValueError, match="no input embeddings"):
+            load_transformer(directory)
+
+    def test_saved_again_the_checkpoint_has_its_input_embeddings(self, tmp_path):
+        # the repair the error suggests
+        directory = make_roberta_saved_with_its_output_layer_only(tmp_path / "model")
+        masked_lm = transformers.AutoModelForMaskedLM.from_pretrained(directory)
+        masked_lm.save_pretrained(directory)
+        embeddings = ContextualEmbeddings(directory, device="cpu")
+        embeddings.embed_batch([SENTENCE])
+        expected = masked_lm.get_input_embeddings().weight
+        assert torch.equal(embeddings._model.get_input_embeddings().weight, expected)
+
+    def test_vectors_do_not_change_from_one_load_to_the_next(self, tiny_roberta):
+        first = ContextualEmbeddings(tiny_roberta, device="cpu").embed_batch([SENTENCE])[0]
+        second = ContextualEmbeddings(tiny_roberta, device="cpu").embed_batch([SENTENCE])[0]
+        np.testing.assert_array_equal(first, second)
