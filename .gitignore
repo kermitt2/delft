@@ -14,6 +14,7 @@ target
 *.gz
 !data/textClassification/software/*.gz
 !data/sequenceLabelling/grobid/fulltext/fulltext-110322.train.gz
+!data/sequenceLabelling/grobid/patent-citation/patent-citation-261121.train.gz
 data/db/*
 !data/db/.gitkeep
 data/download/*

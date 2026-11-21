@@ -1,0 +1,54 @@
+In this repository: data/sequenceLabelling/grobid/<model>/<model>-261121.train (patent-citation gzipped,
+<model>-261121.train.gz, the raw file being over the 100 MB file limit of GitHub). The .test files are not
+committed. Retraining: scripts/grobid_retraining.sh.
+
+DeLFT training data without the commonName feature (GROBID issue #1454), generated 2026-11-21 by the GROBID
+trainers (AbstractTrainer.createCRFPPData) from branch feature/remove-common-name @ 824962f15.
+
+The commonName column is still present (layout unchanged) but is 0 on every row of every file:
+  header col 21, reference-segmenter col 16, citation col 15, affiliation-address col 15,
+  name-header col 14, name-citation col 14, patent-citation col 14   (col 0 = token, last col = label)
+
+<model>.train = the corpus/ data, <model>.test = the evaluation/ data (small for header/name-header, see counts).
+
+file                        tokens     sequences  columns
+header.train                391,415       854       33
+header.test                     336         2       33
+reference-segmenter.train   229,786       244       29
+reference-segmenter.test      4,215         6       29
+citation.train              302,898    17,358       30
+citation.test                10,598       654       30
+affiliation-address.train    48,668     1,346       22
+affiliation-address.test      3,694       103       22
+name-header.train            25,694     2,900       21
+name-header.test                130        12       21
+name-citation.train           5,888       896       21
+name-citation.test              312        66       21
+patent-citation.train     3,340,588    60,684       29
+patent-citation.test         78,324     1,148       29
+
+Models to retrain (10), with the batch size / max sequence length of the currently shipped config.json:
+  model                 architecture                 --batch-size  --max-sequence-length
+  header                BidLSTM_ChainCRF_FEATURES     9            3500
+  header                BidLSTM_CRF_FEATURES          9            3500
+  reference-segmenter   BidLSTM_ChainCRF_FEATURES     5            3000
+  reference-segmenter   BidLSTM_CRF_FEATURES          5            3000
+  citation              BidLSTM_CRF_FEATURES         30            3000
+  citation              BidLSTM_ChainCRF_FEATURES    30            3000
+  affiliation-address   BidLSTM_CRF_FEATURES         20             600
+  name-header           BidLSTM_CRF_FEATURES         20            3000
+  name-citation         BidLSTM_CRF_FEATURES         20            3000
+  patent-citation       BidLSTM_CRF_FEATURES         40            1000
+Default in grobid-full.yaml: header ChainCRF, reference-segmenter ChainCRF, citation CRF, affiliation-address,
+patent-citation. The others are shipped but not used by default.
+Embeddings: glove-840B. Not affected (do not retrain): date, figure, funding-acknowledgement.
+The header-article-light(-ref) DL models also read the column; they are handled on the light-models branch
+(PR 1654) once the column is zeroed there.
+
+DeLFT 0.4.7 (what GROBID calls through DeLFTModel.train), from the DeLFT root, e.g.:
+  python3 delft/applications/grobidTagger.py header train \
+      --input header.train --output <out dir> \
+      --architecture BidLSTM_ChainCRF_FEATURES --max-sequence-length 3500 --batch-size 9
+Optionally evaluate with the .test file (train_eval / eval with --input <model>.test).
+Then copy <out dir>/<model>-<ARCH>/ (config.json, model_weights.hdf5, preprocessor.json) over
+grobid-home/models/<model>-<ARCH>/ on branch feature/remove-common-name.
