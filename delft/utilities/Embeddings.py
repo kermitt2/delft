@@ -416,7 +416,9 @@ class Embeddings(object):
 
                 # open the database in read mode, or reuse the environment
                 # already open on this path in the current process
-                self.env, opened = open_lmdb_env(envFilePath, readonly=True, lock=False, max_readers=2048, max_spare_txns=4)
+                self.env, opened = open_lmdb_env(
+                    envFilePath, readonly=True, lock=False, max_readers=2048, max_spare_txns=4
+                )
                 if self.env:
                     try:
                         # we need to set self.embed_size and self.vocab_size
@@ -454,7 +456,9 @@ class Embeddings(object):
                             # Only for an environment we opened ourselves: a reused
                             # one already went through this and is read by others.
                             close_lmdb_env(envFilePath)
-                            self.env, _ = open_lmdb_env(envFilePath, readonly=True, lock=False, max_readers=2048, max_spare_txns=2)
+                            self.env, _ = open_lmdb_env(
+                                envFilePath, readonly=True, lock=False, max_readers=2048, max_spare_txns=2
+                            )
 
             if load_db:
                 # create and load the database in write mode. The check above may
