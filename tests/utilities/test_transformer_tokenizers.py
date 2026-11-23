@@ -12,7 +12,13 @@ import pytest
 
 from delft.sequenceLabelling.wrapper import Sequence
 from delft.textClassification.wrapper import Classifier
-from delft.utilities.transformer_tokenizers import call_tokenizer, clear_tokenizers, get_tokenizer
+from delft.utilities.transformer_tokenizers import (
+    call_tokenizer,
+    clear_tokenizers,
+    get_tokenizer,
+    loses_word_starts,
+    mark_word_starts,
+)
 
 WORDS = ["Jim", "Henson", "was", "a", "puppeteer", "in", "Mississippi", "today"]
 LABELS = ["B-per", "I-per", "O", "O", "O", "O", "B-loc", "O"]
@@ -35,6 +41,39 @@ def _tokenizer():
     )
     return PreTrainedTokenizerFast(
         tokenizer_object=tokenizer, pad_token="[PAD]", unk_token="[UNK]", cls_token="[CLS]", sep_token="[SEP]"
+    )
+
+
+def byte_level_tokenizer(**options):
+    """
+    A byte-level BPE tokenizer (RoBERTa, GPT-2) built in memory, given as the generic
+    PreTrainedTokenizerFast that does not know add_prefix_space, as scilons/SciLaD-M-custom
+    has it: by default its pre-tokenizer adds no space before a word.
+    """
+    from tokenizers import Tokenizer, decoders, models, pre_tokenizers, processors, trainers
+    from transformers import PreTrainedTokenizerFast
+
+    tokenizer = Tokenizer(models.BPE(unk_token="<unk>"))
+    tokenizer.pre_tokenizer = pre_tokenizers.ByteLevel(add_prefix_space=False)
+    tokenizer.decoder = decoders.ByteLevel()
+    special = ["<s>", "<pad>", "</s>", "<unk>", "<mask>"]
+    trainer = trainers.BpeTrainer(
+        vocab_size=300, special_tokens=special, initial_alphabet=pre_tokenizers.ByteLevel.alphabet()
+    )
+    tokenizer.train_from_iterator([" ".join(WORDS)] * 20, trainer=trainer)
+    tokenizer.post_processor = processors.TemplateProcessing(
+        single="<s> $A </s>", special_tokens=[("<s>", 0), ("</s>", 2)]
+    )
+    return PreTrainedTokenizerFast(
+        tokenizer_object=tokenizer,
+        bos_token="<s>",
+        eos_token="</s>",
+        cls_token="<s>",
+        sep_token="</s>",
+        pad_token="<pad>",
+        unk_token="<unk>",
+        mask_token="<mask>",
+        **options,
     )
 
 
@@ -180,3 +219,47 @@ def test_a_classifier_loads_its_tokenizer_once_whatever_the_number_of_calls(tmp_
         for _ in range(3):
             assert np.allclose(classifier.predict(TEXTS, output_format="array"), first)
     load.assert_called_once_with("in-memory")
+
+
+class TestWordStarts:
+    """
+    A byte-level BPE tokenizer given words apart must mark the start of each of them, or
+    the transformer reads "Jim Henson was" as "JimHensonwas".
+    """
+
+    def test_a_byte_level_tokenizer_without_prefix_space_loses_word_starts(self):
+        tokenizer = byte_level_tokenizer()
+        assert loses_word_starts(tokenizer)
+        pieces = tokenizer.convert_ids_to_tokens(
+            tokenizer(WORDS, is_split_into_words=True, add_special_tokens=False)["input_ids"]
+        )
+        assert not any(piece.startswith("Ġ") for piece in pieces)
+
+    def test_marked_word_starts_match_the_text_written_whole(self):
+        tokenizer = byte_level_tokenizer()
+        assert mark_word_starts(tokenizer)
+        assert not loses_word_starts(tokenizer)
+        encoding = tokenizer(WORDS, is_split_into_words=True, add_special_tokens=False)
+        pieces = tokenizer.convert_ids_to_tokens(encoding["input_ids"])
+        word_ids = encoding.word_ids()
+        firsts = [piece for i, (piece, word) in enumerate(zip(pieces, word_ids)) if i == 0 or word != word_ids[i - 1]]
+        assert len(firsts) == len(WORDS) and all(piece.startswith("Ġ") for piece in firsts)
+        whole = tokenizer(" " + " ".join(WORDS), add_special_tokens=False)["input_ids"]
+        assert encoding["input_ids"] == whole
+
+    def test_marking_twice_changes_nothing_more(self):
+        tokenizer = byte_level_tokenizer()
+        assert mark_word_starts(tokenizer)
+        assert not mark_word_starts(tokenizer)
+
+    def test_a_wordpiece_tokenizer_is_left_as_it_is(self):
+        tokenizer = _tokenizer()
+        before = tokenizer.backend_tokenizer.to_str()
+        assert not loses_word_starts(tokenizer)
+        assert not mark_word_starts(tokenizer)
+        assert tokenizer.backend_tokenizer.to_str() == before
+
+    def test_get_tokenizer_marks_word_starts_when_asked_for_a_prefix_space(self):
+        with patch("transformers.AutoTokenizer.from_pretrained", side_effect=lambda *a, **k: byte_level_tokenizer()):
+            assert not loses_word_starts(get_tokenizer("some/roberta", add_prefix_space=True))
+            assert loses_word_starts(get_tokenizer("some/roberta"))
