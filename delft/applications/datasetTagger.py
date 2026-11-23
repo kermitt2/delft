@@ -395,7 +395,8 @@ if __name__ == "__main__":
         + "For local loading, use delft/resources-registry.json. "
         + "Be sure to use here the same name as in the registry, e.g. "
         + str(word_embeddings_examples)
-        + ". Contextual embeddings can also be given as contextual:<HuggingFace model or local path>. "
+        + ". Contextual embeddings can also be given as contextual:<HuggingFace model or local path> "
+        + "(the prefix is needed: a path alone is taken for a static embedding model). "
         + "Paths in the registry must be correct on your system.",
     )
     parser.add_argument(
