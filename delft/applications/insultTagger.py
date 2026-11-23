@@ -232,7 +232,7 @@ if __name__ == "__main__":
         + "Be sure to use here the same name as in the registry, e.g. "
         + str(word_embeddings_examples)
         + ". Contextual embeddings include scibert-contextual and bert-base-cased-contextual, and can also be "
-        + "given as contextual:<HuggingFace model or local path> (the prefix is needed: a path alone is taken for a static embedding model). Paths in the registry must be correct on your system.",
+        + "given as contextual:<HuggingFace model or local path>. Paths in the registry must be correct on your system.",
     )
     parser.add_argument(
         "--transformer",

@@ -746,7 +746,10 @@ class Embeddings(object):
             )
             embeddings_path = None
             if description is None:
-                raise _unknown_embeddings_error(name)
+                raise ValueError(
+                    f"Unknown embeddings {name}: they are not in the embeddings registry, and the name is "
+                    "neither a static embedding model of the Hugging Face Hub (owner/model) nor the directory of one"
+                )
             if "path" in description:
                 embeddings_path = description["path"]
             self.lang = description["lang"]
@@ -767,21 +770,9 @@ class Embeddings(object):
             if description is not None:
                 self.lang = description["lang"]
 
-            envFilePath = _lmdb_database_path(self.embedding_lmdb_path, name)
-            if envFilePath is None:
-                # an absolute path, or one leaving the LMDB directory: compiling there would
-                # replace whatever is at that path, a model directory say, by a database
-                if description is None:
-                    raise _unknown_embeddings_error(name)
-                raise ValueError(
-                    f"The embeddings name {name!r} does not name a database inside the LMDB directory "
-                    f"{self.embedding_lmdb_path}: give the embeddings a plain name in the registry"
-                )
+            envFilePath = os.path.join(self.embedding_lmdb_path, name)
             if self._open_valid_lmdb(envFilePath):
                 return
-            if description is None:
-                # nothing to compile the database from
-                raise _unknown_embeddings_error(name)
 
             # no usable database: compile it, or wait for the process compiling it
             lock_path = envFilePath + BUILD_LOCK_SUFFIX
@@ -1111,31 +1102,6 @@ def _build_lock_is_stale(lock_path):
         return time.time() - os.path.getmtime(lock_path) > STALE_BUILD_LOCK_SECONDS
     except OSError:
         return False
-
-
-def _lmdb_database_path(embedding_lmdb_path, name):
-    """
-    Path of the database of the embeddings ``name`` in the LMDB directory, None when the
-    name would put it elsewhere: an absolute path, or one going up with "..".
-    """
-    root = os.path.realpath(embedding_lmdb_path)
-    path = os.path.realpath(os.path.join(embedding_lmdb_path, name))
-    if path == root or os.path.commonpath([root, path]) != root:
-        return None
-    return os.path.join(embedding_lmdb_path, name)
-
-
-def _unknown_embeddings_error(name):
-    message = (
-        f"Unknown embeddings {name}: they are not in the embeddings registry, and the name is "
-        "neither a static embedding model of the Hugging Face Hub (owner/model) nor the directory of one"
-    )
-    if isinstance(name, str) and os.path.isdir(name):
-        message += (
-            f". To use the transformer in this directory as contextual embeddings, give it as "
-            f"{CONTEXTUAL_NAME_PREFIX}{name}"
-        )
-    return ValueError(message)
 
 
 def _remove_stale_builds(envFilePath):
