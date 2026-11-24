@@ -1,8 +1,8 @@
 {
-    "model_name": "grobid-header-BidLSTM_ChainCRF_FEATURES",
+    "model_name": "header-BidLSTM_ChainCRF_FEATURES",
     "architecture": "BidLSTM_ChainCRF_FEATURES",
     "embeddings_name": "glove-840B",
-    "char_vocab_size": 346,
+    "char_vocab_size": 360,
     "case_vocab_size": 8,
     "char_embedding_size": 25,
     "num_char_lstm_units": 25,
@@ -43,9 +43,8 @@
     "use_crf": true,
     "use_chain_crf": true,
     "fold_number": 1,
-    "batch_size": 9,
+    "batch_size": 3,
     "transformer_name": null,
-    "use_ELMo": false,
     "features_map_to_index": {
         "9": {
             "BLOCKEND": 1,
@@ -97,8 +96,7 @@
             "1": 122
         },
         "20": {
-            "0": 133,
-            "1": 134
+            "0": 133
         },
         "21": {
             "0": 145,
