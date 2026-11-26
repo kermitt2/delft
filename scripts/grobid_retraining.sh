@@ -33,7 +33,7 @@
 #   TEST_DIR                directory of the <model>.test files; unset, nothing is evaluated
 #   WANDB                   when "true", log the trainings to Weights and Biases
 #   EXTRA_ARGS              further options of grobidTagger for every training, as one string
-#   MAX_PARALLEL_JOBS       maximum number of array tasks running at once (default: 10)
+#   MAX_PARALLEL_JOBS       maximum number of array tasks running at once (default: 14)
 #   ARRAY_SPEC              SLURM array index spec (default: every task, "0-<N-1>")
 #   DRY_RUN                 when "true", print the commands of every task instead of submitting
 #   LOG_DIR                 log directory (default: ~/slurm_logs/grobid_retraining_<timestamp>)
@@ -63,9 +63,13 @@ TASK_TABLE=(
     "name-header          BidLSTM_CRF_FEATURES       20  3000"
     "name-citation        BidLSTM_CRF_FEATURES       20  3000"
     "patent-citation      BidLSTM_CRF_FEATURES       40  1000"
+    "header-article-light      BidLSTM_ChainCRF_FEATURES  3  3500"
+    "header-article-light      BidLSTM_CRF_FEATURES       3  3500"
+    "header-article-light-ref  BidLSTM_ChainCRF_FEATURES  3  3500"
+    "header-article-light-ref  BidLSTM_CRF_FEATURES       3  3500"
 )
 # the largest models get more data loading workers
-MANY_WORKERS_MODELS=" header citation "
+MANY_WORKERS_MODELS=" header citation header-article-light header-article-light-ref "
 
 CONTAINER_IMAGE=${CONTAINER_IMAGE-/netscratch/lfoppiano/enroot/tensorflow-2.17.2-gpu-delft-updated.sqsh}
 CONTAINER_WORKDIR=${CONTAINER_WORKDIR:-$(cd "$(dirname "$(readlink -f "$0")")/.." && pwd)}
@@ -76,7 +80,7 @@ MEMORY=${MEMORY:-100G}
 TIME_LIMIT=${TIME_LIMIT:-3-00:00}
 SBATCH_EXTRA=${SBATCH_EXTRA:-}
 
-MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-10}
+MAX_PARALLEL_JOBS=${MAX_PARALLEL_JOBS:-14}
 DRY_RUN=${DRY_RUN:-false}
 PYTHON_BIN=${PYTHON_BIN:-.venv/bin/python}
 TASKS=${TASKS:-}

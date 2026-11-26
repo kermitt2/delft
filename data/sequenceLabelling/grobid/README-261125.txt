@@ -29,3 +29,14 @@ Older files not to train from
       sequences have other labels than header-261121.train.
   affiliation-address/affiliation-address-261004.train predates the affiliation review (GROBID #1596, #1601).
       affiliation-address-261011.train has the current labels, with the commonName values.
+
+Header light models (GROBID PR #1654, handled in PR #1655 too)
+  header-article-light/header-article-light-261125.train
+  header-article-light-ref/header-article-light-ref-261125.train
+      210,274 tokens, 854 sequences, 33 columns, commonName (col 21) 0 on every row. The two files are identical
+      (symlinked corpora in GROBID). Same data as delft-training-light-2026-11-18 (abstract removed from the
+      header data, labels <title> <author> <date> <pubnum> <other>), only the commonName column set to 0.
+      The .test files are not committed (2 documents).
+  To retrain: BidLSTM_ChainCRF_FEATURES and BidLSTM_CRF_FEATURES, --batch-size 3 --max-sequence-length 3500 (the
+      config.json shipped by PR #1654), tasks header-article-light and header-article-light-ref of
+      scripts/grobid_retraining.sh.
