@@ -1,0 +1,31 @@
+Update of 2026-11-25/26 to the data and models of README-261121.txt (GROBID issue #1454, PR #1655).
+
+Data
+  name-header/name-header-261125.train    81,161 tokens, 2,450 sequences, 21 columns, commonName (col 14) 0 on every row
+      Generated 2026-11-25 by the GROBID trainers from branch feature/remove-common-name @ 7a22599a1, after the
+      merge of master: it has the name/header data of GROBID PR #1641 (1,450 -> 2,450 sequences), which
+      name-header-261121.train lacks. It replaces that file: scripts/grobid_retraining.sh reads the latest one.
+  The other 261121 files were regenerated from the same commit and are byte-identical: header,
+  reference-segmenter, citation, affiliation-address, name-citation, patent-citation. Nothing to update.
+  The .test file is not committed (155 tokens, 6 sequences).
+
+Models
+  data/models/sequenceLabelling/grobid-affiliation-address-BidLSTM_CRF_FEATURES
+      model_weights.hdf5 replaced by a second training on affiliation-address-261121.train, same protocol as
+      scripts/grobid_retraining.sh (from scratch, then two --incremental iterations; batch size 20, max sequence
+      length 600, glove-840B), run on CPU with this code. config.json and preprocessor.json are unchanged.
+      It is the model of GROBID feature/remove-common-name @ 4f359f598. Six trainings of this configuration score
+      43.5 to 44.9 on the arXiv affiliations (strict F1); the previous weights were the lowest, these ones (44.0)
+      are the closest to the mean (44.1).
+
+Still to retrain
+  name-header        BidLSTM_CRF_FEATURES   --batch-size 20 --max-sequence-length 3000   on name-header-261125.train
+      (the model in data/models was trained on name-header-261121.train)
+  patent-citation    BidLSTM_CRF_FEATURES   --batch-size 40 --max-sequence-length 1000   on patent-citation-261121.train.gz
+      (never retrained without commonName)
+
+Older files not to train from
+  header/header-261010.train is byte-identical to header-261004.train (the 4 October export): 377 of its 860
+      sequences have other labels than header-261121.train.
+  affiliation-address/affiliation-address-261004.train predates the affiliation review (GROBID #1596, #1601).
+      affiliation-address-261011.train has the current labels, with the commonName values.
